@@ -30,15 +30,14 @@ authority.
 
 ## Diagrams
 
-The logical architecture figure shows the experience and edge, domain
-boundaries, authoritative data paths, and supporting infrastructure:
+The system-context diagram shows the browser, API edge, experience API,
+domain services, and supporting infrastructure:
 
-![UACRF logical microservice architecture](../Technical_Approach/alignment_revision_22/figure3_logical_architecture.svg)
+![UACRF system-context architecture](../Microservices_Architecture/MS01/diagrams/system_context.svg)
 
-The deployment landscape shows environment promotion, the private control
-plane, customer-cloud boundaries, and operational responsibilities:
+The deployment diagram shows the planned deployment and privilege boundaries:
 
-![UACRF deployment landscape](../Technical_Approach/alignment_revision_22/figure_z1_deployment_landscape.svg)
+![UACRF deployment and privilege boundaries](../Microservices_Architecture/MS01/diagrams/deployment.svg)
 
 The [MS01 diagrams](../Microservices_Architecture/MS01/diagrams/) provide
 additional focused views of system context, event delivery, execution,
