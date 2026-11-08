@@ -1,4 +1,4 @@
-# Unified Assurance, Control, and Recovery Framework (UACRF)
+# Unified Adaptive Cloud Resilience Framework (UACRF)
 
 UACRF is a framework in design and prototyping for assessing the resilience of
 services and AI-agent workloads, governing bounded operational actions, and
