@@ -44,7 +44,7 @@ demonstrate that the target microservices work.
 
 - [Microservices architecture](docs/ARCHITECTURE.md) —
   service boundaries, data ownership, and system behavior.
-- [Architecture implementation roadmap](docs/implementation_roadmap.md) —
+- [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
 - [Acceptance criteria and risks](Microservices_Architecture/MS01/ACCEPTANCE_AND_RISKS.md) —
   planned system-level acceptance tests and principal risks.
