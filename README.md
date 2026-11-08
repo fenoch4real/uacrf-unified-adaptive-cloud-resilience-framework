@@ -42,9 +42,7 @@ demonstrate that the target microservices work.
 
 ## Explore the project
 
-- [Technical Approach, alignment revision 22](Technical_Approach/UACRF_Technical_Approach_Design_v1_0_alignment_revision_22.docx) —
-  product requirements, capabilities, and technical direction.
-- [Microservices architecture](Microservices_Architecture/MS01/ARCHITECTURE.md) —
+- [Microservices architecture](ARCHITECTURE.md) —
   service boundaries, data ownership, and system behavior.
 - [Architecture implementation plan](Microservices_Architecture/MS01/IMPLEMENTATION_PLAN.md) —
   staged implementation and migration milestones.
