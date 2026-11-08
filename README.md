@@ -46,7 +46,7 @@ demonstrate that the target microservices work.
   service boundaries, data ownership, and system behavior.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
-- [Acceptance criteria and risks](Microservices_Architecture/MS01/ACCEPTANCE_AND_RISKS.md) —
+- [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —
   planned system-level acceptance tests and principal risks.
 - [Architecture reading library](Microservices_Architecture/MS01/index.html) —
   browsable design documents and diagrams.
@@ -87,5 +87,5 @@ the migration baseline, establish the build and CI foundation, and record
 security and contract policies. Milestone M1 then establishes the first real
 multi-service workflow for identity, catalog, and customer journeys.
 
-See the [implementation plan](Microservices_Architecture/MS01/IMPLEMENTATION_PLAN.md)
+See the [implementation plan](docs/IMPLEMENTATION_PLAN.md)
 for milestone entry and completion criteria.
