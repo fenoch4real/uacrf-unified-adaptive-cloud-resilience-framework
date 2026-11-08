@@ -68,7 +68,7 @@ the release scope.
 
 ## Progress and completion
 
-Track each milestone against the detailed [MS01 implementation plan](../Microservices_Architecture/MS01/IMPLEMENTATION_PLAN.md)
+Track each milestone against the detailed [MS01 implementation plan](IMPLEMENTATION_PLAN.md)
 and [acceptance and risk register](../Microservices_Architecture/MS01/ACCEPTANCE_AND_RISKS.md).
 Design coverage, a passing build, or a working local adapter is not by itself
 evidence that a complete workflow or production integration has been accepted.
