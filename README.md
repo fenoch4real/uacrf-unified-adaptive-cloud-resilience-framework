@@ -62,14 +62,6 @@ and validation before use.
 software license has been selected; until one is added, do not assume that
 the code or documents may be reused or redistributed.
 
-## Before making the repository public
-
-The local package includes a `Patents/` directory with draft patent
-specifications. Confirm that these materials are cleared for public release
-before uploading them or making the repository public. Also review all included
-source materials and assets for ownership, redistribution rights, credentials,
-personal information, and other non-public content.
-
 ## Implementation starting point
 
 Implementation is planned to begin with milestone M0: preserve and reconcile
