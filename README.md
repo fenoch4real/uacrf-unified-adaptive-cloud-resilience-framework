@@ -48,12 +48,6 @@ demonstrate that the target microservices work.
   staged implementation and migration milestones.
 - [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —
   planned system-level acceptance tests and principal risks.
-- [Architecture reading library](Microservices_Architecture/MS01/index.html) —
-  browsable design documents and diagrams.
-- [UI prototype](UI/ui_workloads/index.html) and [setup guide](UI/ui_workloads/START_HERE.html) —
-  illustrative screens and local-only flows.
-- [UI document library](UI/DOCUMENT_LIBRARY.html) —
-  supporting UI, assurance, graph, and runtime references.
 
 The [implementation roadmap](docs/implementation-roadmap.md) summarizes the
 planned sequence.
