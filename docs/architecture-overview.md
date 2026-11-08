@@ -1,9 +1,10 @@
 # UACRF architecture overview
 
-UACRF is designed as a set of independently deployable Java Spring Boot
-services. A browser application reaches those services through an API edge and
-a unified experience API. The experience API presents task-oriented workflows
-without making the browser a privileged cloud client.
+The Unified Adaptive Cloud Resilience Framework (UACRF) is designed as a set
+of independently deployable Java Spring Boot services. A browser application
+reaches those services through an API edge and a unified experience API. The
+experience API presents task-oriented workflows without making the browser a
+privileged cloud client.
 
 ## Core design
 
