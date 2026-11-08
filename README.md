@@ -1,13 +1,25 @@
 # Unified Adaptive Cloud Resilience Framework (UACRF)
 
-UACRF is a framework in design and prototyping for assessing the resilience of
-services and AI-agent workloads, governing bounded operational actions, and
-reviewing recovery evidence. Customer journeys connect those capabilities to
-outcomes; services and agents remain separately managed workloads.
+UACRF is in design and prototyping for assessing the resilience of services
+and AI-agent workloads, governing bounded operational actions, and reviewing
+recovery evidence. Customer journeys connect those capabilities to outcomes;
+services and agents remain separately managed workloads.
 
 This repository records the current product and architecture baseline and the
 work planned to implement it. It is not a release of a completed UACRF
 microservices system.
+
+## Published paper
+
+The framework is introduced in the following publication:
+
+Fabiyi, O. O., & Yeboah, M. M. (2026). [*UACRF: A Unified Adaptive Framework
+for Resilient AI-Cloud Systems Supporting Critical Digital Infrastructure*](https://nahdapublications.org/nid/nid/njbei.2026.0001).
+NJBEI Review, 1.0, 1–29. Published September 18, 2026. NID:
+nid/njbei.2026.0001.
+
+This repository describes the product and implementation design that builds
+on the paper's framework.
 
 ## Project status
 
@@ -61,6 +73,14 @@ and validation before use.
 - This repository does not grant rights to any third-party material. No
 software license has been selected; until one is added, do not assume that
 the code or documents may be reused or redistributed.
+
+## Before making the repository public
+
+The local package includes a `Patents/` directory with draft patent
+specifications. Confirm that these materials are cleared for public release
+before uploading them or making the repository public. Also review all included
+source materials and assets for ownership, redistribution rights, credentials,
+personal information, and other non-public content.
 
 ## Implementation starting point
 
