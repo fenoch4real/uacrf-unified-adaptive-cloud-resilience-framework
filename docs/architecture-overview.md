@@ -37,7 +37,7 @@ domain services, and supporting infrastructure:
 
 The deployment diagram shows the planned deployment and privilege boundaries:
 
-![UACRF deployment and privilege boundaries](deployment.svg)
+![UACRF deployment and privilege boundaries](images/deployment.svg)
 
 The [MS01 diagrams](ARCHITECTURE.md) provide
 additional focused views of system context, event delivery, execution,
