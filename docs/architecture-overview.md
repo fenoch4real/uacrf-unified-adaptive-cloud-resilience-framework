@@ -33,7 +33,7 @@ authority.
 The system-context diagram shows the browser, API edge, experience API,
 domain services, and supporting infrastructure:
 
-![UACRF system-context architecture](system_context.svg)
+![UACRF system-context architecture](images/system_context.svg)
 
 The deployment diagram shows the planned deployment and privilege boundaries:
 
