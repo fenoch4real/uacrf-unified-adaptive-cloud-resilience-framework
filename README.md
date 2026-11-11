@@ -24,7 +24,7 @@ on the paper's framework.
 ## Project status
 
 The design and prototype phase is complete enough to begin implementation.
-The repository contains an aligned Technical Approach, a detailed
+The repository contains a detailed
 microservices architecture, supporting contracts and inventories, and a
 static UI prototype. The target distributed services have not yet been
 implemented or accepted.
