@@ -176,7 +176,7 @@ Revocation before permit reservation prevents reservation. Revocation after rese
 
 An ambiguous provider response moves the attempt to OUTCOME_UNKNOWN. Reconciliation reads the provider's actual operation/resource state using the retained request identity. It never blindly retries an irreversible mutation. Compensation is a separately authorized action with its own bounds and outcome; it is not proof that all previous effects were rolled back.
 
-![Authorized execution sequence](execution_sequence.svg)
+![Authorized execution sequence](images/execution_sequence.svg)
 
 ## 14 End to end customer workflows
 
