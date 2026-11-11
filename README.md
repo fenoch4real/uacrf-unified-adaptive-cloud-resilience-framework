@@ -46,7 +46,8 @@ demonstrate that the target microservices work.
   service boundaries, data ownership, and system behavior.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
-- [UI prototype](UI/ui_workloads/index.html) and [setup guide](UI/ui_workloads/START_HERE.html)
+- [UI prototype](UI/ui_workloads/index.html) and [setup guide](UI/ui_workloads/START_HERE.html) —
+  illustrative screens and local-only flows.
 - [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —
   planned system-level acceptance tests and principal risks.
 
