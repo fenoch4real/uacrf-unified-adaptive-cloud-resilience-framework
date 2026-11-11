@@ -47,7 +47,7 @@ The customer reaches a single application through the API edge. The experience A
 
 The control plane owns identity, inventory, evidence, targets, topology, assessment, policy and orchestration. The collection plane reads cloud and monitoring sources. The execution plane performs narrowly authorized mutations inside customer or tenant-isolated execution cells. The reporting plane builds permitted activity views and evidence exports. Separate workload identities, credentials, network policies and deployment pools protect these planes.
 
-![System context](system_context.svg)
+![System context](images/system_context.svg)
 
 A collection credential does not authorize recovery. A model credential does not authorize cloud access. A billing entitlement does not authorize an action. The execution cell receives a bounded plan and a short-lived, action-specific permit; it never accepts arbitrary shell, Cypher, SQL or model-generated tool instructions.
 
@@ -112,7 +112,7 @@ Events are keyed by tenant, environment and graph aggregate. Duplicate projectio
 
 Service-only, agent-only and mixed views remain available. Models, tools, knowledge bases, memories, identities, runtimes, regions and failure domains are typed shared resources. Display filters change the view, not the underlying ownership or evidence. Recovery-independence queries return a diagnostic and its assumptions; S12 decides whether a declared path satisfies certification requirements.
 
-![Data ownership](data_ownership.svg)
+![Data ownership](images/data_ownership.svg)
 
 ## 9 Artifact and evidence storage
 
