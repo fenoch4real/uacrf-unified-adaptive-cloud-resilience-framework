@@ -66,5 +66,6 @@ jobs:
           connections connections-service
           evidence evidence-service
           objectives objectives-service
+          topology topology-service
           web web
           IMAGES

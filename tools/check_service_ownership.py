@@ -82,6 +82,21 @@ OWNERS = {
         "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
         "compose_service": "objectives-db",
     },
+    "topology": {
+        "module": "services/topology",
+        "artifact": "topology-service",
+        "database": "uacrf_topology",
+        "jdbc_env": "TOPOLOGY_JDBC_URL",
+        "user_env": "TOPOLOGY_DB_USER",
+        "password_env": "TOPOLOGY_DB_PASSWORD",
+        "name_env": "TOPOLOGY_DB_NAME",
+        "admin_user_env": "TOPOLOGY_DB_ADMIN_USER",
+        "admin_password_env": "TOPOLOGY_DB_ADMIN_PASSWORD",
+        "delegation_public_env": "UACRF_DELEGATION_PUBLIC_KEY_BASE64",
+        "delegation_private_env": None,
+        "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
+        "compose_service": "topology-db",
+    },
 }
 
 
@@ -243,7 +258,7 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}", file=sys.stderr)
         return 1
-    print("S01/S02/S03 service ownership checks passed.")
+    print("Service ownership checks passed.")
     return 0
 
 

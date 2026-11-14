@@ -389,6 +389,14 @@ retains evidence events and decides qualification.
   through S02, a live S01 authority check on activation, retired templates, material
   change invalidation of pending actions, and the outbox publisher.
 
+## M2 / S06 topology (first slice)
+
+- `services/topology` (port 8088, audience S06, schema/database `uacrf_topology`) is the sole authority today, backed by PostgreSQL. Neo4j is not provisioned and its projection is **not built**.
+- Public operations are routed by EDGE01 under `/internal/topology`: `POST/GET /v1/dependency-proposals`, `GET /v1/dependency-proposals/{id}`, `POST /v1/dependency-proposals/{id}:review`, `POST /v1/graphs:accept`, `GET /v1/graphs/{id}`, `GET /v1/graphs/{id}/subgraph`, and `GET /v1/graphs/{id}/impact`. The private `POST /internal/v1/graphs/{id}:receipt` endpoint is not routed.
+- PostgreSQL owns `permitted_relationships`, `dependency_proposals`, `graph_revisions`, `graph_nodes`, `graph_edges`, `graph_edge_conflicts`, and `outbox_event`. Proposals are tenant/environment scoped and constrained by a relationship allowlist. Observed proposals require source system, source revision, and verification time; authored proposals forbid those observed-source fields. Reviews use expected revisions and require a reviewer distinct from the proposer.
+- Accepting a graph requires the expected current revision for its scope. Accepted proposals are merged deterministically into an immutable graph revision with a canonical digest; repeating the same graph content does not create another revision. Conflicting provenance for duplicate accepted relationships is recorded in `graph_edge_conflicts`. Graph acceptance/conflict events are written transactionally to the outbox. The receipt currently reports `NOT_PROJECTED`.
+- Still needed: the Neo4j projection worker with lease and reconciliation; classify/select/impact behavior exercised against real catalog data; an explicit reconciliation-versus-inventory policy; the S03 outbox publisher for S06 events; and S10 consumption pinned to an exact graph revision.
+
 ## Next implementation step
 
 Public S01 identity reads and writes now pass through EDGE01, while delegation
