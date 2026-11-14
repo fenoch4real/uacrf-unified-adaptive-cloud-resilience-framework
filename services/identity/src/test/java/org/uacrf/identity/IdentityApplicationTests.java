@@ -728,7 +728,7 @@ class IdentityApplicationTests {
             "/internal/v1/delegations",
             token("keycloak-subject-1"),
             """
-            {"audience":"S05","service_id":"svc-1","capability_ids":["catalog.service.write"]}
+            {"audience":"S06","service_id":"svc-1","capability_ids":["catalog.service.write"]}
             """);
     assertEquals(400, unknownAudience.statusCode());
 

@@ -75,6 +75,25 @@ services:
       timeout: 3s
       retries: 12
 
+  objectives-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: ${OBJECTIVES_DB_NAME:?copy .env.example to .env and configure it}
+      POSTGRES_USER: ${OBJECTIVES_DB_ADMIN_USER:?set an objectives database admin user}
+      POSTGRES_PASSWORD: ${OBJECTIVES_DB_ADMIN_PASSWORD:?set an objectives database admin password}
+      APP_DB_USER: ${OBJECTIVES_DB_USER:?copy .env.example to .env and configure it}
+      APP_DB_PASSWORD: ${OBJECTIVES_DB_PASSWORD:?copy .env.example to .env and configure it}
+    ports:
+      - "127.0.0.1:55436:5432"
+    volumes:
+      - objectives-data:/var/lib/postgresql/data
+      - ./config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
     command: ["start-dev", "--import-realm"]
@@ -96,4 +115,5 @@ volumes:
   catalog-data:
   connections-data:
   evidence-data:
+  objectives-data:
   keycloak-data:

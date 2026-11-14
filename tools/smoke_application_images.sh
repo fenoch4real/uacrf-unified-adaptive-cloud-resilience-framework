@@ -11,6 +11,7 @@ identity_network="uacrf-image-smoke-${smoke_id}-identity"
 catalog_network="uacrf-image-smoke-${smoke_id}-catalog"
 connections_network="uacrf-image-smoke-${smoke_id}-connections"
 evidence_network="uacrf-image-smoke-${smoke_id}-evidence"
+objectives_network="uacrf-image-smoke-${smoke_id}-objectives"
 containers=()
 networks=()
 umask 077
@@ -36,6 +37,7 @@ cleanup() {
     "$smoke_root/catalog.env" \
     "$smoke_root/connections.env" \
     "$smoke_root/evidence.env" \
+    "$smoke_root/objectives.env" \
     "$smoke_root/api-edge.env" \
     "$smoke_root/experience-api.env" \
     "$smoke_root/web.env"
@@ -232,6 +234,7 @@ start_application() {
     catalog) run_network="$catalog_network" ;;
     connections) run_network="$connections_network" ;;
     evidence) run_network="$evidence_network" ;;
+    objectives) run_network="$objectives_network" ;;
     service) ;;
     *) printf 'Unknown application network: %s\n' "$data_network" >&2; return 2 ;;
   esac
@@ -393,6 +396,7 @@ assert_edge_routes_reach_owners() {
   local internal_delegation_status
   local connections_status
   local evidence_status
+  local objectives_status
   mapping="$(docker port "$container" 8080/tcp)"
   host_port="${mapping##*:}"
   status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
@@ -419,6 +423,14 @@ assert_edge_routes_reach_owners() {
     return 1
   fi
   printf 'EDGE01 evidence route reached S04 and preserved its unauthenticated response\n'
+  objectives_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --max-time 3 "http://127.0.0.1:${host_port}/internal/objectives/v1/objectives")"
+  if [[ "$objectives_status" != 401 ]]; then
+    printf 'EDGE01 objectives route returned %s instead of S05 authentication response 401\n' \
+      "$objectives_status" >&2
+    return 1
+  fi
+  printf 'EDGE01 objectives route reached S05 and preserved its unauthenticated response\n'
   identity_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
     --max-time 3 "http://127.0.0.1:${host_port}/v1/me/access")"
   if [[ "$identity_status" != 401 ]]; then
@@ -481,11 +493,20 @@ UACRF_DELEGATION_PUBLIC_KEY_BASE64=${public_key}
 UACRF_DELEGATION_KEY_ID=image-smoke
 EOF
 
+cat > "$smoke_root/objectives.env" <<EOF
+OBJECTIVES_JDBC_URL=jdbc:postgresql://objectives-db:5432/uacrf_objectives
+OBJECTIVES_DB_USER=uacrf_objectives_smoke
+OBJECTIVES_DB_PASSWORD=objectives-smoke-password
+UACRF_DELEGATION_PUBLIC_KEY_BASE64=${public_key}
+UACRF_DELEGATION_KEY_ID=image-smoke
+EOF
+
 cat > "$smoke_root/api-edge.env" <<'EOF'
 UACRF_EDGE_IDENTITY_BASE_URL=http://identity:8082
 UACRF_EDGE_CATALOG_BASE_URL=http://estate-catalog:8083
 UACRF_EDGE_CONNECTIONS_BASE_URL=http://connections:8085
 UACRF_EDGE_EVIDENCE_BASE_URL=http://evidence:8086
+UACRF_EDGE_OBJECTIVES_BASE_URL=http://objectives:8087
 EOF
 
 cat > "$smoke_root/experience-api.env" <<'EOF'
@@ -499,7 +520,7 @@ UACRF_EXPERIENCE_BASE_URL=http://experience-api:8081
 UACRF_CATALOG_BASE_URL=http://api-edge:8080/internal/catalog
 EOF
 
-for network in "$service_network" "$identity_network" "$catalog_network" "$connections_network" "$evidence_network"; do
+for network in "$service_network" "$identity_network" "$catalog_network" "$connections_network" "$evidence_network" "$objectives_network"; do
   docker network create "$network" >/dev/null
   networks+=("$network")
 done
@@ -517,6 +538,9 @@ start_database connections-db uacrf_connections connections_admin connections-ad
 start_database evidence-db uacrf_evidence evidence_admin evidence-admin-smoke-password \
   uacrf_evidence_smoke evidence-smoke-password \
   "$evidence_network"
+start_database objectives-db uacrf_objectives objectives_admin objectives-admin-smoke-password \
+  uacrf_objectives_smoke objectives-smoke-password \
+  "$objectives_network"
 
 start_application identity "uacrf/identity-service:${image_tag}" 8082 \
   "$smoke_root/identity.env" identity
@@ -526,6 +550,8 @@ start_application connections "uacrf/connections-service:${image_tag}" 8085 \
   "$smoke_root/connections.env" connections
 start_application evidence "uacrf/evidence-service:${image_tag}" 8086 \
   "$smoke_root/evidence.env" evidence
+start_application objectives "uacrf/objectives-service:${image_tag}" 8087 \
+  "$smoke_root/objectives.env" objectives
 start_application api-edge "uacrf/api-edge:${image_tag}" 8080 \
   "$smoke_root/api-edge.env" service
 start_application experience-api "uacrf/experience-api:${image_tag}" 8081 \
@@ -542,8 +568,12 @@ assert_database_isolation connections connections-db catalog-db
 assert_database_isolation evidence evidence-db identity-db
 assert_database_isolation evidence evidence-db catalog-db
 assert_database_isolation evidence evidence-db connections-db
-assert_no_database_access api-edge identity-db catalog-db connections-db evidence-db
-assert_no_database_access experience-api identity-db catalog-db connections-db evidence-db
-assert_no_database_access web identity-db catalog-db connections-db evidence-db
+assert_database_isolation objectives objectives-db identity-db
+assert_database_isolation objectives objectives-db catalog-db
+assert_database_isolation objectives objectives-db connections-db
+assert_database_isolation objectives objectives-db evidence-db
+assert_no_database_access api-edge identity-db catalog-db connections-db evidence-db objectives-db
+assert_no_database_access experience-api identity-db catalog-db connections-db evidence-db objectives-db
+assert_no_database_access web identity-db catalog-db connections-db evidence-db objectives-db
 assert_cross_database_credentials_rejected
 assert_edge_routes_reach_owners

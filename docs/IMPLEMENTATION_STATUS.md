@@ -365,6 +365,30 @@ retains evidence events and decides qualification.
   `UACRF_S03_CLIENT_SECRET` for S03. Not yet built: source schemas, policies, gap
   waivers, raw-byte metadata.
 
+## M2 / S05 objectives (first slice)
+
+- `services/objectives` (port 8087, audience S05, schema/database `uacrf_objectives`) owns
+  workload objective revisions and mandatory organization constraints.
+- Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
+  (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
+  APPROVED, ACTIVE). Activation supersedes the active objective for the same
+  workload and metric; a partial unique index allows only one ACTIVE per workload and
+  metric.
+- Targets are exact decimals with a comparator, unit and window. Organization
+  constraints (`PUT /v1/organization-constraints/{metric}`) bound unit and target
+  range and are enforced at submit and again at activation, so a later rule change
+  blocks stale approvals.
+- Imported objectives must carry source, definition id, observed revision and
+  verification time (database CHECK plus API validation); local ones cannot.
+- `POST /internal/v1/workloads/{id}/objectives:receipt` returns the exact active set
+  and a set digest. Events (proposed, submitted, decided, activated, superseded) go
+  through the transactional outbox; no publisher yet.
+- S01 registers the `objectives.*` capabilities and issues S05 delegations. EDGE01
+  routes only the public operations under `/internal/objectives`.
+- Not yet built: import preview and conflict resolution, workload ownership checks
+  through S02, a live S01 authority check on activation, retired templates, material
+  change invalidation of pending actions, and the outbox publisher.
+
 ## Next implementation step
 
 Public S01 identity reads and writes now pass through EDGE01, while delegation

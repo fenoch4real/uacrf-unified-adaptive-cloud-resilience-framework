@@ -14,7 +14,7 @@ final class IdentityRequests {
   private IdentityRequests() {}
 
   record Delegation(
-      @NotBlank @Pattern(regexp = "^S0[234]$") String audience,
+      @NotBlank @Pattern(regexp = "^S0[2345]$") String audience,
       @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String serviceId,
       @NotEmpty @Size(max = 100) List<@NotBlank @Size(max = 200) String> capabilityIds,
       @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String tenantId,

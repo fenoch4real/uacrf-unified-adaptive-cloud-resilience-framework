@@ -45,6 +45,11 @@ class IdentityAccessService {
           "evidence.event.write",
           "evidence.inbox.write",
           "evidence.qualification.review",
+          "objectives.objective.read",
+          "objectives.objective.write",
+          "objectives.objective.review",
+          "objectives.objective.activate",
+          "objectives.constraint.write",
           "owner.eligible",
           "runtime.principal.use");
   private static final Duration GRANT_DECISION_TTL = Duration.ofMinutes(15);
@@ -70,8 +75,8 @@ class IdentityAccessService {
   @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   IdentityResponses.Delegation createDelegation(
       Jwt jwt, IdentityRequests.Delegation request) {
-    if (!Set.of("S02", "S03", "S04").contains(request.audience())) {
-      throw invalid("Only the S02, S03 and S04 audiences are currently available.");
+    if (!Set.of("S02", "S03", "S04", "S05").contains(request.audience())) {
+      throw invalid("Only the S02, S03, S04 and S05 audiences are currently available.");
     }
     if (request.serviceId() != null && !isValidId(request.serviceId())) {
       throw invalid("service_id is malformed.");

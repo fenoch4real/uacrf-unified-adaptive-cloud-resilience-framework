@@ -65,5 +65,6 @@ jobs:
           estate-catalog estate-catalog-service
           connections connections-service
           evidence evidence-service
+          objectives objectives-service
           web web
           IMAGES

@@ -67,6 +67,21 @@ OWNERS = {
         "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
         "compose_service": "evidence-db",
     },
+    "objectives": {
+        "module": "services/objectives",
+        "artifact": "objectives-service",
+        "database": "uacrf_objectives",
+        "jdbc_env": "OBJECTIVES_JDBC_URL",
+        "user_env": "OBJECTIVES_DB_USER",
+        "password_env": "OBJECTIVES_DB_PASSWORD",
+        "name_env": "OBJECTIVES_DB_NAME",
+        "admin_user_env": "OBJECTIVES_DB_ADMIN_USER",
+        "admin_password_env": "OBJECTIVES_DB_ADMIN_PASSWORD",
+        "delegation_public_env": "UACRF_DELEGATION_PUBLIC_KEY_BASE64",
+        "delegation_private_env": None,
+        "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
+        "compose_service": "objectives-db",
+    },
 }
 
 

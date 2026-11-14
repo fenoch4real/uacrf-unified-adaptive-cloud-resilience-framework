@@ -53,6 +53,7 @@ jobs:
           estate-catalog estate-catalog-service 8083
           connections connections-service 8085
           evidence evidence-service 8086
+          objectives objectives-service 8087
           web web 8084
           IMAGES
       - name: Smoke test all application images
@@ -108,6 +109,13 @@ jobs:
           output-file: artifacts/supply-chain/sbom-evidence-service.spdx.json
           upload-artifact: false
           upload-release-assets: false
+      - name: Generate objectives-service SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/objectives-service:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-objectives-service.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Generate web SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
@@ -144,6 +152,7 @@ jobs:
           estate-catalog-service uacrf/estate-catalog-service:${{ github.sha }}
           connections-service uacrf/connections-service:${{ github.sha }}
           evidence-service uacrf/evidence-service:${{ github.sha }}
+          objectives-service uacrf/objectives-service:${{ github.sha }}
           web uacrf/web:${{ github.sha }}
           IMAGES
           exit "$scan_status"
