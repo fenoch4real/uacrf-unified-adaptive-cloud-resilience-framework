@@ -389,6 +389,7 @@ assert_edge_routes_reach_owners() {
   local identity_status
   local internal_delegation_status
   local connections_status
+  local evidence_status
   mapping="$(docker port "$container" 8080/tcp)"
   host_port="${mapping##*:}"
   status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
@@ -407,6 +408,14 @@ assert_edge_routes_reach_owners() {
     return 1
   fi
   printf 'EDGE01 connections route reached S03 and preserved its unauthenticated response\n'
+  evidence_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --max-time 3 "http://127.0.0.1:${host_port}/internal/evidence/v1/evidence")"
+  if [[ "$evidence_status" != 401 ]]; then
+    printf 'EDGE01 evidence route returned %s instead of S04 authentication response 401\n' \
+      "$evidence_status" >&2
+    return 1
+  fi
+  printf 'EDGE01 evidence route reached S04 and preserved its unauthenticated response\n'
   identity_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
     --max-time 3 "http://127.0.0.1:${host_port}/v1/me/access")"
   if [[ "$identity_status" != 401 ]]; then
@@ -465,6 +474,7 @@ cat > "$smoke_root/api-edge.env" <<'EOF'
 UACRF_EDGE_IDENTITY_BASE_URL=http://identity:8082
 UACRF_EDGE_CATALOG_BASE_URL=http://estate-catalog:8083
 UACRF_EDGE_CONNECTIONS_BASE_URL=http://connections:8085
+UACRF_EDGE_EVIDENCE_BASE_URL=http://evidence:8086
 EOF
 
 cat > "$smoke_root/experience-api.env" <<'EOF'
