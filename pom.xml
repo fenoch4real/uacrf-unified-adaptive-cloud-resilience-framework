@@ -28,6 +28,7 @@
     <module>services/objectives</module>
     <module>services/topology</module>
     <module>services/assessment</module>
+    <module>services/knowledge</module>
     <module>web</module>
     <module>sample-data</module>
   </modules>
@@ -133,6 +134,7 @@
                     <exclude>org.uacrf:identity-service</exclude>
                     <exclude>org.uacrf:estate-catalog-service</exclude>
                     <exclude>org.uacrf:connections-service</exclude>
+                    <exclude>org.uacrf:knowledge-service</exclude>
                     <exclude>org.uacrf:web</exclude>
                   </excludes>
                 </bannedDependencies>

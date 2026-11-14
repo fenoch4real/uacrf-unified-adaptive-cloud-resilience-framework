@@ -132,6 +132,25 @@ services:
       timeout: 3s
       retries: 12
 
+  knowledge-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: ${KNOWLEDGE_DB_NAME:?copy .env.example to .env and configure it}
+      POSTGRES_USER: ${KNOWLEDGE_DB_ADMIN_USER:?set a knowledge database admin user}
+      POSTGRES_PASSWORD: ${KNOWLEDGE_DB_ADMIN_PASSWORD:?set a knowledge database admin password}
+      APP_DB_USER: ${KNOWLEDGE_DB_USER:?copy .env.example to .env and configure it}
+      APP_DB_PASSWORD: ${KNOWLEDGE_DB_PASSWORD:?copy .env.example to .env and configure it}
+    ports:
+      - "127.0.0.1:55439:5432"
+    volumes:
+      - knowledge-data:/var/lib/postgresql/data
+      - ./config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   neo4j:
     image: neo4j:5.26.0-community
     environment:
@@ -174,4 +193,5 @@ volumes:
   topology-data:
   topology-neo4j-data:
   assessment-data:
+  knowledge-data:
   keycloak-data:

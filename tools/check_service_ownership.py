@@ -112,6 +112,21 @@ OWNERS = {
         "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
         "compose_service": "assessment-db",
     },
+    "knowledge": {
+        "module": "services/knowledge",
+        "artifact": "knowledge-service",
+        "database": "uacrf_knowledge",
+        "jdbc_env": "KNOWLEDGE_JDBC_URL",
+        "user_env": "KNOWLEDGE_DB_USER",
+        "password_env": "KNOWLEDGE_DB_PASSWORD",
+        "name_env": "KNOWLEDGE_DB_NAME",
+        "admin_user_env": "KNOWLEDGE_DB_ADMIN_USER",
+        "admin_password_env": "KNOWLEDGE_DB_ADMIN_PASSWORD",
+        "delegation_public_env": "UACRF_DELEGATION_PUBLIC_KEY_BASE64",
+        "delegation_private_env": None,
+        "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
+        "compose_service": "knowledge-db",
+    },
 }
 
 

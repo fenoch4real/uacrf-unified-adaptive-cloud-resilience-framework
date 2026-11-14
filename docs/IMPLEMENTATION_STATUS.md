@@ -409,6 +409,54 @@ retains evidence events and decides qualification.
 - Learning records are immutable proposals at `/v1/learning-records`, linked to an incident with a revision fence and evidence limited to that incident. Their transactional `uacrf.s07.learning.proposed.v1` outbox event records attribution and PROPOSED state. There is no learning decision, approval, adoption, or automatic production policy/model change.
 - Remaining work: implement forecasts and forecast execution, add learning proposal review/adoption and the outbox publisher, and integrate S10 consumption. Model governance, incident retention, and proposal retention are implemented; they do not enable model execution or production policy changes.
 
+## M3 / S08 knowledge and retrieval (conservative first slice)
+
+- `services/knowledge` (port 8090, audience S08, database/schema
+  `uacrf_knowledge`) owns its own retained material, version lifecycle,
+  retrieval manifests, and transactional outbox. Its PostgreSQL database has a
+  distinct runtime role and Compose service. S01 issues the six
+  `knowledge.*` capabilities; review capability membership is restricted to
+  human principals, and S08 review additionally checks capability, global
+  scope, independence, expected revision, and deadline.
+- `POST /v1/knowledge-items` accepts bounded UTF-8 plaintext only (maximum
+  256 KiB), stores a source SHA-256 digest computed by S08, and creates a
+  CANDIDATE. `source_ref` is inert metadata and is never fetched. Per-item
+  version bodies are immutable; independent review moves candidate versions to
+  APPROVED or REJECTED, and a newer candidate does not shadow the previous
+  approved version. Classification access derives from explicit S01
+  `knowledge.classification.internal.read` and
+  `knowledge.classification.restricted.read` grants; callers cannot elevate
+  their own clearance by setting `max_classification`. Metadata reads are
+  tenant/environment scoped, filtered by classification, and can filter by
+  allowed purpose.
+- `POST /v1/retrievals` implements exact-term tokenized search only. It
+  produces deterministic, non-overlapping chunks of at most 1,000 characters,
+  ranks exact query-term matches deterministically, and retains offsets,
+  source/excerpt digests, purpose, classification, and a manifest digest.
+  Workload-targeted material remains excluded until an owner-verified workload
+  scope is implemented; a caller-supplied workload ID is rejected and cannot
+  authorize access.
+  `GET /v1/retrievals/{id}` rechecks the retained source and excerpt digests
+  and only returns excerpt text while its source version remains APPROVED,
+  unwithdrawn, and purpose/classification eligible for the current reader.
+  Withdrawal blocks new
+  retrievals immediately and conceals prior excerpts while retaining
+  manifest metadata. Database triggers prevent body, lifecycle, and manifest
+  substitution/deletion.
+- The internal `POST /internal/v1/retrievals/{id}:receipt` is not routed by
+  EDGE01. EDGE01 routes the public metadata, staging, review, withdrawal, and
+  retrieval operations under `/internal/knowledge`; the receipt remains
+  private. Without verified S07 case binding it always returns
+  `eligible: false`, `reason: CASE_NOT_BOUND`, and
+  `case_binding=NOT_VERIFIED`; the caller-supplied case identifier is not treated as proof
+  and the receipt is not S09-eligible. `uacrf.s08.knowledge.review.changed.v1`
+  and `uacrf.s08.retrieval.retained.v1` are written transactionally; publishing
+  is not implemented.
+- Not implemented: PDF conversion, embeddings/external indexes, current
+  requester-authority refresh, S07 case-receipt verification, protected
+  replay, and outbox publishing. This slice does not claim S07 case binding or
+  authorize protected inference/recovery use.
+
 ## Next implementation step
 
 Public S01 identity reads and writes now pass through EDGE01, while delegation

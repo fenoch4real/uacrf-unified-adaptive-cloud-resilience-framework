@@ -764,7 +764,7 @@ class IdentityApplicationTests {
             "/internal/v1/delegations",
             token("keycloak-subject-1"),
             """
-            {"audience":"S08","service_id":"svc-1","capability_ids":["catalog.service.write"]}
+            {"audience":"S09","service_id":"svc-1","capability_ids":["catalog.service.write"]}
             """);
     assertEquals(400, unknownAudience.statusCode());
 
@@ -824,12 +824,77 @@ class IdentityApplicationTests {
             java.nio.charset.StandardCharsets.UTF_8);
         assertThat(claims).contains("\"capabilities\":[\"" + capability + "\"]");
       }
+
     } finally {
       jdbc.update(
           "DELETE FROM uacrf_identity.membership WHERE principal_id='admin-test' "
               + "AND capability IN ('assessment.model.read','assessment.model.write',"
               + "'assessment.model.review','assessment.incident.read',"
               + "'assessment.incident.write','assessment.learning.write')");
+    }
+  }
+
+  @Test
+  void knowledgeCapabilitiesAreDelegableToS08OnlyForHumanMemberships() throws Exception {
+    List<String> knowledgeCapabilities =
+        List.of(
+            "knowledge.item.read",
+            "knowledge.item.write",
+            "knowledge.item.review",
+            "knowledge.retrieval.run",
+            "knowledge.retrieval.read",
+            "knowledge.item.withdraw");
+    try {
+      for (String capability : knowledgeCapabilities) {
+        jdbc.update(
+            "INSERT INTO uacrf_identity.membership "
+                + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+                + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', "
+                + "'admin-test', ?, '*', '2099-12-31T23:59:59Z', 1)",
+            UUID.randomUUID(),
+            capability);
+      }
+
+      HttpResponse<String> delegation =
+          post(
+              "/internal/v1/delegations",
+              token("keycloak-subject-1"),
+              """
+              {"audience":"S08","capability_ids":[
+                "knowledge.item.read","knowledge.item.write","knowledge.item.review",
+                "knowledge.retrieval.run","knowledge.retrieval.read","knowledge.item.withdraw"]}
+              """);
+      assertEquals(200, delegation.statusCode(), delegation.body());
+      assertThat(delegation.body()).contains("\"expires_in\":30");
+
+      jdbc.update(
+          "INSERT INTO uacrf_identity.principal "
+              + "(id, issuer_uri, subject, display_name, kind, enabled, token_valid_after, revision) "
+              + "VALUES ('knowledge-system', ?, 'knowledge-system-subject', 'Knowledge system', "
+              + "'SYSTEM', true, now(), 1) ON CONFLICT (id) DO NOTHING",
+          ISSUER);
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+              + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', "
+              + "'knowledge-system', 'knowledge.item.review', '*', '2099-12-31T23:59:59Z', 1)",
+          UUID.randomUUID());
+      HttpResponse<String> systemReviewer =
+          post(
+              "/internal/v1/delegations",
+              token("knowledge-system-subject"),
+              """
+              {"audience":"S08","capability_ids":["knowledge.item.review"]}
+              """);
+      assertEquals(403, systemReviewer.statusCode(), systemReviewer.body());
+    } finally {
+      jdbc.update(
+          "DELETE FROM uacrf_identity.membership WHERE principal_id = 'admin-test' "
+              + "AND capability IN ('knowledge.item.read','knowledge.item.write',"
+              + "'knowledge.item.review','knowledge.retrieval.run',"
+              + "'knowledge.retrieval.read','knowledge.item.withdraw')");
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id = 'knowledge-system'");
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id = 'knowledge-system'");
     }
   }
 

@@ -65,6 +65,14 @@ class IdentityAccessService {
           "assessment.model.read",
           "assessment.model.write",
           "assessment.model.review",
+          "knowledge.item.read",
+          "knowledge.item.write",
+          "knowledge.item.review",
+          "knowledge.retrieval.run",
+          "knowledge.retrieval.read",
+          "knowledge.item.withdraw",
+          "knowledge.classification.internal.read",
+          "knowledge.classification.restricted.read",
           "owner.eligible",
           "runtime.principal.use");
   private static final Duration GRANT_DECISION_TTL = Duration.ofMinutes(15);
@@ -90,8 +98,8 @@ class IdentityAccessService {
   @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   IdentityResponses.Delegation createDelegation(
       Jwt jwt, IdentityRequests.Delegation request) {
-    if (!Set.of("S02", "S03", "S04", "S05", "S06", "S07").contains(request.audience())) {
-      throw invalid("Only the S02 through S07 audiences are currently available.");
+    if (!Set.of("S02", "S03", "S04", "S05", "S06", "S07", "S08").contains(request.audience())) {
+      throw invalid("Only the S02 through S08 audiences are currently available.");
     }
     if (request.serviceId() != null && !isValidId(request.serviceId())) {
       throw invalid("service_id is malformed.");
@@ -106,6 +114,9 @@ class IdentityAccessService {
     Actor actor = resolveActor(jwt, request.tenantId(), request.environmentId());
     if (requestedCapabilities.contains("evidence.inbox.write") && !"SYSTEM".equals(actor.kind())) {
       throw denied("Service-to-service capabilities are only delegable to system principals.");
+    }
+    if (requestedCapabilities.contains("knowledge.item.review") && !"HUMAN".equals(actor.kind())) {
+      throw denied("Knowledge review delegations are only available to human principals.");
     }
     for (String capability : requestedCapabilities) {
       if (!hasCapability(actor, capability, request.serviceId())) {
@@ -1157,6 +1168,7 @@ class IdentityAccessService {
         switch (capability) {
           case "owner.eligible" -> "HUMAN".equals(kind);
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
+          case "knowledge.item.review" -> "HUMAN".equals(kind);
           default -> "HUMAN".equals(kind) || "SYSTEM".equals(kind);
         };
     if (!allowed) {
