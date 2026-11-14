@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "service_id",
+    "name",
+    "kind",
+    "owner_id",
+    "runtime_principal_id",
+    "purpose"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "service_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "kind": {
+      "enum": [
+        "SINGLE_AGENT",
+        "MULTI_AGENT"
+      ]
+    },
+    "owner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "runtime_principal_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    }
+  }
+}

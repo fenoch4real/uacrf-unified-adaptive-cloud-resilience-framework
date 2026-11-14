@@ -1,0 +1,18 @@
+flowchart LR
+  A[Qualified evidence] --> B[Idempotent incremental projection]
+  B --> C[Current trusted operational graph]
+  C --> D[Create graph revision metadata]
+  D --> E[Select action relevant subgraph]
+  E --> F[Canonicalize and calculate subgraph digest]
+  F --> G[Bind assessment policy approval and authorization]
+  G --> H{Material graph difference before execution}
+  H -- no --> I[Execute bounded recovery]
+  H -- nonmaterial --> I
+  H -- narrowing and policy permits --> I
+  H -- material safety change --> J[Invalidate authorization and reassess]
+  J --> E
+  I --> K[Cross layer validation and stable window]
+  K --> L[Qualified post recovery observations]
+  L --> B
+  K --> M[Seal decision snapshot witness paths and evidence]
+  M -. retained history .-> C

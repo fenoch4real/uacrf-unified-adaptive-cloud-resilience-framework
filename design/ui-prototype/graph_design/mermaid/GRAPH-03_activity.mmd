@@ -1,0 +1,22 @@
+flowchart TD
+    Start(["Start: authenticated caller or trusted trigger"])
+    S01{"S01 · Spring Boot · Submit a verified token explicit graph revision and bounded parameters"}
+    S02{"S02 · PostgreSQL · Check current identity all workload scopes evidence and projection acknowledgement"}
+    S03{"S03 · Neo4j · Compare sealed receipt watermark counts and full projected content"}
+    S04{"S04 · Spring Boot · Return typed topology or calculate direction-aware bounded diagnostic witnesses"}
+    S05{"S05 · PostgreSQL · Recheck accepted source evidence and acknowledgement before finishing"}
+    S06["S06 · Caller · Return revision-bound scope-limited results with no recovery certification"]
+    F1["F1: F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted."]
+    End(["End: retained result or explicit pending/restrictive status"])
+    Start --> S01
+    S01 -->|pass| S02
+    S01 -->|fail or incomplete| F1
+    S02 -->|pass| S03
+    S02 -->|fail or incomplete| F1
+    S03 -->|pass| S04
+    S03 -->|fail or incomplete| F1
+    S04 -->|pass| S05
+    S04 -->|fail or incomplete| F1
+    S05 -->|pass| S06
+    S05 -->|fail or incomplete| F1
+    S06 --> End

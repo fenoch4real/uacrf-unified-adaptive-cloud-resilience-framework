@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "design_revision": 6,
+  "visual_refinement": 2,
+  "status": "PASS_SOURCE_AND_MAPPING_REVIEW",
+  "actions": 49,
+  "context_summaries": 16,
+  "canonical_operations": 74,
+  "unchanged_schema_sql_api_artifacts": 74,
+  "source_fixture_checks": 185,
+  "browser_acceptance": "NOT_EXECUTED_LOCAL_FILE_POLICY_BLOCK",
+  "runtime_api_execution": "NOT_EXECUTED",
+  "score_change": 0,
+  "unavailable_actions": [
+    "Live connection provisioning",
+    "Access editing",
+    "Recovery dispatch",
+    "Catalogue edit/unlink/reorder/retirement"
+  ],
+  "scope": "Presentation and traceability; schemas and canonical API inventory preserved."
+}

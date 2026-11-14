@@ -1,0 +1,27 @@
+flowchart LR
+  %% 02 Evidence To Outcome
+  subgraph SG0["Evidence"]
+    N0["EvidenceSource<br/>source"]
+    N1["EvidenceEvent<br/>normalized"]
+    N2["EvidenceQualification<br/>qualified"]
+  end
+  subgraph SG1["Runtime"]
+    N3["CloudResource<br/>resource"]
+    N4["Deployment<br/>release"]
+    N5["Service<br/>service"]
+  end
+  subgraph SG2["Customer"]
+    N6["JourneyStep<br/>step"]
+    N7["CustomerJourney<br/>journey"]
+    N8["Impact<br/>impact"]
+    N9["Outcome<br/>outcome"]
+  end
+  N0 -->|EMITS| N1
+  N1 -->|QUALIFIED_BY| N2
+  N2 -->|DESCRIBES_STATE_OF| N3
+  N3 -->|INSTANCE_OF| N4
+  N4 -->|IMPLEMENTS| N5
+  N5 -->|SUPPORTS_STEP| N6
+  N6 -->|PART_OF_JOURNEY| N7
+  N7 -->|AFFECTS| N8
+  N8 -->|CONTRIBUTES_TO| N9

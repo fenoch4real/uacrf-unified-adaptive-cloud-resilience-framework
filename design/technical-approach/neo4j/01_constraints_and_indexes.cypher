@@ -1,0 +1,68 @@
+// Earlier explanatory fragment. For current implementation use database/ in the complete release.
+// Do not apply alongside the current baseline migrations/projector. Historical source is retained in prior archives.
+// SUPERSEDED for new implementations by database/README.md (Version 1.0 database revision 1).
+// Retained reference fragment; do not combine with the new empty-database baseline.
+// Review Neo4j edition/version support before execution.
+CREATE CONSTRAINT tenant_key IF NOT EXISTS FOR (n:Tenant) REQUIRE n.tenant_id IS UNIQUE;
+CREATE CONSTRAINT environment_key IF NOT EXISTS FOR (n:Environment) REQUIRE (n.tenant_id, n.environment_id) IS NODE KEY;
+CREATE CONSTRAINT evidencesource_key IF NOT EXISTS FOR (n:EvidenceSource) REQUIRE (n.tenant_id, n.evidence_source_id) IS NODE KEY;
+CREATE CONSTRAINT evidenceevent_key IF NOT EXISTS FOR (n:EvidenceEvent) REQUIRE (n.tenant_id, n.event_id) IS NODE KEY;
+CREATE CONSTRAINT evidencequalification_key IF NOT EXISTS FOR (n:EvidenceQualification) REQUIRE (n.tenant_id, n.qualification_id) IS NODE KEY;
+CREATE CONSTRAINT cloudprovider_key IF NOT EXISTS FOR (n:CloudProvider) REQUIRE (n.tenant_id, n.cloud_provider_id) IS NODE KEY;
+CREATE CONSTRAINT account_key IF NOT EXISTS FOR (n:Account) REQUIRE (n.tenant_id, n.account_id) IS NODE KEY;
+CREATE CONSTRAINT region_key IF NOT EXISTS FOR (n:Region) REQUIRE (n.tenant_id, n.region_id) IS NODE KEY;
+CREATE CONSTRAINT availabilityzone_key IF NOT EXISTS FOR (n:AvailabilityZone) REQUIRE (n.tenant_id, n.availability_zone_id) IS NODE KEY;
+CREATE CONSTRAINT failuredomain_key IF NOT EXISTS FOR (n:FailureDomain) REQUIRE (n.tenant_id, n.failure_domain_id) IS NODE KEY;
+CREATE CONSTRAINT cluster_key IF NOT EXISTS FOR (n:Cluster) REQUIRE (n.tenant_id, n.cluster_id) IS NODE KEY;
+CREATE CONSTRAINT computenode_key IF NOT EXISTS FOR (n:ComputeNode) REQUIRE (n.tenant_id, n.compute_node_id) IS NODE KEY;
+CREATE CONSTRAINT cloudresource_key IF NOT EXISTS FOR (n:CloudResource) REQUIRE (n.tenant_id, n.resource_id) IS NODE KEY;
+CREATE CONSTRAINT network_key IF NOT EXISTS FOR (n:Network) REQUIRE (n.tenant_id, n.network_id) IS NODE KEY;
+CREATE CONSTRAINT dnsservice_key IF NOT EXISTS FOR (n:DNSService) REQUIRE (n.tenant_id, n.dns_service_id) IS NODE KEY;
+CREATE CONSTRAINT service_key IF NOT EXISTS FOR (n:Service) REQUIRE (n.tenant_id, n.environment_id, n.service_id) IS NODE KEY;
+CREATE CONSTRAINT applicationcomponent_key IF NOT EXISTS FOR (n:ApplicationComponent) REQUIRE (n.tenant_id, n.component_id) IS NODE KEY;
+CREATE CONSTRAINT deployment_key IF NOT EXISTS FOR (n:Deployment) REQUIRE (n.tenant_id, n.deployment_id) IS NODE KEY;
+CREATE CONSTRAINT api_key IF NOT EXISTS FOR (n:API) REQUIRE (n.tenant_id, n.api_id) IS NODE KEY;
+CREATE CONSTRAINT queue_key IF NOT EXISTS FOR (n:Queue) REQUIRE (n.tenant_id, n.queue_id) IS NODE KEY;
+CREATE CONSTRAINT database_key IF NOT EXISTS FOR (n:Database) REQUIRE (n.tenant_id, n.database_id) IS NODE KEY;
+CREATE CONSTRAINT datastore_key IF NOT EXISTS FOR (n:DataStore) REQUIRE (n.tenant_id, n.data_store_id) IS NODE KEY;
+CREATE CONSTRAINT externaldependency_key IF NOT EXISTS FOR (n:ExternalDependency) REQUIRE (n.tenant_id, n.external_dependency_id) IS NODE KEY;
+CREATE CONSTRAINT team_key IF NOT EXISTS FOR (n:Team) REQUIRE (n.tenant_id, n.team_id) IS NODE KEY;
+CREATE CONSTRAINT identity_key IF NOT EXISTS FOR (n:Identity) REQUIRE (n.tenant_id, n.identity_id) IS NODE KEY;
+CREATE CONSTRAINT identityprovider_key IF NOT EXISTS FOR (n:IdentityProvider) REQUIRE (n.tenant_id, n.identity_provider_id) IS NODE KEY;
+CREATE CONSTRAINT encryptionkey_key IF NOT EXISTS FOR (n:EncryptionKey) REQUIRE (n.tenant_id, n.key_id) IS NODE KEY;
+CREATE CONSTRAINT control_key IF NOT EXISTS FOR (n:Control) REQUIRE (n.tenant_id, n.control_id) IS NODE KEY;
+CREATE CONSTRAINT policy_key IF NOT EXISTS FOR (n:Policy) REQUIRE (n.tenant_id, n.policy_id) IS NODE KEY;
+CREATE CONSTRAINT slo_key IF NOT EXISTS FOR (n:SLO) REQUIRE (n.tenant_id, n.slo_id) IS NODE KEY;
+CREATE CONSTRAINT aimodel_key IF NOT EXISTS FOR (n:AIModel) REQUIRE (n.tenant_id, n.model_id) IS NODE KEY;
+CREATE CONSTRAINT modelversion_key IF NOT EXISTS FOR (n:ModelVersion) REQUIRE (n.tenant_id, n.model_version_id) IS NODE KEY;
+CREATE CONSTRAINT modelendpoint_key IF NOT EXISTS FOR (n:ModelEndpoint) REQUIRE (n.tenant_id, n.model_endpoint_id) IS NODE KEY;
+CREATE CONSTRAINT featurestore_key IF NOT EXISTS FOR (n:FeatureStore) REQUIRE (n.tenant_id, n.feature_store_id) IS NODE KEY;
+CREATE CONSTRAINT dataset_key IF NOT EXISTS FOR (n:Dataset) REQUIRE (n.tenant_id, n.dataset_id) IS NODE KEY;
+CREATE CONSTRAINT modelfallback_key IF NOT EXISTS FOR (n:ModelFallback) REQUIRE (n.tenant_id, n.model_fallback_id) IS NODE KEY;
+CREATE CONSTRAINT externalprovider_key IF NOT EXISTS FOR (n:ExternalProvider) REQUIRE (n.tenant_id, n.provider_id) IS NODE KEY;
+CREATE CONSTRAINT location_key IF NOT EXISTS FOR (n:Location) REQUIRE (n.tenant_id, n.location_id) IS NODE KEY;
+CREATE CONSTRAINT customerjourney_key IF NOT EXISTS FOR (n:CustomerJourney) REQUIRE (n.tenant_id, n.journey_id) IS NODE KEY;
+CREATE CONSTRAINT journeystep_key IF NOT EXISTS FOR (n:JourneyStep) REQUIRE (n.tenant_id, n.step_id) IS NODE KEY;
+CREATE CONSTRAINT customersegment_key IF NOT EXISTS FOR (n:CustomerSegment) REQUIRE (n.tenant_id, n.segment_id) IS NODE KEY;
+CREATE CONSTRAINT essentialfunction_key IF NOT EXISTS FOR (n:EssentialFunction) REQUIRE (n.tenant_id, n.function_id) IS NODE KEY;
+CREATE CONSTRAINT impact_key IF NOT EXISTS FOR (n:Impact) REQUIRE (n.tenant_id, n.impact_id) IS NODE KEY;
+CREATE CONSTRAINT outcome_key IF NOT EXISTS FOR (n:Outcome) REQUIRE (n.tenant_id, n.outcome_id) IS NODE KEY;
+CREATE CONSTRAINT runbook_key IF NOT EXISTS FOR (n:Runbook) REQUIRE (n.tenant_id, n.runbook_id) IS NODE KEY;
+CREATE CONSTRAINT recoverypath_key IF NOT EXISTS FOR (n:RecoveryPath) REQUIRE (n.tenant_id, n.recovery_path_id) IS NODE KEY;
+CREATE CONSTRAINT candidateaction_key IF NOT EXISTS FOR (n:CandidateAction) REQUIRE (n.tenant_id, n.action_id) IS NODE KEY;
+CREATE CONSTRAINT authorization_key IF NOT EXISTS FOR (n:Authorization) REQUIRE (n.tenant_id, n.authorization_id) IS NODE KEY;
+CREATE CONSTRAINT execution_key IF NOT EXISTS FOR (n:Execution) REQUIRE (n.tenant_id, n.execution_id) IS NODE KEY;
+CREATE CONSTRAINT validationplan_key IF NOT EXISTS FOR (n:ValidationPlan) REQUIRE (n.tenant_id, n.validation_plan_id) IS NODE KEY;
+CREATE CONSTRAINT validationresult_key IF NOT EXISTS FOR (n:ValidationResult) REQUIRE (n.tenant_id, n.validation_result_id) IS NODE KEY;
+CREATE CONSTRAINT graphrevision_key IF NOT EXISTS FOR (n:GraphRevision) REQUIRE (n.tenant_id, n.graph_revision) IS NODE KEY;
+CREATE CONSTRAINT decisionenvelope_key IF NOT EXISTS FOR (n:DecisionEnvelope) REQUIRE (n.tenant_id, n.decision_id) IS NODE KEY;
+CREATE CONSTRAINT agentanalysiscase_key IF NOT EXISTS FOR (n:AgentAnalysisCase) REQUIRE (n.tenant_id, n.case_id) IS NODE KEY;
+CREATE CONSTRAINT agentassignment_key IF NOT EXISTS FOR (n:AgentAssignment) REQUIRE (n.tenant_id, n.assignment_id) IS NODE KEY;
+CREATE CONSTRAINT agentproposal_key IF NOT EXISTS FOR (n:AgentProposal) REQUIRE (n.tenant_id, n.proposal_id) IS NODE KEY;
+CREATE CONSTRAINT agentdissentrecord_key IF NOT EXISTS FOR (n:AgentDissentRecord) REQUIRE (n.tenant_id, n.dissent_id) IS NODE KEY;
+CREATE CONSTRAINT arbitrationrecord_key IF NOT EXISTS FOR (n:ArbitrationRecord) REQUIRE (n.tenant_id, n.arbitration_id) IS NODE KEY;
+CREATE INDEX service_criticality IF NOT EXISTS FOR (n:Service) ON (n.tenant_id, n.environment_id, n.criticality);
+CREATE INDEX resource_region IF NOT EXISTS FOR (n:CloudResource) ON (n.tenant_id, n.provider, n.region);
+CREATE INDEX evidence_time IF NOT EXISTS FOR (n:EvidenceEvent) ON (n.tenant_id, n.occurred_at);
+CREATE INDEX graph_revision_digest IF NOT EXISTS FOR (n:GraphRevision) ON (n.tenant_id, n.content_digest);
+CREATE FULLTEXT INDEX topology_search IF NOT EXISTS FOR (n:Service|ApplicationComponent|API|CloudResource|AIModel|ExternalProvider) ON EACH [n.name, n.canonical_id, n.native_id];

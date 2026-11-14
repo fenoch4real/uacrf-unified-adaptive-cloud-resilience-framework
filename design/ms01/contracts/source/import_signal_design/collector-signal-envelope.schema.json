@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "collector signal envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "connection_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "source_sequence": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "payload_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "signal_kind": {
+      "enum": [
+        "METRIC",
+        "CONFIGURATION",
+        "AGENT_EXECUTION"
+      ]
+    },
+    "target_workload_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "normalizer_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "quality": {
+      "enum": [
+        "OBSERVATION_ONLY",
+        "INCOMPLETE",
+        "CONFLICTING"
+      ]
+    },
+    "connection_revision": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "connection_id",
+    "source_event_id",
+    "source_sequence",
+    "source_version",
+    "observed_at",
+    "payload_digest",
+    "payload_ref",
+    "signal_kind",
+    "target_workload_id",
+    "normalizer_version",
+    "quality",
+    "connection_revision"
+  ]
+}

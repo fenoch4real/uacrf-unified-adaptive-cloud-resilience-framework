@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "status": "PROPOSED_NOT_PROMOTED",
+  "operations": 8,
+  "schemas": 9,
+  "storage_record_families": 7,
+  "existing_admission": [
+    "POST /v1/evidence/events",
+    "POST /v1/agent-workload-executions/{id}/events"
+  ],
+  "existing_objective_extension": "../objective_design/openapi.proposed.json",
+  "canonical_totals_include_extension": false,
+  "ui_views": {
+    "UI-22": "Local fictional objective import comparison",
+    "UI-15": "Local provider-scoped timing plan",
+    "UI-17": "Collection coverage and source-health review"
+  },
+  "runtime_workers": [
+    "Approved source adapter",
+    "Objective normalization and conflict worker",
+    "Evidence admission worker",
+    "Freshness and scoped evaluation scheduler",
+    "Pre-dispatch authority worker"
+  ],
+  "required_atomicity": "Record history audit outbox and checkpoints together; no direct worker grants in storage sketch."
+}

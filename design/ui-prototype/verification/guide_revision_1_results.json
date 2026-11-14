@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "guide_revision": 1,
+  "status": "PASS",
+  "checked_local_markdown_links": 315,
+  "current_release_files_listed": 207,
+  "guide_copies_checked": 5,
+  "word_pdf_files_unchanged": 18,
+  "database_files_unchanged": true,
+  "ui_images_unchanged": 33,
+  "existing_tests": "76 reference tests and 28 package checks passed; portable database checks passed. Engines not rerun for this editorial change.",
+  "acceptance_or_score_change": "None"
+}

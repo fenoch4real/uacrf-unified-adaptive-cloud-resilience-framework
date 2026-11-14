@@ -1,0 +1,2012 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF signed authorization-policy bundles",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Definition": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "allowed_action_kinds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]{0,79}$"
+            }
+          },
+          "allowed_actor_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          "allowed_resource_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S",
+              "not": {
+                "const": "*"
+              }
+            }
+          },
+          "permitted_providers": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "AWS",
+                "AZURE",
+                "GCP",
+                "AGENT_RUNTIME"
+              ]
+            }
+          },
+          "permitted_regions": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S",
+              "not": {
+                "const": "*"
+              }
+            }
+          },
+          "required_approver_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "eligible_approver_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          "maximum_cost_usd": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000000,
+            "multipleOf": 1e-06
+          }
+        },
+        "required": [
+          "allowed_action_kinds",
+          "allowed_actor_ids",
+          "allowed_resource_ids",
+          "permitted_providers",
+          "permitted_regions",
+          "required_approver_count",
+          "eligible_approver_ids",
+          "maximum_cost_usd"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/authorization-policy-bundles": {
+      "post": {
+        "operationId": "authorization-policy-propose",
+        "summary": "authorization policy propose",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed governance result; not evaluation or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "policy": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9223372036854775807
+                        },
+                        "service_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "definition": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "allowed_action_kinds": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[A-Z][A-Z0-9_]{0,79}$"
+                              }
+                            },
+                            "allowed_actor_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              }
+                            },
+                            "allowed_resource_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S",
+                                "not": {
+                                  "const": "*"
+                                }
+                              }
+                            },
+                            "permitted_providers": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "enum": [
+                                  "AWS",
+                                  "AZURE",
+                                  "GCP",
+                                  "AGENT_RUNTIME"
+                                ]
+                              }
+                            },
+                            "permitted_regions": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S",
+                                "not": {
+                                  "const": "*"
+                                }
+                              }
+                            },
+                            "required_approver_count": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "eligible_approver_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              }
+                            },
+                            "maximum_cost_usd": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1000000000,
+                              "multipleOf": 1e-06
+                            }
+                          },
+                          "required": [
+                            "allowed_action_kinds",
+                            "allowed_actor_ids",
+                            "allowed_resource_ids",
+                            "permitted_providers",
+                            "permitted_regions",
+                            "required_approver_count",
+                            "eligible_approver_ids",
+                            "maximum_cost_usd"
+                          ]
+                        },
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "proposed_by": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "proposal_reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000,
+                          "pattern": "\\S"
+                        },
+                        "proposed_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "decision": {
+                          "enum": [
+                            "DRAFT",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "reviewer_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "review_reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "current_eligible": {
+                          "type": "boolean"
+                        },
+                        "material": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "algorithm": {
+                              "const": "SHA-256"
+                            },
+                            "encoding": {
+                              "const": "UTF-8"
+                            },
+                            "canonical_text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200000,
+                              "pattern": "\\S"
+                            },
+                            "digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "algorithm",
+                            "encoding",
+                            "canonical_text",
+                            "digest"
+                          ]
+                        },
+                        "authority": {
+                          "const": "SIGNED_POLICY_CONFIGURATION_NOT_ACTION_AUTHORIZATION"
+                        },
+                        "effective_from": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "policy_version_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trust_digest": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trust_revision": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "assertion_digest": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "signed_assertion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 16000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "revision",
+                        "service_id",
+                        "expires_at",
+                        "definition",
+                        "digest",
+                        "proposed_by",
+                        "proposal_reason",
+                        "proposed_at",
+                        "decision",
+                        "reviewer_id",
+                        "review_reason",
+                        "reviewed_at",
+                        "current_eligible",
+                        "material",
+                        "authority",
+                        "effective_from",
+                        "policy_version_id",
+                        "trust_digest",
+                        "trust_revision",
+                        "assertion_digest",
+                        "signed_assertion"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "policy",
+                    "receipt_id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "service_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9223372036854775807
+                  },
+                  "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "definition": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "allowed_action_kinds": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Z0-9_]{0,79}$"
+                        }
+                      },
+                      "allowed_actor_ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        }
+                      },
+                      "allowed_resource_ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S",
+                          "not": {
+                            "const": "*"
+                          }
+                        }
+                      },
+                      "permitted_providers": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "AWS",
+                            "AZURE",
+                            "GCP",
+                            "AGENT_RUNTIME"
+                          ]
+                        }
+                      },
+                      "permitted_regions": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S",
+                          "not": {
+                            "const": "*"
+                          }
+                        }
+                      },
+                      "required_approver_count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10
+                      },
+                      "eligible_approver_ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        }
+                      },
+                      "maximum_cost_usd": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000000000,
+                        "multipleOf": 1e-06
+                      }
+                    },
+                    "required": [
+                      "allowed_action_kinds",
+                      "allowed_actor_ids",
+                      "allowed_resource_ids",
+                      "permitted_providers",
+                      "permitted_regions",
+                      "required_approver_count",
+                      "eligible_approver_ids",
+                      "maximum_cost_usd"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "effective_from": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "id",
+                  "service_id",
+                  "expected_revision",
+                  "expires_at",
+                  "definition",
+                  "reason",
+                  "effective_from"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "authorization-policy-list",
+        "summary": "authorization policy list",
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed governance result; not evaluation or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9223372036854775807
+                          },
+                          "service_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "digest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "proposed_by": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "proposal_reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000,
+                            "pattern": "\\S"
+                          },
+                          "proposed_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "decision": {
+                            "enum": [
+                              "DRAFT",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "reviewer_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "review_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "reviewed_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "current_eligible": {
+                            "type": "boolean"
+                          },
+                          "authority": {
+                            "const": "SIGNED_POLICY_CONFIGURATION_NOT_ACTION_AUTHORIZATION"
+                          },
+                          "effective_from": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "policy_version_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "trust_digest": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "trust_revision": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "assertion_digest": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision",
+                          "service_id",
+                          "expires_at",
+                          "digest",
+                          "proposed_by",
+                          "proposal_reason",
+                          "proposed_at",
+                          "decision",
+                          "reviewer_id",
+                          "review_reason",
+                          "reviewed_at",
+                          "current_eligible",
+                          "authority",
+                          "effective_from",
+                          "policy_version_id",
+                          "trust_digest",
+                          "trust_revision",
+                          "assertion_digest"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500,
+                          "pattern": "\\S"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/authorization-policy-bundles/{id}": {
+      "get": {
+        "operationId": "authorization-policy-get",
+        "summary": "authorization policy get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed governance result; not evaluation or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "policy": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9223372036854775807
+                        },
+                        "service_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "definition": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "allowed_action_kinds": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[A-Z][A-Z0-9_]{0,79}$"
+                              }
+                            },
+                            "allowed_actor_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              }
+                            },
+                            "allowed_resource_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S",
+                                "not": {
+                                  "const": "*"
+                                }
+                              }
+                            },
+                            "permitted_providers": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "enum": [
+                                  "AWS",
+                                  "AZURE",
+                                  "GCP",
+                                  "AGENT_RUNTIME"
+                                ]
+                              }
+                            },
+                            "permitted_regions": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S",
+                                "not": {
+                                  "const": "*"
+                                }
+                              }
+                            },
+                            "required_approver_count": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "eligible_approver_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              }
+                            },
+                            "maximum_cost_usd": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1000000000,
+                              "multipleOf": 1e-06
+                            }
+                          },
+                          "required": [
+                            "allowed_action_kinds",
+                            "allowed_actor_ids",
+                            "allowed_resource_ids",
+                            "permitted_providers",
+                            "permitted_regions",
+                            "required_approver_count",
+                            "eligible_approver_ids",
+                            "maximum_cost_usd"
+                          ]
+                        },
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "proposed_by": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "proposal_reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000,
+                          "pattern": "\\S"
+                        },
+                        "proposed_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "decision": {
+                          "enum": [
+                            "DRAFT",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "reviewer_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "review_reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "current_eligible": {
+                          "type": "boolean"
+                        },
+                        "material": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "algorithm": {
+                              "const": "SHA-256"
+                            },
+                            "encoding": {
+                              "const": "UTF-8"
+                            },
+                            "canonical_text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200000,
+                              "pattern": "\\S"
+                            },
+                            "digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "algorithm",
+                            "encoding",
+                            "canonical_text",
+                            "digest"
+                          ]
+                        },
+                        "authority": {
+                          "const": "SIGNED_POLICY_CONFIGURATION_NOT_ACTION_AUTHORIZATION"
+                        },
+                        "effective_from": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "policy_version_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trust_digest": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trust_revision": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "assertion_digest": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "signed_assertion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 16000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "revision",
+                        "service_id",
+                        "expires_at",
+                        "definition",
+                        "digest",
+                        "proposed_by",
+                        "proposal_reason",
+                        "proposed_at",
+                        "decision",
+                        "reviewer_id",
+                        "review_reason",
+                        "reviewed_at",
+                        "current_eligible",
+                        "material",
+                        "authority",
+                        "effective_from",
+                        "policy_version_id",
+                        "trust_digest",
+                        "trust_revision",
+                        "assertion_digest",
+                        "signed_assertion"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "policy",
+                    "receipt_id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/authorization-policy-bundles/{id}:decide": {
+      "post": {
+        "operationId": "authorization-policy-decide",
+        "summary": "authorization policy decide",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed governance result; not evaluation or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "receipt_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "policy": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9223372036854775807
+                        },
+                        "service_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "definition": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "allowed_action_kinds": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[A-Z][A-Z0-9_]{0,79}$"
+                              }
+                            },
+                            "allowed_actor_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              }
+                            },
+                            "allowed_resource_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S",
+                                "not": {
+                                  "const": "*"
+                                }
+                              }
+                            },
+                            "permitted_providers": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "enum": [
+                                  "AWS",
+                                  "AZURE",
+                                  "GCP",
+                                  "AGENT_RUNTIME"
+                                ]
+                              }
+                            },
+                            "permitted_regions": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S",
+                                "not": {
+                                  "const": "*"
+                                }
+                              }
+                            },
+                            "required_approver_count": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 10
+                            },
+                            "eligible_approver_ids": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "uniqueItems": true,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              }
+                            },
+                            "maximum_cost_usd": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1000000000,
+                              "multipleOf": 1e-06
+                            }
+                          },
+                          "required": [
+                            "allowed_action_kinds",
+                            "allowed_actor_ids",
+                            "allowed_resource_ids",
+                            "permitted_providers",
+                            "permitted_regions",
+                            "required_approver_count",
+                            "eligible_approver_ids",
+                            "maximum_cost_usd"
+                          ]
+                        },
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "proposed_by": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "proposal_reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000,
+                          "pattern": "\\S"
+                        },
+                        "proposed_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "decision": {
+                          "enum": [
+                            "DRAFT",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "reviewer_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "review_reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "current_eligible": {
+                          "type": "boolean"
+                        },
+                        "material": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "algorithm": {
+                              "const": "SHA-256"
+                            },
+                            "encoding": {
+                              "const": "UTF-8"
+                            },
+                            "canonical_text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200000,
+                              "pattern": "\\S"
+                            },
+                            "digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "algorithm",
+                            "encoding",
+                            "canonical_text",
+                            "digest"
+                          ]
+                        },
+                        "authority": {
+                          "const": "SIGNED_POLICY_CONFIGURATION_NOT_ACTION_AUTHORIZATION"
+                        },
+                        "effective_from": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "policy_version_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trust_digest": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "trust_revision": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "assertion_digest": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "signed_assertion": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 16000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "revision",
+                        "service_id",
+                        "expires_at",
+                        "definition",
+                        "digest",
+                        "proposed_by",
+                        "proposal_reason",
+                        "proposed_at",
+                        "decision",
+                        "reviewer_id",
+                        "review_reason",
+                        "reviewed_at",
+                        "current_eligible",
+                        "material",
+                        "authority",
+                        "effective_from",
+                        "policy_version_id",
+                        "trust_digest",
+                        "trust_revision",
+                        "assertion_digest",
+                        "signed_assertion"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "policy",
+                    "receipt_id"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9223372036854775807
+                  },
+                  "decision": {
+                    "enum": [
+                      "APPROVE",
+                      "REJECT"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "signed_assertion": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16000,
+                        "pattern": "\\S"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "decision",
+                  "reason",
+                  "signed_assertion"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "decision": {
+                          "const": "APPROVE"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "signed_assertion": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 16000,
+                          "pattern": "\\S"
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "signed_assertion": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

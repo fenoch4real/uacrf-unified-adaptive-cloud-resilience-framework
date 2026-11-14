@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "guide_revision": 10,
+  "status": "PASS_SOURCE_AND_DESIGN_CONTRACT_CHECKS",
+  "schema_and_contract_checks": 18,
+  "canonical_baseline_files_preserved": 48,
+  "normative_definitions_preserved": 131,
+  "existing_document_media_preserved": 49,
+  "objective_extension": {
+    "operations": 7,
+    "record_families": 4,
+    "engine_tested": false,
+    "promoted_to_canonical_baseline": false
+  },
+  "domain_handlers": "NOT_IMPLEMENTED_BY_THIS_UPDATE",
+  "browser_and_live_acceptance": "NOT_EXECUTED",
+  "score_change": 0
+}

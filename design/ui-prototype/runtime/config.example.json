@@ -1,0 +1,13 @@
+{
+  "tenant": "your-tenant",
+  "environment": "your-environment",
+  "issuer": "https://your-verified-identity-issuer.example",
+  "audience": "your-registered-uacrf-api-audience",
+  "keys": {"replace-with-approved-key-id": "identity-public-key.pem"},
+  "provider_id": "your-identity-provider",
+  "provider_name": "Your configured identity provider",
+  "directory_url": "https://your-verified-directory-adapter.example/uacrf",
+  "directory_issuer": "https://your-verified-directory-adapter.example",
+  "directory_audience": "uacrf-directory-admission",
+  "directory_keys": {"replace-with-approved-source-key-id": "directory-public-key.pem"}
+}

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_key",
+    "digest",
+    "kind",
+    "steps",
+    "tokens",
+    "cost_units",
+    "object_ref",
+    "control_generation"
+  ],
+  "properties": {
+    "source_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "kind": {
+      "enum": [
+        "DISPATCH",
+        "RESULT",
+        "LATE_RESULT",
+        "OBSERVATION",
+        "COMPLETION"
+      ]
+    },
+    "steps": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cost_units": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "object_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "control_generation": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

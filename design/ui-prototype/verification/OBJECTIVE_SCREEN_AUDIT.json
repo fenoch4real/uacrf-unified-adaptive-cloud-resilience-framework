@@ -1,0 +1,750 @@
+{
+  "version": "1.0",
+  "date": "2026-10-31",
+  "scope": "Read-only source audit; no browser rendering or live acceptance. Current corrected source review.",
+  "views": 49,
+  "rendered_contexts": 147,
+  "links_checked": 8896,
+  "primary_modes": {
+    "NAVIGATE": 22,
+    "LOCAL_REVIEW_PREVIEW": 26,
+    "UNAVAILABLE": 1
+  },
+  "results": [
+    {
+      "screen": "UI-01",
+      "title": "Overview",
+      "primary_action": "Review customer journeys",
+      "mode": "NAVIGATE",
+      "target": "UI-46",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 208,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-02",
+      "title": "Services",
+      "primary_action": "Register a service",
+      "mode": "NAVIGATE",
+      "target": "UI-16",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 177,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-03",
+      "title": "Assess",
+      "primary_action": "Prepare an assessment review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 187,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-04",
+      "title": "Control",
+      "primary_action": "Review changed context",
+      "mode": "NAVIGATE",
+      "target": "UI-20",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 190,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-05",
+      "title": "Recover",
+      "primary_action": "Review recovery prerequisites",
+      "mode": "NAVIGATE",
+      "target": "UI-41",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 190,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-06",
+      "title": "Evidence",
+      "primary_action": "Inspect evidence quality",
+      "mode": "NAVIGATE",
+      "target": "UI-21",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 190,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-07",
+      "title": "Browse governed knowledge",
+      "primary_action": "Submit knowledge",
+      "mode": "NAVIGATE",
+      "target": "UI-08",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 169,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-08",
+      "title": "Submit knowledge for review",
+      "primary_action": "Prepare knowledge submission",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 166,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-09",
+      "title": "Review a knowledge version",
+      "primary_action": "Prepare version review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 166,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-10",
+      "title": "Inspect grounded search results",
+      "primary_action": "Prepare grounded search",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 166,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-11",
+      "title": "Set up bounded agent assistance",
+      "primary_action": "Prepare advisory run",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 158,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-12",
+      "title": "Inspect agent run progress",
+      "primary_action": "Review advisory output",
+      "mode": "NAVIGATE",
+      "target": "UI-13",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 161,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-13",
+      "title": "Review agent output and dissent",
+      "primary_action": "Prepare output review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 158,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-14",
+      "title": "Govern knowledge and agent capabilities",
+      "primary_action": "Review access boundaries",
+      "mode": "NAVIGATE",
+      "target": "UI-30",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 161,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-15",
+      "title": "Connect an environment",
+      "primary_action": "Prepare connection review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 165,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-16",
+      "title": "Register a service",
+      "primary_action": "Prepare service registration",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 166,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-17",
+      "title": "Connection health",
+      "primary_action": "Review environment setup",
+      "mode": "NAVIGATE",
+      "target": "UI-15",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 170,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-18",
+      "title": "Dependencies",
+      "primary_action": "Inspect dependency evidence",
+      "mode": "NAVIGATE",
+      "target": "UI-21",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 214,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-19",
+      "title": "Review recovery independence",
+      "primary_action": "Prepare independence review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 211,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-20",
+      "title": "Review changed decision context",
+      "primary_action": "Prepare changed-context review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 211,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-21",
+      "title": "Review evidence quality",
+      "primary_action": "Prepare evidence qualification review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 184,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-22",
+      "title": "Define workload objectives",
+      "primary_action": "Review service scope",
+      "mode": "NAVIGATE",
+      "target": "UI-16",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 181,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-23",
+      "title": "Model dependencies",
+      "primary_action": "Review model outcome evidence",
+      "mode": "NAVIGATE",
+      "target": "UI-42",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 210,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-24",
+      "title": "Investigate an incident",
+      "primary_action": "Prepare impact review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 184,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-25",
+      "title": "Review an approval request",
+      "primary_action": "Prepare approval review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 184,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-26",
+      "title": "Review recovery runbooks",
+      "primary_action": "Review recovery prerequisites",
+      "mode": "NAVIGATE",
+      "target": "UI-41",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 187,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-27",
+      "title": "Plan a controlled test",
+      "primary_action": "Prepare controlled test review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 184,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-28",
+      "title": "Validate the recovery outcome",
+      "primary_action": "Prepare validation review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 184,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-29",
+      "title": "Track learning and retesting",
+      "primary_action": "Prepare retest review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 184,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-30",
+      "title": "Manage access and responsibilities",
+      "primary_action": "Review access requirements",
+      "mode": "UNAVAILABLE",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 158,
+      "local_outcome": "Unavailable action has an explicit reason; no execution tested."
+    },
+    {
+      "screen": "UI-31",
+      "title": "Review an assessment report",
+      "primary_action": "Review retained evidence",
+      "mode": "NAVIGATE",
+      "target": "UI-06",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 187,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-32",
+      "title": "Configure decision policies",
+      "primary_action": "Prepare policy evaluation review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 166,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-33",
+      "title": "Route findings and escalation",
+      "primary_action": "Review escalation responsibilities",
+      "mode": "NAVIGATE",
+      "target": "UI-30",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 169,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-34",
+      "title": "Agents",
+      "primary_action": "Register an agent",
+      "mode": "NAVIGATE",
+      "target": "UI-35",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 194,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-35",
+      "title": "Agent workload onboarding",
+      "primary_action": "Prepare agent registration",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 173,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-36",
+      "title": "Workload version review",
+      "primary_action": "Prepare workload version review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 173,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-37",
+      "title": "Agent dependency graph",
+      "primary_action": "Inspect execution",
+      "mode": "NAVIGATE",
+      "target": "UI-38",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 221,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-38",
+      "title": "Protected execution timeline",
+      "primary_action": "Review checkpoint eligibility",
+      "mode": "NAVIGATE",
+      "target": "UI-39",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 176,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-39",
+      "title": "Memory and checkpoint review",
+      "primary_action": "Review recovery prerequisites",
+      "mode": "NAVIGATE",
+      "target": "UI-41",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 176,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-40",
+      "title": "Stop and containment",
+      "primary_action": "Prepare containment review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 173,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-41",
+      "title": "Governed agent recovery",
+      "primary_action": "Prepare governed resume review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 173,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-42",
+      "title": "Agent outcome validation",
+      "primary_action": "Prepare outcome evaluation review",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 173,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-43",
+      "title": "Human handoff",
+      "primary_action": "Review original execution",
+      "mode": "NAVIGATE",
+      "target": "UI-38",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 176,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-44",
+      "title": "Usage and billing",
+      "primary_action": "Review usage evidence",
+      "mode": "NAVIGATE",
+      "target": "UI-38",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 166,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-45",
+      "title": "Multi-agent workload lineage",
+      "primary_action": "Review mandatory role outcomes",
+      "mode": "NAVIGATE",
+      "target": "UI-42",
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 211,
+      "local_outcome": "Primary destination exists. Navigation does not complete domain task."
+    },
+    {
+      "screen": "UI-46",
+      "title": "Customer journeys",
+      "primary_action": "Plan and confirm journey composition",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 190,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-47",
+      "title": "Journey detail",
+      "primary_action": "Prepare journey step",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 216,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-48",
+      "title": "Shared resources",
+      "primary_action": "Prepare resource registration",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 181,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    },
+    {
+      "screen": "UI-49",
+      "title": "Shared resource detail",
+      "primary_action": "Prepare consumer link",
+      "mode": "LOCAL_REVIEW_PREVIEW",
+      "target": null,
+      "source_navigation": "PASS",
+      "contexts": [
+        "all",
+        "order",
+        "support"
+      ],
+      "links_checked": 178,
+      "local_outcome": "Note validation, local confirmation and cancel pass. Domain task is not executed."
+    }
+  ]
+}

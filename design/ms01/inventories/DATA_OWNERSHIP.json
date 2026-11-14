@@ -1,0 +1,1379 @@
+[
+  {
+    "source_table": "uacrf.agent_assignment",
+    "target_owner": "S09",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.agent_dissent",
+    "target_owner": "S09",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.agent_output",
+    "target_owner": "S09",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.analysis_case",
+    "target_owner": "S07",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Split by context_protocol: UACRF_ANALYSIS_CONTEXT_V1 belongs to S07; UACRF_AGENT_CASE_V1 anchors move to S09. Preserve original IDs and signed source bytes.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.approval",
+    "target_owner": "S10",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.arbitration",
+    "target_owner": "S09",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.audit_event",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.authorization",
+    "target_owner": "S10",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.budget_reservation",
+    "target_owner": "S09",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.capability_asset",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/018_journey_catalog.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.claim",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.command",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.connection",
+    "target_owner": "S03",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.customer",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.customer_qualification",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.decision_envelope",
+    "target_owner": "S10",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.decision_replay",
+    "target_owner": "S10",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.discovery_run",
+    "target_owner": "S03",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.environment",
+    "target_owner": "S01",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.evaluation",
+    "target_owner": "S07",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.evidence_bundle",
+    "target_owner": "S14",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.evidence_event",
+    "target_owner": "S04",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.evidence_qualification",
+    "target_owner": "S04",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.execution_attempt",
+    "target_owner": "S11",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.experiment",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.gate_decision",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.graph_difference",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.graph_edge",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.graph_endpoint_role",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/004_integrity.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.graph_node",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.graph_revision",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.impact_result",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.journey",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/018_journey_catalog.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.journey_capability",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/018_journey_catalog.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.journey_step",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/018_journey_catalog.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.knowledge_item",
+    "target_owner": "S08",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.knowledge_review",
+    "target_owner": "S08",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.knowledge_version",
+    "target_owner": "S08",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.membership",
+    "target_owner": "S01",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.metering_event",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.notification",
+    "target_owner": "S14",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.onboarding",
+    "target_owner": "S03",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.orchestration_run",
+    "target_owner": "S09",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.outbox",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.path_certification",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.pilot",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.policy_decision",
+    "target_owner": "S10",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.policy_version",
+    "target_owner": "S10",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.principal",
+    "target_owner": "S01",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.proposal",
+    "target_owner": "S07",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.provider_plan",
+    "target_owner": "S11",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.reconciliation",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.recovery_path",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.resource",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.retrieval_citation",
+    "target_owner": "S08",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.retrieval_manifest",
+    "target_owner": "S08",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.saved_view",
+    "target_owner": "UX01",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.schema_migration",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.service",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.service_resource",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.shared_asset",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/018_journey_catalog.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.subgraph_selection",
+    "target_owner": "S06",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.ui_preference",
+    "target_owner": "UX01",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.validation_plan",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.validation_result",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.value_review",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workflow",
+    "target_owner": "S11",
+    "source_definitions": [
+      "database/postgres/001_schema.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_checkpoint",
+    "target_owner": "S11",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_dependency",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_evaluation",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_event",
+    "target_owner": "S11",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_execution",
+    "target_owner": "S11",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_profile",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_recovery",
+    "target_owner": "S12",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf.workload_version",
+    "target_owner": "S02",
+    "source_definitions": [
+      "database/postgres/015_agent_workloads.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.advisory_arbitration",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/029_advisory_runs_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.advisory_assignment",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/029_advisory_runs_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.advisory_delivery",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/029_advisory_runs_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.advisory_event",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/029_advisory_runs_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.advisory_output",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/029_advisory_runs_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.advisory_run",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/029_advisory_runs_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.agent_case_record",
+    "target_owner": "S09",
+    "source_definitions": [
+      "runtime/028_agent_cases_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.analysis_context",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/021_analysis_cases_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.application_job",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "runtime/004_application_runtime.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.application_job_event",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "runtime/004_application_runtime.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.application_worker_binding",
+    "target_owner": "PER_SERVICE",
+    "source_definitions": [
+      "runtime/004_application_runtime.sql"
+    ],
+    "migration_rule": "Split by emitting domain/operation into independent per-service technical tables; do not create a shared runtime database.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.authorization_policy",
+    "target_owner": "S10",
+    "source_definitions": [
+      "runtime/020_authorization_policy_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.authorization_policy_review",
+    "target_owner": "S10",
+    "source_definitions": [
+      "runtime/020_authorization_policy_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.evaluation_input",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/022_evaluation_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.evaluation_result",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/022_evaluation_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.evaluation_rulepack",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/019_evaluation_rulepacks_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.evaluation_rulepack_review",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/019_evaluation_rulepacks_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.evidence_receipt",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/010_evidence_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.graph_projection",
+    "target_owner": "S06",
+    "source_definitions": [
+      "runtime/002_graph_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.graph_projection_event",
+    "target_owner": "S06",
+    "source_definitions": [
+      "runtime/002_graph_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.graph_worker_binding",
+    "target_owner": "S06",
+    "source_definitions": [
+      "runtime/002_graph_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.policy_trust_configuration",
+    "target_owner": "S10",
+    "source_definitions": [
+      "runtime/020_authorization_policy_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.proposal_input",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/024_action_proposals_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.proposal_record",
+    "target_owner": "S07",
+    "source_definitions": [
+      "runtime/024_action_proposals_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_input",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/012_qualification_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_policy",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/011_qualification_policy_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_policy_review",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/011_qualification_policy_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_result",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/012_qualification_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_waiver",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/014_qualification_waiver_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_waiver_review",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/014_qualification_waiver_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.qualification_waiver_revocation",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/014_qualification_waiver_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.recovery_assessment",
+    "target_owner": "S12",
+    "source_definitions": [
+      "runtime/003_assurance_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.recovery_review",
+    "target_owner": "S12",
+    "source_definitions": [
+      "runtime/003_assurance_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.retrieval_record",
+    "target_owner": "S08",
+    "source_definitions": [
+      "runtime/027_retrieval_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.validation_plan_input",
+    "target_owner": "S12",
+    "source_definitions": [
+      "runtime/025_validation_plans_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.validation_plan_record",
+    "target_owner": "S12",
+    "source_definitions": [
+      "runtime/025_validation_plans_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_app.waiver_trust_configuration",
+    "target_owner": "S04",
+    "source_definitions": [
+      "runtime/014_qualification_waiver_runtime.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.account",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.allowance",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.allowance_application",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.contact",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.credit_line",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.credit_note",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.currency",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.entitlement",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/012_billing_commercial_controls.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.exchange_rate",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/012_billing_commercial_controls.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.invoice",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.invoice_line",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.outbox",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.payment",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.payment_allocation",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.payment_attempt",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/012_billing_commercial_controls.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.period",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.plan_version",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.price",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.provider_cost",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/012_billing_commercial_controls.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.provider_event",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.rated_usage",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.reconciliation",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.refund",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.refund_allocation",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/011_billing_admission_refunds.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.subscription",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.subscription_item",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.tax_line",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.usage_admission",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/011_billing_admission_refunds.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_billing.usage_event",
+    "target_owner": "S13",
+    "source_definitions": [
+      "database/postgres/009_billing.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.collection_policy",
+    "target_owner": "S03",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.evaluation_schedule",
+    "target_owner": "S07",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.import_resolution",
+    "target_owner": "S05",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.objective_import",
+    "target_owner": "S05",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.signal_receipt",
+    "target_owner": "S03",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.source_binding",
+    "target_owner": "S03",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_ingestion_design.source_checkpoint",
+    "target_owner": "S03",
+    "source_definitions": [
+      "import_signal_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_objective_design.activation",
+    "target_owner": "S05",
+    "source_definitions": [
+      "objective_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_objective_design.objective_revision",
+    "target_owner": "S05",
+    "source_definitions": [
+      "objective_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_objective_design.review_decision",
+    "target_owner": "S05",
+    "source_definitions": [
+      "objective_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_objective_design.template_version",
+    "target_owner": "S05",
+    "source_definitions": [
+      "objective_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  },
+  {
+    "source_table": "uacrf_relationship_design.change_history",
+    "target_owner": "S02",
+    "source_definitions": [
+      "relationship_design/storage.proposed.sql"
+    ],
+    "migration_rule": "Copy to owner database; retain original IDs/digests and replace foreign-service FKs with scoped references and receipts.",
+    "status": "SOURCE_EXTRACTED_NOT_DATABASE_INTROSPECTED"
+  }
+]

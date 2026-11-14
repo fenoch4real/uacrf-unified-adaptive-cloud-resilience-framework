@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Current access | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Current access</h1>
+  <p><a href="/">Back to home</a></p>
+  <p><a href="/contexts">Switch tenant or environment</a></p>
+  <p><a href="/journeys">View customer journeys</a></p>
+  <p><a href="/memberships">Review identity memberships</a></p>
+  <p><a href="/principals">View principal directory</a></p>
+  <section th:if="${access != null}">
+    <p>
+      Context:
+      <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+      <strong th:text="${selectedContext.environmentName}">Environment</strong>
+    </p>
+    <p>Access was evaluated by S01 for <strong th:text="${access.displayName}">User</strong>.</p>
+    <p>Context: <span th:text="${access.scope}">Scope</span></p>
+    <h2>Capabilities</h2>
+    <ul>
+      <li th:each="capability : ${access.capabilityIds}" th:text="${capability}">Capability</li>
+      <li th:if="${#lists.isEmpty(access.capabilityIds)}">No current capabilities.</li>
+    </ul>
+  </section>
+  <p role="status" th:if="${accessError != null}" th:text="${accessError}"></p>
+</main>
+</body>
+</html>

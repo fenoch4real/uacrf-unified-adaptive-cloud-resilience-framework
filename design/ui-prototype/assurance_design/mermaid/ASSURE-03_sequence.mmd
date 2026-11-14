@@ -1,0 +1,30 @@
+sequenceDiagram
+participant Human
+participant API as Java API
+participant SQL as PostgreSQL
+participant Graph as Neo4j
+Human->>API: S01 Request current diagnostic assessment
+alt S01 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>SQL: S02 Recheck current actor grants journey linkage and represented workloads
+alt S02 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Graph: S03 Verify latest reviewed graph when its evidence remains eligible
+alt S03 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>API: S04 Derive insufficient evidence or pending review without rewriting history
+alt S04 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Human: S05 Return bounded history pending revisions and explicit diagnostic limits

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="920" viewBox="0 0 1000 920" role="img" aria-label="Owned data and verified projections"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">Owned data and verified projections</text>
+<text x="35" y="84" font-size="21" fill="#152b43">Every owner has its own database, credentials and migrations.</text>
+<rect x="35" y="125" width="930" height="108" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="153" font-size="20" fill="#152b43">Identity inventory and source records</text>
+<text x="50" y="182" font-size="18" fill="#152b43">S01 S02 S03 S04 S05 | Owned PostgreSQL databases</text>
+<rect x="35" y="255" width="930" height="108" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="283" font-size="20" fill="#152b43">Graph assessment knowledge and decisions</text>
+<text x="50" y="312" font-size="18" fill="#152b43">S06 S07 S08 S09 S10 | Owned PostgreSQL databases</text>
+<rect x="35" y="385" width="930" height="108" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="413" font-size="20" fill="#152b43">Execution assurance money audit and UI preferences</text>
+<text x="50" y="442" font-size="18" fill="#152b43">S11 S12 S13 S14 UX01 | Owned PostgreSQL databases</text>
+<rect x="35" y="550" width="440" height="140" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="50" y="578" font-size="20" fill="#152b43">Neo4j is owned by S06</text>
+<text x="50" y="607" font-size="18" fill="#152b43">Accepted PostgreSQL graph material -&gt;</text>
+<text x="50" y="630" font-size="18" fill="#152b43">leased projection -&gt; verified content.</text>
+<rect x="525" y="550" width="440" height="140" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="540" y="578" font-size="20" fill="#152b43">Artifacts have domain owners</text>
+<text x="540" y="607" font-size="18" fill="#152b43">Immutable bytes and digests; every read</text>
+<text x="540" y="630" font-size="18" fill="#152b43">needs current owner disclosure.</text>
+<rect x="35" y="735" width="930" height="125" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="763" font-size="20" fill="#152b43">No cross service SQL or distributed foreign keys</text>
+<text x="50" y="792" font-size="18" fill="#152b43">Use scoped references, owner receipts, revisions and digests. Commands, inbox, outbox and</text>
+<text x="50" y="815" font-size="18" fill="#152b43">local audit exist per service.</text>
+</g></svg>

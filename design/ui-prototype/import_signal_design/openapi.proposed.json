@@ -1,0 +1,1170 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Proposed objective import and collection policy extension",
+    "version": "1.0",
+    "description": "Eight unimplemented operations outside the 74 canonical APIs and the seven earlier proposed objective operations. Not deployed or engine tested.",
+    "x-contract-review": "Implementation review 1; typed response addendum, not a deployed handler"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/objective-imports:preview": {
+      "post": {
+        "summary": "Preview a bounded objective import",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./objective-import-preview.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-imports/{id}": {
+      "get": {
+        "summary": "Read a scoped import candidate",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./objective-import-candidate.schema.json"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending receipt, not completion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "receipt_id",
+                    "status",
+                    "read_resource"
+                  ],
+                  "properties": {
+                    "receipt_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "const": "PENDING"
+                    },
+                    "read_resource": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Server-generated same-origin authorized read resource or existing authenticated command channel reference; never a caller-supplied URL."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-imports/{id}:resolve": {
+      "post": {
+        "summary": "Record an explicit source/local conflict decision",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. KEEP_LOCAL retains local authority; DETACH_SOURCE records explicit unlink history. Neither resolves an import by overwriting a definition. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./objective-import-resolution.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-imports/{id}:propose": {
+      "post": {
+        "summary": "Create a proposal from a resolved candidate",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Admit only PROPOSE_SOURCE from a resolved, valid, non-withdrawn candidate with current matching source/local digests. Create an existing objective proposal with origin reference; never activate it. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./objective-import-propose.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-imports/{id}/history": {
+      "get": {
+        "summary": "Read authorized retained import history",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/ImportHistoryPage"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending receipt, not completion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "receipt_id",
+                    "status",
+                    "read_resource"
+                  ],
+                  "properties": {
+                    "receipt_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "const": "PENDING"
+                    },
+                    "read_resource": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Server-generated same-origin authorized read resource or existing authenticated command channel reference; never a caller-supplied URL."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{id}/collection-policy": {
+      "get": {
+        "summary": "Read collection and timing policy",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./collection-policy.schema.json"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending receipt, not completion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "receipt_id",
+                    "status",
+                    "read_resource"
+                  ],
+                  "properties": {
+                    "receipt_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "const": "PENDING"
+                    },
+                    "read_resource": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Server-generated same-origin authorized read resource or existing authenticated command channel reference; never a caller-supplied URL."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Propose a versioned collection policy",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./collection-policy.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connections/{id}:reconcile": {
+      "post": {
+        "summary": "Request bounded source reconciliation",
+        "description": "PROPOSED extension only. Derive tenant environment actor and ingestion time from authenticated server context; body fields are not authority. Resolve connection IDs through approved scoped connector configuration, never arbitrary URLs or credentials. Recheck current source grants, workload mapping, normalizer and objective/template permissions. Mutations require durable idempotency and expected revisions; commit candidate/resolution/proposal or policy, audit and outbox atomically. Return metadata receipts, not activation or runtime success. Detect duplicate content and changed-content conflicts. Recheck source/local digests before proposal admission. A source update never silently overwrites or activates an objective; existing distinct review and effective activation remain required. Paginate history after authorization with a scope-bound cursor. Reconciliation is bounded, quota-aware and resumable; missing rows do not imply source withdrawal. Imported definitions cannot supply or weaken organization template rules. Preserve comparison direction, percentile semantics and measurement window. Proposal admission checks exact approved template version and rejects target/range/unit conflicts. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata; no effective objective or recovery asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or conversion",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale local/source/configuration revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Incomplete scope, invalid normalization or unresolved conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Bounded quota exceeded; retry under policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "title": "source reconcile request",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_configuration_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "maximum_items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  },
+                  "cursor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500,
+                        "pattern": "\\S"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "expected_configuration_revision",
+                  "maximum_items",
+                  "cursor"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

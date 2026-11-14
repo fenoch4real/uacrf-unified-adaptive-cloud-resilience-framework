@@ -1,0 +1,143 @@
+{
+  "version": "1.0",
+  "status": "LOCAL_PREPARATION_NOT_API_PAYLOAD",
+  "forms": {
+    "UI-03": [
+      "Assessment scope",
+      "Observation cutoff",
+      "Rule pack version"
+    ],
+    "UI-08": [
+      "Source reference",
+      "Content classification",
+      "Provenance owner"
+    ],
+    "UI-09": [
+      "Knowledge version",
+      "Approval or withdrawal decision",
+      "Decision reason"
+    ],
+    "UI-10": [
+      "Search question",
+      "Permitted knowledge scope",
+      "Purpose"
+    ],
+    "UI-11": [
+      "Assistance workflow",
+      "Knowledge scope",
+      "Step and token limits"
+    ],
+    "UI-13": [
+      "Output reference",
+      "Dissent disposition",
+      "Independent reviewer"
+    ],
+    "UI-15": [
+      "Environment reference",
+      "Read-only identity reference",
+      "Discovery scope"
+    ],
+    "UI-16": [
+      "Service name",
+      "Accountable owner",
+      "Customer outcome"
+    ],
+    "UI-19": [
+      "Failure scenario",
+      "Candidate path",
+      "Independence evidence"
+    ],
+    "UI-20": [
+      "Retained graph revision",
+      "Current graph revision",
+      "Materiality rationale"
+    ],
+    "UI-21": [
+      "Evidence reference",
+      "Qualification purpose",
+      "Observation and expiry window"
+    ],
+    "UI-24": [
+      "Incident reference",
+      "Observation window",
+      "Impact hypothesis"
+    ],
+    "UI-25": [
+      "Proposal digest",
+      "Approve or reject",
+      "Decision reason"
+    ],
+    "UI-27": [
+      "Nonproduction target",
+      "Maximum duration",
+      "Abort conditions"
+    ],
+    "UI-28": [
+      "Recovery workflow",
+      "Validation suite",
+      "Independent observation"
+    ],
+    "UI-29": [
+      "Finding reference",
+      "Accountable owner",
+      "Retest acceptance condition"
+    ],
+    "UI-32": [
+      "Policy version",
+      "Comparison scope",
+      "Expected effect"
+    ],
+    "UI-35": [
+      "Agent name",
+      "Accountable owner",
+      "Read-only tool scope"
+    ],
+    "UI-36": [
+      "Version digest",
+      "Evaluation suite",
+      "Execution limits"
+    ],
+    "UI-40": [
+      "Execution reference",
+      "Control generation",
+      "Reconciliation plan"
+    ],
+    "UI-41": [
+      "Proposal digest",
+      "Checkpoint reference",
+      "Independent evaluation"
+    ],
+    "UI-42": [
+      "Execution version",
+      "Outcome suite",
+      "Lookup evidence"
+    ],
+    "UI-46": [
+      "Journey name",
+      "Accountable owner",
+      "Customer outcome"
+    ],
+    "UI-47": [
+      "Journey reference",
+      "Ordered step names",
+      "Typed capability references"
+    ],
+    "UI-48": [
+      "Resource name and kind",
+      "Accountable owner",
+      "Provider reference"
+    ],
+    "UI-49": [
+      "Resource reference",
+      "Consumer reference",
+      "Usage purpose"
+    ]
+  },
+  "dedicated_linking_workflows": {
+    "UI-47": "Service/agent selection, whole journey or named step, importance, reason, review/save/change/retire/history",
+    "UI-49": "Consumer selection, compatible resource role, intended effect, reason, review/save/change/retire/history"
+  },
+  "generic_form_count": 24,
+  "guide_revision": 15,
+  "current_interactions": "23 generic review forms plus dedicated UI-46 owner-bound journey registration, UI-47/UI-49 relationship workflows, and UI-30 identity/ownership rehearsal. Generic owner fields select eligible IDs."
+}

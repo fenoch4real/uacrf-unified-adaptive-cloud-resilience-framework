@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant P0 as Producer
+  participant P1 as Owner DB
+  participant P2 as Kafka
+  participant P3 as Consumer
+  participant P4 as Consumer DB
+  alt Required current prerequisites hold
+    P0->>P1: 1 Commit business change audit and outbox
+    P1->>P0: 2 Return durable owner result
+    P0->>P2: 3 Publish leased outbox event
+    P2->>P0: 4 Acknowledge publication
+    P2->>P3: 5 Deliver event at least once
+    P3->>P4: 6 Commit inbox key and local projection
+    P4->>P3: 7 Return committed consumer result
+    P3->>P2: 8 Acknowledge after local commit
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P4: Crash after publish can duplicate delivery. Inbox deduplication handles it; conflicts are quarantined, not silently overwritten.
+  end

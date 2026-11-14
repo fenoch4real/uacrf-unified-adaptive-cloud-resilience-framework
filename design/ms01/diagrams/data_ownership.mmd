@@ -1,0 +1,9 @@
+flowchart LR
+  Owners[Domain services] --> PG[Separate owned PostgreSQL databases]
+  S06[Topology service] --> GraphPG[Accepted graph material in PostgreSQL]
+  GraphPG --> Projection[Leased verified projection]
+  Projection --> Neo4j[Private Neo4j]
+  Owners --> Objects[Domain scoped immutable artifacts]
+  Owners --> Outbox[Local outbox]
+  Outbox --> Kafka[Kafka]
+  Kafka --> Inbox[Consumer local inbox and projection]

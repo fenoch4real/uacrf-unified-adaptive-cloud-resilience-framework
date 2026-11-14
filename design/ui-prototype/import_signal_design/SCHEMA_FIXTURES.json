@@ -1,0 +1,134 @@
+{
+  "version": "1.0",
+  "status": "FICTIONAL_REFERENCE_DATA_NOT_OBSERVED",
+  "fixtures": {
+    "external-objective-origin": {
+      "connection_id": "sample:connection",
+      "source_system": "sample:monitoring",
+      "external_objective_id": "sample:checkout-recovery",
+      "source_version": "opaque:etag-v2",
+      "source_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "source_modified_at": null,
+      "source_checked_at": "2026-10-31T18:00:00Z",
+      "imported_at": "2026-10-31T18:00:01Z",
+      "mapping_revision": 1,
+      "normalizer_version": "sample:v1",
+      "source_payload_ref": "sample:retained-source-object",
+      "authority_mode": "TRACK_SOURCE",
+      "last_common_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "connection_revision": 1
+    },
+    "normalized-objective-definition": {
+      "metric": "Recovery time",
+      "target": 12,
+      "unit": "minutes",
+      "window": "Controlled test plus stable 30 minutes",
+      "measurement_ref": "sample:independent-order-check",
+      "comparison": "AT_MOST",
+      "measurement_kind": "RECOVERY_TIME",
+      "percentile": null
+    },
+    "objective-import-preview": {
+      "connection_id": "sample:connection",
+      "external_objective_id": "sample:checkout-recovery",
+      "target_workload_id": "sample:checkout",
+      "mapping_revision": 1,
+      "expected_local_revision": 1
+    },
+    "objective-import-candidate": {
+      "import_id": "sample:import",
+      "import_revision": 1,
+      "origin": {
+        "connection_id": "sample:connection",
+        "source_system": "sample:monitoring",
+        "external_objective_id": "sample:checkout-recovery",
+        "source_version": "opaque:etag-v2",
+        "source_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_modified_at": null,
+        "source_checked_at": "2026-10-31T18:00:00Z",
+        "imported_at": "2026-10-31T18:00:01Z",
+        "mapping_revision": 1,
+        "normalizer_version": "sample:v1",
+        "source_payload_ref": "sample:retained-source-object",
+        "authority_mode": "TRACK_SOURCE",
+        "last_common_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "connection_revision": 1
+      },
+      "target_workload_id": "sample:checkout",
+      "expected_local_revision": 1,
+      "local_definition_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "base_definition_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "normalized_definition": {
+        "metric": "Recovery time",
+        "target": 12,
+        "unit": "minutes",
+        "window": "Controlled test plus stable 30 minutes",
+        "measurement_ref": "sample:independent-order-check",
+        "comparison": "AT_MOST",
+        "measurement_kind": "RECOVERY_TIME",
+        "percentile": null
+      },
+      "status": "CONFLICT",
+      "normalization_notes": [
+        "720 seconds maps to 12 minutes; source and local both changed"
+      ],
+      "scope_complete": true,
+      "normalized_definition_digest": "0fd393377da73b01fadcedcebe50d9e20b386e1e4b91cc37158ff1b092f7075b"
+    },
+    "objective-import-resolution": {
+      "expected_import_revision": 1,
+      "expected_local_revision": 1,
+      "choice": "KEEP_LOCAL",
+      "reason": "Retain approved local definition"
+    },
+    "objective-import-propose": {
+      "expected_import_revision": 1,
+      "expected_local_revision": 1,
+      "choice": "PROPOSE_SOURCE",
+      "reason": "Retain approved local definition",
+      "template_id": "sample:recovery-template",
+      "template_revision": 1,
+      "source_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "collection-policy": {
+      "signal_kind": "METRIC",
+      "delivery": "EVENTS_AND_POLL",
+      "source_resolution_seconds": 30,
+      "poll_seconds": 30,
+      "reconcile_seconds": 300,
+      "freshness_basis": "OBSERVED_AT",
+      "maximum_age_seconds": 120,
+      "evaluation_window_seconds": 300,
+      "debounce_seconds": 10,
+      "urgent_bypasses_debounce": true,
+      "expected_revision": 1,
+      "pre_dispatch_checks_required": true
+    },
+    "collector-signal-envelope": {
+      "connection_id": "sample:connection",
+      "source_event_id": "sample:event1",
+      "source_sequence": null,
+      "source_version": "opaque:v1",
+      "observed_at": "2026-10-31T18:00:00Z",
+      "payload_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "payload_ref": "sample:retained-observation",
+      "signal_kind": "METRIC",
+      "target_workload_id": "sample:checkout",
+      "normalizer_version": "sample:v1",
+      "quality": "OBSERVATION_ONLY",
+      "connection_revision": 1
+    },
+    "evaluation-trigger": {
+      "trigger_id": "sample:trigger",
+      "cause": "EVIDENCE_EXPIRED",
+      "target_workload_id": "sample:checkout",
+      "source_receipt_id": null,
+      "context_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "objective_revision_ref": "sample:objective-v1",
+      "graph_revision": "opaque:graph-v1",
+      "policy_revision": "opaque:policy-v1",
+      "due_at": "2026-10-31T18:02:00Z",
+      "urgent": true
+    }
+  }
+}

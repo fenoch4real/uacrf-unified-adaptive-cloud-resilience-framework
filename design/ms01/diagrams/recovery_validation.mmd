@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant P0 as Execution S11
+  participant P1 as Assurance S12
+  participant P2 as Probe worker
+  participant P3 as Evidence S04
+  participant P4 as Decision S10
+  alt Required current prerequisites hold
+    P0->>P1: 1 Request exact validation after effect
+    P1->>P3: 2 Verify current approved probe policies
+    P1->>P2: 3 Lease bounded independent probes
+    P2->>P3: 4 Retain actual observations and provenance
+    P2->>P1: 5 Submit fenced probe results
+    P1->>P1: 6 Check every mandatory recovery criterion
+    P1->>P4: 7 Publish justified validation and certification
+    P4->>P0: 8 Use current outcome in subsequent decisions
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P4: Provider success alone is not recovery. Missing, stale or failed mandatory evidence prevents certification.
+  end

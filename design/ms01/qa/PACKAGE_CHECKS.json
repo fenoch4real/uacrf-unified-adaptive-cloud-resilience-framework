@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "local_html_links_checked": 60,
+  "broken_local_links": [],
+  "scope": "Static file/anchor resolution; no browser workflow acceptance"
+}

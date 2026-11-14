@@ -1,0 +1,47 @@
+sequenceDiagram
+    participant P0 as Caller
+    participant P1 as Spring Boot
+    participant P2 as PostgreSQL
+    participant P3 as Neo4j
+    P0->>P1: S01 Submit a verified token explicit graph revision and bounded parameters
+    alt S01 accepted
+        Note over P1: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P1: Return restrictive result
+        end
+    end
+    P1->>P2: S02 Check current identity all workload scopes evidence and projection acknowledgement
+    alt S02 accepted
+        Note over P2: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P2: Return restrictive result
+        end
+    end
+    P1->>P3: S03 Compare sealed receipt watermark counts and full projected content
+    alt S03 accepted
+        Note over P3: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P3: Return restrictive result
+        end
+    end
+    P1->>P1: S04 Return typed topology or calculate direction-aware bounded diagnostic witnesses
+    alt S04 accepted
+        Note over P1: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P1: Return restrictive result
+        end
+    end
+    P1->>P2: S05 Recheck accepted source evidence and acknowledgement before finishing
+    alt S05 accepted
+        Note over P2: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P2: Return restrictive result
+        end
+    end
+    P1->>P0: S06 Return revision-bound scope-limited results with no recovery certification
+    Note over P0,P3: F1 F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted.

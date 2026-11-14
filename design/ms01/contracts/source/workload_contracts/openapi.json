@@ -1,0 +1,1945 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF protected agent workload interfaces",
+    "version": "1.1",
+    "description": "Alignment revision 6 proposed implementation contract, updated for standalone and service-bound agent workloads. Separate from UACRF assistance. No HTTP server or runtime is established by this file.",
+    "x-contract-review": "Implementation review 1; typed response addendum, not a deployed handler"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Register": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "owner_id",
+          "runtime_principal_id",
+          "purpose"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "service_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$",
+            "description": "Optional existing service anchor. Omit or set null for a standalone agent workload."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          },
+          "kind": {
+            "enum": [
+              "SINGLE_AGENT",
+              "MULTI_AGENT"
+            ]
+          },
+          "owner_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "runtime_principal_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version_number",
+          "digest",
+          "object_ref",
+          "manifest"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "version_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "object_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "manifest": {
+            "$ref": "workload-version.schema.json"
+          }
+        }
+      },
+      "Activate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version_id",
+          "expected_revision"
+        ],
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "Start": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version_id",
+          "input_digest",
+          "steps",
+          "tokens",
+          "cost",
+          "deadline"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "version_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cost": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_key",
+          "digest",
+          "kind",
+          "steps",
+          "tokens",
+          "cost_units",
+          "object_ref",
+          "control_generation"
+        ],
+        "properties": {
+          "source_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "kind": {
+            "enum": [
+              "DISPATCH",
+              "RESULT",
+              "LATE_RESULT",
+              "OBSERVATION",
+              "COMPLETION"
+            ]
+          },
+          "steps": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokens": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "cost_units": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "object_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "control_generation": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Checkpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "event_sequence",
+          "version_id",
+          "input_digest",
+          "digest",
+          "object_ref",
+          "memory_namespace",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "event_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "object_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "memory_namespace": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Control": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_generation",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "expected_generation": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "enum": [
+              "PAUSED",
+              "CANCELLED",
+              "ESCALATED",
+              "FAILED",
+              "TIMED_OUT"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        }
+      },
+      "Evaluation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "event_sequence",
+          "suite_digest",
+          "verdict",
+          "object_ref",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "event_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "suite_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "verdict": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ]
+          },
+          "object_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Resume": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "checkpoint_id",
+          "evaluation_id",
+          "workflow_id",
+          "new_execution_id"
+        ],
+        "properties": {
+          "checkpoint_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "evaluation_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "workflow_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "new_execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/agent-workloads": {
+      "get": {
+        "summary": "List authorized protected agent workload profiles.",
+        "operationId": "awl_list_profiles",
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Optional legacy governance-anchor filter. Omit for the authorized agent inventory; no unrelated parent service is required."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_list_profiles",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "$ref": "../implementation_review/response.schema.json#/$defs/WorkloadProfile"
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500,
+                          "pattern": "\\S"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a protected standalone or service-bound agent workload.",
+        "operationId": "awl_insert_profile",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_insert_profile",
+        "description": "The gateway derives tenant/environment/actor context. service_id is optional; when present it must identify an existing governed service in the delegated tenant and environment. A service-scoped delegation must match that exact service. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. This proposed contract does not establish authentication, field disclosure, serializer, or production-runtime acceptance; see implementation status for local coverage.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Register"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workloads/{id}": {
+      "get": {
+        "summary": "Read a protected agent workload and its active version.",
+        "operationId": "awl_get_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_get_profile",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/WorkloadProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workloads/{id}/versions": {
+      "post": {
+        "summary": "Register an immutable workload version manifest.",
+        "operationId": "awl_insert_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_insert_version",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Version"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workloads/{id}:activate": {
+      "post": {
+        "summary": "Activate a reviewed workload version with optimistic concurrency.",
+        "operationId": "awl_activate_version",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_activate_version",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Activate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workloads/{id}/executions": {
+      "post": {
+        "summary": "Admit one bounded execution of the active workload version.",
+        "operationId": "awl_start_execution",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_start_execution",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Start"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workload-executions/{id}": {
+      "get": {
+        "summary": "Read an execution with paginated event and lineage references.",
+        "operationId": "awl_get_execution",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_get_execution",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/WorkloadExecution"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workload-executions/{id}/events": {
+      "post": {
+        "summary": "Admit an attributed idempotent event and any dispatch reservation.",
+        "operationId": "awl_append_event",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_append_event",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Event"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workload-executions/{id}/checkpoints": {
+      "post": {
+        "summary": "Index a verified checkpoint at the current event sequence.",
+        "operationId": "awl_insert_checkpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_insert_checkpoint",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Checkpoint"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workload-executions/{id}:control": {
+      "post": {
+        "summary": "Record a fenced pause cancellation or human escalation.",
+        "operationId": "awl_control_execution",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_control_execution",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Control"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workload-executions/{id}/evaluations": {
+      "post": {
+        "summary": "Retain a trusted expiring evaluation at the current event sequence.",
+        "operationId": "awl_insert_evaluation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_insert_evaluation",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Evaluation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-workload-executions/{id}:resume": {
+      "post": {
+        "summary": "Bind governed recovery and stage a new execution from a verified checkpoint.",
+        "operationId": "awl_stage_resume",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "x-status": "PROPOSED_NOT_IMPLEMENTED",
+        "x-query": "awl_stage_resume",
+        "description": "The gateway derives tenant/environment/actor context. Each mutation is idempotent under Idempotency-Key and content digest; a durable command receipt is separate from its result. Scope, classification, purpose, current grants, object integrity and domain checks precede mutation. Return only authorized metadata and references. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "responses": {
+          "200": {
+            "description": "Authorized current read or durable mutation receipt; mutation includes receipt_id and status PENDING, COMPLETED or REJECTED. PENDING is not domain success. Follow the returned same-origin read-resource reference where available; otherwise the caller must use its authenticated command channel, not invent a polling endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No visible resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version, generation, idempotency or lifecycle conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing domain prerequisites or unsafe context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Resume"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

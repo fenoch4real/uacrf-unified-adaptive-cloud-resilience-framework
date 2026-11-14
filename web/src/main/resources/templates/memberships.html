@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Memberships | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Identity memberships</h1>
+  <p><a href="/">Back to home</a></p>
+  <p><a href="/access">View current access</a></p>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p role="status" th:if="${membershipMessage != null}" th:text="${membershipMessage}"></p>
+  <p role="alert" th:if="${membershipError != null}" th:text="${membershipError}"></p>
+  <p role="status" th:if="${membershipsError != null}" th:text="${membershipsError}"></p>
+
+  <p th:if="${memberships != null and #lists.isEmpty(memberships) and membershipsError == null}">
+    No active memberships were returned for this context.
+  </p>
+  <ul th:if="${memberships != null and !#lists.isEmpty(memberships)}">
+    <li th:each="membership : ${memberships}">
+      <article>
+        <h2 th:id="|membership-heading-${membership.id}|"
+            th:text="${membership.capability}">Capability</h2>
+        <dl>
+          <dt>Membership ID</dt>
+          <dd><code th:text="${membership.id}">membership-id</code></dd>
+          <dt>Principal ID</dt>
+          <dd><code th:text="${membership.principalId}">principal-id</code></dd>
+          <dt>Service scope</dt>
+          <dd th:text="${membership.serviceScope}">service-scope</dd>
+          <dt>Expires at</dt>
+          <dd th:text="${membership.expiresAt}">expiry</dd>
+          <dt>Revision</dt>
+          <dd th:text="${membership.revision}">1</dd>
+        </dl>
+        <form method="post"
+              th:action="@{/memberships/{membershipId}:revoke(membershipId=${membership.id})}"
+              th:attr="aria-labelledby=|membership-heading-${membership.id}|">
+          <input type="hidden" name="expectedRevision" th:value="${membership.revision}">
+          <input type="hidden" name="idempotencyKey" th:value="${membership.idempotencyKey}">
+          <input th:if="${requestCursor != null}" type="hidden" name="cursor" th:value="${requestCursor}">
+          <fieldset>
+            <legend>Revoke this membership</legend>
+            <label th:for="|reason-${membership.id}|">Reason (required)</label>
+            <textarea name="reason" th:id="|reason-${membership.id}|"
+                      th:text="${membership.reason}" maxlength="2000" required
+                      th:attr="aria-describedby=${membership.invalidReason ? 'reason-help-' + membership.id + ' reason-error-' + membership.id : 'reason-help-' + membership.id},
+                               aria-invalid=${membership.invalidReason ? 'true' : null},
+                               autofocus=${membership.invalidReason ? 'autofocus' : null}"></textarea>
+            <span th:id="|reason-help-${membership.id}|">
+              This reason is recorded in the identity audit log.
+            </span>
+            <span th:if="${membership.invalidReason}"
+                  th:id="|reason-error-${membership.id}|">
+              Enter a non-whitespace reason of up to 2000 characters.
+            </span>
+          </fieldset>
+          <button type="submit">Revoke membership</button>
+        </form>
+      </article>
+    </li>
+  </ul>
+  <p th:if="${nextCursor != null}">
+    <a th:href="@{/memberships(cursor=${nextCursor})}">Next page of memberships</a>
+  </p>
+</main>
+</body>
+</html>

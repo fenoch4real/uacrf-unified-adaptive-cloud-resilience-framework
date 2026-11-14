@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer journeys | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Customer journeys</h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a href="/access">Back to current access</a></p>
+  <p><a href="/journeys/new">Create a draft journey</a></p>
+  <p><a href="/agents/new">Register a standalone agent workload</a></p>
+  <p role="status" th:if="${journeyError != null}" th:text="${journeyError}"></p>
+  <p th:if="${journeyError == null and #lists.isEmpty(journeys)}">No journeys are available.</p>
+  <ul>
+    <li th:each="journey : ${journeys}">
+      <h2>
+        <a th:href="@{/journeys/{id}(id=${journey.id})}" th:text="${journey.name}">Journey name</a>
+      </h2>
+      <p th:text="${journey.purpose}">Journey purpose</p>
+      <p>Lifecycle: <span th:text="${journey.lifecycle}">DRAFT</span></p>
+    </li>
+  </ul>
+  <nav aria-label="Journey pages" th:if="${nextCursor != null}">
+    <a th:href="@{/journeys(cursor=${nextCursor})}">Next journeys</a>
+  </nav>
+  <p><a href="/">Back to home</a></p>
+</main>
+</body>
+</html>

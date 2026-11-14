@@ -1,0 +1,99 @@
+flowchart TB
+  %% Complete UACRF controlled relationship vocabulary.
+  subgraph R0["Evidence"]
+    R0_0["EMITS<br/>EvidenceSource → EvidenceEvent<br/>1:N<br/>source_native_id · observed_at · raw_reference · digest · schema_version"]
+    R0_1["DESCRIBES_STATE_OF<br/>EvidenceEvent → GovernedSubject<br/>N:1<br/>observation_type · occurred_at · confidence · valid_until"]
+    R0_2["QUALIFIED_BY<br/>EvidenceEvent → EvidenceQualification<br/>1:N<br/>qualification_state · ruleset_version · decision_time · reason_codes"]
+    R0_3["CORRELATED_WITH<br/>EvidenceEvent → EvidenceOrChange<br/>N:N<br/>correlation_method · window · confidence · reason"]
+    R0_4["SUPPORTED_BY_EVIDENCE<br/>FindingOrDecision → EvidenceEvent<br/>N:N<br/>evidence_ref · evidence_digest · qualification_state · observed_at"]
+    R0_5["CONTRADICTED_BY<br/>FindingOrDecision → EvidenceEvent<br/>N:N<br/>evidence_ref · reason · confidence · observed_at"]
+  end
+  subgraph R1["Versioning"]
+    R1_0["SUPERSEDES<br/>VersionedObject → VersionedObject<br/>N:1<br/>prior_id · effective_at · reason · actor_id"]
+  end
+  subgraph R2["Runtime dependency"]
+    R2_0["DEPENDS_ON<br/>DependentEntity → RequiredTarget<br/>N:N<br/>dependency_id · criticality · synchrony · propagation_rule · confidence"]
+    R2_1["ROUTES_TO<br/>GatewayOrEndpoint → APIOrService<br/>N:N<br/>route_id · protocol · operation · traffic_share · timeout"]
+    R2_2["CALLS<br/>Caller → Callee<br/>N:N<br/>protocol · operation · traffic_class · request_rate · timeout"]
+  end
+  subgraph R3["Data dependency"]
+    R3_0["READS_FROM<br/>Consumer → DataAsset<br/>N:N<br/>access_mode · consistency · classification · volume · integrity_requirement"]
+    R3_1["WRITES_TO<br/>Producer → DataAsset<br/>N:N<br/>access_mode · consistency · classification · volume · integrity_requirement"]
+  end
+  subgraph R4["Messaging"]
+    R4_0["PUBLISHES_TO<br/>Producer → Queue<br/>N:N<br/>delivery_semantics · ordering · replay_window · schema_ref · consumer_group"]
+    R4_1["CONSUMES_FROM<br/>Consumer → Queue<br/>N:N<br/>delivery_semantics · ordering · replay_window · schema_ref · consumer_group"]
+  end
+  subgraph R5["Deployment"]
+    R5_0["RUNS_ON<br/>DeploymentOrComponent → CloudResource<br/>N:N<br/>deployment_version · capacity · allocation · scheduler · observed_at"]
+    R5_1["DEPLOYED_IN<br/>Entity → EnvironmentOrLocation<br/>N:1<br/>effective_from · effective_to · active"]
+    R5_2["LOCATED_IN<br/>Entity → Location<br/>N:1<br/>effective_from · effective_to · active"]
+    R5_3["INSTANCE_OF<br/>RuntimeResource → Deployment<br/>N:1<br/>deployment_id · version · observed_at · expires_at"]
+    R5_4["IMPLEMENTS<br/>DeploymentOrComponent → Service<br/>N:N<br/>implementation_role · version · valid_from · valid_to"]
+  end
+  subgraph R6["Structure"]
+    R6_0["PART_OF<br/>Child → GovernedParent<br/>N:1<br/>membership_type · required · ordering · valid_from · valid_to"]
+  end
+  subgraph R7["Failure domain"]
+    R7_0["MEMBER_OF_FAILURE_DOMAIN<br/>Entity → FailureDomain<br/>N:N<br/>exposure_type · confidence · evidence_ref · last_verified_at"]
+  end
+  subgraph R8["Resilience"]
+    R8_0["REPLICATES_TO<br/>Primary → Replica<br/>N:N<br/>mode · lag_objective · consistency · recovery_role · last_validated_at"]
+    R8_1["FALLBACK_TO<br/>Primary → ApprovedFallback<br/>N:N<br/>activation_rule · capacity_ratio · rto · certification_status · last_tested_at"]
+  end
+  subgraph R9["AI"]
+    R9_0["USES_MODEL<br/>ServiceOrComponent → AIModelOrEndpoint<br/>N:N<br/>purpose · decision_impact · fallback_mode · traffic_share · certified"]
+    R9_1["SERVES_MODEL<br/>ModelEndpoint → ModelVersion<br/>N:1<br/>traffic_share · status · deployed_at · artifact_digest"]
+    R9_2["USES_FEATURES_FROM<br/>ModelEndpointOrVersion → FeatureStore<br/>N:N<br/>feature_view · version · freshness_requirement · lineage_ref"]
+    R9_3["TRAINED_FROM<br/>ModelVersion → Dataset<br/>N:N<br/>dataset_version · usage_type · lineage_ref · approved_at"]
+    R9_4["USES_DATASET<br/>ModelVersion → Dataset<br/>N:N<br/>dataset_version · usage_type · lineage_ref · approved_at"]
+  end
+  subgraph R10["Security"]
+    R10_0["USES_IDENTITY<br/>ServiceOrAdapter → IdentityOrProvider<br/>N:N<br/>mechanism · privilege_scope · credential_ref · rotation_status"]
+    R10_1["USES_KEY<br/>ServiceOrResource → EncryptionKey<br/>N:N<br/>purpose · key_version · rotation_status · failure_behavior"]
+    R10_2["USES_DNS<br/>ServiceOrEndpoint → DNSService<br/>N:N<br/>record_scope · resolution_mode · ttl · failure_behavior"]
+  end
+  subgraph R11["Governance"]
+    R11_0["OWNED_BY<br/>GovernedEntity → TeamOrIdentity<br/>N:N<br/>owner_role · valid_from · valid_to · on_call_required"]
+    R11_1["PROTECTED_BY<br/>GovernedEntity → Control<br/>N:N<br/>control_version · enforcement_point · evidence_ref · status"]
+  end
+  subgraph R12["External"]
+    R12_0["PROVIDED_BY<br/>ResourceOrService → ExternalProvider<br/>N:1<br/>contract_ref · service_tier · exit_plan_status · concentration_risk"]
+  end
+  subgraph R13["Customer"]
+    R13_0["SUPPORTS_STEP<br/>ServiceOrComponent → JourneyStep<br/>N:N<br/>criticality · success_contribution · fallback_mode · valid_from · valid_to"]
+    R13_1["PART_OF_JOURNEY<br/>JourneyStep → CustomerJourney<br/>N:1<br/>sequence · mandatory · alternative_path · version"]
+    R13_2["ENABLES_FUNCTION<br/>CustomerJourney → EssentialFunction<br/>N:N<br/>criticality · maximum_tolerable_disruption · evidence_ref"]
+    R13_3["SERVES_SEGMENT<br/>JourneyOrFunction → CustomerSegment<br/>N:N<br/>scope · geography · commitment · measurement_ref"]
+  end
+  subgraph R14["Objective"]
+    R14_0["GOVERNED_BY_SLO<br/>ServiceJourneyOrFunction → SLO<br/>N:N<br/>scope · enforcement_behavior · owner"]
+  end
+  subgraph R15["Impact"]
+    R15_0["AFFECTS<br/>TechnicalStateOrFinding → Impact<br/>N:N<br/>scenario · rule_version · status · confidence · evidence_ref"]
+    R15_1["CONTRIBUTES_TO<br/>Impact → Outcome<br/>N:N<br/>method · contribution_status · confidence · assumptions"]
+    R15_2["MEASURED_BY<br/>ImpactOrOutcome → MeasurementDefinition<br/>N:N<br/>metric_id · query_version · unit · window · source_ref"]
+  end
+  subgraph R16["Propagation"]
+    R16_0["FAILURE_PROPAGATES_TO<br/>AffectedNodeOrState → DownstreamNodeOrState<br/>N:N<br/>scenario · propagation_rule · delay · maximum_state · suppressing_conditions"]
+  end
+  subgraph R17["Recovery"]
+    R17_0["TARGETED_BY_ACTION<br/>AffectedStateOrTarget → CandidateAction<br/>N:N<br/>target_role · selector_version · expected_effect"]
+    R17_1["AUTHORIZED_BY<br/>CandidateAction → Authorization<br/>1:N<br/>policy_version · scope_digest · graph_revision · expiry · nonce_status"]
+    R17_2["EXECUTES<br/>Authorization → Execution<br/>1:N<br/>provider_adapter · idempotency_key · started_at · result"]
+    R17_3["USES_RUNBOOK<br/>CandidateAction → Runbook<br/>N:1<br/>version · certification_status · bounds"]
+    R17_4["USES_RECOVERY_PATH<br/>CandidateAction → RecoveryPath<br/>N:1<br/>scenario · certification_status · graph_revision · witness_ref"]
+  end
+  subgraph R18["Validation"]
+    R18_0["VALIDATED_BY<br/>ActionExecutionPathOrOutcome → ValidationPlanOrResult<br/>N:N<br/>check_order · mandatory · status · evidence_ref · stable_window"]
+  end
+  subgraph R19["Provenance"]
+    R19_0["BOUND_TO_REVISION<br/>DecisionAuthorizationOrCertification → GraphRevision<br/>N:1<br/>context_hash · subgraph_digest · materiality_policy"]
+    R19_1["RECORDED_IN<br/>DecisionArtifact → DecisionEnvelope<br/>N:1<br/>artifact_digest · sequence · timestamp"]
+  end
+  subgraph R20["Agents"]
+    R20_0["ASSIGNED_TO<br/>AgentAssignment → AgentAnalysisCase<br/>N:1<br/>role · deadline · grant_digest"]
+    R20_1["PRODUCES_PROPOSAL<br/>AgentAssignment → AgentProposal<br/>1:N<br/>producer_signature · submitted_at"]
+    R20_2["RAISES_DISSENT<br/>AgentAssignment → AgentDissentRecord<br/>1:N<br/>producer_signature · submitted_at"]
+    R20_3["ARBITRATED_BY<br/>AgentAnalysisCase → ArbitrationRecord<br/>1:1<br/>rule_bundle_version · disposition · decided_at"]
+  end

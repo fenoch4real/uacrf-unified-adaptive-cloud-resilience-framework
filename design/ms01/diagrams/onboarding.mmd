@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant P0 as Customer UI
+  participant P1 as S01 and S02
+  participant P2 as S03 and S04
+  participant P3 as S05
+  participant P4 as S06 and S07
+  alt Required current prerequisites hold
+    P0->>P1: 1 Admit people owners and workloads
+    P0->>P2: 2 Enroll read-only source connection
+    P2->>P1: 3 Propose discovered inventory links
+    P0->>P1: 4 Link services agents and shared resources
+    P0->>P3: 5 Propose or resolve imported objectives
+    P3->>P3: 6 Independent review and activation
+    P2->>P4: 7 Supply qualified source observations
+    P1->>P4: 8 Accept and project typed dependencies
+    P4->>P0: 9 Show actual setup and evaluation results
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P4: An unresolved import, missing owner, stale source or unavailable prerequisite remains visible. Screen visits do not complete setup.
+  end

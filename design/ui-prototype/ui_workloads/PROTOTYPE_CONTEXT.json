@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "design_revision": 8,
+  "visual_refinement": 0,
+  "status": "ILLUSTRATIVE_NOT_LIVE",
+  "contexts": {
+    "UI-03": [
+      "Assessment scope",
+      "Place Order",
+      "Maya Chen",
+      "Evidence review incomplete",
+      "Confirm the scoped customer outcome and missing mandatory observations.",
+      "UI-21"
+    ],
+    "UI-04": [
+      "Observed change",
+      "Checkout deployment v43",
+      "Maya Chen",
+      "Runtime degraded; evidence Unknown",
+      "Inspect changed dependencies before selecting a response.",
+      "UI-20"
+    ],
+    "UI-05": [
+      "Recovery review",
+      "Checkout / Order support",
+      "Maya Chen",
+      "Not dispatched",
+      "Review the exact proposal, independent evidence and required authority.",
+      "UI-41"
+    ],
+    "UI-06": [
+      "Evidence review",
+      "Place Order / Resolve Order",
+      "Maya Chen",
+      "Mandatory outcome observations missing",
+      "Inspect provenance, freshness and unresolved observations.",
+      "UI-21"
+    ],
+    "UI-34": [
+      "Protected agent",
+      "Order support agent",
+      "Maya Chen",
+      "Profile support-v3 Active \u00b7 Execution Paused \u00b7 Evidence Unknown",
+      "Inspect execution, reconcile tool effects and collect current evidence.",
+      "UI-38"
+    ],
+    "UI-35": [
+      "Agent registration",
+      "Order support agent",
+      "Maya Chen",
+      "Draft \u00b7 Read-only initial scope",
+      "Define the task, runtime identity, intended outcome and permitted effects before activation.",
+      "UI-36"
+    ],
+    "UI-36": [
+      "Version review",
+      "support-v3",
+      "Maya Chen",
+      "In review \u00b7 Independent evaluation missing",
+      "Review instructions p3, model m2, policy corpus k12 and tool schema order-v4.",
+      "UI-42"
+    ],
+    "UI-37": [
+      "Dependency review",
+      "Order support agent",
+      "Maya Chen",
+      "Paused \u00b7 Dependency evidence Unknown",
+      "Inspect the Order lookup API and current access independently.",
+      "UI-38"
+    ],
+    "UI-38": [
+      "Execution attempt",
+      "run-204 / Order lookup 04",
+      "Maya Chen",
+      "Ambiguous external outcome",
+      "Reconcile the original attempt before retry or checkpoint use.",
+      "UI-39"
+    ],
+    "UI-39": [
+      "Checkpoint review",
+      "cp-004 / event sequence 18",
+      "Maya Chen",
+      "Not eligible \u00b7 Bytes unverified \u00b7 Effects unresolved",
+      "Verify exact bytes, version, input and current independent evaluation.",
+      "UI-41"
+    ],
+    "UI-40": [
+      "Containment review",
+      "Control generation 7",
+      "Maya Chen",
+      "Paused \u00b7 Broker acknowledgement pending",
+      "Reconcile in-flight attempt 04; a pause record does not prove remote termination.",
+      "UI-38"
+    ],
+    "UI-41": [
+      "Recovery candidate",
+      "Resume from cp-004",
+      "Maya Chen",
+      "Blocked \u00b7 6 steps and 4,200 tokens remain",
+      "Resolve effects and checkpoint eligibility before seeking bounded authority.",
+      "UI-42"
+    ],
+    "UI-42": [
+      "Outcome validation",
+      "Order lookup outcome",
+      "Maya Chen",
+      "Unknown \u00b7 Independent task observation missing",
+      "Check task correctness, data, permissions and the stable observation window.",
+      "UI-21"
+    ],
+    "UI-43": [
+      "Human review",
+      "Customer support 204",
+      "Maya Chen",
+      "Needs review \u00b7 Tool effect unconfirmed",
+      "Prepare only authorized context for the accountable operations reviewer.",
+      "UI-38"
+    ],
+    "UI-44": [
+      "Usage review",
+      "Model attempt 04",
+      "Maya Chen",
+      "Reserved \u00b7 Receipt pending \u00b7 Not rated",
+      "Reconcile provider usage before rating; duplicate delivery must reuse its original receipt.",
+      "UI-38"
+    ],
+    "UI-45": [
+      "Multi-agent review",
+      "Policy review team",
+      "Noah Brooks",
+      "Waiting \u00b7 Policy critic output missing",
+      "Keep the customer outcome Unknown until all mandatory roles have valid output.",
+      "UI-42"
+    ]
+  }
+}

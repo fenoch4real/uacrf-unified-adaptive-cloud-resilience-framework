@@ -1,0 +1,1152 @@
+{
+  "version": "1.0",
+  "design_revision": 8,
+  "screens": [
+    {
+      "screen": "UI-01",
+      "icon": "overview",
+      "primary_action": true,
+      "activity": {
+        "group": null,
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-02",
+      "icon": "service",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "service",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-03",
+      "icon": "assess",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-04",
+      "icon": "control",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-05",
+      "icon": "recover",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-06",
+      "icon": "evidence",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-07",
+      "icon": "knowledge",
+      "primary_action": true,
+      "activity": {
+        "group": "Resources",
+        "object_kind": "knowledge",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-08",
+      "icon": "knowledge",
+      "primary_action": true,
+      "activity": {
+        "group": "Resources",
+        "object_kind": "knowledge",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-09",
+      "icon": "knowledge",
+      "primary_action": true,
+      "activity": {
+        "group": "Resources",
+        "object_kind": "knowledge",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-10",
+      "icon": "knowledge",
+      "primary_action": true,
+      "activity": {
+        "group": "Resources",
+        "object_kind": "knowledge",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-11",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "agent",
+        "agent_scope": "UACRF assistance"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-12",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "agent",
+        "agent_scope": "UACRF assistance"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-13",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "agent",
+        "agent_scope": "UACRF assistance"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-14",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "agent",
+        "agent_scope": "UACRF assistance"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-15",
+      "icon": "connection",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "connection",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback",
+        "collection_freshness_evaluation_explanation",
+        "provider_scoped_local_timing_plan"
+      ]
+    },
+    {
+      "screen": "UI-16",
+      "icon": "service",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "service",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-17",
+      "icon": "connection",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "connection",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-18",
+      "icon": "graph",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "service",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-19",
+      "icon": "graph",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "service",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback",
+        "review_scenario_header",
+        "labelled_authority_status",
+        "review_sequence_icons",
+        "evidence_check_cards",
+        "next_review_action"
+      ],
+      "example_scope_override": {
+        "selector": "recovery-review-kind",
+        "service": "Service activity in selected journey scope",
+        "agent": "Order support activity in selected journey scope",
+        "live_query": false
+      },
+      "review_visual_contract": "RECOVERY_REVIEW_VISUAL_SYSTEM.json"
+    },
+    {
+      "screen": "UI-20",
+      "icon": "graph",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "service",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback",
+        "review_scenario_header",
+        "labelled_authority_status",
+        "review_sequence_icons",
+        "evidence_check_cards",
+        "next_review_action"
+      ],
+      "example_scope_override": {
+        "selector": "recovery-review-kind",
+        "service": "Service activity in selected journey scope",
+        "agent": "Order support activity in selected journey scope",
+        "live_query": false
+      },
+      "review_visual_contract": "RECOVERY_REVIEW_VISUAL_SYSTEM.json"
+    },
+    {
+      "screen": "UI-21",
+      "icon": "evidence",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-22",
+      "icon": "service",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "service",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback",
+        "fictional_import_comparison",
+        "explicit_source_resolution",
+        "local_import_proposal"
+      ]
+    },
+    {
+      "screen": "UI-23",
+      "icon": "graph",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": "model",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-24",
+      "icon": "control",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-25",
+      "icon": "control",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-26",
+      "icon": "recover",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-27",
+      "icon": "assess",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-28",
+      "icon": "recover",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-29",
+      "icon": "recover",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-30",
+      "icon": "identity",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "identity",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-31",
+      "icon": "assess",
+      "primary_action": true,
+      "activity": {
+        "group": "Operations",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-32",
+      "icon": "settings",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-33",
+      "icon": "settings",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-34",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "allowed_object_kinds": [
+          "agent",
+          "tool",
+          "model"
+        ]
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-35",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-36",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-37",
+      "icon": "graph",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-38",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-39",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-40",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-41",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-42",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-43",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Order support"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-44",
+      "icon": "billing",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": "billing",
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-45",
+      "icon": "agent",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null,
+        "capability_scope": "Policy review"
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-46",
+      "icon": "journey",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-47",
+      "icon": "journey",
+      "primary_action": true,
+      "activity": {
+        "group": "Work",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-48",
+      "icon": "resource",
+      "primary_action": true,
+      "activity": {
+        "group": "Resources",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-49",
+      "icon": "resource",
+      "primary_action": true,
+      "activity": {
+        "group": "Resources",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-50",
+      "icon": "settings",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-51",
+      "icon": "settings",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-52",
+      "icon": "identity",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-53",
+      "icon": "connection",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-54",
+      "icon": "handshake",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-55",
+      "icon": "assess",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-56",
+      "icon": "settings",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-57",
+      "icon": "evidence",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    },
+    {
+      "screen": "UI-58",
+      "icon": "billing",
+      "primary_action": true,
+      "activity": {
+        "group": "Administration",
+        "object_kind": null,
+        "agent_scope": null
+      },
+      "components": [
+        "heading",
+        "primary_action",
+        "scope_context",
+        "labelled_states",
+        "recent_activity",
+        "visual_key",
+        "form_feedback"
+      ]
+    }
+  ]
+}

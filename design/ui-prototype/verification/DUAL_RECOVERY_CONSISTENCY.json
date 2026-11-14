@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "ui_visual_refinement": 6,
+  "status": "PASS_SOURCE_AND_ARTIFACT_CONSISTENCY",
+  "scenario_contract_checks": 12,
+  "baseline_documents_contracts_and_scripts_preserved": 102,
+  "requirements_preserved": 131,
+  "review_screens": 2,
+  "workload_kinds_per_screen": 2,
+  "review_sequence_diagrams": 4,
+  "new_runtime_dependency_edges": 0,
+  "canonical_api_or_schema_change": false,
+  "browser_and_live_acceptance": "NOT_EXECUTED",
+  "score_change": 0
+}

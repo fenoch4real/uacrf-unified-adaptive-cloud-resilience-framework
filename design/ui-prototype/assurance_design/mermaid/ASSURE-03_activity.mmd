@@ -1,0 +1,15 @@
+flowchart TD
+S01["S01 Request current diagnostic assessment"]
+S01 -->|fail or incomplete| F1
+S02["S02 Recheck current actor grants journey linkage and represented workloads"]
+S01 --> S02
+S02 -->|fail or incomplete| F1
+S03["S03 Verify latest reviewed graph when its evidence remains eligible"]
+S02 --> S03
+S03 -->|fail or incomplete| F1
+S04["S04 Derive insufficient evidence or pending review without rewriting history"]
+S03 --> S04
+S04 -->|fail or incomplete| F1
+S05["S05 Return bounded history pending revisions and explicit diagnostic limits"]
+S04 --> S05
+F1["F1 Stop without recovery or certification"]

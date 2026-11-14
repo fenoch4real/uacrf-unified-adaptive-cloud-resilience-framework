@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create a customer journey | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Create a draft customer journey</h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a href="/journeys">Back to customer journeys</a></p>
+  <p role="status" th:if="${journeyError != null}" th:text="${journeyError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the journey details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <p th:if="${#lists.isEmpty(ownerCandidates)}">
+    No eligible owners are available in this context.
+  </p>
+  <form method="post" th:action="@{/journeys}" th:object="${journeyForm}">
+    <input type="hidden" th:field="*{ownerCursor}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" name="ownerCursorHistory"
+           th:each="cursor : ${ownerCursorHistory}" th:value="${cursor}">
+    <fieldset>
+      <legend>Journey details</legend>
+      <p>
+        <label for="name">Name</label>
+        <input id="name" type="text" th:field="*{name}" maxlength="200" required
+               th:attr="aria-describedby=${invalidName == true ? 'name-help name-error' : 'name-help'},
+                        aria-invalid=${invalidName == true ? 'true' : null}">
+        <span id="name-help">Up to 200 characters.</span>
+        <span id="name-error" th:if="${nameError != null}" th:text="${nameError}"></span>
+      </p>
+      <p>
+        <label for="purpose">Purpose</label>
+        <textarea id="purpose" th:field="*{purpose}" maxlength="2000" required
+                  th:attr="aria-describedby=${invalidPurpose == true ? 'purpose-help purpose-error' : 'purpose-help'},
+                           aria-invalid=${invalidPurpose == true ? 'true' : null}"></textarea>
+        <span id="purpose-help">Describe the intended customer outcome in up to 2,000 characters.</span>
+        <span id="purpose-error" th:if="${purposeError != null}" th:text="${purposeError}"></span>
+      </p>
+      <p>
+        <label for="ownerId">Eligible human owner</label>
+        <select id="ownerId" th:field="*{ownerId}" required
+                th:attr="aria-describedby=${invalidOwner == true ? 'owner-help owner-error' : 'owner-help'},
+                         aria-invalid=${invalidOwner == true ? 'true' : null}">
+          <option value="">Select an eligible owner</option>
+          <option th:each="owner : ${ownerCandidates}" th:value="${owner.id}"
+                  th:text="${owner.displayName + ' (' + owner.id + ')'}">Owner</option>
+        </select>
+        <span id="owner-help">S01 supplies and revalidates eligible owners for this context.</span>
+        <span id="owner-error" th:if="${ownerError != null}" th:text="${ownerError}"></span>
+      </p>
+    </fieldset>
+    <button type="submit" th:if="${!#lists.isEmpty(ownerCandidates)}">Create draft journey</button>
+    <button type="submit" formnovalidate formaction="/journeys/new/owners"
+            name="ownerPageAction" value="previous"
+            th:if="${hasPreviousOwners}">Previous eligible owners</button>
+    <button type="submit" formnovalidate formaction="/journeys/new/owners"
+            name="ownerPageAction" value="next"
+            th:if="${nextOwnerCursor != null}">More eligible owners</button>
+  </form>
+</main>
+</body>
+</html>

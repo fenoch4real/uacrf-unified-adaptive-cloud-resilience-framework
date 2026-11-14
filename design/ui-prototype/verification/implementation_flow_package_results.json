@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "flow_revision": 1,
+  "status": "PASS_DOCUMENT_STRUCTURAL_REVIEW",
+  "flows": 65,
+  "svg_diagrams": 130,
+  "mermaid_sources": 130,
+  "canonical_endpoint_coverage": "52 of 52",
+  "billing_interface_groups": 5,
+  "shared_workflows": 8,
+  "checks": [
+    "Contiguous per-flow step IDs",
+    "Exact canonical API inventory coverage",
+    "All named SQL references resolve",
+    "SVG XML and element bounds",
+    "Activity/sequence/source step parity",
+    "Explicit assistance fork/par/collect",
+    "Local guide/asset links"
+  ],
+  "manual_review": "Representative layouts and explorer interactions only; see VISUAL_REVIEW.md",
+  "api_or_provider_execution": "NOT_EXECUTED",
+  "full_acceptance": "NOT_EXECUTED"
+}

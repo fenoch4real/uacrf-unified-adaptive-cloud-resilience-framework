@@ -2,17 +2,17 @@
 
 Version 1.0 | Architecture revision MS 01
 
-The next implementation uses `development/UACRF_v1_0_microservices`. Preserve the existing application as a regression and migration source. Each milestone delivers a working cross-service workflow, a retained contract, data migrations and acceptance evidence. Do not create a new completion count by treating an unavailable stub as an implemented operation.
+The target is a fresh microservices implementation in `development/UACRF_v1_0_microservices`. The existing application is not a build, runtime, regression, or acceptance dependency. Each milestone delivers a working cross-service workflow, a retained contract, data migrations and acceptance evidence. Track only behavior implemented and tests executed against this target; do not count unavailable stubs as delivered operations.
 
 ## M0 Freeze the migration baseline and reconcile contracts
 
-Retain the current JAR, exact source/contract hashes, 322-test evidence and the distinction between 107 source routes and the older 99-route completion inventory. Reconcile the advisory contracts with the consolidated references without modifying original signed artifacts. Resolve each public operation's effective contract, current behavior, owner and migration acceptance case. Preserve the original 47 identifiers and current partial-operation explanations.
+Freeze the checked-in contracts and design artifacts by hash, and preserve the distinction between 107 inherited registered-route records and the older 99-route completion inventory. Reconcile advisory contracts with consolidated references without modifying original signed artifacts. Resolve each included public operation's effective contract, owner and implementation acceptance case. Preserve the original 47 identifiers and their documented partial-operation explanations.
 
-Deliver a root Maven build, dependency/image lock policy, architecture enforcement rules, shared test utilities, local environment specification and CI jobs. Record the initial threat model, tenant boundary and event/receipt compatibility policies. Choose one bounded first recovery action and its local test adapter. Completion requires all 144 existing method/path pairs, 153 table declarations and 131 requirement IDs to remain allocated with no unexplained orphan.
+Deliver a root Maven build, dependency/image lock policy, architecture enforcement rules, shared test utilities, local environment specification and CI jobs. Record the initial threat model, tenant boundary and event/receipt compatibility policies. Choose one bounded first recovery action and its local test adapter. Completion requires all 144 existing method/path pairs, 153 table declarations and 131 requirement IDs to remain allocated with no unexplained orphan. Establish and report test results from this fresh build only.
 
 ## M1 Establish independent services and the first real journey
 
-Build EDGE01, UX01, S01 and S02 as independently deployed images with separate logical databases and credentials. Implement real HTTP between them, audience-restricted service identity, local audit/outbox/inbox and scoped ownership receipts. Complete sign-in, principal/owner setup, a service and standalone agent registration, and a journey link in the same UI.
+Build EDGE01, UX01, S01 and S02 as independently deployed images with separate logical databases and credentials. Implement real HTTP between them, audience-restricted service identity, local audit/outbox/inbox and scoped ownership receipts. Complete sign-in, principal/owner setup, service registration, both standalone and service-bound agent registration, and a journey link in the same UI.
 
 Use `cmd_<owner>_<uuid>` for new opaque public command IDs and a migrated routing map for old UUIDs. Test actual command lookup after issuer restart. Prove one service cannot directly query or write another database. Run two-service authorization/revocation tests and preserve public response compatibility. The milestone is incomplete if UI controllers still call the legacy Java dispatcher or shared database.
 

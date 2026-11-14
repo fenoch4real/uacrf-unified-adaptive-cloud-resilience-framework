@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="993" viewBox="0 0 1000 993" role="img" aria-label="Customer onboarding and objectives"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">Customer onboarding and objectives</text>
+<text x="10.0" y="85" font-size="19" fill="#152b43">Customer UI</text>
+<line x1="85.0" y1="120" x2="85.0" y2="853" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="217.5" y="85" font-size="19" fill="#152b43">S01 and S02</text>
+<line x1="292.5" y1="120" x2="292.5" y2="853" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="425.0" y="85" font-size="19" fill="#152b43">S03 and S04</text>
+<line x1="500.0" y1="120" x2="500.0" y2="853" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="632.5" y="85" font-size="19" fill="#152b43">S05</text>
+<line x1="707.5" y1="120" x2="707.5" y2="853" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="840.0" y="85" font-size="19" fill="#152b43">S06 and S07</text>
+<line x1="915.0" y1="120" x2="915.0" y2="853" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<path d="M85.0,210 L292.5,210" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="150" font-size="19" fill="#152b43">1 Admit people</text>
+<text x="93.0" y="174" font-size="19" fill="#152b43">owners and workloads</text>
+<path d="M85.0,287 L500.0,287" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="227" font-size="19" fill="#152b43">2 Enroll read-only source connection</text>
+<path d="M500.0,364 L292.5,364" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="304" font-size="19" fill="#152b43">3 Propose discovered</text>
+<text x="300.5" y="328" font-size="19" fill="#152b43">inventory links</text>
+<path d="M85.0,441 L292.5,441" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="381" font-size="19" fill="#152b43">4 Link services</text>
+<text x="93.0" y="405" font-size="19" fill="#152b43">agents and shared</text>
+<text x="93.0" y="429" font-size="19" fill="#152b43">resources</text>
+<path d="M85.0,518 L707.5,518" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="458" font-size="19" fill="#152b43">5 Propose or resolve imported objectives</text>
+<rect x="567.5" y="515" width="300" height="70" rx="8" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="579.5" y="536" font-size="19" fill="#152b43">6 Independent review and</text>
+<text x="579.5" y="560" font-size="19" fill="#152b43">activation</text>
+<path d="M500.0,672 L915.0,672" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="508.0" y="612" font-size="19" fill="#152b43">7 Supply qualified source observations</text>
+<path d="M292.5,749 L915.0,749" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="689" font-size="19" fill="#152b43">8 Accept and project typed dependencies</text>
+<path d="M915.0,826 L85.0,826" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="766" font-size="19" fill="#152b43">9 Show actual setup and evaluation results</text>
+<text x="35" y="893" font-size="19" fill="#152b43">An unresolved import, missing owner, stale source or unavailable prerequisite remains</text>
+<text x="35" y="917" font-size="19" fill="#152b43">visible. Screen visits do not complete setup.</text>
+</g></svg>

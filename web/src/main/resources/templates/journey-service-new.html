@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register a service | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Register a service for <span th:text="${journey != null ? journey.name : journeyId}">customer journey</span></h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a th:href="@{/journeys/{id}(id=${journeyId})}">Back to customer journey</a></p>
+  <p role="status" th:if="${serviceError != null}" th:text="${serviceError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the service details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <p th:if="${#lists.isEmpty(ownerCandidates)}">
+    No eligible owners are available in this context.
+  </p>
+  <form method="post" th:action="@{/journeys/{id}/services(id=${journeyId})}" th:object="${serviceForm}">
+    <input type="hidden" th:field="*{ownerCursor}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" name="ownerCursorHistory"
+           th:each="cursor : ${ownerCursorHistory}" th:value="${cursor}">
+    <fieldset>
+      <legend>Service details</legend>
+      <p>
+        <label for="name">Name (required)</label>
+        <input id="name" type="text" th:field="*{name}" maxlength="200" required
+               th:attr="aria-describedby=${invalidName == true ? 'name-help name-error' : 'name-help'},
+                        aria-invalid=${invalidName == true ? 'true' : null},
+                        autofocus=${invalidName == true ? 'autofocus' : null}">
+        <span id="name-help">Up to 200 characters.</span>
+        <span id="name-error" th:if="${nameError != null}" th:text="${nameError}"></span>
+      </p>
+      <p>
+        <label for="reason">Registration reason (required)</label>
+        <textarea id="reason" th:field="*{reason}" maxlength="2000" required
+                  th:attr="aria-describedby=${invalidReason == true ? 'reason-help reason-error' : 'reason-help'},
+                           aria-invalid=${invalidReason == true ? 'true' : null},
+                           autofocus=${invalidName != true and invalidReason == true ? 'autofocus' : null}"></textarea>
+        <span id="reason-help">Explain why this service is being registered.</span>
+        <span id="reason-error" th:if="${reasonError != null}" th:text="${reasonError}"></span>
+      </p>
+      <p>
+        <label for="ownerId">Eligible human owner (required)</label>
+        <select id="ownerId" th:field="*{ownerId}" required
+                th:attr="aria-describedby=${invalidOwner == true ? 'owner-help owner-error' : 'owner-help'},
+                         aria-invalid=${invalidOwner == true ? 'true' : null},
+                         autofocus=${invalidName != true and invalidReason != true and invalidOwner == true ? 'autofocus' : null}">
+          <option value="">Select an eligible owner</option>
+          <option th:each="owner : ${ownerCandidates}" th:value="${owner.id}"
+                  th:text="${owner.displayName + ' (' + owner.id + ')'}">Owner</option>
+        </select>
+        <span id="owner-help">S01 supplies and revalidates eligible owners for this context.</span>
+        <span id="owner-error" th:if="${ownerError != null}" th:text="${ownerError}"></span>
+      </p>
+      <fieldset th:attr="aria-describedby=${invalidCriticality == true ? 'criticality-error' : null},
+                         aria-invalid=${invalidCriticality == true ? 'true' : null}">
+        <legend>Service criticality (required)</legend>
+        <label><input type="radio" th:field="*{criticality}" value="1" required
+                      th:attr="aria-describedby=${invalidCriticality == true ? 'criticality-error' : null},
+                               aria-invalid=${invalidCriticality == true ? 'true' : null},
+                               autofocus=${invalidName != true and invalidReason != true and invalidOwner != true and invalidCriticality == true ? 'autofocus' : null}"> 1</label>
+        <label><input type="radio" th:field="*{criticality}" value="2" required> 2</label>
+        <label><input type="radio" th:field="*{criticality}" value="3" required> 3</label>
+        <label><input type="radio" th:field="*{criticality}" value="4" required> 4</label>
+        <label><input type="radio" th:field="*{criticality}" value="5" required> 5</label>
+        <span id="criticality-error" th:if="${invalidCriticality == true}">Choose a value from 1 to 5.</span>
+      </fieldset>
+    </fieldset>
+    <button type="submit" th:if="${!#lists.isEmpty(ownerCandidates)}">Register service</button>
+    <button type="submit" formnovalidate
+            th:formaction="@{/journeys/{id}/services/new/owners(id=${journeyId})}"
+            name="ownerPageAction" value="previous"
+            th:if="${hasPreviousOwners}">Previous eligible owners</button>
+    <button type="submit" formnovalidate
+            th:formaction="@{/journeys/{id}/services/new/owners(id=${journeyId})}"
+            name="ownerPageAction" value="next"
+            th:if="${nextOwnerCursor != null}">More eligible owners</button>
+  </form>
+</main>
+</body>
+</html>

@@ -1,0 +1,42 @@
+sequenceDiagram
+participant Human
+participant API as Java API
+participant SQL as PostgreSQL
+participant Graph as Neo4j
+Human->>API: S01 Read assessment and pending accepted graph revisions
+alt S01 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>SQL: S02 Check current access to baseline review history and pending graph scopes
+alt S02 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+Human->>API: S03 Select accepted graph and submit expected revision and review reason
+alt S03 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Graph: S04 Verify selected projection and current SQL evidence eligibility
+alt S04 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>API: S05 Compare relevant nodes and semantic relationships with the original baseline
+alt S05 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>SQL: S06 Append review with revision fencing audit and notification outbox
+alt S06 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Human: S07 Explain relevant changes shared dependencies and required retest review

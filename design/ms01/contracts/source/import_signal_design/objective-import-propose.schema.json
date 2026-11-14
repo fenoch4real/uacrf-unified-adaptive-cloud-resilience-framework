@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Source proposal admission",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "expected_import_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expected_local_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "choice": {
+      "const": "PROPOSE_SOURCE"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "template_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "template_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "expected_import_revision",
+    "expected_local_revision",
+    "choice",
+    "reason",
+    "template_id",
+    "template_revision",
+    "source_digest"
+  ]
+}

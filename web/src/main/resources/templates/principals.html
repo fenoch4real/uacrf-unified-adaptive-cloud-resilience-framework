@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Principal directory | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/principal-directory.css}">
+</head>
+<body>
+<main>
+  <h1>Principal directory</h1>
+  <p><a href="/">Back to home</a></p>
+  <p><a href="/access">View current access</a></p>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p role="alert" th:if="${principalError != null}" th:text="${principalError}"></p>
+  <p th:if="${#lists.isEmpty(principals) and principalError == null}">
+    No principals were returned for this context.
+  </p>
+  <div class="table-wrapper" tabindex="0" role="region"
+       aria-labelledby="principal-table-caption"
+       th:if="${!#lists.isEmpty(principals)}">
+    <table class="principal-table">
+      <caption id="principal-table-caption">Principals visible in the selected context</caption>
+      <thead>
+        <tr>
+          <th scope="col">Principal ID</th>
+          <th scope="col">Display name</th>
+          <th scope="col">Kind</th>
+          <th scope="col">Status</th>
+          <th scope="col">Owner eligible</th>
+          <th scope="col">Revision</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="principal : ${principals}">
+          <th scope="row" th:text="${principal.id}">principal-id</th>
+          <td data-label="Display name" th:text="${principal.displayName}">Principal</td>
+          <td data-label="Kind" th:text="${principal.kind}">HUMAN</td>
+          <td data-label="Status" th:text="${principal.enabled ? 'Enabled' : 'Disabled'}">
+            Enabled
+          </td>
+          <td data-label="Owner eligible"
+              th:text="${principal.ownerEligible ? 'Yes' : 'No'}">No</td>
+          <td data-label="Revision" th:text="${principal.revision}">1</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p th:if="${nextCursor != null}">
+    <a th:href="@{/principals(cursor=${nextCursor})}">Next page of principals</a>
+  </p>
+</main>
+</body>
+</html>

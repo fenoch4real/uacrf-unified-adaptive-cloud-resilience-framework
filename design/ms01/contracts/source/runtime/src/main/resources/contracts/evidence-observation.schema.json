@@ -1,0 +1,449 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "enum": [
+        "UACRF_OBSERVATION_V1",
+        "UACRF_OBSERVATION_V2"
+      ]
+    },
+    "service_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "kind": {
+      "enum": [
+        "METRIC",
+        "CONFIGURATION",
+        "AGENT_EXECUTION"
+      ]
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "service_id",
+    "source_id",
+    "source_event_id",
+    "occurred_at",
+    "kind",
+    "data"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UACRF observation, Version 1.0",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "METRIC"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "if": {
+              "required": [
+                "measurement_kind"
+              ]
+            },
+            "then": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "metric": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "\\S"
+                },
+                "value": {
+                  "type": "number",
+                  "minimum": -1e+100,
+                  "maximum": 1e+100
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "\\S"
+                },
+                "window_start": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "window_end": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "measurement_kind": {
+                  "enum": [
+                    "THRESHOLD",
+                    "PERCENTILE",
+                    "RATIO",
+                    "RECOVERY_TIME",
+                    "OUTCOME"
+                  ]
+                },
+                "measurement_ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000,
+                  "pattern": "\\S"
+                },
+                "percentile": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "metric",
+                "value",
+                "unit",
+                "window_start",
+                "window_end",
+                "measurement_kind",
+                "measurement_ref",
+                "percentile"
+              ],
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "measurement_kind": {
+                        "const": "PERCENTILE"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "percentile": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 100
+                      }
+                    }
+                  },
+                  "else": {
+                    "properties": {
+                      "percentile": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "else": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "metric": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "\\S"
+                },
+                "value": {
+                  "type": "number",
+                  "minimum": -1e+100,
+                  "maximum": 1e+100
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "\\S"
+                },
+                "window_start": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "window_end": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "metric",
+                "value",
+                "unit",
+                "window_start",
+                "window_end"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "CONFIGURATION"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "resource_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "configuration_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "source_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "source_checked_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "change_type": {
+                "enum": [
+                  "SNAPSHOT",
+                  "CHANGED",
+                  "DELETED"
+                ]
+              }
+            },
+            "required": [
+              "resource_id",
+              "configuration_digest",
+              "source_version",
+              "source_checked_at",
+              "change_type"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AGENT_EXECUTION"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "profile_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "execution_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "event_type": {
+                "enum": [
+                  "OBSERVATION",
+                  "FAILURE",
+                  "TIMEOUT",
+                  "COMPLETION"
+                ]
+              },
+              "event_sequence": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              }
+            },
+            "required": [
+              "profile_id",
+              "execution_id",
+              "event_type",
+              "event_sequence"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "UACRF_OBSERVATION_V2"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "METRIC"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "metric": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "value": {
+                "type": "number",
+                "minimum": -1e+100,
+                "maximum": 1e+100
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80,
+                "pattern": "\\S"
+              },
+              "window_start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "window_end": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "measurement_kind": {
+                "enum": [
+                  "THRESHOLD",
+                  "PERCENTILE",
+                  "RATIO",
+                  "RECOVERY_TIME",
+                  "OUTCOME"
+                ]
+              },
+              "measurement_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000,
+                "pattern": "\\S"
+              },
+              "percentile": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "metric",
+              "value",
+              "unit",
+              "window_start",
+              "window_end",
+              "measurement_kind",
+              "measurement_ref",
+              "percentile"
+            ],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "measurement_kind": {
+                      "const": "PERCENTILE"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "percentile": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "percentile": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "data": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "measurement_kind"
+                  ]
+                },
+                {
+                  "required": [
+                    "measurement_ref"
+                  ]
+                },
+                {
+                  "required": [
+                    "percentile"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

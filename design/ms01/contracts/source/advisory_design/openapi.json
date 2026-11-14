@@ -1,0 +1,1272 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF advisory lifecycle \u2014 development",
+    "version": "1.0"
+  },
+  "paths": {
+    "/v1/orchestration-runs": {
+      "post": {
+        "summary": "Start a bounded advisory run from verified registered inputs.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/Run"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "run-request.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orchestration-runs/{id}": {
+      "get": {
+        "summary": "Read run history with current source disclosure.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/Run"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orchestration-runs/{id}:cancel": {
+      "post": {
+        "summary": "Cancel new work and preserve late dispositions.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/CancelReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-outputs": {
+      "post": {
+        "summary": "Retain an assigned runtime output and all supplied dissent.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/OutputReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "service_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "assignment_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "attempt_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "context_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "expected_revision": {
+                    "const": 0
+                  },
+                  "object_ref": {
+                    "type": "string",
+                    "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "dissent_refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                    },
+                    "minItems": 0,
+                    "maxItems": 10,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "service_id",
+                  "assignment_id",
+                  "attempt_key",
+                  "context_digest",
+                  "expected_revision",
+                  "object_ref",
+                  "digest",
+                  "dissent_refs"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-arbitrations": {
+      "post": {
+        "summary": "Independently review every retained output and preserve dissent.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/ArbitrationReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "service_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "run_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "sealed_context_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "output_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "minItems": 0,
+                    "maxItems": 3,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "service_id",
+                  "run_id",
+                  "sealed_context_digest",
+                  "expected_revision",
+                  "reason",
+                  "output_ids"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/advisory-assignments": {
+      "get": {
+        "summary": "List only the authenticated system runtime\u2019s own reserved assignments.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/AssignmentPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/advisory-assignments/{id}:claim": {
+      "post": {
+        "summary": "Issue verified input once; a lost response does not permit automatic reinvocation.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/Delivery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_generation": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000000
+                  }
+                },
+                "required": [
+                  "expected_generation"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/advisory-outputs:inline": {
+      "post": {
+        "summary": "Normalize actual output bytes under the authenticated reserved producer before retention.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained synchronous advisory result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "response.schema.json#/$defs/OutputReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "assignment_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "attempt_key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "context_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "expected_revision": {
+                    "const": 0
+                  },
+                  "content": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "generation_outcome": {
+                        "enum": [
+                          "MODEL_RESPONSE",
+                          "NO_MODEL_RESPONSE",
+                          "MODEL_OUTCOME_UNKNOWN"
+                        ]
+                      },
+                      "opinion": {
+                        "enum": [
+                          "SUPPORT",
+                          "REJECT",
+                          "ABSTAIN"
+                        ]
+                      },
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2000
+                      },
+                      "tokens_used": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 10000000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cost_units_used": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1000000000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "citations": {
+                        "type": "array",
+                        "maxItems": 10,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "item_id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            "version": {
+                              "type": "integer",
+                              "minimum": 1
+                            },
+                            "chunk_id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            "source_digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            },
+                            "excerpt_digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "item_id",
+                            "version",
+                            "chunk_id",
+                            "source_digest",
+                            "excerpt_digest"
+                          ]
+                        }
+                      },
+                      "proposal_ids": {
+                        "type": "array",
+                        "maxItems": 10,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "generation_outcome",
+                      "opinion",
+                      "summary",
+                      "tokens_used",
+                      "cost_units_used",
+                      "citations",
+                      "proposal_ids"
+                    ]
+                  },
+                  "dissent": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "blocking": {
+                          "type": "boolean"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "citations": {
+                          "type": "array",
+                          "maxItems": 10,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "item_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              "version": {
+                                "type": "integer",
+                                "minimum": 1
+                              },
+                              "chunk_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              "source_digest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              "excerpt_digest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              }
+                            },
+                            "required": [
+                              "item_id",
+                              "version",
+                              "chunk_id",
+                              "source_digest",
+                              "excerpt_digest"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "blocking",
+                        "reason",
+                        "citations"
+                      ]
+                    },
+                    "minItems": 0,
+                    "maxItems": 10
+                  }
+                },
+                "required": [
+                  "assignment_id",
+                  "attempt_key",
+                  "context_digest",
+                  "expected_revision",
+                  "content",
+                  "dissent"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

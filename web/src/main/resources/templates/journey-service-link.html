@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Link service to journey | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Link service to <span th:text="${journey != null ? journey.name : journeyId}">customer journey</span></h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a th:href="@{/journeys/{id}(id=${journeyId})}">Back to customer journey</a></p>
+  <p>Service: <strong th:text="${serviceId}">Service identifier</strong></p>
+  <p>
+    <a th:href="@{/services/{id}/agents/new(id=${serviceId})}">
+      Register an agent for this service
+    </a>
+  </p>
+  <p role="status" th:if="${serviceError != null}" th:text="${serviceError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the link details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <form method="post"
+        th:action="@{/journeys/{journeyId}/services/{serviceId}/link(journeyId=${journeyId},serviceId=${serviceId})}"
+        th:object="${linkForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <fieldset>
+      <legend>Journey link details</legend>
+      <p>
+        <label for="stepId">Journey step</label>
+        <select id="stepId" th:field="*{stepId}"
+                th:attr="aria-describedby=${invalidStep == true ? 'step-help step-error' : 'step-help'},
+                         aria-invalid=${invalidStep == true ? 'true' : null},
+                         autofocus=${invalidStep == true ? 'autofocus' : null}">
+          <option value="">No specific step</option>
+          <option th:each="step : ${journeySteps}"
+                  th:value="${step.id}"
+                  th:text="${step.position + '. ' + step.name}">Step</option>
+        </select>
+        <span id="step-help">Choose a step, or link the service to the journey generally.</span>
+        <span id="step-error" th:if="${stepError != null}" th:text="${stepError}"></span>
+      </p>
+      <fieldset th:attr="aria-describedby=${invalidCriticality == true ? 'criticality-error' : null},
+                         aria-invalid=${invalidCriticality == true ? 'true' : null}">
+        <legend>Link criticality (required)</legend>
+        <label><input type="radio" th:field="*{criticality}" value="REQUIRED" required
+                      th:attr="aria-describedby=${invalidCriticality == true ? 'criticality-error' : null},
+                               aria-invalid=${invalidCriticality == true ? 'true' : null},
+                               autofocus=${invalidStep != true and invalidCriticality == true ? 'autofocus' : null}"> Required</label>
+        <label><input type="radio" th:field="*{criticality}" value="OPTIONAL" required> Optional</label>
+        <label><input type="radio" th:field="*{criticality}" value="UNKNOWN" required> Unknown</label>
+        <span id="criticality-error" th:if="${invalidCriticality == true}"
+              th:text="${criticalityError != null ? criticalityError : 'Choose a link criticality.'}"></span>
+      </fieldset>
+    </fieldset>
+    <button type="submit">Link service</button>
+  </form>
+</main>
+</body>
+</html>

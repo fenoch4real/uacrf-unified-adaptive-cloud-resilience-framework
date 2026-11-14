@@ -1,0 +1,64 @@
+{
+  "version": "1.0",
+  "design_revision": 8,
+  "kind": "DISPLAY_PROJECTION_NOT_PUBLIC_HTTP_API",
+  "canonical_api_count": 74,
+  "schema_change_required": false,
+  "database_mutation": "NONE",
+  "source_fields": {
+    "audit_event.id": "id; source identity, not synthesized domain success",
+    "audit_event.actor_id + principal.kind/display_name": "Current-authorized display actor; unknown if unavailable",
+    "audit_event.action + reviewed domain event": "Allowlisted title and disposition; generic actions do not imply success",
+    "audit_event.target_id + authorized target lookup": "object name/kind and permitted local detail destination",
+    "audit_event.created_at": "recorded_at; not an occurrence assertion",
+    "reviewed domain payload occurrence time": "occurred_at or null; never substitute created_at silently",
+    "qualified current resource placement": "provider or null; no brand inference",
+    "current purpose-specific qualification": "evidence; default Unknown when not independently established"
+  },
+  "existing_named_building_blocks": [
+    "get_audit_event",
+    "list_audit_event",
+    "access_directory",
+    "awl_get_execution",
+    "awl_get_checkpoint",
+    "awl_current_evaluation",
+    "cat_get_journey",
+    "cat_get_shared_asset"
+  ],
+  "existing_tables": [
+    "audit_event",
+    "principal",
+    "workload_event",
+    "workload_execution",
+    "workload_checkpoint",
+    "workload_evaluation",
+    "validation_result",
+    "journey_capability",
+    "capability_asset",
+    "billing_usage_admission"
+  ],
+  "ui_reference": "COMPONENT_COVERAGE.json",
+  "live_handler": "NOT_IMPLEMENTED_OR_VERIFIED",
+  "pagination": "Authorization and redaction before ordering/filtering/page formation. Generic list_audit_event is not a finished feed query. Bind cursor to current disclosure scope and filters. Report partial results without hidden counts.",
+  "event_authority": "Source domain records remain authoritative. Do not copy the activity view back as evidence or use it to dispatch.",
+  "actor_privacy": "Do not expose agent instructions, prompts, secret credentials, knowledge bytes, customer payloads or arbitrary audit payloads. Display names require current disclosure permission.",
+  "remaining_states": [
+    "Authorized server projection and result contract",
+    "Cursor signing, revocation and object disclosure tests",
+    "Real network loading/failure/stale/partial behavior",
+    "Browser accessibility and user acceptance"
+  ],
+  "recovery_review_example_filter": {
+    "views": [
+      "UI-19",
+      "UI-20"
+    ],
+    "selector": "recovery-review-kind",
+    "service": "object_kind=service",
+    "agent": "scope_label=Order support",
+    "journey_filter": "Applied separately; may yield empty sample feed",
+    "status": "Fixed illustrative events, no live query"
+  },
+  "source_time_contract": "../../Microservices_Architecture/MS01/contracts/source/import_signal_design/collector-signal-envelope.schema.json",
+  "time_boundary": "Observed source time, received time and definition verification time are separate; display does not qualify evidence."
+}

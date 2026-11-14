@@ -1,0 +1,223 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "UACRF_ADVISORY_OUTPUT_V1"
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "environment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "service_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "assignment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "attempt_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "producer_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "opinion": {
+      "enum": [
+        "SUPPORT",
+        "REJECT",
+        "ABSTAIN"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "tokens_used": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cost_units_used": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "citations": {
+      "type": "array",
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "source_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "excerpt_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "item_id",
+          "version",
+          "chunk_id",
+          "source_digest",
+          "excerpt_digest"
+        ]
+      }
+    },
+    "proposal_ids": {
+      "type": "array",
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+      }
+    },
+    "generation_outcome": {
+      "enum": [
+        "MODEL_RESPONSE",
+        "NO_MODEL_RESPONSE",
+        "MODEL_OUTCOME_UNKNOWN"
+      ]
+    }
+  },
+  "required": [
+    "protocol",
+    "tenant_id",
+    "environment_id",
+    "service_id",
+    "run_id",
+    "assignment_id",
+    "attempt_key",
+    "producer_id",
+    "context_digest",
+    "opinion",
+    "summary",
+    "tokens_used",
+    "cost_units_used",
+    "citations",
+    "proposal_ids",
+    "generation_outcome"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "properties": {
+        "generation_outcome": {
+          "const": "MODEL_RESPONSE"
+        },
+        "tokens_used": {
+          "type": "integer"
+        },
+        "cost_units_used": {
+          "type": "integer"
+        }
+      }
+    },
+    {
+      "properties": {
+        "generation_outcome": {
+          "const": "NO_MODEL_RESPONSE"
+        },
+        "opinion": {
+          "const": "ABSTAIN"
+        },
+        "tokens_used": {
+          "const": 0
+        },
+        "cost_units_used": {
+          "const": 0
+        },
+        "proposal_ids": {
+          "maxItems": 0
+        }
+      }
+    },
+    {
+      "properties": {
+        "generation_outcome": {
+          "const": "MODEL_OUTCOME_UNKNOWN"
+        },
+        "opinion": {
+          "const": "ABSTAIN"
+        },
+        "tokens_used": {
+          "type": "null"
+        },
+        "cost_units_used": {
+          "type": "null"
+        },
+        "proposal_ids": {
+          "maxItems": 0
+        }
+      }
+    }
+  ]
+}

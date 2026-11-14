@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant P0 as Old owner
+  participant P1 as Migration
+  participant P2 as New owner
+  participant P3 as Route edge
+  alt Required current prerequisites hold
+    P0->>P1: 1 Freeze scope and retain baseline hashes
+    P1->>P2: 2 Deploy read-only and compare responses
+    P1->>P0: 3 Stop new writes and fence old workers
+    P0->>P2: 4 Snapshot and replay to accepted watermark
+    P1->>P2: 5 Reconcile rows digests artifacts and events
+    P1->>P3: 6 Switch one route ownership epoch
+    P3->>P2: 7 Allow only new owner writes
+    P1->>P2: 8 Verify UI and repair or finalize cutover
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P3: After accepted new writes, rollback needs reconciled reverse migration or forward repair. Routing alone cannot restore lost facts.
+  end

@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "alignment_revision": 7,
+  "status": "PASS_CROSS_ARTIFACT_CHECKS",
+  "checks_passed": 1649,
+  "scope": "Document/source/contract/coverage checks; not live API/runtime acceptance.",
+  "live_integration": "NOT_EXECUTED"
+}

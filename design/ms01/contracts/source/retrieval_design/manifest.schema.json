@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RetrievalManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_id",
+    "case_id",
+    "tenant_id",
+    "environment_id",
+    "principal_id",
+    "purpose",
+    "query_digest",
+    "corpus_digest",
+    "retrieval_policy_version",
+    "index_version",
+    "retrieved_at",
+    "sources"
+  ],
+  "properties": {
+    "manifest_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "principal_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "query_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "corpus_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "retrieval_policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "index_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retrieved_at": {
+      "type": "integer"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:uacrf:1.0:RetrievedSource",
+        "title": "RetrievedSource",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "version",
+          "chunk_id",
+          "source_digest",
+          "excerpt_digest",
+          "excerpt_object_ref",
+          "locator",
+          "excerpt",
+          "excerpt_artifact_digest",
+          "matched_terms"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "excerpt_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "excerpt_object_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "excerpt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "excerpt_artifact_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "matched_terms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          }
+        }
+      },
+      "maxItems": 10
+    }
+  }
+}

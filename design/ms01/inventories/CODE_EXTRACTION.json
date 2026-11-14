@@ -1,0 +1,367 @@
+[
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ActionArtifacts.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ActionPolicyEngine.java",
+    "target_owner": "S10",
+    "migration_rule": "Reuse signing/calculation as internal components; implement durable governance."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Admin.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryArtifactStaging.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryArtifacts.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryDispatchJournal.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryGateway.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryRuns.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryRuntimeClient.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AdvisoryWorkflow.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AgentCases.java",
+    "target_owner": "S09",
+    "migration_rule": "Reuse bounded algorithms and replace shared SQL context with owner receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/AnalysisCases.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Api.java",
+    "target_owner": "EDGE01",
+    "migration_rule": "Extract public transport/routing only; each domain retains authorization."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Application.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ApplicationCommands.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ApplicationWorker.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ArtifactAdmin.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ArtifactStore.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Assurance.java",
+    "target_owner": "S12",
+    "migration_rule": "Reuse plan/assurance logic and implement actual independent probes."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Config.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Contracts.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Cursors.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Database.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/EvaluationEngine.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/EvaluationMeasurements.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/EvaluationProcessor.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/EvaluationWorker.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/EvidenceProcessor.java",
+    "target_owner": "S04",
+    "migration_rule": "Move owner-local verification and lifecycle; replace foreign joins with receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/EvidenceUploads.java",
+    "target_owner": "S04",
+    "migration_rule": "Move owner-local verification and lifecycle; replace foreign joins with receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/GraphAdmin.java",
+    "target_owner": "S06",
+    "migration_rule": "Keep exclusive graph authority and projection lease/content checks."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/GraphConfig.java",
+    "target_owner": "S06",
+    "migration_rule": "Keep exclusive graph authority and projection lease/content checks."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/GraphService.java",
+    "target_owner": "S06",
+    "migration_rule": "Keep exclusive graph authority and projection lease/content checks."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/GraphStore.java",
+    "target_owner": "S06",
+    "migration_rule": "Keep exclusive graph authority and projection lease/content checks."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/GraphWorker.java",
+    "target_owner": "S06",
+    "migration_rule": "Keep exclusive graph authority and projection lease/content checks."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Identity.java",
+    "target_owner": "S01",
+    "migration_rule": "Retain signature validation as shared transport utility, with S01 authoritative membership checks."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Json.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/KnowledgeArtifactStaging.java",
+    "target_owner": "S08",
+    "migration_rule": "Reuse strict artifact/retrieval behavior behind the owning API."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/KnowledgeRetrieval.java",
+    "target_owner": "S08",
+    "migration_rule": "Reuse strict artifact/retrieval behavior behind the owning API."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ObjectiveWindows.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/PackageCheck.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/PolicyAttestor.java",
+    "target_owner": "S10",
+    "migration_rule": "Reuse signing/calculation as internal components; implement durable governance."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/PolicyTrust.java",
+    "target_owner": "S10",
+    "migration_rule": "Reuse signing/calculation as internal components; implement durable governance."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Problem.java",
+    "target_owner": "PER_SERVICE_OR_BUILD",
+    "migration_rule": "Split bootstrap/DB/command dispatch by owner; share only transport, artifact primitives and build/test utilities."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ProposalProcessor.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ProposalWorker.java",
+    "target_owner": "S07",
+    "migration_rule": "Reuse exact calculations/source checks; separate foreign authoritative facts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/QualificationEngine.java",
+    "target_owner": "S04",
+    "migration_rule": "Move owner-local verification and lifecycle; replace foreign joins with receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/QualificationProcessor.java",
+    "target_owner": "S04",
+    "migration_rule": "Move owner-local verification and lifecycle; replace foreign joins with receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ReferenceArtifactStaging.java",
+    "target_owner": "S12",
+    "migration_rule": "Reuse plan/assurance logic and implement actual independent probes."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/RetrievalService.java",
+    "target_owner": "S08",
+    "migration_rule": "Reuse strict artifact/retrieval behavior behind the owning API."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/Routes.java",
+    "target_owner": "EDGE01",
+    "migration_rule": "Extract public transport/routing only; each domain retains authorization."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiAdvisoryController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiAgentCaseController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiEvaluationAdminController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiEvaluationController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiEvidenceAdminController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiEvidenceController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiGateway.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiProposalController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiRetrievalController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiSecurity.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/UiValidationPlanController.java",
+    "target_owner": "UX01",
+    "migration_rule": "Extract to experience API and replace in-process dispatch with typed remote clients."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ValidationPlanProcessor.java",
+    "target_owner": "S12",
+    "migration_rule": "Reuse plan/assurance logic and implement actual independent probes."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ValidationPlanWorker.java",
+    "target_owner": "S12",
+    "migration_rule": "Reuse plan/assurance logic and implement actual independent probes."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/ValidationPlans.java",
+    "target_owner": "S12",
+    "migration_rule": "Reuse plan/assurance logic and implement actual independent probes."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/WaiverAttestor.java",
+    "target_owner": "S04",
+    "migration_rule": "Move owner-local verification and lifecycle; replace foreign joins with receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/WaiverTrust.java",
+    "target_owner": "S04",
+    "migration_rule": "Move owner-local verification and lifecycle; replace foreign joins with receipts."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/collection/AwsCloudCollector.java",
+    "target_owner": "S03",
+    "migration_rule": "Retain typed ports and implement provider adapters under separate conformance gates."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/collection/AzureCloudCollector.java",
+    "target_owner": "S03",
+    "migration_rule": "Retain typed ports and implement provider adapters under separate conformance gates."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/collection/CloudCollector.java",
+    "target_owner": "S03",
+    "migration_rule": "Retain typed ports and implement provider adapters under separate conformance gates."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/collection/CollectorNotImplementedException.java",
+    "target_owner": "S03",
+    "migration_rule": "Retain typed ports and implement provider adapters under separate conformance gates."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/collection/GcpCloudCollector.java",
+    "target_owner": "S03",
+    "migration_rule": "Retain typed ports and implement provider adapters under separate conformance gates."
+  },
+  {
+    "source_class": "runtime/src/main/java/org/uacrf/runtime/collection/package-info.java",
+    "target_owner": "S03",
+    "migration_rule": "Retain typed ports and implement provider adapters under separate conformance gates."
+  }
+]

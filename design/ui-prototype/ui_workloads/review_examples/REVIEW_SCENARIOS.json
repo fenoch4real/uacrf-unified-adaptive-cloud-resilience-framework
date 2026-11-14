@@ -1,0 +1,139 @@
+{
+  "version": "1.0",
+  "visual_refinement": 6,
+  "status": "ILLUSTRATIVE_NOT_EXECUTED",
+  "cases": {
+    "UI-19": {
+      "service": {
+        "title": "Checkout recovery independence",
+        "scenario": "Hypothetical provider-region failure",
+        "rows": [
+          [
+            "Primary path",
+            "Checkout on GCP",
+            "Degraded example; actual failure must be verified"
+          ],
+          [
+            "Alternate path",
+            "Candidate deployment on Azure",
+            "Capacity and data readiness not established"
+          ],
+          [
+            "Common dependency",
+            "Runtime identity and order data",
+            "Different providers do not prove independent failure domains"
+          ],
+          [
+            "Conclusion",
+            "Unknown",
+            "Witness paths, current grants, capacity and outcome tests are required"
+          ]
+        ],
+        "nodes": [
+          "Checkout primary / GCP",
+          "Alternate path / Azure",
+          "Shared identity and data"
+        ],
+        "next": "UI-21"
+      },
+      "agent": {
+        "title": "Order support agent recovery independence",
+        "scenario": "Hypothetical primary model or runtime failure",
+        "rows": [
+          [
+            "Primary path",
+            "Order support agent / model m2",
+            "Paused read-only lookup example"
+          ],
+          [
+            "Alternate path",
+            "Evaluated fallback model and runtime required",
+            "A responding fallback endpoint is insufficient"
+          ],
+          [
+            "Common dependency",
+            "Order lookup API, identity, knowledge and memory",
+            "A common failed dependency can defeat both paths"
+          ],
+          [
+            "Conclusion",
+            "Unknown",
+            "Check model/tool compatibility, failure domains, current grants and independent task evidence"
+          ]
+        ],
+        "nodes": [
+          "Agent / primary model m2",
+          "Candidate fallback model",
+          "Shared order tool and identity"
+        ],
+        "next": "UI-42"
+      }
+    },
+    "UI-20": {
+      "service": {
+        "title": "Checkout changed decision context",
+        "scenario": "Hypothetical deployment change after a retained decision",
+        "rows": [
+          [
+            "Retained decision",
+            "Checkout v42 and graph snapshot",
+            "Exact digests and objective revision remain attributable"
+          ],
+          [
+            "Proposed current change",
+            "Deployment v43 and changed dependency access",
+            "Materiality cannot be inferred from endpoint health"
+          ],
+          [
+            "Authority consequence",
+            "Revalidation required",
+            "Existing authorization cannot silently widen to changed targets"
+          ],
+          [
+            "Conclusion",
+            "Unknown",
+            "Classify the delta, reevaluate current evidence and obtain applicable authority before dispatch"
+          ]
+        ],
+        "nodes": [
+          "Retained Checkout v42",
+          "Proposed Checkout v43",
+          "Reevaluate decision and authority"
+        ],
+        "next": "UI-25"
+      },
+      "agent": {
+        "title": "Order support agent changed decision context",
+        "scenario": "Hypothetical tool-grant change after checkpoint creation",
+        "rows": [
+          [
+            "Retained context",
+            "support-v3 / model m2 / policy k12 / checkpoint cp-004",
+            "Retain exact version, objective and input digests"
+          ],
+          [
+            "Hypothetical changed context",
+            "Order lookup grant revoked or tool schema changed",
+            "This comparison is not a claim that the fixed inventory snapshot changed"
+          ],
+          [
+            "Authority consequence",
+            "Resume blocked pending revalidation",
+            "Verify current grant, memory integrity, effect reconciliation and remaining limits"
+          ],
+          [
+            "Conclusion",
+            "Unknown",
+            "A retained checkpoint or older PASS result cannot authorize a changed context"
+          ]
+        ],
+        "nodes": [
+          "Retained support-v3 / cp-004",
+          "Changed tool grant or schema",
+          "Block resume and reevaluate"
+        ],
+        "next": "UI-41"
+      }
+    }
+  }
+}

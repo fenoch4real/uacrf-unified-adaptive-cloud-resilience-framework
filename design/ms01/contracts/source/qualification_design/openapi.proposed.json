@@ -1,0 +1,3807 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF qualification policy supporting operations",
+    "version": "1.0"
+  },
+  "paths": {
+    "/v1/qualification-policies": {
+      "post": {
+        "operationId": "qualification-policy-propose",
+        "summary": "qualification policy propose",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed policy metadata, not evidence qualification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyWrite"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "qualification-policy-list",
+        "summary": "qualification policy list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "query",
+            "name": "purpose",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current authorized projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "service_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "\\S"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "definition": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "requirements": {
+                                "type": "array",
+                                "minItems": 1,
+                                "maxItems": 100,
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200,
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                    },
+                                    "mandatory": {
+                                      "type": "boolean"
+                                    },
+                                    "max_age_seconds": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 31622400
+                                    },
+                                    "trusted_source_ids": {
+                                      "type": "array",
+                                      "minItems": 1,
+                                      "maxItems": 50,
+                                      "uniqueItems": true,
+                                      "items": {
+                                        "type": "string",
+                                        "minLength": 1,
+                                        "maxLength": 200,
+                                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                      }
+                                    },
+                                    "selector": {
+                                      "oneOf": [
+                                        {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "METRIC"
+                                                },
+                                                "metric": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200,
+                                                  "pattern": "\\S"
+                                                },
+                                                "unit": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200,
+                                                  "pattern": "\\S"
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "metric",
+                                                "unit"
+                                              ]
+                                            },
+                                            {
+                                              "type": "object",
+                                              "additionalProperties": false,
+                                              "properties": {
+                                                "kind": {
+                                                  "const": "METRIC"
+                                                },
+                                                "metric": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200,
+                                                  "pattern": "\\S"
+                                                },
+                                                "unit": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 200,
+                                                  "pattern": "\\S"
+                                                },
+                                                "measurement_kind": {
+                                                  "enum": [
+                                                    "THRESHOLD",
+                                                    "PERCENTILE",
+                                                    "RATIO",
+                                                    "RECOVERY_TIME",
+                                                    "OUTCOME"
+                                                  ]
+                                                },
+                                                "measurement_ref": {
+                                                  "type": "string",
+                                                  "minLength": 1,
+                                                  "maxLength": 1000,
+                                                  "pattern": "\\S"
+                                                },
+                                                "percentile": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "number",
+                                                      "exclusiveMinimum": 0,
+                                                      "maximum": 100
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "kind",
+                                                "metric",
+                                                "unit",
+                                                "measurement_kind",
+                                                "measurement_ref",
+                                                "percentile"
+                                              ],
+                                              "allOf": [
+                                                {
+                                                  "if": {
+                                                    "properties": {
+                                                      "measurement_kind": {
+                                                        "const": "PERCENTILE"
+                                                      }
+                                                    }
+                                                  },
+                                                  "then": {
+                                                    "properties": {
+                                                      "percentile": {
+                                                        "type": "number",
+                                                        "exclusiveMinimum": 0,
+                                                        "maximum": 100
+                                                      }
+                                                    }
+                                                  },
+                                                  "else": {
+                                                    "properties": {
+                                                      "percentile": {
+                                                        "type": "null"
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "kind": {
+                                              "const": "CONFIGURATION"
+                                            },
+                                            "resource_id": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200,
+                                              "pattern": "\\S"
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "resource_id"
+                                          ]
+                                        },
+                                        {
+                                          "type": "object",
+                                          "additionalProperties": false,
+                                          "properties": {
+                                            "kind": {
+                                              "const": "AGENT_EXECUTION"
+                                            },
+                                            "profile_id": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "maxLength": 200,
+                                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                            },
+                                            "event_type": {
+                                              "enum": [
+                                                "OBSERVATION",
+                                                "FAILURE",
+                                                "TIMEOUT",
+                                                "COMPLETION"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "kind",
+                                            "profile_id",
+                                            "event_type"
+                                          ]
+                                        }
+                                      ]
+                                    },
+                                    "waivable": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "mandatory",
+                                    "max_age_seconds",
+                                    "trusted_source_ids",
+                                    "selector"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "requirements"
+                            ]
+                          },
+                          "digest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "proposed_by": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "\\S"
+                          },
+                          "decision": {
+                            "enum": [
+                              "DRAFT",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "reviewer_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "current_eligible": {
+                            "type": "boolean"
+                          },
+                          "proposed_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "proposal_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "reviewed_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "review_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision",
+                          "service_id",
+                          "purpose",
+                          "expires_at",
+                          "definition",
+                          "digest",
+                          "proposed_by",
+                          "decision",
+                          "reviewer_id"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500,
+                          "pattern": "\\S"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-policies/{id}": {
+      "get": {
+        "operationId": "qualification-policy-get",
+        "summary": "qualification policy get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "revision",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed policy metadata, not evidence qualification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-policies/{id}:decide": {
+      "post": {
+        "operationId": "qualification-policy-decide",
+        "summary": "qualification policy decide",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed policy metadata, not evidence qualification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Explicit guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyDecision"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evidence/qualifications/{id}": {
+      "get": {
+        "operationId": "qualification-get",
+        "summary": "Read an immutable historical qualification and exact input manifest",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historical record, not a claim of current eligibility or health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Qualification"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-waivers": {
+      "post": {
+        "operationId": "waiver-propose",
+        "summary": "waiver propose",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed attributable waiver metadata; not qualification or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaiverResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaiverWrite"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "waiver-list",
+        "summary": "waiver list",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "service_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "query",
+            "name": "policy_id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current authorized projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "policy_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "policy_revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "requirement_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "observation_window_start": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "observation_window_end": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "gap_types": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 3,
+                            "uniqueItems": true,
+                            "items": {
+                              "enum": [
+                                "MISSING",
+                                "STALE",
+                                "INCOMPLETE_WINDOW"
+                              ]
+                            }
+                          },
+                          "reason": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2000,
+                            "pattern": "\\S"
+                          },
+                          "service_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "purpose": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "\\S"
+                          },
+                          "requested_by": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "state": {
+                            "enum": [
+                              "DRAFT",
+                              "APPROVED",
+                              "REJECTED",
+                              "REVOKED"
+                            ]
+                          },
+                          "reviewer_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "current_eligible": {
+                            "type": "boolean"
+                          },
+                          "digest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "signing_material": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "algorithm": {
+                                "const": "SHA-256"
+                              },
+                              "encoding": {
+                                "const": "UTF-8"
+                              },
+                              "canonical_text": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 4194304
+                              },
+                              "digest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              }
+                            },
+                            "required": [
+                              "algorithm",
+                              "encoding",
+                              "canonical_text",
+                              "digest"
+                            ]
+                          },
+                          "trust_digest": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "assertion_digest": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "proposed_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "review_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "reviewed_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "revoked_by": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "revocation_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "revoked_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "policy_id",
+                          "policy_revision",
+                          "requirement_id",
+                          "observation_window_start",
+                          "observation_window_end",
+                          "expires_at",
+                          "gap_types",
+                          "reason",
+                          "service_id",
+                          "purpose",
+                          "requested_by",
+                          "revision",
+                          "state",
+                          "reviewer_id",
+                          "current_eligible",
+                          "digest",
+                          "signing_material",
+                          "trust_digest",
+                          "assertion_digest"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500,
+                          "pattern": "\\S"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-waivers/{id}": {
+      "get": {
+        "operationId": "waiver-get",
+        "summary": "waiver get",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed attributable waiver metadata; not qualification or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaiverResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-waivers/{id}:decide": {
+      "post": {
+        "operationId": "waiver-decide",
+        "summary": "waiver decide",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed attributable waiver metadata; not qualification or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaiverResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaiverDecision"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-waivers/{id}:revoke": {
+      "post": {
+        "operationId": "waiver-revoke",
+        "summary": "waiver revoke",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Committed attributable waiver metadata; not qualification or action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaiverResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaiverRevoke"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evidence/events/{id}/qualification-context": {
+      "get": {
+        "operationId": "qualification-context",
+        "summary": "Read a scoped qualification plan and current logical revision; not admission",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "query",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current read context only; submission rechecks it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "evidence_event_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "\\S"
+                    },
+                    "service_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "\\S"
+                    },
+                    "expected_revision": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "policy": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "service_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "purpose": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "definition": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "requirements": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 100,
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200,
+                                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                  },
+                                  "mandatory": {
+                                    "type": "boolean"
+                                  },
+                                  "max_age_seconds": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 31622400
+                                  },
+                                  "trusted_source_ids": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "maxItems": 50,
+                                    "uniqueItems": true,
+                                    "items": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200,
+                                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                    }
+                                  },
+                                  "selector": {
+                                    "oneOf": [
+                                      {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "kind": {
+                                                "const": "METRIC"
+                                              },
+                                              "metric": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 200,
+                                                "pattern": "\\S"
+                                              },
+                                              "unit": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 200,
+                                                "pattern": "\\S"
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "metric",
+                                              "unit"
+                                            ]
+                                          },
+                                          {
+                                            "type": "object",
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "kind": {
+                                                "const": "METRIC"
+                                              },
+                                              "metric": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 200,
+                                                "pattern": "\\S"
+                                              },
+                                              "unit": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 200,
+                                                "pattern": "\\S"
+                                              },
+                                              "measurement_kind": {
+                                                "enum": [
+                                                  "THRESHOLD",
+                                                  "PERCENTILE",
+                                                  "RATIO",
+                                                  "RECOVERY_TIME",
+                                                  "OUTCOME"
+                                                ]
+                                              },
+                                              "measurement_ref": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 1000,
+                                                "pattern": "\\S"
+                                              },
+                                              "percentile": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "number",
+                                                    "exclusiveMinimum": 0,
+                                                    "maximum": 100
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "kind",
+                                              "metric",
+                                              "unit",
+                                              "measurement_kind",
+                                              "measurement_ref",
+                                              "percentile"
+                                            ],
+                                            "allOf": [
+                                              {
+                                                "if": {
+                                                  "properties": {
+                                                    "measurement_kind": {
+                                                      "const": "PERCENTILE"
+                                                    }
+                                                  }
+                                                },
+                                                "then": {
+                                                  "properties": {
+                                                    "percentile": {
+                                                      "type": "number",
+                                                      "exclusiveMinimum": 0,
+                                                      "maximum": 100
+                                                    }
+                                                  }
+                                                },
+                                                "else": {
+                                                  "properties": {
+                                                    "percentile": {
+                                                      "type": "null"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "kind": {
+                                            "const": "CONFIGURATION"
+                                          },
+                                          "resource_id": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 200,
+                                            "pattern": "\\S"
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "resource_id"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "kind": {
+                                            "const": "AGENT_EXECUTION"
+                                          },
+                                          "profile_id": {
+                                            "type": "string",
+                                            "minLength": 1,
+                                            "maxLength": 200,
+                                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                          },
+                                          "event_type": {
+                                            "enum": [
+                                              "OBSERVATION",
+                                              "FAILURE",
+                                              "TIMEOUT",
+                                              "COMPLETION"
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "profile_id",
+                                          "event_type"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "waivable": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "mandatory",
+                                  "max_age_seconds",
+                                  "trusted_source_ids",
+                                  "selector"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "requirements"
+                          ]
+                        },
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "proposed_by": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "\\S"
+                        },
+                        "decision": {
+                          "enum": [
+                            "DRAFT",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "reviewer_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "current_eligible": {
+                          "type": "boolean"
+                        },
+                        "proposed_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "proposal_reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reviewed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "review_reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 2000,
+                              "pattern": "\\S"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "revision",
+                        "service_id",
+                        "purpose",
+                        "expires_at",
+                        "definition",
+                        "digest",
+                        "proposed_by",
+                        "decision",
+                        "reviewer_id"
+                      ]
+                    },
+                    "policy_current": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "evidence_event_id",
+                    "service_id",
+                    "expected_revision",
+                    "policy",
+                    "policy_current"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/qualification-policies/{id}/history": {
+      "get": {
+        "operationId": "qualification-policy-history",
+        "summary": "Read immutable policy revisions and their attributable decisions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized bounded revision history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "digest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "proposed_by": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "\\S"
+                          },
+                          "decision": {
+                            "enum": [
+                              "DRAFT",
+                              "APPROVED",
+                              "REJECTED"
+                            ]
+                          },
+                          "reviewer_id": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "current_eligible": {
+                            "type": "boolean"
+                          },
+                          "proposed_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "proposal_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "reviewed_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "review_reason": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "revision",
+                          "expires_at",
+                          "digest",
+                          "proposed_by",
+                          "decision",
+                          "reviewer_id"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "PolicyWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "service_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "definition": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "requirements": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "mandatory": {
+                      "type": "boolean"
+                    },
+                    "max_age_seconds": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 31622400
+                    },
+                    "trusted_source_ids": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 50,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                      }
+                    },
+                    "selector": {
+                      "oneOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "const": "METRIC"
+                                },
+                                "metric": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "\\S"
+                                },
+                                "unit": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "\\S"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "metric",
+                                "unit"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "const": "METRIC"
+                                },
+                                "metric": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "\\S"
+                                },
+                                "unit": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "\\S"
+                                },
+                                "measurement_kind": {
+                                  "enum": [
+                                    "THRESHOLD",
+                                    "PERCENTILE",
+                                    "RATIO",
+                                    "RECOVERY_TIME",
+                                    "OUTCOME"
+                                  ]
+                                },
+                                "measurement_ref": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 1000,
+                                  "pattern": "\\S"
+                                },
+                                "percentile": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 100
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "metric",
+                                "unit",
+                                "measurement_kind",
+                                "measurement_ref",
+                                "percentile"
+                              ],
+                              "allOf": [
+                                {
+                                  "if": {
+                                    "properties": {
+                                      "measurement_kind": {
+                                        "const": "PERCENTILE"
+                                      }
+                                    }
+                                  },
+                                  "then": {
+                                    "properties": {
+                                      "percentile": {
+                                        "type": "number",
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 100
+                                      }
+                                    }
+                                  },
+                                  "else": {
+                                    "properties": {
+                                      "percentile": {
+                                        "type": "null"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "const": "CONFIGURATION"
+                            },
+                            "resource_id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "\\S"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "resource_id"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "kind": {
+                              "const": "AGENT_EXECUTION"
+                            },
+                            "profile_id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            "event_type": {
+                              "enum": [
+                                "OBSERVATION",
+                                "FAILURE",
+                                "TIMEOUT",
+                                "COMPLETION"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "profile_id",
+                            "event_type"
+                          ]
+                        }
+                      ]
+                    },
+                    "waivable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "mandatory",
+                    "max_age_seconds",
+                    "trusted_source_ids",
+                    "selector"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "requirements"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "purpose",
+          "expected_revision",
+          "expires_at",
+          "definition",
+          "reason"
+        ]
+      },
+      "PolicyDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decision": {
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "decision",
+          "reason"
+        ]
+      },
+      "PolicyResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "service_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "definition": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "requirements": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "mandatory": {
+                          "type": "boolean"
+                        },
+                        "max_age_seconds": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 31622400
+                        },
+                        "trusted_source_ids": {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 50,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          }
+                        },
+                        "selector": {
+                          "oneOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "const": "METRIC"
+                                    },
+                                    "metric": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200,
+                                      "pattern": "\\S"
+                                    },
+                                    "unit": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200,
+                                      "pattern": "\\S"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "metric",
+                                    "unit"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "kind": {
+                                      "const": "METRIC"
+                                    },
+                                    "metric": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200,
+                                      "pattern": "\\S"
+                                    },
+                                    "unit": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 200,
+                                      "pattern": "\\S"
+                                    },
+                                    "measurement_kind": {
+                                      "enum": [
+                                        "THRESHOLD",
+                                        "PERCENTILE",
+                                        "RATIO",
+                                        "RECOVERY_TIME",
+                                        "OUTCOME"
+                                      ]
+                                    },
+                                    "measurement_ref": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 1000,
+                                      "pattern": "\\S"
+                                    },
+                                    "percentile": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 100
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "metric",
+                                    "unit",
+                                    "measurement_kind",
+                                    "measurement_ref",
+                                    "percentile"
+                                  ],
+                                  "allOf": [
+                                    {
+                                      "if": {
+                                        "properties": {
+                                          "measurement_kind": {
+                                            "const": "PERCENTILE"
+                                          }
+                                        }
+                                      },
+                                      "then": {
+                                        "properties": {
+                                          "percentile": {
+                                            "type": "number",
+                                            "exclusiveMinimum": 0,
+                                            "maximum": 100
+                                          }
+                                        }
+                                      },
+                                      "else": {
+                                        "properties": {
+                                          "percentile": {
+                                            "type": "null"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "const": "CONFIGURATION"
+                                },
+                                "resource_id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "\\S"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "resource_id"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "kind": {
+                                  "const": "AGENT_EXECUTION"
+                                },
+                                "profile_id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                },
+                                "event_type": {
+                                  "enum": [
+                                    "OBSERVATION",
+                                    "FAILURE",
+                                    "TIMEOUT",
+                                    "COMPLETION"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "profile_id",
+                                "event_type"
+                              ]
+                            }
+                          ]
+                        },
+                        "waivable": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "mandatory",
+                        "max_age_seconds",
+                        "trusted_source_ids",
+                        "selector"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "requirements"
+                ]
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "proposed_by": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "decision": {
+                "enum": [
+                  "DRAFT",
+                  "APPROVED",
+                  "REJECTED"
+                ]
+              },
+              "reviewer_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "current_eligible": {
+                "type": "boolean"
+              },
+              "proposed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "proposal_reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reviewed_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "review_reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "revision",
+              "service_id",
+              "purpose",
+              "expires_at",
+              "definition",
+              "digest",
+              "proposed_by",
+              "decision",
+              "reviewer_id"
+            ]
+          },
+          "receipt_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "policy",
+          "receipt_id"
+        ]
+      },
+      "Qualification": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "service_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "evidence_event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "policy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "policy_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "qualification_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "verdict": {
+            "enum": [
+              "QUALIFIED",
+              "PROVISIONAL",
+              "UNKNOWN",
+              "DISQUALIFIED"
+            ]
+          },
+          "reasons": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "pattern": "\\S"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observation_ids": {
+            "type": "array",
+            "maxItems": 200,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "manifest": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": {
+                "const": "SHA-256"
+              },
+              "encoding": {
+                "const": "UTF-8"
+              },
+              "canonical_text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4194304
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "algorithm",
+              "encoding",
+              "canonical_text",
+              "digest"
+            ]
+          },
+          "waiver_ids": {
+            "type": "array",
+            "maxItems": 100,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "evidence_event_id",
+          "purpose",
+          "policy_id",
+          "policy_revision",
+          "qualification_revision",
+          "verdict",
+          "reasons",
+          "expires_at",
+          "created_at",
+          "observation_ids",
+          "input_digest",
+          "manifest",
+          "waiver_ids"
+        ]
+      },
+      "WaiverWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "policy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "policy_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requirement_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "observation_window_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observation_window_end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gap_types": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "MISSING",
+                "STALE",
+                "INCOMPLETE_WINDOW"
+              ]
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          },
+          "expected_revision": {
+            "const": 0
+          }
+        },
+        "required": [
+          "id",
+          "policy_id",
+          "policy_revision",
+          "requirement_id",
+          "observation_window_start",
+          "observation_window_end",
+          "expires_at",
+          "gap_types",
+          "reason",
+          "expected_revision"
+        ]
+      },
+      "WaiverDecision": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "const": 1
+              },
+              "decision": {
+                "const": "APPROVE"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "signed_assertion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16000
+              }
+            },
+            "required": [
+              "expected_revision",
+              "decision",
+              "reason",
+              "signed_assertion"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "expected_revision": {
+                "const": 1
+              },
+              "decision": {
+                "const": "REJECT"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "signed_assertion": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "expected_revision",
+              "decision",
+              "reason",
+              "signed_assertion"
+            ]
+          }
+        ]
+      },
+      "WaiverRevoke": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "reason"
+        ]
+      },
+      "WaiverResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "waiver": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "policy_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "policy_revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "requirement_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "observation_window_start": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "observation_window_end": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "gap_types": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "MISSING",
+                    "STALE",
+                    "INCOMPLETE_WINDOW"
+                  ]
+                }
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000,
+                "pattern": "\\S"
+              },
+              "service_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              "requested_by": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "state": {
+                "enum": [
+                  "DRAFT",
+                  "APPROVED",
+                  "REJECTED",
+                  "REVOKED"
+                ]
+              },
+              "reviewer_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "current_eligible": {
+                "type": "boolean"
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "signing_material": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "algorithm": {
+                    "const": "SHA-256"
+                  },
+                  "encoding": {
+                    "const": "UTF-8"
+                  },
+                  "canonical_text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4194304
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "algorithm",
+                  "encoding",
+                  "canonical_text",
+                  "digest"
+                ]
+              },
+              "trust_digest": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "assertion_digest": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "proposed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "review_reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reviewed_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revoked_by": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revocation_reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revoked_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "policy_id",
+              "policy_revision",
+              "requirement_id",
+              "observation_window_start",
+              "observation_window_end",
+              "expires_at",
+              "gap_types",
+              "reason",
+              "service_id",
+              "purpose",
+              "requested_by",
+              "revision",
+              "state",
+              "reviewer_id",
+              "current_eligible",
+              "digest",
+              "signing_material",
+              "trust_digest",
+              "assertion_digest"
+            ]
+          },
+          "receipt_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "waiver",
+          "receipt_id"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
+}

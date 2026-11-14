@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "asset_kind": {
+      "type": "string",
+      "enum": [
+        "MODEL",
+        "KNOWLEDGE_BASE",
+        "DATA_STORE",
+        "TOOL",
+        "RUNTIME",
+        "IDENTITY"
+      ]
+    },
+    "owner_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "GCP",
+        "AWS",
+        "AZURE",
+        "LOCAL",
+        "OTHER"
+      ]
+    },
+    "lifecycle": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "RETIRED"
+      ]
+    },
+    "graph_label": {
+      "type": "string",
+      "enum": [
+        "AIModel",
+        "ModelVersion",
+        "ModelEndpoint",
+        "DataStore",
+        "Dataset",
+        "API",
+        "Service",
+        "CloudResource",
+        "Cluster",
+        "ApplicationComponent",
+        "ComputeNode",
+        "Identity"
+      ]
+    },
+    "graph_canonical_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "asset_kind",
+    "owner_id",
+    "provider",
+    "lifecycle",
+    "graph_label",
+    "graph_canonical_id"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "asset_kind": {
+            "const": "MODEL"
+          }
+        },
+        "required": [
+          "asset_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "graph_label": {
+            "enum": [
+              "AIModel",
+              "ModelVersion",
+              "ModelEndpoint"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "asset_kind": {
+            "const": "KNOWLEDGE_BASE"
+          }
+        },
+        "required": [
+          "asset_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "graph_label": {
+            "enum": [
+              "DataStore",
+              "Dataset"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "asset_kind": {
+            "const": "DATA_STORE"
+          }
+        },
+        "required": [
+          "asset_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "graph_label": {
+            "enum": [
+              "DataStore",
+              "Dataset"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "asset_kind": {
+            "const": "TOOL"
+          }
+        },
+        "required": [
+          "asset_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "graph_label": {
+            "enum": [
+              "API",
+              "Service"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "asset_kind": {
+            "const": "RUNTIME"
+          }
+        },
+        "required": [
+          "asset_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "graph_label": {
+            "enum": [
+              "Service",
+              "CloudResource",
+              "Cluster",
+              "ApplicationComponent",
+              "ComputeNode"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "asset_kind": {
+            "const": "IDENTITY"
+          }
+        },
+        "required": [
+          "asset_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "graph_label": {
+            "enum": [
+              "Identity"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

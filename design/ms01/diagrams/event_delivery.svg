@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="916" viewBox="0 0 1000 916" role="img" aria-label="Transactional event delivery"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">Transactional event delivery</text>
+<text x="10.0" y="85" font-size="19" fill="#152b43">Producer</text>
+<line x1="85.0" y1="120" x2="85.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="217.5" y="85" font-size="19" fill="#152b43">Owner DB</text>
+<line x1="292.5" y1="120" x2="292.5" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="425.0" y="85" font-size="19" fill="#152b43">Kafka</text>
+<line x1="500.0" y1="120" x2="500.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="632.5" y="85" font-size="19" fill="#152b43">Consumer</text>
+<line x1="707.5" y1="120" x2="707.5" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="840.0" y="85" font-size="19" fill="#152b43">Consumer DB</text>
+<line x1="915.0" y1="120" x2="915.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<path d="M85.0,210 L292.5,210" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="150" font-size="19" fill="#152b43">1 Commit business</text>
+<text x="93.0" y="174" font-size="19" fill="#152b43">change audit and</text>
+<text x="93.0" y="198" font-size="19" fill="#152b43">outbox</text>
+<path d="M292.5,287 L85.0,287" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="227" font-size="19" fill="#152b43">2 Return durable</text>
+<text x="93.0" y="251" font-size="19" fill="#152b43">owner result</text>
+<path d="M85.0,364 L500.0,364" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="304" font-size="19" fill="#152b43">3 Publish leased outbox event</text>
+<path d="M500.0,441 L85.0,441" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="381" font-size="19" fill="#152b43">4 Acknowledge publication</text>
+<path d="M500.0,518 L707.5,518" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="508.0" y="458" font-size="19" fill="#152b43">5 Deliver event at</text>
+<text x="508.0" y="482" font-size="19" fill="#152b43">least once</text>
+<path d="M707.5,595 L915.0,595" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="715.5" y="535" font-size="19" fill="#152b43">6 Commit inbox key</text>
+<text x="715.5" y="559" font-size="19" fill="#152b43">and local projection</text>
+<path d="M915.0,672 L707.5,672" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="715.5" y="612" font-size="19" fill="#152b43">7 Return committed</text>
+<text x="715.5" y="636" font-size="19" fill="#152b43">consumer result</text>
+<path d="M707.5,749 L500.0,749" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="508.0" y="689" font-size="19" fill="#152b43">8 Acknowledge after</text>
+<text x="508.0" y="713" font-size="19" fill="#152b43">local commit</text>
+<text x="35" y="816" font-size="19" fill="#152b43">Crash after publish can duplicate delivery. Inbox deduplication handles it; conflicts</text>
+<text x="35" y="840" font-size="19" fill="#152b43">are quarantined, not silently overwritten.</text>
+</g></svg>

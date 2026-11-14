@@ -1,0 +1,27 @@
+flowchart LR
+  %% 04 Recovery Propagation
+  subgraph SG0["Assess"]
+    N0["EvidenceQualification<br/>qualified"]
+    N1["GraphRevision<br/>revision"]
+    N2["RecoveryPath<br/>certified"]
+  end
+  subgraph SG1["Control"]
+    N3["CandidateAction<br/>intent"]
+    N4["Authorization<br/>bounded"]
+  end
+  subgraph SG2["Recover"]
+    N5["Execution<br/>executed"]
+    N6["ValidationPlan<br/>plan"]
+    N7["ValidationResult<br/>proof"]
+  end
+  subgraph SG3["Evidence"]
+    N8["DecisionEnvelope<br/>reconstructable"]
+  end
+  N0 -->|SUPPORTED_BY_EVIDENCE| N1
+  N1 -->|BOUND_TO_REVISION| N2
+  N2 -->|USES_RECOVERY_PATH| N3
+  N3 -->|AUTHORIZED_BY| N4
+  N4 -->|EXECUTES| N5
+  N5 -->|VALIDATED_BY| N6
+  N6 -->|VALIDATED_BY| N7
+  N7 -->|RECORDED_IN| N8

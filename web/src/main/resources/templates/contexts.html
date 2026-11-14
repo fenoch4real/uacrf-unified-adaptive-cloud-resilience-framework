@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Select context | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Select a tenant and environment</h1>
+  <p>S01 lists only contexts where this identity has a current membership.</p>
+  <p role="status" th:if="${contextError != null}" th:text="${contextError}"></p>
+  <p th:if="${#lists.isEmpty(contexts)}">
+    No active tenant and environment memberships are available.
+  </p>
+  <ul>
+    <li th:each="context : ${contexts}">
+      <h2 th:text="${context.tenantName}">Tenant</h2>
+      <p th:text="${context.environmentName}">Environment</p>
+      <form method="post" th:action="@{/contexts}">
+        <input type="hidden" name="tenantId" th:value="${context.tenantId}">
+        <input type="hidden" name="environmentId" th:value="${context.environmentId}">
+        <input type="hidden" name="cursor" th:value="${requestCursor}">
+        <button type="submit">Use this environment</button>
+      </form>
+    </li>
+  </ul>
+  <nav aria-label="Context pages" th:if="${nextCursor != null}">
+    <a th:href="@{/contexts(cursor=${nextCursor})}">Next contexts</a>
+  </nav>
+  <p><a href="/">Back to home</a></p>
+</main>
+</body>
+</html>
