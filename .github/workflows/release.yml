@@ -64,5 +64,6 @@ jobs:
           identity identity-service
           estate-catalog estate-catalog-service
           connections connections-service
+          evidence evidence-service
           web web
           IMAGES

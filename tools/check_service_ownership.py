@@ -52,6 +52,21 @@ OWNERS = {
         "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
         "compose_service": "connections-db",
     },
+    "evidence": {
+        "module": "services/evidence",
+        "artifact": "evidence-service",
+        "database": "uacrf_evidence",
+        "jdbc_env": "EVIDENCE_JDBC_URL",
+        "user_env": "EVIDENCE_DB_USER",
+        "password_env": "EVIDENCE_DB_PASSWORD",
+        "name_env": "EVIDENCE_DB_NAME",
+        "admin_user_env": "EVIDENCE_DB_ADMIN_USER",
+        "admin_password_env": "EVIDENCE_DB_ADMIN_PASSWORD",
+        "delegation_public_env": "UACRF_DELEGATION_PUBLIC_KEY_BASE64",
+        "delegation_private_env": None,
+        "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
+        "compose_service": "evidence-db",
+    },
 }
 
 

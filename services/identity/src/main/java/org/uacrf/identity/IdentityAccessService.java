@@ -41,6 +41,10 @@ class IdentityAccessService {
           "connections.connection.read",
           "connections.connection.write",
           "connections.observation.write",
+          "evidence.event.read",
+          "evidence.event.write",
+          "evidence.inbox.write",
+          "evidence.qualification.review",
           "owner.eligible",
           "runtime.principal.use");
   private static final Duration GRANT_DECISION_TTL = Duration.ofMinutes(15);
