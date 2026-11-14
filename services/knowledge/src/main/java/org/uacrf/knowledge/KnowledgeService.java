@@ -46,10 +46,12 @@ class KnowledgeService {
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
+  private final CaseReceiptVerifier caseReceiptVerifier;
 
-  KnowledgeService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+  KnowledgeService(JdbcTemplate jdbc, ObjectMapper objectMapper, CaseReceiptVerifier caseReceiptVerifier) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
+    this.caseReceiptVerifier = caseReceiptVerifier;
   }
 
   @Transactional
@@ -268,6 +270,25 @@ class KnowledgeService {
           "WORKLOAD_SCOPE_UNVERIFIED",
           "Workload-targeted retrieval requires an owner-verified workload scope.");
     }
+    CaseReceiptVerifier.CaseReceipt trustedCase = null;
+    if (caseReceiptVerifier.enabled()) {
+      if (request.caseId() == null) {
+        throw conflict("CASE_UNVERIFIED", "A verified assessment case is required for retrieval.");
+      }
+      CaseReceiptVerifier.Verification verification =
+          caseReceiptVerifier.verify(request.caseId(), request.purpose(), actor.tenantId(), actor.environmentId());
+      if (!verification.verified()) {
+        String reason = verification.reason() == null ? "CASE_UNVERIFIED" : verification.reason();
+        if ("OWNER_UNAVAILABLE".equals(reason)) {
+          throw conflict(reason, "The assessment case owner is unavailable.");
+        }
+        throw conflict("CASE_UNVERIFIED", "The assessment case receipt could not be verified.");
+      }
+      trustedCase = verification.receipt();
+      if (!validCaseReceipt(trustedCase, request.caseId(), request.purpose())) {
+        throw conflict("CASE_UNVERIFIED", "The assessment case receipt did not match the retrieval request.");
+      }
+    }
     if (request.maxResults() < 1 || request.maxResults() > 10) {
       throw invalid("INVALID_REQUEST", "max_results must be between 1 and 10.");
     }
@@ -290,7 +311,8 @@ class KnowledgeService {
     for (VersionRow version : versions) {
       if (!version.allowedPurposes().contains(request.purpose())
           || classificationRank(version.classification()) > classificationRank(request.maxClassification())
-          || !version.targetWorkloadIds().isEmpty()) {
+          || (!version.targetWorkloadIds().isEmpty()
+              && (trustedCase == null || !version.targetWorkloadIds().contains(trustedCase.workloadId())))) {
         continue;
       }
       if (!sha256(version.content().getBytes(StandardCharsets.UTF_8)).equals(version.sourceDigest())) {
@@ -327,31 +349,37 @@ class KnowledgeService {
     String retrievalId = UUID.randomUUID().toString();
     Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
     List<ManifestEntry> manifestEntries = selected.stream().map(RankedChunk::manifestEntry).toList();
+    String caseBinding = trustedCase == null ? "NOT_VERIFIED" : "VERIFIED";
+    String caseDigest = trustedCase == null ? null : trustedCase.caseDigest();
+    String trustedWorkloadId = trustedCase == null ? null : trustedCase.workloadId();
     String manifestDigest =
         digestJson(
             new Manifest(
                 retrievalId,
                 request.caseId(),
-                "NOT_VERIFIED",
+                caseBinding,
+                caseDigest,
                 request.purpose(),
                 request.maxClassification(),
                 request.query(),
-                request.workloadId(),
+                trustedWorkloadId,
                 createdAt.toString(),
                 manifestEntries));
     jdbc.update(
         "INSERT INTO " + SCHEMA
-            + "retrieval (tenant_id, environment_id, retrieval_id, case_id, case_binding, purpose, "
+            + "retrieval (tenant_id, environment_id, retrieval_id, case_id, case_binding, case_digest, purpose, "
             + "max_classification, query_text, workload_id, manifest_digest, created_at) "
-            + "VALUES (?, ?, ?, ?, 'NOT_VERIFIED', ?, ?, ?, ?, ?, ?)",
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         actor.tenantId(),
         actor.environmentId(),
         retrievalId,
         request.caseId(),
+        caseBinding,
+        caseDigest,
         request.purpose(),
         request.maxClassification().name(),
         request.query(),
-        request.workloadId(),
+        trustedWorkloadId,
         manifestDigest,
         Timestamp.from(createdAt));
     for (int index = 0; index < selected.size(); index++) {
@@ -375,14 +403,14 @@ class KnowledgeService {
             "owned_revision", 1,
             "owned_digest", manifestDigest,
             "minimal_outcome_metadata",
-                Map.of("purpose", request.purpose(), "result_count", selected.size(), "case_binding", "NOT_VERIFIED")));
-    return loadRetrieval(actor, retrievalId);
+                Map.of("purpose", request.purpose(), "result_count", selected.size(), "case_binding", caseBinding)));
+    return loadRetrieval(actor, retrievalId, false);
   }
 
   @Transactional(readOnly = true)
   Retrieval getRetrieval(DelegationPrincipal actor, String retrievalId) {
     requireCapability(actor, "knowledge.retrieval.read");
-    return loadRetrieval(actor, retrievalId);
+    return loadRetrieval(actor, retrievalId, true);
   }
 
   @Transactional(readOnly = true)
@@ -392,10 +420,11 @@ class KnowledgeService {
     requireClassification(actor, retrieval.maxClassification());
     List<StoredResult> storedResults = getStoredResults(actor, retrievalId);
     requireValidManifest(retrieval, storedResults);
-    if (!retrieval.purpose().equals(request.purpose())
+    if (retrieval.caseId() == null
+        || !retrieval.caseId().equals(request.caseId())
+        || !retrieval.purpose().equals(request.purpose())
         || !retrieval.maxClassification().equals(request.classification())
-        || !retrieval.manifestDigest().equals(request.manifestDigest())
-        || (retrieval.caseId() != null && !retrieval.caseId().equals(request.caseId()))) {
+        || !retrieval.manifestDigest().equals(request.manifestDigest())) {
       throw conflict("MANIFEST_MISMATCH", "The receipt request does not match the retained retrieval manifest.");
     }
     List<ReceiptResult> results =
@@ -414,46 +443,50 @@ class KnowledgeService {
                         result.classification(),
                         result.score()))
             .toList();
+    String reason = "CASE_NOT_BOUND";
+    boolean eligible = false;
+    if ("VERIFIED".equals(retrieval.caseBinding())) {
+      if (!caseReceiptVerifier.enabled()
+          || retrieval.caseDigest() == null
+          || retrieval.workloadId() == null
+          || !liveCaseMatches(actor, retrieval)) {
+        reason = "CASE_UNVERIFIED";
+      } else if (!allSourcesEligible(actor, retrieval, storedResults)) {
+        reason = "SOURCE_NOT_ELIGIBLE";
+      } else {
+        eligible = true;
+        reason = "ELIGIBLE";
+      }
+    }
     return new RetrievalReceipt(
         retrievalId,
         request.caseId(),
         retrieval.caseId(),
         retrieval.caseBinding(),
+        retrieval.caseDigest(),
+        retrieval.workloadId(),
         retrieval.purpose(),
         retrieval.maxClassification(),
         retrieval.manifestDigest(),
         retrieval.query(),
         retrieval.createdAt().toString(),
         results,
-        false,
-        "CASE_NOT_BOUND");
+        eligible,
+        reason);
   }
 
-  private Retrieval loadRetrieval(DelegationPrincipal actor, String retrievalId) {
+  private Retrieval loadRetrieval(DelegationPrincipal actor, String retrievalId, boolean recheckCase) {
     StoredRetrieval stored = loadStoredRetrieval(actor, retrievalId);
     List<StoredResult> storedResults = getStoredResults(actor, retrievalId);
     requireValidManifest(stored, storedResults);
+    boolean bound =
+        "NOT_VERIFIED".equals(stored.caseBinding())
+            || !recheckCase
+            || (caseReceiptVerifier.enabled() && liveCaseMatches(actor, stored));
     List<RetrievalResult> results = new ArrayList<>();
     for (StoredResult result : storedResults) {
-      boolean eligible = "APPROVED".equals(result.sourceState()) && !result.itemWithdrawn()
-          && result.allowedPurposes().contains(stored.purpose())
-          && classificationRank(result.classification()) <= classificationRank(stored.maxClassification())
-          && classificationRank(result.classification()) <= classificationRank(maxClassification(actor));
-      String excerpt = null;
-      int sourceCharacters =
-          result.sourceContent().codePointCount(0, result.sourceContent().length());
-      if (eligible
-          && sha256(result.sourceContent().getBytes(StandardCharsets.UTF_8)).equals(result.sourceDigest())
-          && result.startOffset() <= result.endOffset()
-          && result.endOffset() <= sourceCharacters) {
-        int start = result.sourceContent().offsetByCodePoints(0, result.startOffset());
-        int end = result.sourceContent().offsetByCodePoints(0, result.endOffset());
-        String actualExcerpt = result.sourceContent().substring(start, end);
-        if (actualExcerpt.equals(result.excerpt())
-            && sha256(actualExcerpt.getBytes(StandardCharsets.UTF_8)).equals(result.excerptDigest())) {
-          excerpt = actualExcerpt;
-        }
-      }
+      String excerpt =
+          bound && sourceEligible(actor, stored, result) ? result.excerpt() : null;
       results.add(
           new RetrievalResult(
               result.itemId(),
@@ -472,6 +505,8 @@ class KnowledgeService {
         stored.retrievalId(),
         stored.caseId(),
         stored.caseBinding(),
+        stored.caseDigest(),
+        stored.workloadId(),
         stored.purpose(),
         stored.maxClassification(),
         stored.query(),
@@ -483,7 +518,7 @@ class KnowledgeService {
   private StoredRetrieval loadStoredRetrieval(DelegationPrincipal actor, String retrievalId) {
     List<StoredRetrieval> rows =
         jdbc.query(
-            "SELECT retrieval_id, case_id, case_binding, purpose, max_classification, query_text, "
+            "SELECT retrieval_id, case_id, case_binding, case_digest, purpose, max_classification, query_text, "
                 + "manifest_digest, workload_id, created_at FROM " + SCHEMA
                 + "retrieval WHERE tenant_id = ? AND environment_id = ? AND retrieval_id = ?",
             (rs, row) ->
@@ -491,6 +526,7 @@ class KnowledgeService {
                     rs.getString("retrieval_id"),
                     rs.getString("case_id"),
                     rs.getString("case_binding"),
+                    rs.getString("case_digest") == null ? null : rs.getString("case_digest").trim(),
                     rs.getString("purpose"),
                     Classification.valueOf(rs.getString("max_classification")),
                     rs.getString("query_text"),
@@ -510,7 +546,10 @@ class KnowledgeService {
     return jdbc.query(
         "SELECT r.item_id, r.version, r.chunk_index, r.start_offset, r.end_offset, r.source_digest, "
             + "r.excerpt_digest, r.allowed_purposes, r.classification, r.score, r.excerpt, "
-            + "v.content AS source_content, v.state AS source_state, i.withdrawn AS item_withdrawn "
+            + "v.content AS source_content, v.state AS source_state, i.withdrawn AS item_withdrawn, "
+            + "v.source_digest AS current_source_digest, v.classification AS source_classification, "
+            + "v.allowed_purposes AS source_allowed_purposes, "
+            + "v.target_workload_ids AS source_target_workload_ids "
             + "FROM " + SCHEMA + "retrieval_result r "
             + "JOIN " + SCHEMA
             + "knowledge_version v ON v.tenant_id = r.tenant_id AND v.environment_id = r.environment_id "
@@ -548,6 +587,7 @@ class KnowledgeService {
                 retrieval.retrievalId(),
                 retrieval.caseId(),
                 retrieval.caseBinding(),
+                retrieval.caseDigest(),
                 retrieval.purpose(),
                 retrieval.maxClassification(),
                 retrieval.query(),
@@ -557,6 +597,70 @@ class KnowledgeService {
     if (!calculated.equals(retrieval.manifestDigest())) {
       throw conflict("MANIFEST_DIGEST_MISMATCH", "The retained retrieval manifest failed its digest check.");
     }
+  }
+
+  private boolean liveCaseMatches(DelegationPrincipal actor, StoredRetrieval retrieval) {
+    CaseReceiptVerifier.Verification verification =
+        caseReceiptVerifier.verify(
+            retrieval.caseId(), retrieval.purpose(), actor.tenantId(), actor.environmentId());
+    CaseReceiptVerifier.CaseReceipt receipt = verification.receipt();
+    return verification.verified()
+        && validCaseReceipt(receipt, retrieval.caseId(), retrieval.purpose())
+        && receipt != null
+        && receipt.caseId().equals(retrieval.caseId())
+        && receipt.purpose().equals(retrieval.purpose())
+        && receipt.caseDigest().equals(retrieval.caseDigest())
+        && receipt.workloadId().equals(retrieval.workloadId());
+  }
+
+  private static boolean validCaseReceipt(
+      CaseReceiptVerifier.CaseReceipt receipt, String expectedCaseId, String expectedPurpose) {
+    if (receipt == null
+        || !expectedCaseId.equals(receipt.caseId())
+        || !expectedPurpose.equals(receipt.purpose())
+        || receipt.caseDigest() == null
+        || !receipt.caseDigest().matches("[0-9a-f]{64}")
+        || receipt.workloadId() == null
+        || receipt.workloadId().isBlank()
+        || receipt.workloadId().length() > 200
+        || receipt.requiredSourceKinds() == null
+        || receipt.requiredSourceKinds().isEmpty()
+        || receipt.requiredSourceKinds().size() > 100) {
+      return false;
+    }
+    Set<String> kinds = new LinkedHashSet<>(receipt.requiredSourceKinds());
+    return kinds.size() == receipt.requiredSourceKinds().size()
+        && receipt.requiredSourceKinds().stream()
+            .allMatch(kind -> kind != null && !kind.isBlank() && kind.length() <= 200);
+  }
+
+  private boolean allSourcesEligible(
+      DelegationPrincipal actor, StoredRetrieval retrieval, List<StoredResult> results) {
+    return !results.isEmpty() && results.stream().allMatch(result -> sourceEligible(actor, retrieval, result));
+  }
+
+  private boolean sourceEligible(
+      DelegationPrincipal actor, StoredRetrieval retrieval, StoredResult result) {
+    if (!"APPROVED".equals(result.sourceState())
+        || result.itemWithdrawn()
+        || !result.allowedPurposes().contains(retrieval.purpose())
+        || !result.sourceAllowedPurposes().contains(retrieval.purpose())
+        || (!result.sourceTargetWorkloadIds().isEmpty()
+            && !result.sourceTargetWorkloadIds().contains(retrieval.workloadId()))
+        || classificationRank(result.classification()) > classificationRank(retrieval.maxClassification())
+        || classificationRank(result.sourceClassification()) > classificationRank(retrieval.maxClassification())
+        || classificationRank(result.classification()) > classificationRank(maxClassification(actor))
+        || !result.sourceDigest().equals(result.currentSourceDigest())
+        || !sha256(result.sourceContent().getBytes(StandardCharsets.UTF_8)).equals(result.sourceDigest())) {
+      return false;
+    }
+    int sourceCharacters = result.sourceContent().codePointCount(0, result.sourceContent().length());
+    if (result.startOffset() > result.endOffset() || result.endOffset() > sourceCharacters) return false;
+    int start = result.sourceContent().offsetByCodePoints(0, result.startOffset());
+    int end = result.sourceContent().offsetByCodePoints(0, result.endOffset());
+    String actualExcerpt = result.sourceContent().substring(start, end);
+    return actualExcerpt.equals(result.excerpt())
+        && sha256(actualExcerpt.getBytes(StandardCharsets.UTF_8)).equals(result.excerptDigest());
   }
 
   private VersionRow lockCandidate(DelegationPrincipal actor, String itemId) {
@@ -703,7 +807,11 @@ class KnowledgeService {
         rs.getString("excerpt"),
         rs.getString("source_content"),
         rs.getString("source_state"),
-        rs.getBoolean("item_withdrawn"));
+        rs.getBoolean("item_withdrawn"),
+        rs.getString("current_source_digest").trim(),
+        Classification.valueOf(rs.getString("source_classification")),
+        strings(rs.getArray("source_allowed_purposes")),
+        strings(rs.getArray("source_target_workload_ids")));
   }
 
   private static Array stringArray(PreparedStatement statement, List<String> values) throws SQLException {
@@ -952,6 +1060,7 @@ class KnowledgeService {
       String retrievalId,
       String caseId,
       String caseBinding,
+      String caseDigest,
       String purpose,
       Classification maxClassification,
       String query,
@@ -963,6 +1072,7 @@ class KnowledgeService {
       String retrievalId,
       String caseId,
       String caseBinding,
+      String caseDigest,
       String purpose,
       Classification maxClassification,
       String query,
@@ -984,5 +1094,9 @@ class KnowledgeService {
       String excerpt,
       String sourceContent,
       String sourceState,
-      boolean itemWithdrawn) {}
+      boolean itemWithdrawn,
+      String currentSourceDigest,
+      Classification sourceClassification,
+      List<String> sourceAllowedPurposes,
+      List<String> sourceTargetWorkloadIds) {}
 }

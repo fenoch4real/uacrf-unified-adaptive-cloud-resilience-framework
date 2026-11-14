@@ -446,16 +446,25 @@ retains evidence events and decides qualification.
 - The internal `POST /internal/v1/retrievals/{id}:receipt` is not routed by
   EDGE01. EDGE01 routes the public metadata, staging, review, withdrawal, and
   retrieval operations under `/internal/knowledge`; the receipt remains
-  private. Without verified S07 case binding it always returns
-  `eligible: false`, `reason: CASE_NOT_BOUND`, and
-  `case_binding=NOT_VERIFIED`; the caller-supplied case identifier is not treated as proof
-  and the receipt is not S09-eligible. `uacrf.s08.knowledge.review.changed.v1`
+  private. `UACRF_KNOWLEDGE_CASE_RECEIPTS_ENABLED` defaults to `false`; in
+  that mode retrievals remain `NOT_VERIFIED`, omit trusted workload binding,
+  exclude targeted material, and are never S09-eligible. When explicitly
+  enabled, S08 uses the `uacrf-s08-retriever` service account to request the
+  narrow S01 S08→S07 `assessment.case.read` delegation and verify the live,
+  sealed S07 receipt before creating a manifest. A normal S01 administrator
+  must admit the service account as a SYSTEM principal and independently
+  grant that capability; no capability is auto-granted. Verified manifests
+  bind the S07 case digest and workload ID, can include targeted material only
+  for that trusted workload, and become S09-eligible only after the internal
+  receipt rechecks the case and every current source/version/excerpt. Mismatches
+  and owner outages fail closed. The caller-supplied case identifier is not
+  treated as proof. `uacrf.s08.knowledge.review.changed.v1`
   and `uacrf.s08.retrieval.retained.v1` are written transactionally; publishing
   is not implemented.
 - Not implemented: PDF conversion, embeddings/external indexes, current
-  requester-authority refresh, S07 case-receipt verification, protected
-  replay, and outbox publishing. This slice does not claim S07 case binding or
-  authorize protected inference/recovery use.
+  requester-authority refresh, protected replay, and outbox publishing. The
+  receipt binding does not independently establish external requester
+  authority or authorize protected inference/recovery use.
 
 ## Next implementation step
 

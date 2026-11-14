@@ -57,7 +57,9 @@ class AssessmentApplicationTests {
     assertEquals(409, post("/v1/cases/"+id+":seal", token, "{\"expected_revision\":2}").statusCode());
     assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("UPDATE uacrf_assessment.analysis_case SET workload_id='bad' WHERE tenant_id=? AND id=?", "t-seal", id));
     assertEquals(sealed.get("case_digest").asString(), body(get("/v1/cases/"+id,token),200).get("case_digest").asString());
-    assertThat(body(post("/internal/v1/cases/"+id+":receipt",token,"{}"),200).toString()).contains("assessment", "required_source_kinds");
+    JsonNode receipt = body(post("/internal/v1/cases/"+id+":receipt",token,"{}"),200);
+    assertThat(receipt.toString()).contains("assessment", "required_source_kinds");
+    assertEquals("w1", receipt.get("workload_id").asString());
   }
   @Test void inclusiveBoundariesAndEvidenceRules() throws Exception {
     String token = token("t-rules", "*", ALL); String id = sealed(token, "[\"a\",\"b\"]", "LTE");
@@ -110,6 +112,9 @@ class AssessmentApplicationTests {
   @Test void authorizationAndTenantIsolation() throws Exception {
     String token = token("t-auth","*",ALL); String id = sealed(token,"[\"a\"]","LTE");
     String other = token("t-other","*",ALL); assertEquals(404,get("/v1/cases/"+id,other).statusCode());
+    assertEquals(404,post("/internal/v1/cases/"+id+":receipt",other,"{}").statusCode());
+    assertEquals(403,post("/internal/v1/cases/"+id+":receipt",
+        token("t-auth","*",List.of("assessment.case.write")),"{}").statusCode());
     assertEquals(403,get("/v1/cases/"+id,token("t-auth","*",List.of("assessment.case.write"))).statusCode());
     assertEquals(403,post("/v1/cases",token("t-auth","service-1",ALL),caseJson("[\"a\"]","LTE")).statusCode());
     assertEquals(403,post("/v1/cases/"+id+":evaluate",token("t-auth","service-1",ALL),evalJson("2026-01-01T01:00:00Z","LIVE","")).statusCode());

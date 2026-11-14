@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,6 +20,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,12 +30,19 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.web.client.RestClient;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.uacrf.security.DelegationJwtEncoderFactory;
 import org.uacrf.security.DelegationPrincipal;
 import org.uacrf.security.DelegationTokenIssuer;
+import org.uacrf.knowledge.KnowledgeRequests.Classification;
+import org.uacrf.knowledge.KnowledgeRequests.ReceiptRequest;
+import org.uacrf.knowledge.KnowledgeRequests.RunRetrieval;
+import org.uacrf.knowledge.KnowledgeResponses.Retrieval;
+import org.uacrf.knowledge.KnowledgeResponses.RetrievalReceipt;
+import org.uacrf.knowledge.KnowledgeResponses.RetrievalResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -433,6 +446,250 @@ class KnowledgeApplicationTests {
                 "{\"case_id\":\"case-7\",\"purpose\":\"incident\","
                     + "\"classification\":\"INTERNAL\",\"manifest_digest\":\"" + digest + "\"}")
             .statusCode());
+    assertEquals(
+        404,
+        post(
+                "/internal/v1/retrievals/" + retrievalId + ":receipt",
+                bearer("reader", "t-other-receipt", INTERNAL_READER),
+                "{\"case_id\":\"case-7\",\"purpose\":\"incident\","
+                    + "\"classification\":\"INTERNAL\",\"manifest_digest\":\"" + digest + "\"}")
+            .statusCode());
+  }
+
+  @Test
+  void verifiedCaseReceiptBindsTargetScopeAndEligibilityAndWithdrawalInvalidatesIt() throws Exception {
+    String tenant = "t-verified-case";
+    String writer = bearer("proposer", tenant, WRITER);
+    String reviewer = bearer("reviewer", tenant, REVIEWER);
+    stageRequestAndApprove(
+        "target-a",
+        stage("target-a", "v1", "verified retrieval material")
+            .replace("\"target_workload_ids\":[]", "\"target_workload_ids\":[\"workload-a\"]"),
+        writer,
+        reviewer);
+    stageRequestAndApprove(
+        "target-b",
+        stage("target-b", "v1", "verified retrieval material")
+            .replace("\"target_workload_ids\":[]", "\"target_workload_ids\":[\"workload-b\"]"),
+        writer,
+        reviewer);
+    stageAndApprove("generic", "v1", "verified retrieval material", writer, reviewer);
+
+    String caseDigest = "ab".repeat(32);
+    AtomicInteger tokenCalls = new AtomicInteger();
+    AtomicInteger delegationCalls = new AtomicInteger();
+    AtomicReference<String> delegationRequest = new AtomicReference<>();
+    AtomicReference<String> receiptAuthorization = new AtomicReference<>();
+    AtomicReference<StubResponse> liveReceipt =
+        new AtomicReference<>(
+            new StubResponse(
+                200,
+                "{\"case_id\":\"case-verified\",\"purpose\":\"incident\","
+                    + "\"case_digest\":\"" + caseDigest + "\",\"workload_id\":\"workload-a\","
+                    + "\"required_source_kinds\":[\"telemetry\"]}"));
+    HttpServer server = newCaseReceiptServer(
+        tokenCalls,
+        delegationCalls,
+        delegationRequest,
+        receiptAuthorization,
+        liveReceipt);
+    try {
+      String base = "http://127.0.0.1:" + server.getAddress().getPort();
+      HttpCaseReceiptVerifier verifier =
+          new HttpCaseReceiptVerifier(
+              true,
+              base + "/token",
+              "uacrf-s08-retriever",
+              "test-secret",
+              base + "/delegations",
+              base,
+              RestClient.builder().build());
+      KnowledgeService service = new KnowledgeService(jdbc, objectMapper, verifier);
+      DelegationPrincipal actor = retrievalPrincipal(tenant, RETRIEVER);
+      Retrieval retrieval =
+          service.run(actor, new RunRetrieval("case-verified", "incident", Classification.RESTRICTED,
+              "verified", 10, null));
+      assertEquals("VERIFIED", retrieval.caseBinding());
+      assertEquals(caseDigest, retrieval.caseDigest());
+      assertEquals("workload-a", retrieval.workloadId());
+      assertThat(retrieval.results()).extracting(RetrievalResult::itemId)
+          .contains("target-a", "generic")
+          .doesNotContain("target-b");
+      String retrievalId = retrieval.retrievalId();
+      RetrievalReceipt eligible =
+          service.receipt(
+              actor,
+              retrievalId,
+              new ReceiptRequest(
+                  "case-verified", "incident", Classification.RESTRICTED, retrieval.manifestDigest()));
+      assertThat(eligible.eligible()).isTrue();
+      assertEquals("ELIGIBLE", eligible.reason());
+      assertEquals(caseDigest, eligible.caseDigest());
+      assertEquals("workload-a", eligible.workloadId());
+      assertEquals(1, tokenCalls.get());
+      assertEquals(1, delegationCalls.get());
+      assertThat(delegationRequest.get())
+          .contains("\"audience\":\"S07\"")
+          .contains("\"capability_ids\":[\"assessment.case.read\"]")
+          .contains("\"tenant_id\":\"" + tenant + "\"");
+      assertEquals("Bearer delegated", receiptAuthorization.get());
+
+      liveReceipt.set(
+          new StubResponse(
+              200,
+              "{\"case_id\":\"case-verified\",\"purpose\":\"incident\","
+                  + "\"case_digest\":\"" + caseDigest + "\",\"workload_id\":\"workload-b\","
+                  + "\"required_source_kinds\":[\"telemetry\"]}"));
+      RetrievalReceipt changedCase =
+          service.receipt(
+              actor,
+              retrievalId,
+              new ReceiptRequest(
+                  "case-verified", "incident", Classification.RESTRICTED, retrieval.manifestDigest()));
+      assertThat(changedCase.eligible()).isFalse();
+      assertEquals("CASE_UNVERIFIED", changedCase.reason());
+      assertThat(service.getRetrieval(actor, retrievalId).results())
+          .allMatch(result -> result.excerpt() == null);
+      liveReceipt.set(
+          new StubResponse(
+              200,
+              "{\"case_id\":\"case-verified\",\"purpose\":\"incident\","
+                  + "\"case_digest\":\"" + caseDigest + "\",\"workload_id\":\"workload-a\","
+                  + "\"required_source_kinds\":[\"telemetry\"]}"));
+
+      String withdrawer = bearer("withdrawer", tenant, List.of("knowledge.item.withdraw"));
+      assertThat(
+              post(
+                      "/v1/knowledge-items/target-a:withdraw",
+                      withdrawer,
+                      "{\"expected_revision\":2,\"reason\":\"source withdrawn\"}")
+                  .body())
+          .contains("\"state\":\"WITHDRAWN\"");
+      RetrievalReceipt afterWithdrawal =
+          service.receipt(
+              actor,
+              retrievalId,
+              new ReceiptRequest(
+                  "case-verified", "incident", Classification.RESTRICTED, retrieval.manifestDigest()));
+      assertThat(afterWithdrawal.eligible()).isFalse();
+      assertEquals("SOURCE_NOT_ELIGIBLE", afterWithdrawal.reason());
+      Retrieval concealed = service.getRetrieval(actor, retrievalId);
+      assertThat(concealed.results())
+          .filteredOn(result -> result.itemId().equals("target-a"))
+          .allMatch(result -> result.excerpt() == null);
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void caseReceiptMismatchAndOwnerOutageCreateNoRetrievalManifest() throws Exception {
+    String tenant = "t-case-failure";
+    String caseDigest = "cd".repeat(32);
+    AtomicInteger tokenCalls = new AtomicInteger();
+    AtomicInteger delegationCalls = new AtomicInteger();
+    AtomicReference<String> delegationRequest = new AtomicReference<>();
+    AtomicReference<String> receiptAuthorization = new AtomicReference<>();
+    AtomicReference<StubResponse> response =
+        new AtomicReference<>(
+            new StubResponse(
+                200,
+                "{\"case_id\":\"different-case\",\"purpose\":\"incident\","
+                    + "\"case_digest\":\"" + caseDigest + "\",\"workload_id\":\"workload-a\","
+                    + "\"required_source_kinds\":[\"telemetry\"]}"));
+    HttpServer server =
+        newCaseReceiptServer(
+            tokenCalls, delegationCalls, delegationRequest, receiptAuthorization, response);
+    try {
+      String base = "http://127.0.0.1:" + server.getAddress().getPort();
+      HttpCaseReceiptVerifier verifier =
+          new HttpCaseReceiptVerifier(
+              true,
+              base + "/token",
+              "uacrf-s08-retriever",
+              "test-secret",
+              base + "/delegations",
+              base,
+              RestClient.builder().build());
+      KnowledgeService service = new KnowledgeService(jdbc, objectMapper, verifier);
+      DelegationPrincipal actor = retrievalPrincipal(tenant, RETRIEVER);
+      RunRetrieval request =
+          new RunRetrieval("expected-case", "incident", Classification.RESTRICTED, "nothing", 10, null);
+      int initial =
+          jdbc.queryForObject(
+              "SELECT count(*) FROM uacrf_knowledge.retrieval WHERE tenant_id = ?",
+              Integer.class,
+              tenant);
+      assertEquals(
+          "CASE_UNVERIFIED",
+          assertThrows(
+                  KnowledgeException.class,
+                  () ->
+                      service.run(
+                          actor,
+                          new RunRetrieval(
+                              null, "incident", Classification.RESTRICTED, "nothing", 10, null)))
+              .code());
+      assertEquals(
+          "WORKLOAD_SCOPE_UNVERIFIED",
+          assertThrows(
+                  KnowledgeException.class,
+                  () ->
+                      service.run(
+                          actor,
+                          new RunRetrieval(
+                              "expected-case", "incident", Classification.RESTRICTED, "nothing", 10,
+                              "workload-a")))
+              .code());
+      KnowledgeException mismatch =
+          assertThrows(KnowledgeException.class, () -> service.run(actor, request));
+      assertEquals("CASE_UNVERIFIED", mismatch.code());
+      assertEquals(
+          initial,
+          jdbc.queryForObject(
+              "SELECT count(*) FROM uacrf_knowledge.retrieval WHERE tenant_id = ?",
+              Integer.class,
+              tenant));
+
+      response.set(
+          new StubResponse(
+              200,
+              "{\"case_id\":\"expected-case\",\"purpose\":\"other-purpose\","
+                  + "\"case_digest\":\"" + caseDigest + "\",\"workload_id\":\"workload-a\","
+                  + "\"required_source_kinds\":[\"telemetry\"]}"));
+      assertEquals(
+          "CASE_UNVERIFIED",
+          assertThrows(KnowledgeException.class, () -> service.run(actor, request)).code());
+      response.set(
+          new StubResponse(
+              200,
+              "{\"case_id\":\"expected-case\",\"purpose\":\"incident\","
+                  + "\"case_digest\":\"" + caseDigest + "\",\"workload_id\":\"workload-a\","
+                  + "\"required_source_kinds\":[]}"));
+      assertEquals(
+          "CASE_UNVERIFIED",
+          assertThrows(KnowledgeException.class, () -> service.run(actor, request)).code());
+      response.set(
+          new StubResponse(
+              200,
+              "{\"case_id\":\"expected-case\",\"purpose\":\"incident\","
+                  + "\"case_digest\":\"" + caseDigest + "\",\"required_source_kinds\":[\"telemetry\"]}"));
+      assertEquals(
+          "CASE_UNVERIFIED",
+          assertThrows(KnowledgeException.class, () -> service.run(actor, request)).code());
+      response.set(new StubResponse(503, "{}"));
+      KnowledgeException unavailable =
+          assertThrows(KnowledgeException.class, () -> service.run(actor, request));
+      assertEquals("OWNER_UNAVAILABLE", unavailable.code());
+      assertEquals(
+          initial,
+          jdbc.queryForObject(
+              "SELECT count(*) FROM uacrf_knowledge.retrieval WHERE tenant_id = ?",
+              Integer.class,
+              tenant));
+    } finally {
+      server.stop(0);
+    }
   }
 
   @Test
@@ -636,4 +893,61 @@ class KnowledgeApplicationTests {
       throw new IllegalStateException(error);
     }
   }
+
+  private static DelegationPrincipal retrievalPrincipal(String tenant, List<String> capabilities) {
+    return new DelegationPrincipal(
+        "https://uacrf.local/s01|retriever",
+        tenant,
+        "env-1",
+        "*",
+        "https://idp.example.test",
+        "retriever",
+        capabilities,
+        List.of(),
+        List.of());
+  }
+
+  private static HttpServer newCaseReceiptServer(
+      AtomicInteger tokenCalls,
+      AtomicInteger delegationCalls,
+      AtomicReference<String> delegationRequest,
+      AtomicReference<String> receiptAuthorization,
+      AtomicReference<StubResponse> receiptResponse)
+      throws IOException {
+    HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/token",
+        exchange -> {
+          tokenCalls.incrementAndGet();
+          respond(exchange, 200, "{\"access_token\":\"identity\",\"expires_in\":60}");
+        });
+    server.createContext(
+        "/delegations",
+        exchange -> {
+          delegationCalls.incrementAndGet();
+          delegationRequest.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+          assertEquals("Bearer identity", exchange.getRequestHeaders().getFirst("Authorization"));
+          respond(exchange, 200, "{\"access_token\":\"delegated\",\"expires_in\":30}");
+        });
+    server.createContext(
+        "/internal/v1/cases/",
+        exchange -> {
+          receiptAuthorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+          StubResponse configured = receiptResponse.get();
+          respond(exchange, configured.status(), configured.body());
+        });
+    server.start();
+    return server;
+  }
+
+  private static void respond(HttpExchange exchange, int status, String body) throws IOException {
+    byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+    exchange.getResponseHeaders().set("Content-Type", "application/json");
+    exchange.sendResponseHeaders(status, bytes.length);
+    try (var output = exchange.getResponseBody()) {
+      output.write(bytes);
+    }
+  }
+
+  private record StubResponse(int status, String body) {}
 }

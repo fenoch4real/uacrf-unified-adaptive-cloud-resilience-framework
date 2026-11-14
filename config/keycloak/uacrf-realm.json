@@ -61,6 +61,22 @@
       "fullScopeAllowed": false
     },
     {
+      "clientId": "uacrf-s08-retriever",
+      "name": "UACRF S08 case receipt verifier",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KEYCLOAK_S08_RETRIEVER_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "uacrf-s01-context"
+      ],
+      "fullScopeAllowed": false
+    },
+    {
       "clientId": "uacrf-s01-directory",
       "name": "UACRF S01 directory reader",
       "enabled": true,

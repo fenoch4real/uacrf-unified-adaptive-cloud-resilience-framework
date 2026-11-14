@@ -64,7 +64,7 @@ class AssessmentService {
     permit(actor, "assessment.case.read", false);
     Case item = findCase(actor, id, false);
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "A receipt requires a sealed case.");
-    return new Receipt(id, item.purpose(), item.caseDigest(), item.requiredSourceKinds());
+    return new Receipt(id, item.purpose(), item.caseDigest(), item.workloadId(), item.requiredSourceKinds());
   }
   @Transactional
   Evaluation evaluate(DelegationPrincipal actor, String id, Evaluate request) {

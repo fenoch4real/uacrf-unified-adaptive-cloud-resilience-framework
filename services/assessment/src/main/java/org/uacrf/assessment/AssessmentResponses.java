@@ -10,7 +10,8 @@ final class AssessmentResponses {
   record Case(String id, String workloadId, String purpose, String metric, Comparator comparator,
       java.math.BigDecimal threshold, String unit, int windowSeconds, ObjectiveRef objectiveRef,
       GraphRef graphRef, List<String> requiredSourceKinds, String state, long revision, String caseDigest) {}
-  record Receipt(String caseId, String purpose, String caseDigest, List<String> requiredSourceKinds) {}
+  record Receipt(
+      String caseId, String purpose, String caseDigest, String workloadId, List<String> requiredSourceKinds) {}
   record Evidence(Measurement measurement, String disposition) {}
   record ObjectiveReceipt(String workloadId, String setDigest, String objectiveId, long revision, String digest) {}
   record GraphReceipt(String graphId, long revision, String digest) {}
