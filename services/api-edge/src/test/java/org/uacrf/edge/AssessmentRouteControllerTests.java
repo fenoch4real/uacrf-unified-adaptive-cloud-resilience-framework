@@ -1,0 +1,89 @@
+package org.uacrf.edge;
+
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.io.IOException;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.client.RestClient;
+
+class AssessmentRouteControllerTests {
+  private static final String URL = "http://assessment.test";
+
+  @Test
+  void forwardsPublicOperationsAndLeavesInternalReceiptUnrouted() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc =
+        MockMvcBuilders.standaloneSetup(
+                new AssessmentRouteController(new AssessmentRouteClient(builder.build())))
+            .build();
+    server
+        .expect(requestTo(URL + "/v1/cases?workload_id=w1"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(
+            withStatus(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{}"));
+    server
+        .expect(requestTo(URL + "/v1/cases"))
+        .andExpect(method(HttpMethod.POST))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
+        .expect(requestTo(URL + "/v1/cases/c-1:seal"))
+        .andExpect(method(HttpMethod.POST))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/cases/c-1")).andExpect(method(HttpMethod.GET))
+        .andRespond(withException(new IOException("down")));
+    server.expect(requestTo(URL + "/v1/cases")).andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("[]"));
+    server.expect(requestTo(URL + "/v1/cases/c-1:evaluate")).andExpect(method(HttpMethod.POST))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/cases/c-1/evaluations")).andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("[]"));
+    server.expect(requestTo(URL + "/v1/cases/c-1/evaluations:latest")).andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/evaluations/e-1")).andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/recommendations?workload_id=w1"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("[]"));
+
+    mvc.perform(get("/internal/assessment/v1/cases").param("workload_id", "w1"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, "Bearer"))
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(post("/internal/assessment/v1/cases").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    mvc.perform(post("/internal/assessment/v1/cases/c-1:seal").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk());
+    mvc.perform(get("/internal/assessment/v1/cases/c-1")).andExpect(status().isBadGateway());
+    mvc.perform(get("/internal/assessment/v1/cases")).andExpect(status().isOk());
+    mvc.perform(post("/internal/assessment/v1/cases/c-1:evaluate")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    mvc.perform(get("/internal/assessment/v1/cases/c-1/evaluations")).andExpect(status().isOk());
+    mvc.perform(get("/internal/assessment/v1/cases/c-1/evaluations:latest")).andExpect(status().isOk());
+    mvc.perform(get("/internal/assessment/v1/evaluations/e-1")).andExpect(status().isOk());
+    mvc.perform(get("/internal/assessment/v1/recommendations").param("workload_id", "w1"))
+        .andExpect(status().isOk());
+    mvc.perform(post("/internal/assessment/internal/v1/cases/c-1:receipt")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isNotFound());
+    server.verify();
+  }
+}

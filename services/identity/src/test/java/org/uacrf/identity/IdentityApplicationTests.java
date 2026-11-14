@@ -741,12 +741,30 @@ class IdentityApplicationTests {
             """);
     assertEquals(403, unmemberedTopology.statusCode(), unmemberedTopology.body());
 
-    HttpResponse<String> unknownAudience =
+    HttpResponse<String> assessmentAudience =
         post(
             "/internal/v1/delegations",
             token("keycloak-subject-1"),
             """
             {"audience":"S07","service_id":"svc-1","capability_ids":["catalog.service.write"]}
+            """);
+    assertEquals(200, assessmentAudience.statusCode(), assessmentAudience.body());
+
+    HttpResponse<String> unmemberedAssessment =
+        post(
+            "/internal/v1/delegations",
+            token("keycloak-subject-1"),
+            """
+            {"audience":"S07","capability_ids":["assessment.evaluation.run"]}
+            """);
+    assertEquals(403, unmemberedAssessment.statusCode(), unmemberedAssessment.body());
+
+    HttpResponse<String> unknownAudience =
+        post(
+            "/internal/v1/delegations",
+            token("keycloak-subject-1"),
+            """
+            {"audience":"S08","service_id":"svc-1","capability_ids":["catalog.service.write"]}
             """);
     assertEquals(400, unknownAudience.statusCode());
 

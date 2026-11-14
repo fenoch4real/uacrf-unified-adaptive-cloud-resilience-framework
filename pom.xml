@@ -27,6 +27,7 @@
     <module>services/evidence</module>
     <module>services/objectives</module>
     <module>services/topology</module>
+    <module>services/assessment</module>
     <module>web</module>
     <module>sample-data</module>
   </modules>

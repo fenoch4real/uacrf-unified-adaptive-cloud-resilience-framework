@@ -397,6 +397,12 @@ retains evidence events and decides qualification.
 - Accepting a graph requires the expected current revision for its scope. Accepted proposals are merged deterministically into an immutable graph revision with a canonical digest; repeating the same graph content does not create another revision. Conflicting provenance for duplicate accepted relationships is recorded in `graph_edge_conflicts`. Graph acceptance/conflict events are written transactionally to the outbox. The internal receipt reports the projection row's current status and is eligible only after digest verification.
 - Still needed: catalog-driven classify/select behavior, inventory reconciliation and its policy, the S03 outbox publisher for S06 events, and S10 consumption pinned to an exact graph revision.
 
+## M3 / S07 assessment (first slice)
+
+- `services/assessment` (port 8089, audience S07, database/schema `uacrf_assessment`) provides fixed assessment cases, deterministic evaluation, and non-executable recommendations. EDGE01 routes the public operations under `/internal/assessment`; the private `/internal/v1/cases/{id}:receipt` endpoint is not routed.
+- Evaluation measurements are caller-supplied and are **not yet S04-verified receipts**. There is no prediction/model execution, model versioning or learning, or incident record support yet.
+- Remaining work: verify S04/S05/S06 receipts during evaluation; add workers/triggers and the outbox publisher; build forecasts, model versions, and learning behind feature gates; and integrate S10 consumption.
+
 ## Next implementation step
 
 Public S01 identity reads and writes now pass through EDGE01, while delegation

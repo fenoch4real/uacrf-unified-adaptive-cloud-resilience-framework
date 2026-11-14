@@ -97,6 +97,21 @@ OWNERS = {
         "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
         "compose_service": "topology-db",
     },
+    "assessment": {
+        "module": "services/assessment",
+        "artifact": "assessment-service",
+        "database": "uacrf_assessment",
+        "jdbc_env": "ASSESSMENT_JDBC_URL",
+        "user_env": "ASSESSMENT_DB_USER",
+        "password_env": "ASSESSMENT_DB_PASSWORD",
+        "name_env": "ASSESSMENT_DB_NAME",
+        "admin_user_env": "ASSESSMENT_DB_ADMIN_USER",
+        "admin_password_env": "ASSESSMENT_DB_ADMIN_PASSWORD",
+        "delegation_public_env": "UACRF_DELEGATION_PUBLIC_KEY_BASE64",
+        "delegation_private_env": None,
+        "delegation_key_id_env": "UACRF_DELEGATION_KEY_ID",
+        "compose_service": "assessment-db",
+    },
 }
 
 

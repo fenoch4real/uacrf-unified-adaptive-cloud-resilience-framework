@@ -1,0 +1,37 @@
+package org.uacrf.assessment;
+
+import static org.uacrf.assessment.AssessmentRequests.*;
+import static org.uacrf.assessment.AssessmentResponses.*;
+import jakarta.validation.Valid;
+import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.*;
+import org.uacrf.security.DelegationPrincipal;
+
+@RestController
+class AssessmentController {
+  private final AssessmentService service;
+  AssessmentController(AssessmentService service) { this.service = service; }
+  @PostMapping("/v1/cases") @ResponseStatus(HttpStatus.CREATED)
+  Case create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateCase request) { return service.create(DelegationPrincipal.from(jwt), request); }
+  @PostMapping("/v1/cases/{id}:seal")
+  Case seal(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) { return service.seal(DelegationPrincipal.from(jwt), id, request); }
+  @GetMapping("/v1/cases/{id}")
+  Case get(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.getCase(DelegationPrincipal.from(jwt), id); }
+  @GetMapping("/v1/cases")
+  List<Case> list(@AuthenticationPrincipal Jwt jwt, @RequestParam(value="workload_id", required=false) String workloadId) { return service.listCases(DelegationPrincipal.from(jwt), workloadId); }
+  @PostMapping("/internal/v1/cases/{id}:receipt")
+  Receipt receipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.receipt(DelegationPrincipal.from(jwt), id); }
+  @PostMapping("/v1/cases/{id}:evaluate") @ResponseStatus(HttpStatus.CREATED)
+  Evaluation evaluate(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Evaluate request) { return service.evaluate(DelegationPrincipal.from(jwt), id, request); }
+  @GetMapping("/v1/cases/{id}/evaluations")
+  List<Evaluation> evaluations(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.evaluations(DelegationPrincipal.from(jwt), id); }
+  @GetMapping("/v1/cases/{id}/evaluations:latest")
+  Evaluation latest(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.latest(DelegationPrincipal.from(jwt), id); }
+  @GetMapping("/v1/evaluations/{id}")
+  Evaluation evaluation(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.evaluation(DelegationPrincipal.from(jwt), id); }
+  @GetMapping("/v1/recommendations")
+  List<Recommendation> recommendations(@AuthenticationPrincipal Jwt jwt, @RequestParam(value="workload_id") String workloadId) { return service.recommendations(DelegationPrincipal.from(jwt), workloadId); }
+}

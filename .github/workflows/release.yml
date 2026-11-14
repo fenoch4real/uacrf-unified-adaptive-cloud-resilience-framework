@@ -67,5 +67,6 @@ jobs:
           evidence evidence-service
           objectives objectives-service
           topology topology-service
+          assessment assessment-service
           web web
           IMAGES
