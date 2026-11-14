@@ -11,8 +11,11 @@ final class AssessmentResponses {
       GraphRef graphRef, List<String> requiredSourceKinds, String state, long revision, String caseDigest) {}
   record Receipt(String caseId, String purpose, String caseDigest, List<String> requiredSourceKinds) {}
   record Evidence(Measurement measurement, String disposition) {}
+  record ObjectiveReceipt(String workloadId, String setDigest, String objectiveId, long revision, String digest) {}
+  record GraphReceipt(String graphId, long revision, String digest) {}
   record DependencyVector(String caseDigest, ObjectiveRef objectiveRef, GraphRef graphRef,
-      List<Evidence> measurements) {}
+      String receiptVerification, String receiptReasonCode, ObjectiveReceipt objectiveReceipt,
+      GraphReceipt graphReceipt, List<Evidence> measurements) {}
   record Evaluation(String id, String caseId, long revision, Instant observationCutoff, Instant receivedAt,
       Mode mode, String outcome, DependencyVector dependencyVector, String resultDigest) {}
   record Bounds(String metric, Comparator comparator, java.math.BigDecimal threshold, String unit, String effect) {}

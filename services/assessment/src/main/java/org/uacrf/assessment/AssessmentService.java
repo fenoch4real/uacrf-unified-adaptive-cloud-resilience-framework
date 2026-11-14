@@ -22,7 +22,12 @@ class AssessmentService {
   private static final String DB = "uacrf_assessment.";
   private final JdbcTemplate jdbc;
   private final ObjectMapper json;
-  AssessmentService(JdbcTemplate jdbc, ObjectMapper json) { this.jdbc = jdbc; this.json = json; }
+  private final ReceiptVerifier receiptVerifier;
+  AssessmentService(JdbcTemplate jdbc, ObjectMapper json, ReceiptVerifier receiptVerifier) {
+    this.jdbc = jdbc;
+    this.json = json;
+    this.receiptVerifier = receiptVerifier;
+  }
 
   @Transactional
   Case create(DelegationPrincipal actor, CreateCase request) {
@@ -93,7 +98,12 @@ class AssessmentService {
       int comparison = m.value().compareTo(item.threshold());
       if ((item.comparator() == AssessmentRequests.Comparator.LTE && comparison > 0) || (item.comparator() == AssessmentRequests.Comparator.GTE && comparison < 0)) { outcome = "CONFIRMED_BREACH"; break; }
     }
-    DependencyVector vector = new DependencyVector(item.caseDigest(), item.objectiveRef(), item.graphRef(), List.copyOf(evidence));
+    ReceiptVerifier.Verification verification =
+        receiptVerifier.verify(item, actor.tenantId(), actor.environmentId());
+    if (verification.status().equals("FAILED")) outcome = "INSUFFICIENT_EVIDENCE";
+    DependencyVector vector = new DependencyVector(item.caseDigest(), item.objectiveRef(), item.graphRef(),
+        verification.status(), verification.reasonCode(), verification.objectiveReceipt(),
+        verification.graphReceipt(), List.copyOf(evidence));
     String digest = hash(write(new ResultMaterial(cutoff, request.mode(), outcome, vector)));
     Long revision = jdbc.queryForObject("SELECT COALESCE(MAX(revision),0)+1 FROM " + DB + "evaluation WHERE tenant_id=? AND environment_id=? AND case_id=?", Long.class, actor.tenantId(), actor.environmentId(), id);
     String evalId = UUID.randomUUID().toString();

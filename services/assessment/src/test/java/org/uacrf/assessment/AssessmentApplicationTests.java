@@ -79,6 +79,7 @@ class AssessmentApplicationTests {
     JsonNode old = eval(token,id,"2026-01-01T01:00:00Z","LIVE",good);
     JsonNode replay = eval(token,id,"2026-01-01T01:00:00Z","LIVE",good);
     assertEquals(old.get("result_digest").asString(),replay.get("result_digest").asString());
+    assertEquals("SKIPPED", old.get("dependency_vector").get("receipt_verification").asString());
     JsonNode corrected = eval(token,id,"2026-01-01T01:00:00Z","LIVE",good.replace("\"value\":5", "\"value\":20"));
     assertEquals("CONFIRMED_BREACH", corrected.get("outcome").asString()); assertEquals(3,corrected.get("revision").asInt());
     assertNotEquals(old.get("result_digest").asString(), corrected.get("result_digest").asString());
