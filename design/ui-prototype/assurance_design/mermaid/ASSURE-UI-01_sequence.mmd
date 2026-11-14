@@ -1,0 +1,28 @@
+sequenceDiagram
+participant Human
+participant API as Main UI
+Human->>API: S01 Choose a registered example journey inside Assess
+alt S01 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>API: S02 Validate scenario reason workload and local owner before local baseline creation
+alt S02 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+Human->>API: S03 Inspect a local change and review the diagnostic result
+alt S03 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>API: S04 Append local reassessment and preserve earlier local reviews
+alt S04 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Human: S05 Show the same scoped status in journey graph evidence recovery and activity views

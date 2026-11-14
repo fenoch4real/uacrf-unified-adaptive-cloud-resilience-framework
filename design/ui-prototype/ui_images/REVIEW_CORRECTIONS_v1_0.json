@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "design_revision": 3,
+  "generation_mode": "Built-in image generation",
+  "purpose": "Targeted corrections after visual and semantic review",
+  "corrections": [
+    {
+      "key": "Access_Management",
+      "prompt": "Edit only the two small role explanations in the Assistance permissions panel of this UACRF access screen. Under Knowledge reviewer replace the explanation with: 'Reviews and approves knowledge versions within authorized scope. No recovery approval is implied.' Under Advisory run operator replace the explanation with: 'Starts and cancels bounded advisory runs. Cannot approve or execute recovery.' Keep all other text, roles, selected user, analysis gateway identity, no provider execution access, statuses, sidebar and layout unchanged."
+    },
+    {
+      "key": "Knowledge_Library",
+      "prompt": "Edit only the dates in this UACRF governed knowledge screen. In the Review due column replace the approved Checkout rollback guide date with 'In 30 days', the Service dependency notes date with 'Before approval', the Incident lesson date with 'Not set', and the Withdrawn legacy guide date with 'Not eligible'. In the right panel replace Approved on Apr 28, 2025 with 'Oct 20, 2026'. Preserve every other word, status, row, layout and control. Do not change which version is approved. This removes misleading past review dates from the current illustrative screen."
+    },
+    {
+      "key": "Notifications",
+      "prompt": "Make only these identity-label corrections in this UACRF notification-routing screen. For the new Agent run blocked or required role missing rule, replace owner Priya Shah with Daniel Reed. In the right preview replace the label 'Service owner' with 'Assessment owner' and its value with 'Daniel Reed'. Preserve Maya Chen and Luis Romero in other rows. Keep the Draft/Not activated states, No message sent, disabled Activate routing, all other content and layout unchanged."
+    },
+    {
+      "key": "Knowledge_Review",
+      "prompt": "Edit only three small text areas in this UACRF knowledge-review screen. On the Version 3 card replace the approval line with 'Approved on Oct 20, 2026 · by Maya Chen'. On Version 4 replace the proposal line with 'Proposed on Oct 25, 2026 · by Luis Romero'. In the rationale box replace '(optional)' with '(required)'. Keep the author Luis Romero, reviewer Maya Chen, all excerpts, current v3 Approved, v4 In review, file scan illustration, pending provenance, disabled Approve version and all other content/layout unchanged."
+    },
+    {
+      "key": "Agent_Run_Setup",
+      "prompt": "Make only four small text replacements in this UACRF advisory-run setup image. Replace the subtitle with 'Review evidence and draft findings for human review.' In the Tools list replace knowledge.search with 'Search approved knowledge', evidence.read with 'Read evidence', and graph.read with 'Read dependency graph'. Preserve all read-only badges, scope, sealed context, A2 Advisory tier, required roles, unchecked optional topology role, budgets, human reviewer Daniel Reed, manual route, no execution authority and all other content and layout."
+    },
+    {
+      "key": "Assistance_Settings",
+      "prompt": "Correct only these small text areas in the UACRF assistance-settings image. Keep layout and all other content. Under Agent mode replace the explanation with 'Read-only suggestions; no recovery authority.' Under Human Core route use 'Manual assessment remains available if assistance is unavailable.' Under A3 collaboration replace 'Multi-agent collaboration is not enabled in this configuration.' with 'Automatic proposal arbitration is not enabled.' In Evaluation and promotion replace the Last reviewed label with 'Evaluation status', value Scenario pack recorded with 'Demonstration only', and the past-date caption with 'Live capability evaluation is not evidenced.' Keep knowledge enabled for NONPRODUCTION, A2 Advisory, A3 Not enabled, A4/A5 Deferred, Production promotion Pending, demo not acceptance evidence, and the kill switch unchanged. Do not add a completed evaluation or production readiness claim."
+    },
+    {
+      "key": "Knowledge_Search",
+      "prompt": "Make only these source-label and excerpt corrections in this UACRF knowledge search image. Prefix the first result title with '[1]' and the second result title with '[2]' so they map to the summary citations. Replace the first result's excerpt with 'Verify compatibility before rollback.' to match the immutable v3 shown on the knowledge-review screen. Replace the first result's Updated Mar 12, 2024 text with 'Approved reference version' and the second result's Updated Jan 5, 2024 text with 'Reviewed reference version'. Keep the two summary recommendations and their separate citations, the missing current probe warning, Unknown readiness, retrieval record, source versions, all other content and layout unchanged."
+    },
+    {
+      "key": "Agent_Run_Detail",
+      "prompt": "Edit only the progress labels and main button text in this UACRF advisory-run detail screen. In the top timeline mark Roles collected as Completed with a completed indicator, and Human review as In progress with the active indicator. Keep Context sealed Completed. Replace the button label 'Primary Review outputs' with 'Review outputs'. Preserve the A2 Advisory · Human review badge, both required roles Completed, optional topology Not assigned, material critic concern, selected proposal None, budgets, cancellation control and all other content."
+    },
+    {
+      "key": "Agent_Output_Review",
+      "prompt": "Make only two small explanatory-text corrections in this UACRF advisory findings review image. Under Keep for further review replace 'Accept the draft wording and continue.' with 'Retain the draft and unresolved concern for further review.' In the Critic dissent explanation replace 'does not demonstrate compatibility with v43' with 'does not establish compatibility with current data and dependencies'. Preserve the finding, both citations, human reviewer Daniel Reed, unresolved blocking concern, claim support needs confirmation, no selected recovery action, no requested approval and every other element."
+    }
+  ]
+}

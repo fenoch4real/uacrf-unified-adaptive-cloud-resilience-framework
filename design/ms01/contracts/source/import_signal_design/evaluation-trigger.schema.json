@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "evaluation trigger",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "trigger_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "cause": {
+      "enum": [
+        "OBJECTIVE_BREACH",
+        "MATERIAL_CHANGE",
+        "GRANT_REVOKED",
+        "EVIDENCE_EXPIRED",
+        "OBJECTIVE_REVISION",
+        "BUDGET_EXHAUSTED",
+        "RUNTIME_FAILURE",
+        "WINDOW_CLOSED",
+        "PRE_DISPATCH_CHECK"
+      ]
+    },
+    "target_workload_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_receipt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "objective_revision_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "graph_revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "policy_revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "due_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "urgent": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "trigger_id",
+    "cause",
+    "target_workload_id",
+    "source_receipt_id",
+    "context_digest",
+    "objective_revision_ref",
+    "graph_revision",
+    "policy_revision",
+    "due_at",
+    "urgent"
+  ]
+}

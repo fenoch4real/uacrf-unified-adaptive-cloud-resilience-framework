@@ -1,0 +1,6 @@
+{
+  "status": "PASS",
+  "fixture_count": 20,
+  "scope": "Structural Draft2020-12 and format validation only; no runtime authorization signature or distributed acceptance",
+  "result": "Validated 20 positive and negative structural schema fixtures"
+}

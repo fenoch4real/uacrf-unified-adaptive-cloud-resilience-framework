@@ -1,0 +1,60 @@
+.table-wrapper {
+  container-type: inline-size;
+  max-block-size: min(500px, 80vh);
+  max-inline-size: 100%;
+  overflow: auto;
+}
+
+.principal-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-inline-size: 40rem;
+}
+
+.principal-table caption {
+  font-weight: 700;
+  text-align: start;
+}
+
+.principal-table thead {
+  background: white;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.principal-table tbody th {
+  background: white;
+  position: sticky;
+  inset-inline-start: 0;
+}
+
+@container (width < 600px) {
+  .principal-table,
+  .principal-table thead,
+  .principal-table tbody,
+  .principal-table tr,
+  .principal-table th,
+  .principal-table td {
+    display: block;
+  }
+
+  .principal-table thead {
+    display: none;
+  }
+
+  .principal-table tr {
+    border: 1px solid;
+    margin-block-end: 1rem;
+    padding: 0.5rem;
+  }
+
+  .principal-table tbody th {
+    position: static;
+  }
+
+  .principal-table td::before {
+    content: attr(data-label) ": ";
+    font-weight: 700;
+  }
+}

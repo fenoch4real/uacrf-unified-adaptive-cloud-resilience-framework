@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:uacrf:1.0:KnowledgeItemVersion",
+  "title": "KnowledgeItemVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "item_id",
+    "version",
+    "tenant_id",
+    "environment_ids",
+    "service_ids",
+    "purposes",
+    "classification",
+    "owner_id",
+    "source_uri",
+    "object_ref",
+    "digest",
+    "valid_from",
+    "expires_at",
+    "review_due_at",
+    "state",
+    "reviewer_id",
+    "predecessor"
+  ],
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "service_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "purposes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "classification": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "object_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "valid_from": {
+      "type": "integer"
+    },
+    "expires_at": {
+      "type": "integer"
+    },
+    "review_due_at": {
+      "type": "integer"
+    },
+    "state": {
+      "enum": [
+        "DRAFT",
+        "QUARANTINED",
+        "IN_REVIEW",
+        "APPROVED",
+        "WITHDRAWN",
+        "SUPERSEDED"
+      ]
+    },
+    "reviewer_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "predecessor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "review_sequence": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

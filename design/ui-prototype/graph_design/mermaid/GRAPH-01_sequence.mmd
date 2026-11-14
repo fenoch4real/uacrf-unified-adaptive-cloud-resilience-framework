@@ -1,0 +1,47 @@
+sequenceDiagram
+    participant P0 as Operator
+    participant P1 as Java admin
+    participant P2 as PostgreSQL
+    P0->>P1: S01 Verify source file hash manifest contract and current source-verified human
+    alt S01 accepted
+        Note over P1: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P1: Return restrictive result
+        end
+    end
+    P1->>P2: S02 Begin transaction and derive tenant environment and accountable actor
+    alt S02 accepted
+        Note over P2: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P2: Return restrictive result
+        end
+    end
+    P1->>P2: S03 Insert BUILDING revision with append-only qualified nodes and typed edges
+    alt S03 accepted
+        Note over P2: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P2: Return restrictive result
+        end
+    end
+    P1->>P2: S04 Lock revision and verify current qualifications workload bindings and capacity
+    alt S04 accepted
+        Note over P2: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P2: Return restrictive result
+        end
+    end
+    P2->>P2: S05 Finalize canonical digest through the controlled owner procedure
+    alt S05 accepted
+        Note over P2: Continue with verified context
+    else denied or incomplete
+        break F1 stop
+            Note over P2: Return restrictive result
+        end
+    end
+    P2->>P2: S06 Commit sealed revision acceptance audit outbox and durable projection work
+    P1->>P0: S07 Return pending projection metadata only
+    Note over P0,P2: F1 F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted.

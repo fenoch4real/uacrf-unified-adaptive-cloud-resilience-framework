@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reviewed transport projections",
+  "description": "Explicit metadata projections for the existing contract bundles. They describe authorized responses; serializers, field disclosure controls and handlers remain to be implemented. Runtime verification stays NOT_ESTABLISHED for this release.",
+  "type": "object",
+  "$defs": {
+    "CommandReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "receipt_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "COMPLETED",
+            "REJECTED"
+          ]
+        },
+        "read_resource": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^/v1/[A-Za-z0-9_/:.%~-]+(?:\\?[A-Za-z0-9_=&.%~-]+)?$",
+              "allOf": [
+                {
+                  "not": {
+                    "pattern": "(^|/)\\.\\.?(/|$)"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime_verification": {
+          "const": "NOT_ESTABLISHED"
+        }
+      },
+      "required": [
+        "receipt_id",
+        "status",
+        "read_resource",
+        "runtime_verification"
+      ]
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "\\S"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        },
+        "correlation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "correlation_id",
+        "retryable"
+      ]
+    },
+    "WorkloadProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "service_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "kind": {
+          "enum": [
+            "SINGLE_AGENT",
+            "MULTI_AGENT"
+          ]
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "ACTIVE",
+            "SUSPENDED",
+            "RETIRED"
+          ]
+        },
+        "active_version_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "status",
+        "revision"
+      ]
+    },
+    "WorkloadExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "version_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "\\S"
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "RUNNING",
+            "PAUSED",
+            "CANCELLED",
+            "ESCALATED",
+            "COMPLETED",
+            "FAILED",
+            "TIMED_OUT"
+          ]
+        },
+        "event_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "control_generation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "steps_remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens_remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost_remaining": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "runtime_verification": {
+          "const": "NOT_ESTABLISHED"
+        }
+      },
+      "required": [
+        "id",
+        "version_id",
+        "status",
+        "event_sequence",
+        "control_generation",
+        "steps_remaining",
+        "tokens_remaining",
+        "cost_remaining",
+        "deadline",
+        "runtime_verification"
+      ]
+    },
+    "TemplatePage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/TemplateRecord"
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor",
+        "coverage"
+      ]
+    },
+    "ObjectivePage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "$ref": "#/$defs/ObjectiveRecord"
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor",
+        "coverage"
+      ]
+    },
+    "ImportHistoryPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "candidate": {
+                "$ref": "../import_signal_design/objective-import-candidate.schema.json"
+              },
+              "resolutions": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "$ref": "#/$defs/ResolutionRecord"
+                }
+              }
+            },
+            "required": [
+              "candidate",
+              "resolutions"
+            ]
+          }
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage": {
+          "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor",
+        "coverage"
+      ]
+    },
+    "TemplateRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "definition": {
+          "$ref": "../objective_design/template-definition.schema.json"
+        },
+        "publication": {
+          "const": "AVAILABLE_FOR_PROPOSALS"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "definition",
+        "publication"
+      ]
+    },
+    "ObjectiveRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workload_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "SERVICE",
+                "AGENT"
+              ]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ]
+        },
+        "template_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "template_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "definition": {
+          "$ref": "../import_signal_design/normalized-objective-definition.schema.json"
+        },
+        "definition_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "state": {
+          "enum": [
+            "DRAFT",
+            "SUBMITTED",
+            "APPROVED",
+            "REJECTED",
+            "ACTIVE"
+          ]
+        },
+        "proposed_by": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "owner_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "effective_from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "submitted_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activated_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime_verification": {
+          "const": "NOT_ESTABLISHED"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "workload_ref",
+        "template_id",
+        "template_revision",
+        "definition",
+        "definition_digest",
+        "state",
+        "proposed_by",
+        "owner_id",
+        "effective_from",
+        "submitted_at",
+        "activated_at",
+        "runtime_verification"
+      ]
+    },
+    "ResolutionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolution": {
+          "$ref": "../import_signal_design/objective-import-resolution.schema.json"
+        }
+      },
+      "required": [
+        "revision",
+        "actor_id",
+        "recorded_at",
+        "resolution"
+      ]
+    }
+  }
+}

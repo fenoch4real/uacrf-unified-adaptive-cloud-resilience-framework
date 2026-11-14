@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "collection policy",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "signal_kind": {
+      "enum": [
+        "METRIC",
+        "CONFIGURATION",
+        "OBJECTIVE_DEFINITION",
+        "AGENT_EXECUTION"
+      ]
+    },
+    "delivery": {
+      "enum": [
+        "EVENTS",
+        "POLL",
+        "EVENTS_AND_POLL"
+      ]
+    },
+    "source_resolution_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "poll_seconds": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reconcile_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "freshness_basis": {
+      "enum": [
+        "OBSERVED_AT",
+        "SOURCE_CHECKED_AT"
+      ]
+    },
+    "maximum_age_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "evaluation_window_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "debounce_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "urgent_bypasses_debounce": {
+      "const": true
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "pre_dispatch_checks_required": {
+      "const": true
+    },
+    "expected_connection_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    }
+  },
+  "required": [
+    "signal_kind",
+    "delivery",
+    "source_resolution_seconds",
+    "poll_seconds",
+    "reconcile_seconds",
+    "freshness_basis",
+    "maximum_age_seconds",
+    "evaluation_window_seconds",
+    "debounce_seconds",
+    "urgent_bypasses_debounce",
+    "expected_revision",
+    "pre_dispatch_checks_required",
+    "expected_connection_revision",
+    "reason"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "delivery": {
+            "const": "EVENTS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "poll_seconds": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "poll_seconds": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "signal_kind": {
+            "const": "OBJECTIVE_DEFINITION"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "freshness_basis": {
+            "const": "SOURCE_CHECKED_AT"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "freshness_basis": {
+            "const": "OBSERVED_AT"
+          }
+        }
+      }
+    }
+  ]
+}

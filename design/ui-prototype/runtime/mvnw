@@ -1,0 +1,18 @@
+#!/bin/sh
+# Small checksum-pinned Maven launcher for macOS/Linux. Requires JDK 25, curl, tar and shasum.
+set -eu
+version=3.9.11
+expected=bcfe4fe305c962ace56ac7b5fc7a08b87d5abd8b7e89027ab251069faebee516b0ded8961445d6d91ec1985dfe30f8153268843c89aa392733d1a3ec956c9978
+cache="${UACRF_BUILD_CACHE:-${TMPDIR:-/tmp}/uacrf-maven}"
+maven="$cache/apache-maven-$version/bin/mvn"
+if [ ! -x "$maven" ]; then
+ mkdir -p "$cache"
+ stage=$(mktemp -d "$cache/download.XXXXXX")
+ trap 'rm -rf "$stage"' EXIT HUP INT TERM
+ curl --fail --location --proto '=https' --tlsv1.2 "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/$version/apache-maven-$version-bin.tar.gz" -o "$stage/maven.tar.gz"
+ actual=$(shasum -a 512 "$stage/maven.tar.gz" | cut -d ' ' -f 1)
+ [ "$actual" = "$expected" ] || { echo 'Maven checksum mismatch' >&2; exit 1; }
+ tar -xzf "$stage/maven.tar.gz" -C "$stage"
+ mv "$stage/apache-maven-$version" "$cache/"
+fi
+exec "$maven" "$@"

@@ -1,0 +1,46 @@
+sequenceDiagram
+    participant P0 as Source
+    participant P1 as Adapter
+    participant P2 as Import worker
+    participant P3 as PostgreSQL
+    participant P4 as Owner
+    participant P5 as API
+    participant P6 as Objective service
+    P0->>P1: S01 Event or bounded scheduled source check
+    P1->>P2: S02 Bind connection workload source version raw digest and successful check time
+    alt S02 accepted
+        Note over P2: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P2: Retain restrictive disposition; no later success steps
+        end
+    end
+    P2->>P2: S03 Validate mappings units windows comparison coverage and authoritative withdrawal
+    alt S03 accepted
+        Note over P2: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P2: Retain restrictive disposition; no later success steps
+        end
+    end
+    P2->>P3: S04 Deduplicate immutable candidate and checkpoint in an atomic transaction
+    P4->>P5: S05 Read scoped candidate history and source local base comparison
+    alt S05 accepted
+        Note over P5: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P5: Retain restrictive disposition; no later success steps
+        end
+    end
+    P4->>P5: S06 Choose keep local propose source or detach with expected revisions and reason
+    P5->>P5: S07 Recheck current grants source digest binding version and local revision
+    alt S07 accepted
+        Note over P5: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P5: Retain restrictive disposition; no later success steps
+        end
+    end
+    P5->>P3: S08 Atomically retain resolution history audit outbox and any proposal link
+    P4->>P6: S09 If PROPOSE_SOURCE continue EXT-01 independent submission review and activation
+    Note over P0,P6: F1 Invalid incomplete or conflicting data remains quarantined or unresolved. KEEP_LOCAL and DETACH_SOURCE do not activate a new objective. A stale source requires new review.

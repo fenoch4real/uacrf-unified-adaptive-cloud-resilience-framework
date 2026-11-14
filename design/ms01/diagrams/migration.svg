@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="916" viewBox="0 0 1000 916" role="img" aria-label="One owner migration procedure"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">One owner migration procedure</text>
+<text x="10.0" y="85" font-size="19" fill="#152b43">Old owner</text>
+<line x1="85.0" y1="120" x2="85.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="286.6666666666667" y="85" font-size="19" fill="#152b43">Migration</text>
+<line x1="361.6666666666667" y1="120" x2="361.6666666666667" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="563.3333333333334" y="85" font-size="19" fill="#152b43">New owner</text>
+<line x1="638.3333333333334" y1="120" x2="638.3333333333334" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="840.0" y="85" font-size="19" fill="#152b43">Route edge</text>
+<line x1="915.0" y1="120" x2="915.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<path d="M85.0,210 L361.6666666666667,210" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="150" font-size="19" fill="#152b43">1 Freeze scope and retain</text>
+<text x="93.0" y="174" font-size="19" fill="#152b43">baseline hashes</text>
+<path d="M361.6666666666667,287 L638.3333333333334,287" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="369.6666666666667" y="227" font-size="19" fill="#152b43">2 Deploy read-only and</text>
+<text x="369.6666666666667" y="251" font-size="19" fill="#152b43">compare responses</text>
+<path d="M361.6666666666667,364 L85.0,364" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="304" font-size="19" fill="#152b43">3 Stop new writes and fence</text>
+<text x="93.0" y="328" font-size="19" fill="#152b43">old workers</text>
+<path d="M85.0,441 L638.3333333333334,441" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="381" font-size="19" fill="#152b43">4 Snapshot and replay to accepted watermark</text>
+<path d="M361.6666666666667,518 L638.3333333333334,518" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="369.6666666666667" y="458" font-size="19" fill="#152b43">5 Reconcile rows digests</text>
+<text x="369.6666666666667" y="482" font-size="19" fill="#152b43">artifacts and events</text>
+<path d="M361.6666666666667,595 L915.0,595" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="369.6666666666667" y="535" font-size="19" fill="#152b43">6 Switch one route ownership epoch</text>
+<path d="M915.0,672 L638.3333333333334,672" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="646.3333333333334" y="612" font-size="19" fill="#152b43">7 Allow only new owner</text>
+<text x="646.3333333333334" y="636" font-size="19" fill="#152b43">writes</text>
+<path d="M361.6666666666667,749 L638.3333333333334,749" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="369.6666666666667" y="689" font-size="19" fill="#152b43">8 Verify UI and repair or</text>
+<text x="369.6666666666667" y="713" font-size="19" fill="#152b43">finalize cutover</text>
+<text x="35" y="816" font-size="19" fill="#152b43">After accepted new writes, rollback needs reconciled reverse migration or forward</text>
+<text x="35" y="840" font-size="19" fill="#152b43">repair. Routing alone cannot restore lost facts.</text>
+</g></svg>

@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "objective import candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "import_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "origin": {
+      "$ref": "./external-objective-origin.schema.json"
+    },
+    "target_workload_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "expected_local_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "local_definition_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "base_definition_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "normalized_definition": {
+      "anyOf": [
+        {
+          "$ref": "./normalized-objective-definition.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "NEW",
+        "UNCHANGED",
+        "CONFLICT",
+        "INVALID",
+        "WITHDRAWN"
+      ]
+    },
+    "normalization_notes": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000,
+        "pattern": "\\S"
+      }
+    },
+    "scope_complete": {
+      "type": "boolean",
+      "description": "Completeness of the declared bounded candidate scope, not a claim to cover every tenant resource."
+    },
+    "import_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "normalized_definition_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "withdrawal_evidence_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "import_id",
+    "origin",
+    "target_workload_id",
+    "expected_local_revision",
+    "local_definition_digest",
+    "base_definition_digest",
+    "normalized_definition",
+    "status",
+    "normalization_notes",
+    "scope_complete",
+    "import_revision",
+    "normalized_definition_digest"
+  ],
+  "description": "source_digest identifies retained raw source content; normalized_definition_digest identifies the mapped objective used in the three-way comparison.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "NEW",
+              "UNCHANGED",
+              "CONFLICT"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "normalized_definition": {
+            "$ref": "./normalized-objective-definition.schema.json"
+          },
+          "normalized_definition_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "scope_complete": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "INVALID"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "WITHDRAWN"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "withdrawal_evidence_ref"
+        ],
+        "properties": {
+          "withdrawal_evidence_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      }
+    }
+  ]
+}

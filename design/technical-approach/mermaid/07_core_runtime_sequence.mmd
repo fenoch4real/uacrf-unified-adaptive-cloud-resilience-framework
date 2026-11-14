@@ -1,0 +1,42 @@
+sequenceDiagram
+  participant PA as Provider Adapter
+  participant IN as Ingestion
+  participant EQ as Evidence Qualification
+  participant NG as Neo4j
+  participant AS as UACRF Assess
+  participant CT as OPA and UACRF Control
+  participant HU as Human Approval
+  participant RC as UACRF Recover
+  participant VA as Validation
+  participant EV as UACRF Evidence
+  PA->>IN: Native signal inventory or change
+  IN->>EQ: Canonical evidence envelope
+  alt Evidence not qualified
+    EQ->>EV: Quarantine record reason codes and digest
+  else Evidence qualified
+    EQ->>NG: Idempotent projection command
+    NG->>NG: Reconcile topology and create graph revision
+    NG-->>AS: Revision and action relevant subgraph digest
+    AS->>NG: Bounded impact and recovery traversals
+    NG-->>AS: Witness paths impacts SLOs and recovery paths
+    AS->>CT: Candidate action qualified evidence and graph context
+    CT->>CT: Deterministic policy evaluation
+    opt Approval required
+      CT->>HU: Bounded approval request
+      HU-->>CT: Approve reject or expire
+    end
+    CT->>RC: Signed audience bound expiring authorization
+    RC->>PA: Provider neutral intent and idempotency key
+    PA-->>RC: Provider result
+    RC->>VA: Execution result and ordered validation plan
+    VA->>PA: Read post action signals
+    PA-->>VA: Validation observations
+    alt Mandatory check fails
+      VA->>RC: Compensate stop or escalate
+    else Checks pass for stable window
+      VA->>EV: Validated result and recovered outcome
+    end
+    RC->>EV: Execution record
+    CT->>EV: Policy authorization and approval evidence
+    EV->>EV: Seal DecisionEnvelope and replay index
+  end

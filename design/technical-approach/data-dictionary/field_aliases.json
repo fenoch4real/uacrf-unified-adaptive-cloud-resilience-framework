@@ -1,0 +1,22 @@
+{
+  "release_version": "1.0",
+  "aliases": {
+    "environment": "environment_id",
+    "first_seen_at": "first_observed_at",
+    "last_seen_at": "last_observed_at",
+    "last_updated_at": "last_observed_at",
+    "effective_from": "valid_from",
+    "effective_to": "valid_to",
+    "last_verified_at": "last_verified_at",
+    "dependency_id": "relationship_id",
+    "Resource": "CloudResource",
+    "MEMBER_OF": "PART_OF",
+    "REALIZES": "IMPLEMENTS",
+    "MAY_TRIGGER": "CONTRIBUTES_TO"
+  },
+  "external_rule": "camelCase maps explicitly to snake_case; aliases are ingestion-only and are not additional persisted fields",
+  "contextual_aliases": {
+    "EvidenceQualification.state": "qualification_state",
+    "EvidenceQualification.expiry": "expires_at"
+  }
+}

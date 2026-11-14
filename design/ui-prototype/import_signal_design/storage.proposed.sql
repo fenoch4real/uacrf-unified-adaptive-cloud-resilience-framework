@@ -1,0 +1,46 @@
+-- PROPOSED DESIGN ONLY. Not an applied migration or engine-verified implementation.
+-- No application grants or policies. Controlled workers must add authorization, idempotency,
+-- immutable history, atomic audit/outbox and lifecycle checks before promotion.
+BEGIN;
+CREATE SCHEMA uacrf_ingestion_design;
+CREATE TABLE uacrf_ingestion_design.source_binding (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), service_id text NOT NULL, connection_id text NOT NULL, connection_revision bigint NOT NULL CHECK(connection_revision>0), source_system text NOT NULL, external_objective_id text NOT NULL, authority_mode text NOT NULL CHECK(authority_mode IN ('TRACK_SOURCE','LOCAL_OVERRIDE')), mapping jsonb NOT NULL CHECK(jsonb_typeof(mapping)='object'), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,service_id) REFERENCES uacrf.service(tenant_id,environment_id,id), FOREIGN KEY(tenant_id,environment_id,connection_id) REFERENCES uacrf.connection(tenant_id,environment_id,id));
+CREATE TABLE uacrf_ingestion_design.source_checkpoint (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), binding_id text NOT NULL, binding_revision bigint NOT NULL, source_version text NOT NULL, source_digest text NOT NULL CHECK(length(source_digest)=64), source_checked_at timestamptz NOT NULL, cursor_ref text, scope_complete boolean NOT NULL, PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,binding_id,binding_revision) REFERENCES uacrf_ingestion_design.source_binding(tenant_id,environment_id,id,revision));
+CREATE TABLE uacrf_ingestion_design.objective_import (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), binding_id text NOT NULL, binding_revision bigint NOT NULL, candidate jsonb NOT NULL CHECK(jsonb_typeof(candidate)='object'), status text NOT NULL CHECK(status IN ('NEW','UNCHANGED','CONFLICT','INVALID','WITHDRAWN')), expected_local_revision bigint NOT NULL CHECK(expected_local_revision>=0), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,binding_id,binding_revision) REFERENCES uacrf_ingestion_design.source_binding(tenant_id,environment_id,id,revision));
+CREATE TABLE uacrf_ingestion_design.import_resolution (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), import_id text NOT NULL, import_revision bigint NOT NULL, actor_id text NOT NULL, choice text NOT NULL CHECK(choice IN ('KEEP_LOCAL','PROPOSE_SOURCE','DETACH_SOURCE')), reason text NOT NULL CHECK(length(trim(reason))>0), expected_local_revision bigint NOT NULL CHECK(expected_local_revision>=0), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,import_id,import_revision) REFERENCES uacrf_ingestion_design.objective_import(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id,actor_id) REFERENCES uacrf.principal(tenant_id,environment_id,id));
+CREATE TABLE uacrf_ingestion_design.collection_policy (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), connection_id text NOT NULL, connection_revision bigint NOT NULL CHECK(connection_revision>0), policy jsonb NOT NULL CHECK(jsonb_typeof(policy)='object'), effective_from timestamptz NOT NULL, PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,connection_id) REFERENCES uacrf.connection(tenant_id,environment_id,id));
+CREATE TABLE uacrf_ingestion_design.signal_receipt (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), service_id text NOT NULL, connection_id text NOT NULL, connection_revision bigint NOT NULL CHECK(connection_revision>0), source_event_id text NOT NULL, payload_digest text NOT NULL CHECK(length(payload_digest)=64), observed_at timestamptz NOT NULL, received_at timestamptz NOT NULL, envelope jsonb NOT NULL CHECK(jsonb_typeof(envelope)='object'), UNIQUE(tenant_id,environment_id,connection_id,source_event_id), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,connection_id) REFERENCES uacrf.connection(tenant_id,environment_id,id), FOREIGN KEY(tenant_id,environment_id,service_id) REFERENCES uacrf.service(tenant_id,environment_id,id));
+CREATE TABLE uacrf_ingestion_design.evaluation_schedule (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), service_id text NOT NULL, trigger_id text NOT NULL, context_digest text NOT NULL CHECK(length(context_digest)=64), due_at timestamptz NOT NULL, urgent boolean NOT NULL, state text NOT NULL CHECK(state IN ('PENDING','CLAIMED','COMPLETED','INVALIDATED')), lease_generation bigint NOT NULL DEFAULT 0 CHECK(lease_generation>=0), attempt_count integer NOT NULL DEFAULT 0 CHECK(attempt_count>=0), lease_until timestamptz, definition jsonb NOT NULL CHECK(jsonb_typeof(definition)='object'), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,service_id) REFERENCES uacrf.service(tenant_id,environment_id,id), UNIQUE(tenant_id,environment_id,trigger_id,context_digest));
+ALTER TABLE uacrf_ingestion_design.source_binding ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.source_binding FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.source_binding FROM PUBLIC;
+ALTER TABLE uacrf_ingestion_design.source_checkpoint ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.source_checkpoint FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.source_checkpoint FROM PUBLIC;
+ALTER TABLE uacrf_ingestion_design.objective_import ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.objective_import FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.objective_import FROM PUBLIC;
+ALTER TABLE uacrf_ingestion_design.import_resolution ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.import_resolution FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.import_resolution FROM PUBLIC;
+ALTER TABLE uacrf_ingestion_design.collection_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.collection_policy FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.collection_policy FROM PUBLIC;
+ALTER TABLE uacrf_ingestion_design.signal_receipt ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.signal_receipt FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.signal_receipt FROM PUBLIC;
+ALTER TABLE uacrf_ingestion_design.evaluation_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE uacrf_ingestion_design.evaluation_schedule FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON uacrf_ingestion_design.evaluation_schedule FROM PUBLIC;
+-- Connection IDs must resolve to existing authorized connector configuration; this design
+-- does not invent a connector registry or grant a caller control of a source identity.
+-- Optional origin columns extend the earlier proposed objective schema, not the applied baseline.
+-- Prerequisite: objective_design/storage.proposed.sql in a future isolated migration review.
+ALTER TABLE uacrf_objective_design.objective_revision
+ ADD COLUMN import_id text,
+ ADD COLUMN import_revision bigint,
+ ADD COLUMN import_source_digest text,
+ ADD CONSTRAINT import_origin_complete CHECK ((import_id IS NULL AND import_revision IS NULL AND import_source_digest IS NULL) OR (import_id IS NOT NULL AND import_revision IS NOT NULL AND import_revision>0 AND import_source_digest IS NOT NULL AND length(import_source_digest)=64)),
+ ADD CONSTRAINT objective_import_origin_fk FOREIGN KEY(tenant_id,environment_id,import_id,import_revision) REFERENCES uacrf_ingestion_design.objective_import(tenant_id,environment_id,id,revision);
+-- Controlled admission must match import_source_digest and normalized definition against the
+-- immutable candidate, current scoped mapping and approved template before retaining a proposal.
+COMMIT;

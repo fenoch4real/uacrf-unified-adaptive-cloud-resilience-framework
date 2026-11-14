@@ -1,0 +1,117 @@
+{
+  "version": "1.0",
+  "status": "PLANNED_NOT_EXECUTED",
+  "scope": "New proposed extension only; not added to the 39 canonical integration scenarios",
+  "scenarios": [
+    {
+      "id": "IS-AT-01",
+      "name": "Source identity and scoped grants",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-02",
+      "name": "Unsupported unit conversion",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-03",
+      "name": "Fraction versus percentage",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-04",
+      "name": "Percentile and comparison direction",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-05",
+      "name": "Measurement window mismatch",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-06",
+      "name": "Duplicate identical import",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-07",
+      "name": "Duplicate changed-content import",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-08",
+      "name": "Concurrent source and local edits",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-09",
+      "name": "Stale resolution before proposal",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-10",
+      "name": "Explicit detach and local override history",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-11",
+      "name": "Partial scan does not withdraw",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-12",
+      "name": "Authoritative withdrawal and source access revocation",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-13",
+      "name": "Late observation cannot refresh evidence",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-14",
+      "name": "Out-of-order or unknown source sequence",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-15",
+      "name": "Clock skew quarantine",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-16",
+      "name": "Silent evidence expiry timer",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-17",
+      "name": "Urgent events bypass debounce",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-18",
+      "name": "Current pre-dispatch authority and budget",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-19",
+      "name": "Reconciliation after collector crash",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-20",
+      "name": "Abandoned scheduler lease fencing",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-21",
+      "name": "Cursor invalidation after permission change",
+      "status": "NOT_EXECUTED"
+    },
+    {
+      "id": "IS-AT-22",
+      "name": "Provider resolution quota and latency under load",
+      "status": "NOT_EXECUTED"
+    }
+  ]
+}

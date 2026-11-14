@@ -1,0 +1,115 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "service_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "source_case_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "source_case_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "sealed_by": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "producer_kind": {
+      "enum": [
+        "HUMAN",
+        "SYSTEM"
+      ]
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "current_eligible": {
+      "type": "boolean"
+    },
+    "source_availability": {
+      "const": "REVERIFY_AT_USE"
+    },
+    "authority": {
+      "const": "SEALED_ADVISORY_INPUT_NOT_AGENT_OUTPUT_OR_ACTION_AUTHORITY"
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "canonical_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16777216
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "algorithm": {
+          "const": "SHA-256"
+        },
+        "encoding": {
+          "const": "UTF-8"
+        }
+      },
+      "required": [
+        "canonical_text",
+        "digest",
+        "algorithm",
+        "encoding"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "service_id",
+    "source_case_id",
+    "source_case_digest",
+    "sealed_by",
+    "producer_kind",
+    "purpose",
+    "reason",
+    "created_at",
+    "expires_at",
+    "digest",
+    "current_eligible",
+    "source_availability",
+    "authority",
+    "material"
+  ]
+}

@@ -1,0 +1,961 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF durable evaluation result",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Evaluation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "service_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "case_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "evaluation_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807
+          },
+          "created_by": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "case_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "objective_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "result_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "result": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "processor": {
+                "const": "UACRF_EVALUATOR_V1"
+              },
+              "mode": {
+                "enum": [
+                  "DRY_RUN",
+                  "SHADOW",
+                  "ACTIVE"
+                ]
+              },
+              "observed_state": {
+                "enum": [
+                  "HEALTHY",
+                  "DEGRADED",
+                  "UNKNOWN"
+                ]
+              },
+              "objectives": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "objective_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "objective_revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9223372036854775807
+                    },
+                    "definition_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "verdict": {
+                      "enum": [
+                        "MET",
+                        "VIOLATED",
+                        "UNKNOWN"
+                      ]
+                    },
+                    "target": {
+                      "type": "number"
+                    },
+                    "measured": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "measurement_ids": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                      }
+                    },
+                    "qualification_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000,
+                        "pattern": "\\S"
+                      }
+                    },
+                    "observation_window_start": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "observation_window_end": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "objective_id",
+                    "objective_revision",
+                    "definition_digest",
+                    "verdict",
+                    "target",
+                    "measured",
+                    "measurement_ids",
+                    "qualification_id",
+                    "reasons",
+                    "observation_window_start",
+                    "observation_window_end"
+                  ]
+                }
+              },
+              "candidates": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rule_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "objective_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "action": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80,
+                      "pattern": "\\S"
+                    },
+                    "explanation": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000,
+                      "pattern": "\\S"
+                    },
+                    "disposition": {
+                      "enum": [
+                        "SIMULATED",
+                        "SHADOW_ONLY",
+                        "REQUIRES_POLICY_AUTHORIZATION"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "rule_id",
+                    "objective_id",
+                    "action",
+                    "explanation",
+                    "disposition"
+                  ]
+                }
+              },
+              "reasons": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000,
+                  "pattern": "\\S"
+                }
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "processor",
+              "mode",
+              "observed_state",
+              "objectives",
+              "candidates",
+              "reasons",
+              "expires_at"
+            ]
+          },
+          "case_current": {
+            "type": "boolean"
+          },
+          "current_eligible": {
+            "type": "boolean"
+          },
+          "source_availability": {
+            "const": "REVERIFY_AT_USE"
+          },
+          "authority": {
+            "const": "EVALUATION_ONLY_NO_ACTION_AUTHORIZATION"
+          },
+          "result_material": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": {
+                "const": "SHA-256"
+              },
+              "encoding": {
+                "const": "UTF-8"
+              },
+              "canonical_text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4194304,
+                "pattern": "\\S"
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "algorithm",
+              "encoding",
+              "canonical_text",
+              "digest"
+            ]
+          },
+          "previous_evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_evaluation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "service_id",
+          "case_id",
+          "evaluation_revision",
+          "created_by",
+          "created_at",
+          "case_digest",
+          "objective_digest",
+          "input_digest",
+          "result_digest",
+          "result",
+          "case_current",
+          "current_eligible",
+          "source_availability",
+          "authority",
+          "result_material"
+        ]
+      },
+      "Result": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "processor": {
+            "const": "UACRF_EVALUATOR_V1"
+          },
+          "mode": {
+            "enum": [
+              "DRY_RUN",
+              "SHADOW",
+              "ACTIVE"
+            ]
+          },
+          "observed_state": {
+            "enum": [
+              "HEALTHY",
+              "DEGRADED",
+              "UNKNOWN"
+            ]
+          },
+          "objectives": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "objective_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                },
+                "objective_revision": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "definition_digest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "verdict": {
+                  "enum": [
+                    "MET",
+                    "VIOLATED",
+                    "UNKNOWN"
+                  ]
+                },
+                "target": {
+                  "type": "number"
+                },
+                "measured": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "measurement_ids": {
+                  "type": "array",
+                  "maxItems": 200,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  }
+                },
+                "qualification_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                },
+                "reasons": {
+                  "type": "array",
+                  "maxItems": 100,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "pattern": "\\S"
+                  }
+                },
+                "observation_window_start": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "observation_window_end": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "objective_id",
+                "objective_revision",
+                "definition_digest",
+                "verdict",
+                "target",
+                "measured",
+                "measurement_ids",
+                "qualification_id",
+                "reasons",
+                "observation_window_start",
+                "observation_window_end"
+              ]
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "rule_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                },
+                "objective_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                },
+                "action": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "\\S"
+                },
+                "explanation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000,
+                  "pattern": "\\S"
+                },
+                "disposition": {
+                  "enum": [
+                    "SIMULATED",
+                    "SHADOW_ONLY",
+                    "REQUIRES_POLICY_AUTHORIZATION"
+                  ]
+                }
+              },
+              "required": [
+                "rule_id",
+                "objective_id",
+                "action",
+                "explanation",
+                "disposition"
+              ]
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "pattern": "\\S"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "processor",
+          "mode",
+          "observed_state",
+          "objectives",
+          "candidates",
+          "reasons",
+          "expires_at"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/evaluations/{id}": {
+      "get": {
+        "operationId": "evaluation-get",
+        "summary": "Read an immutable evaluation and current database eligibility",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Historical calculation, never action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "service_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "case_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "evaluation_revision": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9223372036854775807
+                    },
+                    "created_by": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "case_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "objective_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "input_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "result_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "result": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "processor": {
+                          "const": "UACRF_EVALUATOR_V1"
+                        },
+                        "mode": {
+                          "enum": [
+                            "DRY_RUN",
+                            "SHADOW",
+                            "ACTIVE"
+                          ]
+                        },
+                        "observed_state": {
+                          "enum": [
+                            "HEALTHY",
+                            "DEGRADED",
+                            "UNKNOWN"
+                          ]
+                        },
+                        "objectives": {
+                          "type": "array",
+                          "minItems": 1,
+                          "maxItems": 100,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "objective_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              "objective_revision": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9223372036854775807
+                              },
+                              "definition_digest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              "verdict": {
+                                "enum": [
+                                  "MET",
+                                  "VIOLATED",
+                                  "UNKNOWN"
+                                ]
+                              },
+                              "target": {
+                                "type": "number"
+                              },
+                              "measured": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "measurement_ids": {
+                                "type": "array",
+                                "maxItems": 200,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 200,
+                                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                                }
+                              },
+                              "qualification_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "maxItems": 100,
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 1000,
+                                  "pattern": "\\S"
+                                }
+                              },
+                              "observation_window_start": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "observation_window_end": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "objective_id",
+                              "objective_revision",
+                              "definition_digest",
+                              "verdict",
+                              "target",
+                              "measured",
+                              "measurement_ids",
+                              "qualification_id",
+                              "reasons",
+                              "observation_window_start",
+                              "observation_window_end"
+                            ]
+                          }
+                        },
+                        "candidates": {
+                          "type": "array",
+                          "maxItems": 100,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "rule_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              "objective_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200,
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                              },
+                              "action": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 80,
+                                "pattern": "\\S"
+                              },
+                              "explanation": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000,
+                                "pattern": "\\S"
+                              },
+                              "disposition": {
+                                "enum": [
+                                  "SIMULATED",
+                                  "SHADOW_ONLY",
+                                  "REQUIRES_POLICY_AUTHORIZATION"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "rule_id",
+                              "objective_id",
+                              "action",
+                              "explanation",
+                              "disposition"
+                            ]
+                          }
+                        },
+                        "reasons": {
+                          "type": "array",
+                          "maxItems": 100,
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 1000,
+                            "pattern": "\\S"
+                          }
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "processor",
+                        "mode",
+                        "observed_state",
+                        "objectives",
+                        "candidates",
+                        "reasons",
+                        "expires_at"
+                      ]
+                    },
+                    "case_current": {
+                      "type": "boolean"
+                    },
+                    "current_eligible": {
+                      "type": "boolean"
+                    },
+                    "source_availability": {
+                      "const": "REVERIFY_AT_USE"
+                    },
+                    "authority": {
+                      "const": "EVALUATION_ONLY_NO_ACTION_AUTHORIZATION"
+                    },
+                    "result_material": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "algorithm": {
+                          "const": "SHA-256"
+                        },
+                        "encoding": {
+                          "const": "UTF-8"
+                        },
+                        "canonical_text": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4194304,
+                          "pattern": "\\S"
+                        },
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "algorithm",
+                        "encoding",
+                        "canonical_text",
+                        "digest"
+                      ]
+                    },
+                    "previous_evaluation_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "next_evaluation_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "service_id",
+                    "case_id",
+                    "evaluation_revision",
+                    "created_by",
+                    "created_at",
+                    "case_digest",
+                    "objective_digest",
+                    "input_digest",
+                    "result_digest",
+                    "result",
+                    "case_current",
+                    "current_eligible",
+                    "source_availability",
+                    "authority",
+                    "result_material"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

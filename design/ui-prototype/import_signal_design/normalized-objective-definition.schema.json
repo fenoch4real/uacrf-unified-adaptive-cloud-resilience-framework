@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Normalized objective definition without organization template rules",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metric",
+    "target",
+    "unit",
+    "window",
+    "measurement_ref",
+    "comparison",
+    "measurement_kind",
+    "percentile"
+  ],
+  "properties": {
+    "metric": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "target": {
+      "type": "number",
+      "minimum": 0
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "\\S"
+    },
+    "window": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "measurement_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "comparison": {
+      "enum": [
+        "AT_MOST",
+        "AT_LEAST",
+        "EQUAL"
+      ]
+    },
+    "measurement_kind": {
+      "enum": [
+        "THRESHOLD",
+        "PERCENTILE",
+        "RATIO",
+        "RECOVERY_TIME",
+        "OUTCOME"
+      ]
+    },
+    "percentile": {
+      "anyOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "measurement_kind": {
+            "const": "PERCENTILE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "percentile": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "percentile": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unit": {
+            "const": "percent"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "target": {
+            "maximum": 100
+          }
+        }
+      }
+    }
+  ],
+  "description": "Source targets do not supply or weaken organization template minimum/maximum rules. Mapping must preserve comparison, percentile meaning and window."
+}

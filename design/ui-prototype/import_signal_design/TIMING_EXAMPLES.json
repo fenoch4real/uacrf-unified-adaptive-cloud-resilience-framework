@@ -1,0 +1,70 @@
+{
+  "version": "1.0",
+  "status": "PROPOSED_STARTING_CONFIGURATION_NOT_SLA",
+  "policies": [
+    {
+      "signal_kind": "METRIC",
+      "delivery": "EVENTS_AND_POLL",
+      "source_resolution_seconds": 30,
+      "poll_seconds": 30,
+      "reconcile_seconds": 300,
+      "freshness_basis": "OBSERVED_AT",
+      "maximum_age_seconds": 120,
+      "evaluation_window_seconds": 300,
+      "debounce_seconds": 10,
+      "urgent_bypasses_debounce": true,
+      "expected_revision": 1,
+      "pre_dispatch_checks_required": true
+    },
+    {
+      "signal_kind": "CONFIGURATION",
+      "delivery": "EVENTS_AND_POLL",
+      "source_resolution_seconds": 60,
+      "poll_seconds": 300,
+      "reconcile_seconds": 900,
+      "freshness_basis": "OBSERVED_AT",
+      "maximum_age_seconds": 900,
+      "evaluation_window_seconds": 0,
+      "debounce_seconds": 5,
+      "urgent_bypasses_debounce": true,
+      "expected_revision": 1,
+      "pre_dispatch_checks_required": true
+    },
+    {
+      "signal_kind": "OBJECTIVE_DEFINITION",
+      "delivery": "EVENTS_AND_POLL",
+      "source_resolution_seconds": 60,
+      "poll_seconds": 900,
+      "reconcile_seconds": 3600,
+      "freshness_basis": "SOURCE_CHECKED_AT",
+      "maximum_age_seconds": 3600,
+      "evaluation_window_seconds": 0,
+      "debounce_seconds": 5,
+      "urgent_bypasses_debounce": true,
+      "expected_revision": 1,
+      "pre_dispatch_checks_required": true
+    },
+    {
+      "signal_kind": "AGENT_EXECUTION",
+      "delivery": "EVENTS",
+      "source_resolution_seconds": 1,
+      "poll_seconds": null,
+      "reconcile_seconds": 60,
+      "freshness_basis": "OBSERVED_AT",
+      "maximum_age_seconds": 60,
+      "evaluation_window_seconds": 0,
+      "debounce_seconds": 0,
+      "urgent_bypasses_debounce": true,
+      "expected_revision": 1,
+      "pre_dispatch_checks_required": true
+    }
+  ],
+  "constraints": [
+    "POLL and EVENTS_AND_POLL require poll_seconds; EVENTS uses null",
+    "OBJECTIVE_DEFINITION freshness uses last successful source check, not definition age",
+    "Other signals use source observation time; ingestion time cannot refresh stale data",
+    "Urgent events bypass debounce; pre-dispatch checks run at each consequential dispatch",
+    "Provider granularity, cost, quotas and criticality constrain feasible schedules",
+    "Polling faster than source resolution does not create fresher observations"
+  ]
+}

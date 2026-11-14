@@ -1,0 +1,182 @@
+{
+  "version": "1.0",
+  "design_revision": 7,
+  "visual_refinement": 14,
+  "mode": "NAVIGATION_AND_LOCAL_PLANNING_ONLY",
+  "completion_policy": "Opening a screen or preparing a local note never marks setup accepted. Actual evidence, grants and connected handlers are required.",
+  "steps": [
+    {
+      "id": "scope",
+      "title": "Agree scope and owners",
+      "screen": "UI-30",
+      "purpose": "Admit verified identities, review bounded owner eligibility and access, then name accountable people and scope.",
+      "expected_result": "Accountable ownership and an access plan. The local rehearsal does not verify live identity, grant access or prove deployment acceptance.",
+      "related_views": [
+        "UI-46"
+      ]
+    },
+    {
+      "id": "connect",
+      "title": "Prepare a read-only connection",
+      "screen": "UI-15",
+      "purpose": "Choose the provider and inspect the discovery/access boundary.",
+      "expected_result": "An adapter and permission review; no live connection is created.",
+      "related_views": [
+        "UI-30"
+      ]
+    },
+    {
+      "id": "health",
+      "title": "Check collection coverage",
+      "screen": "UI-17",
+      "purpose": "Review permission limits, collection freshness and missing sources.",
+      "expected_result": "A retained collection/permission report before claiming coverage.",
+      "related_views": [
+        "UI-15"
+      ]
+    },
+    {
+      "id": "register",
+      "title": "Register protected capabilities",
+      "screen": "UI-16",
+      "purpose": "Register services or standalone agents with clear owners and scope.",
+      "expected_result": "Canonical service or agent profiles; use either branch or both.",
+      "related_views": [
+        "UI-35",
+        "UI-02",
+        "UI-34"
+      ]
+    },
+    {
+      "id": "journey",
+      "title": "Define the customer journey",
+      "screen": "UI-46",
+      "purpose": "State the customer outcome and the steps that must succeed.",
+      "expected_result": "An ordered journey and accountable owner; draft planning stays local.",
+      "related_views": [
+        "UI-47"
+      ]
+    },
+    {
+      "id": "resources",
+      "title": "Link shared resources",
+      "screen": "UI-48",
+      "purpose": "Identify models, knowledge, tools, stores and runtime identities for each consumer.",
+      "expected_result": "Typed consumer links and separately reviewed content/access.",
+      "related_views": [
+        "UI-49",
+        "UI-07",
+        "UI-09"
+      ]
+    },
+    {
+      "id": "dependencies",
+      "title": "Review dependencies and objectives",
+      "screen": "UI-18",
+      "purpose": "Inspect service or agent reliance and define measurable task objectives.",
+      "expected_result": "A scoped dependency view, unresolved gaps and measurement definitions.",
+      "related_views": [
+        "UI-37",
+        "UI-22",
+        "UI-23"
+      ]
+    },
+    {
+      "id": "evidence",
+      "title": "Establish evidence and policies",
+      "screen": "UI-21",
+      "purpose": "Review source provenance, expiry, access and policies. A live baseline requires a qualified accepted graph and completed verified projection.",
+      "expected_result": "Qualified evidence and an accepted projected graph for the Java workflow. UI examples do not import, qualify or accept evidence.",
+      "related_views": [
+        "UI-32",
+        "UI-30",
+        "UI-06"
+      ]
+    },
+    {
+      "id": "assess",
+      "title": "Establish recovery baseline",
+      "screen": "UI-03",
+      "purpose": "In Assess choose Place Order or Resolve Order, identify the example primary and fallback path, and enter the declared failure scenario and review reason.",
+      "expected_result": "A local baseline and first diagnostic review linked to the selected journey. The Java API instead requires authorized server records and a qualified projected graph; neither result certifies recovery.",
+      "related_views": [
+        "UI-47",
+        "UI-18",
+        "UI-37",
+        "UI-06"
+      ]
+    },
+    {
+      "id": "test",
+      "title": "Plan a controlled recovery test",
+      "screen": "UI-27",
+      "purpose": "Define a nonproduction scenario, expected effects, approval and stop conditions.",
+      "expected_result": "An approved test plan before a connected runtime can act.",
+      "related_views": [
+        "UI-25",
+        "UI-26",
+        "UI-05"
+      ]
+    },
+    {
+      "id": "validate",
+      "title": "Validate and retain the result",
+      "screen": "UI-28",
+      "purpose": "Review actual customer, application, data, security and agent outcomes after an independently authorized controlled test.",
+      "expected_result": "Retained actual test outcomes and independent review. Neither a local baseline nor a recorded reassessment supplies executed test evidence.",
+      "related_views": [
+        "UI-42",
+        "UI-06",
+        "UI-29"
+      ]
+    },
+    {
+      "id": "handover",
+      "title": "Review changes and reassess",
+      "screen": "UI-44",
+      "purpose": "Inspect pending changed context in Assess. Review shared dependencies, unrelated changes or expired evidence, record a reasoned reassessment when eligible, and agree any required retest.",
+      "expected_result": "Append-only review history and a current diagnostic view. Expired evidence blocks a new local review; refresh and qualify evidence before a real reassessment. Operating ownership, escalation and billing review remain handover tasks.",
+      "related_views": [
+        "UI-03",
+        "UI-20",
+        "UI-06",
+        "UI-44",
+        "UI-33",
+        "UI-29",
+        "UI-01"
+      ]
+    }
+  ],
+  "guide_revision": 21,
+  "source_signal_design": "../import_signal_design/README.md",
+  "review_loop": {
+    "title": "Keep the baseline under review",
+    "steps": [
+      {
+        "id": "change",
+        "title": "Inspect changed context",
+        "screen": "UI-20",
+        "detail": "Identify the changed dependency or evidence and open its journey assessment."
+      },
+      {
+        "id": "evidence",
+        "title": "Refresh missing evidence",
+        "screen": "UI-06",
+        "detail": "Expired or revoked evidence prevents reliance. Source qualification is a separate trusted process."
+      },
+      {
+        "id": "reassess",
+        "title": "Record reassessment",
+        "screen": "UI-03",
+        "detail": "Select the journey, inspect the example change and enter a review reason. Retain earlier reviews."
+      },
+      {
+        "id": "retest",
+        "title": "Agree controlled retest",
+        "screen": "UI-27",
+        "detail": "Review findings and obtain the independent authority needed for a controlled test."
+      }
+    ],
+    "boundary": "REVIEW_REQUIRED, INSUFFICIENT_EVIDENCE and NO_RELEVANT_CHANGE_OBSERVED are diagnostic states. Independence remains NOT_CERTIFIED; no automatic recovery is authorized."
+  }
+}

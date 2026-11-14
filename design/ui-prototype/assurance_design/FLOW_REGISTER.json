@@ -1,0 +1,228 @@
+{
+  "version": "1.0",
+  "flow_revision": 9,
+  "counts_in_canonical_flows": false,
+  "flows": [
+    {
+      "flow_id": "ASSURE-01",
+      "title": "Establish an attributable diagnostic baseline",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Human",
+          "to": "Java API",
+          "action": "Submit journey graph primary recovery scenario and reason",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "Java API",
+          "to": "PostgreSQL",
+          "action": "Verify current identity journey membership and all workload permissions",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S03",
+          "from": "Java API",
+          "to": "Neo4j",
+          "action": "Verify complete accepted graph content against the SQL snapshot",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Java API",
+          "to": "Java API",
+          "action": "Find shared dependencies within bounded traversal",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "Java API",
+          "to": "PostgreSQL",
+          "action": "Check idempotency and append baseline review audit and outbox atomically",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S06",
+          "from": "Java API",
+          "to": "Human",
+          "action": "Return diagnostic findings with independence NOT_CERTIFIED",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied access stale revision missing evidence store mismatch or traversal limits. No recovery action or certification.",
+      "status": "IMPLEMENTED_LOCAL_DIAGNOSTIC_WORKFLOW_NOT_FULL_SYSTEM_ACCEPTED"
+    },
+    {
+      "flow_id": "ASSURE-02",
+      "title": "Review changes against the immutable baseline",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Human",
+          "to": "Java API",
+          "action": "Read assessment and pending accepted graph revisions",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "Java API",
+          "to": "PostgreSQL",
+          "action": "Check current access to baseline review history and pending graph scopes",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S03",
+          "from": "Human",
+          "to": "Java API",
+          "action": "Select accepted graph and submit expected revision and review reason",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Java API",
+          "to": "Neo4j",
+          "action": "Verify selected projection and current SQL evidence eligibility",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "Java API",
+          "to": "Java API",
+          "action": "Compare relevant nodes and semantic relationships with the original baseline",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S06",
+          "from": "Java API",
+          "to": "PostgreSQL",
+          "action": "Append review with revision fencing audit and notification outbox",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S07",
+          "from": "Java API",
+          "to": "Human",
+          "action": "Explain relevant changes shared dependencies and required retest review",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied access stale revision missing evidence store mismatch or traversal limits. No recovery action or certification.",
+      "status": "IMPLEMENTED_LOCAL_DIAGNOSTIC_WORKFLOW_NOT_FULL_SYSTEM_ACCEPTED"
+    },
+    {
+      "flow_id": "ASSURE-03",
+      "title": "Read evidence limits and preserve history",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Human",
+          "to": "Java API",
+          "action": "Request current diagnostic assessment",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "Java API",
+          "to": "PostgreSQL",
+          "action": "Recheck current actor grants journey linkage and represented workloads",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S03",
+          "from": "Java API",
+          "to": "Neo4j",
+          "action": "Verify latest reviewed graph when its evidence remains eligible",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Java API",
+          "to": "Java API",
+          "action": "Derive insufficient evidence or pending review without rewriting history",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "Java API",
+          "to": "Human",
+          "action": "Return bounded history pending revisions and explicit diagnostic limits",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied access stale revision missing evidence store mismatch or traversal limits. No recovery action or certification.",
+      "status": "IMPLEMENTED_LOCAL_DIAGNOSTIC_WORKFLOW_NOT_FULL_SYSTEM_ACCEPTED"
+    },
+    {
+      "flow_id": "ASSURE-UI-01",
+      "title": "Follow one assessment across application workspaces",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Human",
+          "to": "Main UI",
+          "action": "Choose a registered example journey inside Assess",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "Main UI",
+          "to": "Main UI",
+          "action": "Validate scenario reason workload and local owner before local baseline creation",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S03",
+          "from": "Human",
+          "to": "Main UI",
+          "action": "Inspect a local change and review the diagnostic result",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Main UI",
+          "to": "Main UI",
+          "action": "Append local reassessment and preserve earlier local reviews",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "Main UI",
+          "to": "Human",
+          "action": "Show the same scoped status in journey graph evidence recovery and activity views",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied access stale revision missing evidence store mismatch or traversal limits. No recovery action or certification.",
+      "status": "LOCAL_UI_SOURCE_REHEARSAL_NOT_API_CONNECTED"
+    }
+  ],
+  "ui_refinement": 13
+}

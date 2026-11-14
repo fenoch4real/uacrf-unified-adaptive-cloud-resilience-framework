@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "canonical_api_map_changed": false,
+  "operations": [
+    {
+      "operation": "POST /v1/objective-imports:preview",
+      "design_records": [
+        "source_binding",
+        "source_checkpoint",
+        "objective_import"
+      ],
+      "boundary": "Create a candidate after authorized bounded normalization; no objective write.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "GET /v1/objective-imports/{id}",
+      "design_records": [
+        "objective_import",
+        "source_binding"
+      ],
+      "boundary": "Read authorized candidate with attributable origin; no qualified conclusion.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "POST /v1/objective-imports/{id}:resolve",
+      "design_records": [
+        "objective_import",
+        "import_resolution"
+      ],
+      "boundary": "Retain explicit choice/reason and expected revisions; no activation.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "POST /v1/objective-imports/{id}:propose",
+      "design_records": [
+        "objective_import",
+        "import_resolution",
+        "uacrf_objective_design.objective_revision"
+      ],
+      "boundary": "Recheck source/local/template versions and import digest, then existing independent review.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "GET /v1/objective-imports/{id}/history",
+      "design_records": [
+        "objective_import",
+        "import_resolution",
+        "source_checkpoint"
+      ],
+      "boundary": "Authorized retained history only, scoped and cursor bound.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "GET /v1/connections/{id}/collection-policy",
+      "design_records": [
+        "collection_policy",
+        "uacrf.connection"
+      ],
+      "boundary": "Read or propose versioned timing policy; no scheduler activation by receipt.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "PUT /v1/connections/{id}/collection-policy",
+      "design_records": [
+        "collection_policy",
+        "uacrf.connection"
+      ],
+      "boundary": "Read or propose versioned timing policy; no scheduler activation by receipt.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    },
+    {
+      "operation": "POST /v1/connections/{id}:reconcile",
+      "design_records": [
+        "source_binding",
+        "source_checkpoint",
+        "objective_import",
+        "signal_receipt"
+      ],
+      "boundary": "Bounded resumable reconciliation; incomplete scans cannot imply withdrawal.",
+      "mutation_controls": "Current scope, stable binding identity, durable idempotency, expected revisions, atomic audit/outbox and checkpoint movement",
+      "status": "PROPOSED_NOT_IMPLEMENTED_OR_ENGINE_TESTED"
+    }
+  ]
+}

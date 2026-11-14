@@ -1,0 +1,151 @@
+{
+  "version": "1.0",
+  "design_revision": 8,
+  "icon_count": 35,
+  "geometry": {
+    "viewbox": "0 0 24 24",
+    "stroke_width": 1.7,
+    "default_size": 20
+  },
+  "icons": {
+    "overview": "assets/icons/overview.svg",
+    "journey": "assets/icons/journey.svg",
+    "service": "assets/icons/service.svg",
+    "agent": "assets/icons/agent.svg",
+    "graph": "assets/icons/graph.svg",
+    "assess": "assets/icons/assess.svg",
+    "control": "assets/icons/control.svg",
+    "recover": "assets/icons/recover.svg",
+    "evidence": "assets/icons/evidence.svg",
+    "resource": "assets/icons/resource.svg",
+    "knowledge": "assets/icons/knowledge.svg",
+    "settings": "assets/icons/settings.svg",
+    "model": "assets/icons/model.svg",
+    "database": "assets/icons/database.svg",
+    "identity": "assets/icons/identity.svg",
+    "system": "assets/icons/system.svg",
+    "check": "assets/icons/check.svg",
+    "warning": "assets/icons/warning.svg",
+    "unknown": "assets/icons/unknown.svg",
+    "pause": "assets/icons/pause.svg",
+    "pending": "assets/icons/pending.svg",
+    "lock": "assets/icons/lock.svg",
+    "error": "assets/icons/error.svg",
+    "search": "assets/icons/search.svg",
+    "add": "assets/icons/add.svg",
+    "arrow": "assets/icons/arrow.svg",
+    "activity": "assets/icons/activity.svg",
+    "filter": "assets/icons/filter.svg",
+    "empty": "assets/icons/empty.svg",
+    "billing": "assets/icons/billing.svg",
+    "connection": "assets/icons/connection.svg",
+    "form": "assets/icons/form.svg",
+    "handshake": "assets/icons/handshake.svg",
+    "cancel": "assets/icons/cancel.svg",
+    "info": "assets/icons/info.svg"
+  },
+  "navigation": {
+    "UI-01": "overview",
+    "UI-46": "journey",
+    "UI-02": "service",
+    "UI-34": "agent",
+    "UI-18": "graph",
+    "UI-03": "assess",
+    "UI-04": "control",
+    "UI-05": "recover",
+    "UI-06": "evidence",
+    "UI-48": "resource",
+    "UI-07": "knowledge",
+    "UI-11": "agent",
+    "UI-50": "settings"
+  },
+  "states": {
+    "Available": {
+      "icon": "check",
+      "tone": "success",
+      "label": "Available"
+    },
+    "Qualified": {
+      "icon": "check",
+      "tone": "success",
+      "label": "Qualified"
+    },
+    "Completed": {
+      "icon": "check",
+      "tone": "success",
+      "label": "Completed"
+    },
+    "Degraded": {
+      "icon": "warning",
+      "tone": "warning",
+      "label": "Degraded"
+    },
+    "Unknown": {
+      "icon": "unknown",
+      "tone": "neutral",
+      "label": "Unknown"
+    },
+    "Ambiguous": {
+      "icon": "unknown",
+      "tone": "warning",
+      "label": "Ambiguous"
+    },
+    "Paused": {
+      "icon": "pause",
+      "tone": "neutral",
+      "label": "Paused"
+    },
+    "Waiting": {
+      "icon": "pending",
+      "tone": "warning",
+      "label": "Waiting"
+    },
+    "Requested": {
+      "icon": "pending",
+      "tone": "neutral",
+      "label": "Requested"
+    },
+    "Recorded": {
+      "icon": "evidence",
+      "tone": "neutral",
+      "label": "Recorded"
+    },
+    "Pending approval": {
+      "icon": "pending",
+      "tone": "warning",
+      "label": "Pending approval"
+    },
+    "Blocked": {
+      "icon": "lock",
+      "tone": "danger",
+      "label": "Blocked"
+    },
+    "Failed": {
+      "icon": "error",
+      "tone": "danger",
+      "label": "Failed"
+    },
+    "Not rated": {
+      "icon": "pending",
+      "tone": "neutral",
+      "label": "Not rated"
+    },
+    "Reserved": {
+      "icon": "pending",
+      "tone": "neutral",
+      "label": "Reserved"
+    },
+    "Reconciled": {
+      "icon": "check",
+      "tone": "success",
+      "label": "Reconciled"
+    }
+  },
+  "rules": [
+    "Visible labels accompany meaning-bearing icons.",
+    "Provider identity is not a health, permission or qualification state.",
+    "Unknown and requested outcomes never use a success check.",
+    "Decorative repeated SVGs are aria-hidden and not focusable.",
+    "No spinning indicator implies a real request in the offline prototype."
+  ]
+}

@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+.DS_Store
+**/target
+**/node_modules
+design
+docs

@@ -1,0 +1,531 @@
+{
+  "version": "1.0",
+  "design_revision": 8,
+  "transitions": [
+    {
+      "screen": "UI-01",
+      "purpose": "See which journeys need attention and what to review next.",
+      "next_view": "UI-46",
+      "next_title": "Customer journeys",
+      "next_intent": "Start with the customer outcome, then follow its supporting services and agents.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-02",
+      "purpose": "Browse conventional services and their owners, dependencies and current evidence.",
+      "next_view": "UI-16",
+      "next_title": "Register a service",
+      "next_intent": "Register a conventional service; use Agents to register a standalone agent.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-03",
+      "purpose": "Review the evidence for a resilience assessment.",
+      "next_view": "UI-31",
+      "next_title": "Review an assessment report",
+      "next_intent": "Present a bounded conclusion with gaps, review, recipients and limitations.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-04",
+      "purpose": "Connect an observed change to its customer impact.",
+      "next_view": "UI-24",
+      "next_title": "Investigate an incident",
+      "next_intent": "Support human hypotheses, evidence and dissent before an action is selected.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-05",
+      "purpose": "Understand the proposed action, required authority and validation.",
+      "next_view": "UI-25",
+      "next_title": "Review an approval request",
+      "next_intent": "Show exact action scope, policy limits and independent approval conditions.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-06",
+      "purpose": "Inspect what is retained and what remains missing.",
+      "next_view": "UI-21",
+      "next_title": "Review evidence quality",
+      "next_intent": "Separate observed health from evidence sufficient for a recovery conclusion.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-07",
+      "purpose": "Approved reference versions are distinct from qualified operational evidence.",
+      "next_view": "UI-08",
+      "next_title": "Submit knowledge for review",
+      "next_intent": "Uploaded knowledge remains quarantined until reviewed.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-08",
+      "purpose": "Uploaded knowledge remains quarantined until reviewed.",
+      "next_view": "UI-09",
+      "next_title": "Review a knowledge version",
+      "next_intent": "Human approval and withdrawal preserve immutable versions and access limits.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-09",
+      "purpose": "Human approval and withdrawal preserve immutable versions and access limits.",
+      "next_view": "UI-07",
+      "next_title": "Browse governed knowledge",
+      "next_intent": "Approved reference versions are distinct from qualified operational evidence.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-10",
+      "purpose": "Exact source citations and limitations stay visible.",
+      "next_view": "UI-07",
+      "next_title": "Browse governed knowledge",
+      "next_intent": "Approved reference versions are distinct from qualified operational evidence.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-11",
+      "purpose": "The operator selects an evaluated advisory workflow and bounded context.",
+      "next_view": "UI-12",
+      "next_title": "Inspect agent run progress",
+      "next_intent": "Role attempts, budgets, cancellation and rejected outputs remain attributable.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-12",
+      "purpose": "Role attempts, budgets, cancellation and rejected outputs remain attributable.",
+      "next_view": "UI-13",
+      "next_title": "Review agent output and dissent",
+      "next_intent": "People inspect support, uncertainty and dissent before accepting draft text.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-13",
+      "purpose": "People inspect support, uncertainty and dissent before accepting draft text.",
+      "next_view": "UI-14",
+      "next_title": "Govern knowledge and agent capabilities",
+      "next_intent": "Promotion, scope, workflow evaluation and kill switch are separate controls.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-14",
+      "purpose": "Promotion, scope, workflow evaluation and kill switch are separate controls.",
+      "next_view": "UI-30",
+      "next_title": "Manage access and responsibilities",
+      "next_intent": "Make tenant scope and separation of duties visible without exposing secrets.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-15",
+      "purpose": "Connect a provider with limited discovery access before activating collection.",
+      "next_view": "UI-17",
+      "next_title": "Connection health",
+      "next_intent": "Show collection scope, source freshness and permission failures.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-16",
+      "purpose": "Register a conventional service; use Agents to register a standalone agent.",
+      "next_view": "UI-22",
+      "next_title": "Objective templates and rules",
+      "next_intent": "Use workload targets to apply a template and prepare a scoped objective proposal.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-17",
+      "purpose": "Show collection scope, source freshness and permission failures.",
+      "next_view": "UI-16",
+      "next_title": "Register a service",
+      "next_intent": "Register a conventional service; use Agents to register a standalone agent.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-18",
+      "purpose": "Explore service dependencies; agent dependencies remain available as a separate scoped view.",
+      "next_view": "UI-21",
+      "next_title": "Review evidence quality",
+      "next_intent": "Separate observed health from evidence sufficient for a recovery conclusion.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-19",
+      "purpose": "Explain whether alternate paths share a failure domain for a stated scenario.",
+      "next_view": "UI-26",
+      "next_title": "Review recovery runbooks",
+      "next_intent": "Separate draft action definitions from tested and authorized runbooks.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15",
+      "example_next_views": {
+        "service": "UI-21",
+        "agent": "UI-42"
+      }
+    },
+    {
+      "screen": "UI-20",
+      "purpose": "Compare retained decision context with current dependencies before action.",
+      "next_view": "UI-25",
+      "next_title": "Review an approval request",
+      "next_intent": "Show exact action scope, policy limits and independent approval conditions.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15",
+      "example_next_views": {
+        "service": "UI-25",
+        "agent": "UI-41"
+      }
+    },
+    {
+      "screen": "UI-21",
+      "purpose": "Separate observed health from evidence sufficient for a recovery conclusion.",
+      "next_view": "UI-03",
+      "next_title": "Assess",
+      "next_intent": "Review the evidence for a resilience assessment.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-22",
+      "purpose": "Explain service and recovery targets, their measurement and approval status.",
+      "next_view": "UI-18",
+      "next_title": "Dependencies",
+      "next_intent": "Explore service dependencies; agent dependencies remain available as a separate scoped view.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-23",
+      "purpose": "Review model availability, evaluation and fallback dependencies for services or agents.",
+      "next_view": "UI-42",
+      "next_title": "Agent outcome validation",
+      "next_intent": "Check the customer task, data and security outcomes after recovery.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-24",
+      "purpose": "Support human hypotheses, evidence and dissent before an action is selected.",
+      "next_view": "UI-04",
+      "next_title": "Control",
+      "next_intent": "Connect an observed change to its customer impact.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-25",
+      "purpose": "Show exact action scope, policy limits and independent approval conditions.",
+      "next_view": "UI-05",
+      "next_title": "Recover",
+      "next_intent": "Understand the proposed action, required authority and validation.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-26",
+      "purpose": "Separate draft action definitions from tested and authorized runbooks.",
+      "next_view": "UI-27",
+      "next_title": "Plan a controlled test",
+      "next_intent": "Define experiment scope, prerequisites and abort controls before any fault.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-27",
+      "purpose": "Define experiment scope, prerequisites and abort controls before any fault.",
+      "next_view": "UI-25",
+      "next_title": "Review an approval request",
+      "next_intent": "Show exact action scope, policy limits and independent approval conditions.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-28",
+      "purpose": "Show dependency-ordered checks and prevent premature recovery success.",
+      "next_view": "UI-06",
+      "next_title": "Evidence",
+      "next_intent": "Inspect what is retained and what remains missing.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-29",
+      "purpose": "Track proposed improvements through implementation and verified retesting.",
+      "next_view": "UI-27",
+      "next_title": "Plan a controlled test",
+      "next_intent": "Define experiment scope, prerequisites and abort controls before any fault.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-30",
+      "purpose": "Make tenant scope and separation of duties visible without exposing secrets.",
+      "next_view": "UI-15",
+      "next_title": "Connect an environment",
+      "next_intent": "Connect a provider with limited discovery access before activating collection.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-31",
+      "purpose": "Present a bounded conclusion with gaps, review, recipients and limitations.",
+      "next_view": "UI-06",
+      "next_title": "Evidence",
+      "next_intent": "Inspect what is retained and what remains missing.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-32",
+      "purpose": "Configure tested policy settings with preview, review and staged activation.",
+      "next_view": "UI-25",
+      "next_title": "Review an approval request",
+      "next_intent": "Show exact action scope, policy limits and independent approval conditions.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-33",
+      "purpose": "Route actionable findings with context, ownership and auditability.",
+      "next_view": "UI-30",
+      "next_title": "Manage access and responsibilities",
+      "next_intent": "Make tenant scope and separation of duties visible without exposing secrets.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-34",
+      "purpose": "Browse standalone and multi-agent capabilities without requiring a separate parent service.",
+      "next_view": "UI-35",
+      "next_title": "Agent workload onboarding",
+      "next_intent": "Register the capability and intended customer outcome before connecting tools.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-35",
+      "purpose": "Register the capability and intended customer outcome before connecting tools.",
+      "next_view": "UI-36",
+      "next_title": "Workload version review",
+      "next_intent": "Review the exact model, instructions, tools, memory and limits before activation.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-36",
+      "purpose": "Review the exact model, instructions, tools, memory and limits before activation.",
+      "next_view": "UI-37",
+      "next_title": "Agent dependency graph",
+      "next_intent": "Trace the model, policy, memory, identity and tool dependencies for this version.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-37",
+      "purpose": "Trace the model, policy, memory, identity and tool dependencies for this version.",
+      "next_view": "UI-38",
+      "next_title": "Protected execution timeline",
+      "next_intent": "Follow admitted attempts and their effects without mistaking a receipt for completion.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-38",
+      "purpose": "Follow admitted attempts and their effects without mistaking a receipt for completion.",
+      "next_view": "UI-39",
+      "next_title": "Memory and checkpoint review",
+      "next_intent": "Check isolated memory, artifact integrity and expiry before allowing a resume.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-39",
+      "purpose": "Check isolated memory, artifact integrity and expiry before allowing a resume.",
+      "next_view": "UI-41",
+      "next_title": "Governed agent recovery",
+      "next_intent": "Review the exact recovery candidate and its existing authority chain.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-40",
+      "purpose": "Pause new work and reconcile calls that were already in flight.",
+      "next_view": "UI-38",
+      "next_title": "Protected execution timeline",
+      "next_intent": "Follow admitted attempts and their effects without mistaking a receipt for completion.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-41",
+      "purpose": "Review the exact recovery candidate and its existing authority chain.",
+      "next_view": "UI-42",
+      "next_title": "Agent outcome validation",
+      "next_intent": "Check the customer task, data and security outcomes after recovery.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-42",
+      "purpose": "Check the customer task, data and security outcomes after recovery.",
+      "next_view": "UI-06",
+      "next_title": "Evidence",
+      "next_intent": "Inspect what is retained and what remains missing.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-43",
+      "purpose": "Give the accountable person the task, known effects and unresolved questions.",
+      "next_view": "UI-38",
+      "next_title": "Protected execution timeline",
+      "next_intent": "Follow admitted attempts and their effects without mistaking a receipt for completion.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-44",
+      "purpose": "Separate reservations, measured usage and charges for protected services and agents.",
+      "next_view": "UI-06",
+      "next_title": "Evidence",
+      "next_intent": "Inspect what is retained and what remains missing.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-45",
+      "purpose": "Review required roles, bounded handoffs and shared dependencies across the task.",
+      "next_view": "UI-42",
+      "next_title": "Agent outcome validation",
+      "next_intent": "Check the customer task, data and security outcomes after recovery.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-46",
+      "purpose": "Start with the customer outcome, then follow its supporting services and agents.",
+      "next_view": "UI-47",
+      "next_title": "Journey detail",
+      "next_intent": "Review the ordered steps, supporting capabilities, evidence gaps and accountable owner.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-47",
+      "purpose": "Review the ordered steps, supporting capabilities, evidence gaps and accountable owner.",
+      "next_view": "UI-18",
+      "next_title": "Dependencies",
+      "next_intent": "Explore service dependencies; agent dependencies remain available as a separate scoped view.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-48",
+      "purpose": "Review models, knowledge bases, tools and data resources used by services, agents or both.",
+      "next_view": "UI-49",
+      "next_title": "Shared resource detail",
+      "next_intent": "See resource ownership and permitted consumers without duplicating the resource or granting access.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-49",
+      "purpose": "See resource ownership and permitted consumers without duplicating the resource or granting access.",
+      "next_view": "UI-18",
+      "next_title": "Dependencies",
+      "next_intent": "Explore service dependencies; agent dependencies remain available as a separate scoped view.",
+      "readiness": "Navigation only; required server validation and evidence are not established.",
+      "back_to_setup": "UI-15"
+    },
+    {
+      "screen": "UI-50",
+      "purpose": "Manage customer-tenant configuration without entering the separate UACRF operator plane.",
+      "next_view": "UI-51",
+      "next_title": "Organization, workspaces and environments",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-51",
+      "purpose": "Review organization ownership, workspace boundaries, environment separation and residency choices.",
+      "next_view": "UI-52",
+      "next_title": "People, groups and access",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-52",
+      "purpose": "Review tenant-scoped membership, roles, accountable ownership and separation of duties.",
+      "next_view": "UI-30",
+      "next_title": "Users and accountable owners",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-53",
+      "purpose": "Review provider connections, read-only discovery scope and environment-specific identities.",
+      "next_view": "UI-15",
+      "next_title": "Connect an environment",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-54",
+      "purpose": "Review policy ownership, independent approval rules and customer governance boundaries.",
+      "next_view": "UI-32",
+      "next_title": "Configure decision policies",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-55",
+      "purpose": "Review assessment methods, objectives and owner-validated journey impact as distinct inputs.",
+      "next_view": "UI-22",
+      "next_title": "Objective templates and rules",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-56",
+      "purpose": "Review notification destinations and external integrations without implying live delivery.",
+      "next_view": "UI-33",
+      "next_title": "Route findings and escalation",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-57",
+      "purpose": "Review data handling, audit visibility, retention, legal holds and export controls.",
+      "next_view": "UI-06",
+      "next_title": "Evidence",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    },
+    {
+      "screen": "UI-58",
+      "purpose": "Review entitlements separately from reservations, measured usage and charges.",
+      "next_view": "UI-44",
+      "next_title": "Usage and billing",
+      "next_intent": "A suggested, direct link; other authorized screens remain independently reachable.",
+      "readiness": "Navigation only; this design preview does not save settings or establish server authorization."
+    }
+  ],
+  "presentation": "Next review explanation appears inside How to set up UACRF, not as a competing primary action card.",
+  "visual_refinement": 4,
+  "guide_revision": 10,
+  "views": 58
+}

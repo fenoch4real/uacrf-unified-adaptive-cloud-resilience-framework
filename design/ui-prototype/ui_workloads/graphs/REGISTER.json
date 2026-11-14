@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "ui_design_revision": 5,
+  "visual_refinement": 3,
+  "scope": "Illustrative review diagrams, not live topology or executable Neo4j projection",
+  "provider_placement": "Sample only",
+  "graphs": [
+    {
+      "id": "service",
+      "svg": "service.svg",
+      "png": "service.png",
+      "view": "UI-18"
+    },
+    {
+      "id": "independence",
+      "svg": "independence.svg",
+      "png": "independence.png",
+      "view": "UI-19"
+    },
+    {
+      "id": "delta",
+      "svg": "delta.svg",
+      "png": "delta.png",
+      "view": "UI-20"
+    },
+    {
+      "id": "model",
+      "svg": "model.svg",
+      "png": "model.png",
+      "view": "UI-23"
+    },
+    {
+      "id": "agent",
+      "svg": "agent.svg",
+      "png": "agent.png",
+      "view": "UI-37"
+    },
+    {
+      "id": "multi",
+      "svg": "multi.svg",
+      "png": "multi.png",
+      "view": "UI-45"
+    }
+  ],
+  "layout": "Journey canvas with adjacent health and selected-relationship inspector",
+  "inline_icons": "Provider marks and neutral resource-type glyphs"
+}

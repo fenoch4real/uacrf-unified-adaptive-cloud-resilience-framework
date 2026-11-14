@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "guide_revision": 12,
+  "ui_refinement": 9,
+  "status": "PASS_SOURCE_DOCUMENT_AND_CONTRACT_PRESERVATION",
+  "baseline_files_preserved": 70,
+  "normative_requirements_preserved": 131,
+  "existing_document_media_preserved": 49,
+  "historical_images_preserved": 33,
+  "extension_schemas": 9,
+  "extension_operations": 8,
+  "extension_record_families": 7,
+  "canonical_api_and_database_totals_changed": false,
+  "new_engine_or_live_acceptance": "NOT_EXECUTED",
+  "new_acceptance_scenarios": "22 PLANNED_NOT_EXECUTED",
+  "readiness_score_change": 0
+}

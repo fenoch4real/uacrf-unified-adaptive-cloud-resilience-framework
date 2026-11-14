@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Link agent to journey | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Link agent to <span th:text="${journey != null ? journey.name : journeyId}">customer journey</span></h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a th:href="@{/journeys/{id}(id=${journeyId})}">Back to customer journey</a></p>
+  <p role="status" th:if="${agentError != null}" th:text="${agentError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the agent link details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <form method="post"
+        th:action="@{/journeys/{id}/agents/link(id=${journeyId})}"
+        th:object="${agentLinkForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <fieldset>
+      <legend>Agent link details</legend>
+      <p>
+        <label for="agentId">Agent workload ID (required)</label>
+        <input id="agentId" type="text" th:field="*{agentId}"
+               pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}" maxlength="200" required
+               autocapitalize="none" spellcheck="false"
+               th:attr="aria-describedby=${invalidAgentId == true ? 'agent-help agent-error' : 'agent-help'},
+                        aria-invalid=${invalidAgentId == true ? 'true' : null},
+                        autofocus=${invalidAgentId == true ? 'autofocus' : null}">
+        <span id="agent-help">
+          Enter a registered agent ID. S02 verifies it is visible in the selected context.
+        </span>
+        <span id="agent-error" th:if="${agentIdError != null}" th:text="${agentIdError}"></span>
+      </p>
+      <p>
+        <label for="stepId">Journey step</label>
+        <select id="stepId" th:field="*{stepId}"
+                th:attr="aria-describedby=${invalidStep == true ? 'step-help step-error' : 'step-help'},
+                         aria-invalid=${invalidStep == true ? 'true' : null},
+                         autofocus=${invalidAgentId != true and invalidStep == true ? 'autofocus' : null}">
+          <option value="">No specific step</option>
+          <option th:each="step : ${journeySteps}"
+                  th:value="${step.id}"
+                  th:text="${step.position + '. ' + step.name}">Step</option>
+        </select>
+        <span id="step-help">Choose a step, or link the agent to the journey generally.</span>
+        <span id="step-error" th:if="${stepError != null}" th:text="${stepError}"></span>
+      </p>
+      <fieldset th:attr="aria-describedby=${invalidCriticality == true ? 'criticality-error' : null},
+                         aria-invalid=${invalidCriticality == true ? 'true' : null}">
+        <legend>Link criticality (required)</legend>
+        <label>
+          <input type="radio" th:field="*{criticality}" value="REQUIRED" required
+                 th:attr="aria-describedby=${invalidCriticality == true ? 'criticality-error' : null},
+                          aria-invalid=${invalidCriticality == true ? 'true' : null},
+                          autofocus=${invalidAgentId != true and invalidStep != true and invalidCriticality == true ? 'autofocus' : null}">
+          Required
+        </label>
+        <label><input type="radio" th:field="*{criticality}" value="OPTIONAL" required> Optional</label>
+        <label><input type="radio" th:field="*{criticality}" value="UNKNOWN" required> Unknown</label>
+        <span id="criticality-error" th:if="${invalidCriticality == true}"
+              th:text="${criticalityError != null ? criticalityError : 'Choose a link criticality.'}"></span>
+      </fieldset>
+    </fieldset>
+    <button type="submit">Link agent</button>
+  </form>
+</main>
+</body>
+</html>

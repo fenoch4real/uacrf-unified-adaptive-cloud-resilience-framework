@@ -1,0 +1,1093 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF relationship maintenance and command status extension",
+    "version": "1.0",
+    "description": "Proposed extension outside 74 canonical operations. No handlers or grants provided."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/v1/customer-journeys/{id}/capabilities/{link_id}:update": {
+      "post": {
+        "operationId": "journey_link_update",
+        "summary": "Update a journey relationship",
+        "description": "PROPOSED. Server derives current tenant/environment/actor; requires scoped catalogue write and source/target visibility. Lock the active link, compare expected_revision, preserve original identity and endpoints, validate permitted role/type and step membership, then atomically append relationship history and audit/outbox with the guarded change. Retiring excludes the link from current projections but retains its history. No access or runtime authority is granted. Reusing the same idempotency key/request returns the original receipt; changed payload returns 409. Runtime revision 2 uses a synchronous atomic metadata transaction and returns 200 after commit. It does not use the asynchronous 202 command-admission receipt.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "step_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "\\S"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "criticality": {
+                    "enum": [
+                      "REQUIRED",
+                      "OPTIONAL",
+                      "UNKNOWN"
+                    ]
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason",
+                  "step_id",
+                  "criticality"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Malformed input or invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target absent or undisclosable; conceal existence consistently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision, duplicate relationship or idempotency-key payload mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Well-formed input violates domain constraints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required store, policy or external dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^\\S+$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-storage": "relationship_design/storage.proposed.sql; procedures and policies pending",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/customer-journeys/{id}/capabilities/{link_id}:retire": {
+      "post": {
+        "operationId": "journey_link_retire",
+        "summary": "Retire a journey relationship",
+        "description": "PROPOSED. Server derives current tenant/environment/actor; requires scoped catalogue write and source/target visibility. Lock the active link, compare expected_revision, preserve original identity and endpoints, validate permitted role/type and step membership, then atomically append relationship history and audit/outbox with the guarded change. Retiring excludes the link from current projections but retains its history. No access or runtime authority is granted. Reusing the same idempotency key/request returns the original receipt; changed payload returns 409. Runtime revision 2 uses a synchronous atomic metadata transaction and returns 200 after commit. It does not use the asynchronous 202 command-admission receipt.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Malformed input or invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target absent or undisclosable; conceal existence consistently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision, duplicate relationship or idempotency-key payload mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Well-formed input violates domain constraints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required store, policy or external dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^\\S+$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-storage": "relationship_design/storage.proposed.sql; procedures and policies pending",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/shared-resources/{id}/consumers/{link_id}:update": {
+      "post": {
+        "operationId": "resource_link_update",
+        "summary": "Update a resource relationship",
+        "description": "PROPOSED. Server derives current tenant/environment/actor; requires scoped catalogue write and source/target visibility. Lock the active link, compare expected_revision, preserve original identity and endpoints, validate permitted role/type and step membership, then atomically append relationship history and audit/outbox with the guarded change. Retiring excludes the link from current projections but retains its history. No access or runtime authority is granted. Reusing the same idempotency key/request returns the original receipt; changed payload returns 409. Runtime revision 2 uses a synchronous atomic metadata transaction and returns 200 after commit. It does not use the asynchronous 202 command-admission receipt.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "role": {
+                    "enum": [
+                      "MODEL",
+                      "KNOWLEDGE",
+                      "MEMORY",
+                      "TOOL",
+                      "RUNTIME",
+                      "IDENTITY"
+                    ]
+                  },
+                  "effect": {
+                    "enum": [
+                      "READ",
+                      "WRITE",
+                      "EXECUTE",
+                      "NONE"
+                    ]
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason",
+                  "role",
+                  "effect"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Malformed input or invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target absent or undisclosable; conceal existence consistently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision, duplicate relationship or idempotency-key payload mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Well-formed input violates domain constraints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required store, policy or external dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^\\S+$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-storage": "relationship_design/storage.proposed.sql; procedures and policies pending",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/shared-resources/{id}/consumers/{link_id}:retire": {
+      "post": {
+        "operationId": "resource_link_retire",
+        "summary": "Retire a resource relationship",
+        "description": "PROPOSED. Server derives current tenant/environment/actor; requires scoped catalogue write and source/target visibility. Lock the active link, compare expected_revision, preserve original identity and endpoints, validate permitted role/type and step membership, then atomically append relationship history and audit/outbox with the guarded change. Retiring excludes the link from current projections but retains its history. No access or runtime authority is granted. Reusing the same idempotency key/request returns the original receipt; changed payload returns 409. Runtime revision 2 uses a synchronous atomic metadata transaction and returns 200 after commit. It does not use the asynchronous 202 command-admission receipt.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Malformed input or invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target absent or undisclosable; conceal existence consistently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision, duplicate relationship or idempotency-key payload mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Well-formed input violates domain constraints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required store, policy or external dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^\\S+$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-storage": "relationship_design/storage.proposed.sql; procedures and policies pending",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/commands/{id}": {
+      "get": {
+        "operationId": "read_command_status",
+        "summary": "Read an authorized durable command and retained result reference",
+        "description": "PROPOSED. Read existing command metadata under current actor/delegation and target permissions. Hide inaccessible command existence. Completion means operation processing completed, not policy ALLOW, qualified evidence or recovered health. Validate result artifact digest before disclosure. Result metadata is retained in command.payload by the controlled worker; that worker is not supplied.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "\\S"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current authorized command metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "command_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "\\S"
+                    },
+                    "operation": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "\\S"
+                    },
+                    "status": {
+                      "enum": [
+                        "PENDING",
+                        "PROCESSING",
+                        "SUCCEEDED",
+                        "FAILED",
+                        "BLOCKED"
+                      ]
+                    },
+                    "result_ref": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2048,
+                          "pattern": "\\S"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "result_digest": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "domain_completion": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "command_id",
+                    "operation",
+                    "status",
+                    "result_ref",
+                    "result_digest",
+                    "error",
+                    "domain_completion"
+                  ],
+                  "allOf": [
+                    {
+                      "if": {
+                        "properties": {
+                          "status": {
+                            "enum": [
+                              "PENDING",
+                              "PROCESSING"
+                            ]
+                          }
+                        }
+                      },
+                      "then": {
+                        "properties": {
+                          "domain_completion": {
+                            "const": false
+                          },
+                          "result_ref": {
+                            "type": "null"
+                          },
+                          "result_digest": {
+                            "type": "null"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "if": {
+                        "properties": {
+                          "status": {
+                            "const": "SUCCEEDED"
+                          }
+                        }
+                      },
+                      "then": {
+                        "properties": {
+                          "domain_completion": {
+                            "const": true
+                          },
+                          "result_ref": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 2048,
+                            "pattern": "\\S"
+                          },
+                          "result_digest": {
+                            "type": "string",
+                            "pattern": "^[a-f0-9]{64}$"
+                          },
+                          "error": {
+                            "type": "null"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed input or invalid cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current scope or capability denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target absent or undisclosable; conceal existence consistently",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision, duplicate relationship or idempotency-key payload mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Well-formed input violates domain constraints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit; honor Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required store, policy or external dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-storage": "uacrf.command; get_command plus controlled result metadata composition"
+      }
+    }
+  }
+}

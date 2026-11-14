@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "UACRF_USAGE_RECEIPT_V1"
+    },
+    "source_event_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "producer": {
+      "enum": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "UX01",
+        "EDGE01"
+      ]
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "environment_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "account_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "metric": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "unit": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "quantity": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,24})(\\.[0-9]{1,12})?$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "observed_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "observed_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "outcome": {
+      "enum": [
+        "MEASURED",
+        "CORRECTION",
+        "UNKNOWN"
+      ]
+    },
+    "correction_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    }
+  },
+  "required": [
+    "protocol",
+    "source_event_id",
+    "producer",
+    "tenant_id",
+    "environment_id",
+    "account_id",
+    "metric",
+    "unit",
+    "quantity",
+    "observed_from",
+    "observed_until",
+    "source_digest",
+    "outcome",
+    "correction_of",
+    "signature"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "UNKNOWN"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "quantity": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "quantity": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

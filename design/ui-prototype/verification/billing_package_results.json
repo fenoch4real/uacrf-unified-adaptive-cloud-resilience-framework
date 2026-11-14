@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "database_revision": 2,
+  "billing_tables": 29,
+  "billing_queries": 90,
+  "total_business_tables": 89,
+  "technical_tables": 2,
+  "migrations": 14,
+  "total_queries": 290,
+  "core_assertions_passed": 34,
+  "billing_assertions_passed": 28,
+  "formal_reference_checks": "76 reference tests and 28 package checks passed",
+  "word_pdf_pairs_unchanged": 9,
+  "ui_images_unchanged": 33,
+  "price_activation": "NONE",
+  "payment_integration": "NOT_EXECUTED",
+  "full_acceptance": "NOT_EXECUTED",
+  "prior_score": 87.5,
+  "user_review": "Pending"
+}

@@ -1,0 +1,413 @@
+{
+  "version": "1.0",
+  "status": "ILLUSTRATIVE_NOT_LIVE",
+  "timezone": "America/Los_Angeles",
+  "complete": false,
+  "events": [
+    {
+      "id": "evt-16",
+      "title": "Recovery candidate prepared for review",
+      "object_name": "Checkout",
+      "object_kind": "service",
+      "actor_name": "Maya Chen",
+      "actor_kind": "human",
+      "outcome": "Pending approval",
+      "groups": [
+        "Work",
+        "Operations"
+      ],
+      "journeys": [
+        "order"
+      ],
+      "target_view": "UI-05",
+      "icon": "recover",
+      "provider": "GCP",
+      "source_table": "audit_event",
+      "source_id": "sample:evt-16",
+      "recorded_at": "2026-10-31T10:16:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-15",
+      "title": "Pause requested after tool timeout",
+      "object_name": "Order support agent",
+      "object_kind": "agent",
+      "actor_name": "Runtime broker",
+      "actor_kind": "system",
+      "outcome": "Requested",
+      "groups": [
+        "Work",
+        "Operations"
+      ],
+      "journeys": [
+        "order",
+        "support"
+      ],
+      "target_view": "UI-40",
+      "icon": "pause",
+      "provider": "GCP",
+      "source_table": "workload_event",
+      "source_id": "sample:evt-15",
+      "recorded_at": "2026-10-31T10:15:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Order support",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-14",
+      "title": "Deployment change recorded",
+      "object_name": "Checkout",
+      "object_kind": "service",
+      "actor_name": "Discovery worker",
+      "actor_kind": "system",
+      "outcome": "Recorded",
+      "groups": [
+        "Work",
+        "Operations"
+      ],
+      "journeys": [
+        "order",
+        "support"
+      ],
+      "target_view": "UI-20",
+      "icon": "service",
+      "provider": "GCP",
+      "source_table": "audit_event",
+      "source_id": "sample:evt-14",
+      "recorded_at": "2026-10-31T10:14:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-13",
+      "title": "Mandatory critic output missing",
+      "object_name": "Policy review team",
+      "object_kind": "agent",
+      "actor_name": "Evaluation worker",
+      "actor_kind": "system",
+      "outcome": "Unknown",
+      "groups": [
+        "Work",
+        "Operations"
+      ],
+      "journeys": [
+        "support"
+      ],
+      "target_view": "UI-45",
+      "icon": "agent",
+      "provider": null,
+      "source_table": "workload_evaluation",
+      "source_id": "sample:evt-13",
+      "recorded_at": "2026-10-31T10:13:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Policy review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-12",
+      "title": "Knowledge version submitted for review",
+      "object_name": "Refund policy k12",
+      "object_kind": "knowledge",
+      "actor_name": "Noah Brooks",
+      "actor_kind": "human",
+      "outcome": "Pending approval",
+      "groups": [
+        "Resources"
+      ],
+      "journeys": [
+        "support"
+      ],
+      "target_view": "UI-09",
+      "icon": "knowledge",
+      "provider": "Azure",
+      "source_table": "audit_event",
+      "source_id": "sample:evt-12",
+      "recorded_at": "2026-10-31T10:12:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-11",
+      "title": "Model evaluation observation retained",
+      "object_name": "Order model endpoint",
+      "object_kind": "model",
+      "actor_name": "Evaluation worker",
+      "actor_kind": "system",
+      "outcome": "Recorded",
+      "groups": [
+        "Resources",
+        "Work"
+      ],
+      "journeys": [
+        "order",
+        "support"
+      ],
+      "target_view": "UI-42",
+      "icon": "model",
+      "provider": "GCP",
+      "source_table": "audit_event",
+      "source_id": "sample:evt-11",
+      "recorded_at": "2026-10-31T10:11:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-10",
+      "title": "Tool attempt has no confirmed result",
+      "object_name": "Order lookup 04",
+      "object_kind": "tool",
+      "actor_name": "Order support agent",
+      "actor_kind": "agent",
+      "outcome": "Ambiguous",
+      "groups": [
+        "Work",
+        "Operations"
+      ],
+      "journeys": [
+        "support"
+      ],
+      "target_view": "UI-38",
+      "icon": "unknown",
+      "provider": "AWS",
+      "source_table": "workload_event",
+      "source_id": "sample:evt-10",
+      "recorded_at": "2026-10-31T10:10:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Order support",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-09",
+      "title": "Checkpoint reference retained; bytes unverified",
+      "object_name": "cp-004",
+      "object_kind": "agent",
+      "actor_name": "Runtime broker",
+      "actor_kind": "system",
+      "outcome": "Recorded",
+      "groups": [
+        "Work",
+        "Operations"
+      ],
+      "journeys": [
+        "support"
+      ],
+      "target_view": "UI-39",
+      "icon": "evidence",
+      "provider": null,
+      "source_table": "workload_checkpoint",
+      "source_id": "sample:evt-09",
+      "recorded_at": "2026-10-31T10:09:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Order support",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-08",
+      "title": "Independent outcome evidence is missing",
+      "object_name": "Order lookup outcome",
+      "object_kind": "evidence",
+      "actor_name": "Validation worker",
+      "actor_kind": "system",
+      "outcome": "Unknown",
+      "groups": [
+        "Operations"
+      ],
+      "journeys": [
+        "support"
+      ],
+      "target_view": "UI-21",
+      "icon": "evidence",
+      "provider": null,
+      "source_table": "validation_result",
+      "source_id": "sample:evt-08",
+      "recorded_at": "2026-10-31T10:08:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-07",
+      "title": "Provider usage receipt is awaiting reconciliation",
+      "object_name": "Model attempt 04",
+      "object_kind": "billing",
+      "actor_name": "Metering worker",
+      "actor_kind": "system",
+      "outcome": "Not rated",
+      "groups": [
+        "Administration"
+      ],
+      "journeys": [
+        "support"
+      ],
+      "target_view": "UI-44",
+      "icon": "billing",
+      "provider": null,
+      "source_table": "billing_usage_admission",
+      "source_id": "sample:evt-07",
+      "recorded_at": "2026-10-31T10:07:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Billing account",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-06",
+      "title": "Connection check did not complete",
+      "object_name": "Review environment",
+      "object_kind": "connection",
+      "actor_name": "Connection worker",
+      "actor_kind": "system",
+      "outcome": "Failed",
+      "groups": [
+        "Administration"
+      ],
+      "journeys": [],
+      "target_view": "UI-17",
+      "icon": "connection",
+      "provider": "Azure",
+      "source_table": "audit_event",
+      "source_id": "sample:evt-06",
+      "recorded_at": "2026-10-31T10:06:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-05",
+      "title": "Access review requested",
+      "object_name": "Operations reviewer",
+      "object_kind": "identity",
+      "actor_name": "Maya Chen",
+      "actor_kind": "human",
+      "outcome": "Requested",
+      "groups": [
+        "Administration"
+      ],
+      "journeys": [],
+      "target_view": "UI-30",
+      "icon": "identity",
+      "provider": null,
+      "source_table": "audit_event",
+      "source_id": "sample:evt-05",
+      "recorded_at": "2026-10-31T10:05:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-04",
+      "title": "Journey membership metadata recorded",
+      "object_name": "Place Order",
+      "object_kind": "journey",
+      "actor_name": "Maya Chen",
+      "actor_kind": "human",
+      "outcome": "Recorded",
+      "groups": [
+        "Work"
+      ],
+      "journeys": [
+        "order"
+      ],
+      "target_view": "UI-47",
+      "icon": "journey",
+      "provider": null,
+      "source_table": "journey_capability",
+      "source_id": "sample:evt-04",
+      "recorded_at": "2026-10-31T10:04:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-03",
+      "title": "Shared consumer link recorded",
+      "object_name": "Refund policy knowledge base",
+      "object_kind": "knowledge",
+      "actor_name": "Noah Brooks",
+      "actor_kind": "human",
+      "outcome": "Recorded",
+      "groups": [
+        "Resources"
+      ],
+      "journeys": [
+        "order",
+        "support"
+      ],
+      "target_view": "UI-49",
+      "icon": "resource",
+      "provider": "Azure",
+      "source_table": "capability_asset",
+      "source_id": "sample:evt-03",
+      "recorded_at": "2026-10-31T10:03:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-02",
+      "title": "Advisory output retained for human review",
+      "object_name": "Evidence assistant",
+      "object_kind": "agent",
+      "actor_name": "UACRF evidence assistant",
+      "actor_kind": "agent",
+      "outcome": "Recorded",
+      "groups": [
+        "Administration"
+      ],
+      "journeys": [],
+      "target_view": "UI-13",
+      "icon": "agent",
+      "provider": null,
+      "source_table": "agent_output",
+      "source_id": "sample:evt-02",
+      "recorded_at": "2026-10-31T10:02:00-07:00",
+      "occurred_at": null,
+      "scope_label": "UACRF assistance",
+      "evidence": "Unknown",
+      "illustrative": true
+    },
+    {
+      "id": "evt-01",
+      "title": "Controlled test plan awaiting approval",
+      "object_name": "Checkout rollback drill",
+      "object_kind": "service",
+      "actor_name": "Maya Chen",
+      "actor_kind": "human",
+      "outcome": "Pending approval",
+      "groups": [
+        "Operations"
+      ],
+      "journeys": [
+        "order"
+      ],
+      "target_view": "UI-27",
+      "icon": "assess",
+      "provider": "GCP",
+      "source_table": "audit_event",
+      "source_id": "sample:evt-01",
+      "recorded_at": "2026-10-31T10:01:00-07:00",
+      "occurred_at": null,
+      "scope_label": "Shared review",
+      "evidence": "Unknown",
+      "illustrative": true
+    }
+  ]
+}

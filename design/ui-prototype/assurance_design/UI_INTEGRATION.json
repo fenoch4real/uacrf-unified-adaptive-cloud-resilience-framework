@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "ui_refinement": 13,
+  "primary_view": "UI-03",
+  "navigation_alias": "Assess \u2192 Recovery readiness",
+  "affected_views": [
+    "UI-01",
+    "UI-03",
+    "UI-04",
+    "UI-05",
+    "UI-06",
+    "UI-18",
+    "UI-19",
+    "UI-20",
+    "UI-34",
+    "UI-37",
+    "UI-46",
+    "UI-47"
+  ],
+  "view_count": 49,
+  "state_scope": "IN_MEMORY_PER_EXAMPLE_JOURNEY",
+  "api_connection": "NOT_CONNECTED",
+  "legacy_companion": "REDIRECTS_TO_MAIN_ASSESS",
+  "contracts": "openapi.proposed.json",
+  "test": "../verification/test_unified_assurance.cjs"
+}

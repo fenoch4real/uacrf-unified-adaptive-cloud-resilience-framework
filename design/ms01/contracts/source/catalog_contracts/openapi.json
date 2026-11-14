@@ -1,0 +1,1965 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF journey and shared resource catalogue",
+    "version": "1.0",
+    "description": "Catalogue contract revision 1 with ten local runtime handlers in runtime/. Live provider, connected product UI and full-system acceptance remain pending. Catalogue membership does not grant runtime authority."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/customer-journeys": {
+      "get": {
+        "summary": "List authorized customer journeys.",
+        "operationId": "cat_list_journey",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success. Opaque continuation cursors bind current tenant, environment, target, filters and disclosure policy. Validate and decode before SQL binding; an invalid or stale cursor is restrictive, never silently reused.",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "include_retired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized visible catalogue metadata only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CataloguePage"
+                }
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      },
+      "post": {
+        "summary": "Register an accountable customer journey.",
+        "operationId": "cat_insert_journey",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Committed catalogue metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Replayed committed metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "owner_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "lifecycle": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "ACTIVE",
+                      "RETIRED"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "owner_id",
+                  "purpose",
+                  "lifecycle"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/customer-journeys/{id}": {
+      "get": {
+        "summary": "Read a customer journey with paginated steps and visible capabilities.",
+        "operationId": "cat_get_journey",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success. Opaque continuation cursors bind current tenant, environment, target, filters and disclosure policy. Validate and decode before SQL binding; an invalid or stale cursor is restrictive, never silently reused.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "step_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "capability_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized visible catalogue metadata only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueDetail"
+                }
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/customer-journeys/{id}/steps": {
+      "post": {
+        "summary": "Register one ordered journey step.",
+        "operationId": "cat_insert_journey_step",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Committed catalogue metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Replayed committed metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "position": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "intended_outcome": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "id",
+                  "position",
+                  "name",
+                  "intended_outcome"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/customer-journeys/{id}/capabilities": {
+      "post": {
+        "summary": "Link a service or standalone agent to a journey.",
+        "operationId": "cat_insert_journey_capability",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Committed catalogue metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Replayed committed metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "capability_kind": {
+                    "type": "string",
+                    "enum": [
+                      "SERVICE",
+                      "AGENT"
+                    ]
+                  },
+                  "capability_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "step_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "criticality": {
+                    "type": "string",
+                    "enum": [
+                      "REQUIRED",
+                      "OPTIONAL",
+                      "UNKNOWN"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "capability_kind",
+                  "capability_id",
+                  "step_id",
+                  "criticality"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/services": {
+      "get": {
+        "summary": "List conventional services without double-counting agent anchors.",
+        "operationId": "cat_list_services",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success. Opaque continuation cursors bind current tenant, environment, target, filters and disclosure policy. Validate and decode before SQL binding; an invalid or stale cursor is restrictive, never silently reused.",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "include_retired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized visible catalogue metadata only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CataloguePage"
+                }
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/shared-resources": {
+      "get": {
+        "summary": "List governed shared models knowledge bases and other resources.",
+        "operationId": "cat_list_shared_asset",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success. Opaque continuation cursors bind current tenant, environment, target, filters and disclosure policy. Validate and decode before SQL binding; an invalid or stale cursor is restrictive, never silently reused.",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "include_retired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "asset_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MODEL",
+                "KNOWLEDGE_BASE",
+                "DATA_STORE",
+                "TOOL",
+                "RUNTIME",
+                "IDENTITY"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized visible catalogue metadata only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CataloguePage"
+                }
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      },
+      "post": {
+        "summary": "Register a reusable logical resource independently of its consumers.",
+        "operationId": "cat_insert_shared_asset",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Committed catalogue metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Replayed committed metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "asset_kind": {
+                    "type": "string",
+                    "enum": [
+                      "MODEL",
+                      "KNOWLEDGE_BASE",
+                      "DATA_STORE",
+                      "TOOL",
+                      "RUNTIME",
+                      "IDENTITY"
+                    ]
+                  },
+                  "owner_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "GCP",
+                      "AWS",
+                      "AZURE",
+                      "LOCAL",
+                      "OTHER"
+                    ]
+                  },
+                  "lifecycle": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "ACTIVE",
+                      "RETIRED"
+                    ]
+                  },
+                  "graph_label": {
+                    "type": "string",
+                    "enum": [
+                      "AIModel",
+                      "ModelVersion",
+                      "ModelEndpoint",
+                      "DataStore",
+                      "Dataset",
+                      "API",
+                      "Service",
+                      "CloudResource",
+                      "Cluster",
+                      "ApplicationComponent",
+                      "ComputeNode",
+                      "Identity"
+                    ]
+                  },
+                  "graph_canonical_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "asset_kind",
+                  "owner_id",
+                  "provider",
+                  "lifecycle",
+                  "graph_label",
+                  "graph_canonical_id"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "asset_kind": {
+                          "const": "MODEL"
+                        }
+                      },
+                      "required": [
+                        "asset_kind"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "graph_label": {
+                          "enum": [
+                            "AIModel",
+                            "ModelVersion",
+                            "ModelEndpoint"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "asset_kind": {
+                          "const": "KNOWLEDGE_BASE"
+                        }
+                      },
+                      "required": [
+                        "asset_kind"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "graph_label": {
+                          "enum": [
+                            "DataStore",
+                            "Dataset"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "asset_kind": {
+                          "const": "DATA_STORE"
+                        }
+                      },
+                      "required": [
+                        "asset_kind"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "graph_label": {
+                          "enum": [
+                            "DataStore",
+                            "Dataset"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "asset_kind": {
+                          "const": "TOOL"
+                        }
+                      },
+                      "required": [
+                        "asset_kind"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "graph_label": {
+                          "enum": [
+                            "API",
+                            "Service"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "asset_kind": {
+                          "const": "RUNTIME"
+                        }
+                      },
+                      "required": [
+                        "asset_kind"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "graph_label": {
+                          "enum": [
+                            "Service",
+                            "CloudResource",
+                            "Cluster",
+                            "ApplicationComponent",
+                            "ComputeNode"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "asset_kind": {
+                          "const": "IDENTITY"
+                        }
+                      },
+                      "required": [
+                        "asset_kind"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "graph_label": {
+                          "enum": [
+                            "Identity"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/shared-resources/{id}": {
+      "get": {
+        "summary": "Read a shared resource with authorized paginated usage relationships.",
+        "operationId": "cat_get_shared_asset",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success. Opaque continuation cursors bind current tenant, environment, target, filters and disclosure policy. Validate and decode before SQL binding; an invalid or stale cursor is restrictive, never silently reused.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "consumer_cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Authorized visible catalogue metadata only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueDetail"
+                }
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/shared-resources/{id}/consumers": {
+      "post": {
+        "summary": "Link a service or agent to a shared resource without granting access.",
+        "operationId": "cat_insert_capability_asset",
+        "description": "Authenticate tenant/environment, current purpose, disclosure and capability permissions before every read or mutation. Derive actor and environment on the server. Paginate after authorization, never expose hidden counts. Separate aggregate access from service/agent permissions; report only authorized visible scope. Mutations use the existing durable idempotent command admission, then commit catalogue row, audit and outbox atomically. Responses confirm metadata only, never runtime success.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied purpose or scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed-content replay or relationship conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid typed relationship",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Committed catalogue metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Replayed committed metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueReceipt"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "capability_kind": {
+                    "type": "string",
+                    "enum": [
+                      "SERVICE",
+                      "AGENT"
+                    ]
+                  },
+                  "capability_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "MODEL",
+                      "KNOWLEDGE",
+                      "MEMORY",
+                      "TOOL",
+                      "RUNTIME",
+                      "IDENTITY"
+                    ]
+                  },
+                  "effect": {
+                    "type": "string",
+                    "enum": [
+                      "READ",
+                      "WRITE",
+                      "EXECUTE",
+                      "NONE"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "capability_kind",
+                  "capability_id",
+                  "role",
+                  "effect"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "request_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ]
+      },
+      "CatalogueReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "record_kind": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "REPLAYED"
+            ]
+          },
+          "runtime_effect": {
+            "const": "NONE"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "record_kind",
+          "result",
+          "runtime_effect"
+        ]
+      },
+      "CataloguePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "summary": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "revision"
+              ]
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "coverage": {
+            "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+          },
+          "runtime_verification": {
+            "const": "NOT_ESTABLISHED"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "coverage",
+          "runtime_verification"
+        ]
+      },
+      "CatalogueDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "record": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              "kind": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "summary": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "revision"
+            ]
+          },
+          "related": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "steps": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "summary": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "revision"
+                      ]
+                    }
+                  },
+                  "next_cursor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "coverage": {
+                    "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                  },
+                  "runtime_verification": {
+                    "const": "NOT_ESTABLISHED"
+                  }
+                },
+                "required": [
+                  "items",
+                  "next_cursor",
+                  "coverage",
+                  "runtime_verification"
+                ]
+              },
+              "capabilities": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "summary": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "revision"
+                      ]
+                    }
+                  },
+                  "next_cursor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "coverage": {
+                    "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                  },
+                  "runtime_verification": {
+                    "const": "NOT_ESTABLISHED"
+                  }
+                },
+                "required": [
+                  "items",
+                  "next_cursor",
+                  "coverage",
+                  "runtime_verification"
+                ]
+              },
+              "consumers": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "summary": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "revision"
+                      ]
+                    }
+                  },
+                  "next_cursor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "coverage": {
+                    "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                  },
+                  "runtime_verification": {
+                    "const": "NOT_ESTABLISHED"
+                  }
+                },
+                "required": [
+                  "items",
+                  "next_cursor",
+                  "coverage",
+                  "runtime_verification"
+                ]
+              }
+            }
+          },
+          "runtime_verification": {
+            "const": "NOT_ESTABLISHED"
+          }
+        },
+        "required": [
+          "record",
+          "related",
+          "runtime_verification"
+        ]
+      }
+    }
+  }
+}

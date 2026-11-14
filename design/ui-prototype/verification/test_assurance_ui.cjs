@@ -1,0 +1,1 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');const html=fs.readFileSync(path.join(__dirname,'../assurance_design/index.html'),'utf8');assert(html.includes('../ui_workloads/index.html#UI-03'));require('./test_unified_assurance.cjs');

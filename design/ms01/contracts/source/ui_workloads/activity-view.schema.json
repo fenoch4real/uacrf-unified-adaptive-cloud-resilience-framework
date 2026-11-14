@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Authorized activity display projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "object_name",
+    "object_kind",
+    "actor_name",
+    "actor_kind",
+    "outcome",
+    "recorded_at",
+    "occurred_at",
+    "target_view",
+    "provider",
+    "evidence",
+    "illustrative"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "object_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "actor_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "outcome": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "object_kind": {
+      "enum": [
+        "service",
+        "agent",
+        "model",
+        "knowledge",
+        "tool",
+        "identity",
+        "journey",
+        "connection",
+        "billing",
+        "evidence"
+      ]
+    },
+    "actor_kind": {
+      "enum": [
+        "human",
+        "agent",
+        "system",
+        "unknown"
+      ]
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "occurred_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "target_view": {
+      "type": "string",
+      "pattern": "^UI-[0-9]{2}$"
+    },
+    "provider": {
+      "enum": [
+        "GCP",
+        "AWS",
+        "Azure",
+        null
+      ]
+    },
+    "evidence": {
+      "enum": [
+        "Unknown",
+        "Qualified",
+        "Disqualified",
+        "Provisional"
+      ]
+    },
+    "illustrative": {
+      "type": "boolean"
+    }
+  }
+}

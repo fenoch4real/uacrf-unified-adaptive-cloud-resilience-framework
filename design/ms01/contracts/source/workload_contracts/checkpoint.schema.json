@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "event_sequence",
+    "version_id",
+    "input_digest",
+    "digest",
+    "object_ref",
+    "memory_namespace",
+    "expires_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "event_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "version_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "input_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "object_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "memory_namespace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

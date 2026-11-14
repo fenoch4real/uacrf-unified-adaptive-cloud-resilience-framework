@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title th:text="${journey != null ? journey.name : 'Customer journey'}">Customer journey</title>
+</head>
+<body>
+<main>
+  <h1 th:if="${journey != null}" th:text="${journey.name}">Journey name</h1>
+  <h1 th:if="${journey == null}">Customer journey</h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a href="/journeys">Back to customer journeys</a></p>
+  <p role="status" th:if="${journeyError != null}" th:text="${journeyError}"></p>
+  <section th:if="${journey != null}">
+    <p th:text="${journey.purpose}">Journey purpose</p>
+    <p>Lifecycle: <span th:text="${journey.lifecycle}">DRAFT</span></p>
+    <p>
+      <a th:href="@{/journeys/{id}/steps/new(id=${journey.id})}">Add a journey step</a>
+    </p>
+    <p>
+      <a th:href="@{/journeys/{id}/services/new(id=${journey.id})}">Register and link a service</a>
+    </p>
+    <p>
+      <a th:href="@{/journeys/{id}/agents/link(id=${journey.id})}">Link an agent workload</a>
+    </p>
+    <h2>Steps</h2>
+    <ol>
+      <li th:each="step : ${journey.steps}">
+        <strong th:text="${step.name}">Step name</strong>
+        <p th:text="${step.intendedOutcome}">Intended outcome</p>
+      </li>
+      <li th:if="${#lists.isEmpty(journey.steps)}">No steps have been defined.</li>
+    </ol>
+    <h2>Linked capabilities</h2>
+    <ul>
+      <li th:each="capability : ${journey.capabilities}">
+        <span th:text="${capability.capabilityKind}">SERVICE</span>:
+        <span th:text="${capability.capabilityId}">Capability</span>
+      </li>
+      <li th:if="${#lists.isEmpty(journey.capabilities)}">No capabilities are linked.</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

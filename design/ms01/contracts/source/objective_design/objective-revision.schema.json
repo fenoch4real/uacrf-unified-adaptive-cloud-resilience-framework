@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Proposed objective revision request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workload_id",
+    "metric",
+    "unit",
+    "window",
+    "evidence_source",
+    "reason",
+    "target",
+    "expected_revision",
+    "effective_from",
+    "template_id",
+    "template_revision",
+    "measurement_definition",
+    "objective_id"
+  ],
+  "properties": {
+    "workload_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "metric": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "window": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "evidence_source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "target": {
+      "type": "number",
+      "minimum": 0
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "template_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "template_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "import_origin": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "import_id",
+            "import_revision",
+            "source_digest"
+          ],
+          "properties": {
+            "import_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "import_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "source_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      ]
+    },
+    "measurement_definition": {
+      "$ref": "../import_signal_design/normalized-objective-definition.schema.json"
+    },
+    "objective_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$",
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "import_origin"
+        ],
+        "properties": {
+          "import_origin": {
+            "type": "object"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "measurement_definition"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "objective_id": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "expected_revision": {
+            "const": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "expected_revision": {
+            "minimum": 1
+          }
+        }
+      }
+    }
+  ],
+  "description": "The path and body workload IDs must match. The measurement definition must match the scalar metric target unit window fields, selected template comparison/aggregation and approved range. Persist the exact normalized definition and server fingerprint. These cross-field checks are worker responsibilities in addition to JSON Schema."
+}

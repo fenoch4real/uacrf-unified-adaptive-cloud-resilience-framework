@@ -1,0 +1,36 @@
+sequenceDiagram
+participant Human
+participant API as Java API
+participant SQL as PostgreSQL
+participant Graph as Neo4j
+Human->>API: S01 Submit journey graph primary recovery scenario and reason
+alt S01 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>SQL: S02 Verify current identity journey membership and all workload permissions
+alt S02 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Graph: S03 Verify complete accepted graph content against the SQL snapshot
+alt S03 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>API: S04 Find shared dependencies within bounded traversal
+alt S04 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>SQL: S05 Check idempotency and append baseline review audit and outbox atomically
+alt S05 accepted
+Note over API: Continue
+else fail or incomplete
+API-->>Human: F1 stop without recovery authority
+end
+API->>Human: S06 Return diagnostic findings with independence NOT_CERTIFIED

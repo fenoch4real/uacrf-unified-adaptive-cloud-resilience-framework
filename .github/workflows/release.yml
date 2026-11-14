@@ -1,0 +1,68 @@
+name: Release
+
+# Release images are built only from version tags, must pass the same
+# HIGH/CRITICAL vulnerability gate as CI (no ignore file), and are signed
+# keylessly by digest so consumers can verify them against this workflow.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  sign-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      REGISTRY: ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+      - name: Install cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build, scan, push, and sign images
+        env:
+          OWNER: ${{ github.repository_owner }}
+          TAG: ${{ github.ref_name }}
+          IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
+        run: |
+          set -euo pipefail
+          owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          while read -r target image; do
+            ref="${REGISTRY}/${owner}/uacrf-${image}"
+            docker build \
+              --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
+              --target "$target" \
+              --tag "${ref}:${TAG}" \
+              .
+            # A finding blocks the release before anything is pushed or signed.
+            trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 "${ref}:${TAG}"
+            docker push "${ref}:${TAG}"
+            digest=$(docker image inspect "${ref}:${TAG}" --format '{{index .RepoDigests 0}}')
+            cosign sign --yes "$digest"
+            cosign verify \
+              --certificate-identity "$IDENTITY" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "$digest" > /dev/null
+          done <<'IMAGES'
+          api-edge api-edge
+          experience-api experience-api
+          identity identity-service
+          estate-catalog estate-catalog-service
+          connections connections-service
+          web web
+          IMAGES

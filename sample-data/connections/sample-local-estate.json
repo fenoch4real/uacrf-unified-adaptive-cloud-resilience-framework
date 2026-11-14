@@ -1,0 +1,884 @@
+{
+  "_label" : "SAMPLE DATA - synthetic, not real telemetry. Regenerate with the sample-data-tools module.",
+  "connection" : {
+    "id" : "conn-sample-eu-west",
+    "name" : "Sample EU-West production estate",
+    "provider" : "SAMPLE_LOCAL",
+    "read_only_identity_ref" : "sample/readonly-collector",
+    "owner_id" : "owner-platform",
+    "expected_revision" : 0
+  },
+  "bindings" : [ {
+    "id" : "bind-payments-api",
+    "source_ref" : "sample:eu-west/prod/payments-api",
+    "service_ref" : "svc-payments-api",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-checkout-web",
+    "source_ref" : "sample:eu-west/prod/checkout-web",
+    "service_ref" : "svc-checkout-web",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-identity-gateway",
+    "source_ref" : "sample:eu-west/prod/identity-gateway",
+    "service_ref" : "svc-identity-gateway",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-orders-service",
+    "source_ref" : "sample:eu-west/prod/orders-service",
+    "service_ref" : "svc-orders-service",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-inventory-service",
+    "source_ref" : "sample:eu-west/prod/inventory-service",
+    "service_ref" : "svc-inventory-service",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-notifications-worker",
+    "source_ref" : "sample:eu-west/prod/notifications-worker",
+    "service_ref" : "svc-notifications-worker",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-payments-api-deploys",
+    "source_ref" : "sample:eu-west/prod/payments-api/deploys",
+    "service_ref" : "svc-payments-api",
+    "expected_revision" : 0
+  } ],
+  "deliveries" : [ {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0001",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9942,\"p95_latency_ms\":121.2,\"error_rate\":0.0014,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "abb9d52ac851c27d7661ba742efb8576055769311ed8bc1e4f9dc543d159819a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0001",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9776,\"p95_latency_ms\":224.5,\"error_rate\":0.0056,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "285d1581497578e88ca907cd0927cebb733a321f9fdeb33e4c445308b288ee63"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0001",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9969,\"p95_latency_ms\":79.8,\"error_rate\":8.0E-4,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "fee0692ea8260a1284297fdbf32978015026859479897ab6d306a9291a6e844e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0001",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9894,\"p95_latency_ms\":148.9,\"error_rate\":0.0027,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "3f2cd1f149b05a2ce362d0ab063be3ddc0e5d7069ac8b3c491f78d70cd2e2e3c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0001",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9948,\"p95_latency_ms\":92.2,\"error_rate\":0.0013,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "c108c0a3f6b14db7740953e3e84cf3879b89a54fb2f6cd67c55ce4f20ca2dd12"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0001",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9677,\"p95_latency_ms\":320.2,\"error_rate\":0.0081,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "038d3c8639b8a2e695d2c8ae1dceba6c44d980646892b05fd6a54531ea580fca"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0002",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9933,\"p95_latency_ms\":120.0,\"error_rate\":0.0017,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "dc3c0dd401842a53bc4a7237802597eac3483bfe79afc2c426aeea5e49bd8a39"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0002",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9803,\"p95_latency_ms\":224.5,\"error_rate\":0.0049,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "9dc35dcab93cccc18aff8e39b6e7c8b1259674f636e36e588db72f2680f59f58"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0002",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9965,\"p95_latency_ms\":82.0,\"error_rate\":9.0E-4,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "e4828937b01f02ba77a113cb895bbd066ea0b8d6cfa4ae7ae6bc761058cec454"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0002",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9921,\"p95_latency_ms\":139.6,\"error_rate\":0.002,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "82dbbae91e20a898dd01e28cbefb64bede5f0087af717b8e7b79657d682d42f9"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0002",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.995,\"p95_latency_ms\":90.9,\"error_rate\":0.0012,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "d78e7ec57ce2fdc45b4fff8a8df7366b8b6434b62164ff1cf6b16de685b3028d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0002",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.967,\"p95_latency_ms\":308.5,\"error_rate\":0.0082,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "fdb60b8719eb8c2a541bb553ccaab69de2762fb4077a68f9b19082dd9483b543"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0003",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9908,\"p95_latency_ms\":129.3,\"error_rate\":0.0023,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "9b4c0afa3ff7ae5ef757d0dc67eb3abd87c0c70dbafe1f028bd68773b19a9edf"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0003",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9817,\"p95_latency_ms\":222.4,\"error_rate\":0.0046,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "e198c2d205977e11a0fcbc931546d8c55e6fa842286e72c862f2f49e127893e9"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0003",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9949,\"p95_latency_ms\":83.7,\"error_rate\":0.0013,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "405b61668ef8726fb75ddebaf5040c636e95fc6cba6044734b8ff6ab0dbe0141"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0003",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9912,\"p95_latency_ms\":161.2,\"error_rate\":0.0022,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "b054795e75aa60fcf15982b28455e1b41d42b161ab16657ad0ae39a12639a266"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0003",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9915,\"p95_latency_ms\":92.7,\"error_rate\":0.0021,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "df4428327e7cd81181b6e52ca98bbbe5d1bfc063d10250785224d0025b556a92"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0003",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9839,\"p95_latency_ms\":316.4,\"error_rate\":0.004,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "76c82937ab8a443cef1e1e9f17d062a3ce491606369a42ffe8aa5a1eb02e623e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0004",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9919,\"p95_latency_ms\":129.2,\"error_rate\":0.002,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "d8521b6269f17899909e5e0b13e9c58a4e53e847a4b168b919a8ced3e5d4d65e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0004",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9795,\"p95_latency_ms\":209.0,\"error_rate\":0.0051,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "d4c8035a4d7dbf88aefa9740704073765d994120271203c1f9e49f88818025b9"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0004",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9974,\"p95_latency_ms\":91.6,\"error_rate\":7.0E-4,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "0c0a3430de29c28b587a9cd04dd28bd0a3f5fd714eb09718805af768c6c99202"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0004",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9902,\"p95_latency_ms\":152.1,\"error_rate\":0.0025,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "0ab91638757bd3f02302e4448dd9df4c2f342ba7fd39291b48730b0971096c65"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0004",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9901,\"p95_latency_ms\":89.5,\"error_rate\":0.0025,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "f0a39bbc953193108feaffae8e278e54b82d6081430c8b14b63d6da8afede499"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0004",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9708,\"p95_latency_ms\":319.4,\"error_rate\":0.0073,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "1b07426936f05c8e777a443a42a9c2034c7bf454364bfcf5089226a49634979e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-deploys-0001",
+      "source_ref" : "sample:eu-west/prod/payments-api/deploys",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:30Z",
+      "kind" : "deployment.event",
+      "payload" : "{\"version\":\"2026.11.3\",\"change\":\"rollout-complete\"}",
+      "payload_digest" : "81abb69760cfcd5654ce706584ea12f6062596dd84d75f45fca7030003590183"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0005",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9909,\"p95_latency_ms\":117.4,\"error_rate\":0.0023,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "3d666517f23d51cbe7c2538665b8f61427e8c696d495b04a7ad963e9aef9cb9a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0005",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9781,\"p95_latency_ms\":208.1,\"error_rate\":0.0055,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "756cc6f055e4c9d01f6c1855d1ca5c92b3eeabf73195ba4d0a09e37d2307d5f1"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0005",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9949,\"p95_latency_ms\":84.2,\"error_rate\":0.0013,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "336cb59ac562fdb0ed77aa55ab442a1c24e68902bbc3ed209009502a1b517d6d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0005",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9856,\"p95_latency_ms\":156.4,\"error_rate\":0.0036,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "d39fffdc2105a75d66a5305fe09e697025e83f4e0c6a4ff31034fa98de3d2a20"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0005",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9899,\"p95_latency_ms\":96.0,\"error_rate\":0.0025,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "85273d1dc24a40f11670e0ed4684305295611a6c5317efc606f15e6dbf52811f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0006",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9945,\"p95_latency_ms\":111.3,\"error_rate\":0.0014,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "21f8dfd611425f164897313226b013116739808b76d49158a9cdf6b236b2c388"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0006",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9798,\"p95_latency_ms\":208.9,\"error_rate\":0.005,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "5c694d33d8aa113d5140e448278c0847a1d1e152a537d81e24041b581374c6d9"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0006",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9971,\"p95_latency_ms\":88.3,\"error_rate\":7.0E-4,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "898ad8dda4dcbcbde746babe45e230c6a40038691a998ed6d762bcb350a53f9c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0006",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.99,\"p95_latency_ms\":153.4,\"error_rate\":0.0025,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "a5edc68b320e1a90d685d8db7a55f511e8964e3cca2e17a212990fb4e4f55a31"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0007",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9888,\"p95_latency_ms\":95.5,\"error_rate\":0.0028,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "2ea7d551dcc1a488d2920a5a282361dfad7479164d7e4e794234efcc6f7e068a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0006",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9726,\"p95_latency_ms\":291.7,\"error_rate\":0.0069,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "ed0aa3215b028580e3ee4c5035c51a334e900c0db0a2b56fa0e7b7683641ff36"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0007",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9918,\"p95_latency_ms\":117.1,\"error_rate\":0.0021,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "29d8861e83511cce2669046d87f122c286e603ef6c5264133d853cf3186865f5"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0007",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9332,\"p95_latency_ms\":414.3,\"error_rate\":0.0167,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "77963f5b862414467a8cee3d1ff2b953d786eb256480ea551244a2c1581d360b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0007",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9963,\"p95_latency_ms\":88.7,\"error_rate\":9.0E-4,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "12c0782bb04b26e572724d55aeec8042db57673b754e7c2a945d9a5cae1c9beb"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0007",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9863,\"p95_latency_ms\":138.7,\"error_rate\":0.0034,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "4610517fe6fa9033e6147b23c571600cba6fef4e4fe61a31793741b244214432"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0008",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9906,\"p95_latency_ms\":88.7,\"error_rate\":0.0024,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "712d681934ac5451a55e4eff7c4715739e46f475ddf5cd0e09b45a357f148c19"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0007",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9828,\"p95_latency_ms\":310.6,\"error_rate\":0.0043,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "a343b461b76aadde9dc4fac1d941a0f03e5edd04273bfdfa5fbc38e7278a9642"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0008",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9919,\"p95_latency_ms\":111.4,\"error_rate\":0.002,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "7ac77a42a597d9906104ee87adf59fcbc29845ce21b1b1f3b4827fa3de164bd9"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0008",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.8877,\"p95_latency_ms\":572.7,\"error_rate\":0.0281,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "f25b33435c5ba70d6c05dfaf81bb5c22b1b21a7aec0778f6c44622a2a4a56e20"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0008",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9961,\"p95_latency_ms\":87.0,\"error_rate\":0.001,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "87139884681fe527e430cba9952d7c4b2f2d3f70d09fcfe1df13b3b0fe0e86d7"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0008",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9673,\"p95_latency_ms\":240.8,\"error_rate\":0.0082,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "a30d897f758fb7fbc2a95f34cf8b9c0b45004a56532986e6246457fc15bedbec"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0009",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.992,\"p95_latency_ms\":94.2,\"error_rate\":0.002,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "03be48c21c70acad91c185b23a12b13c22171ac106738e095131d18e4b74f781"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0008",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9678,\"p95_latency_ms\":294.6,\"error_rate\":0.008,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "8ad2ac667ab8d681f0f10f065ec8ea9c5420b9571832f5a85589bf8a490da2de"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0009",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9912,\"p95_latency_ms\":115.3,\"error_rate\":0.0022,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "d2b020dd2a81cc309c459a8ee9bbd4b8b2df6162063312e1a94ea06a58fed3ff"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0009",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.834,\"p95_latency_ms\":787.5,\"error_rate\":0.0415,\"replicas_ready\":7,\"replicas_desired\":8}",
+      "payload_digest" : "84f4e3716e0ff922fcead11fabcd7c1eec4da22347414b83d2acf53cc86e7c29"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0009",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9946,\"p95_latency_ms\":81.0,\"error_rate\":0.0014,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "17c3f0c1880ec16fe60ec9917af3e6b5ce892e993e3f20dfd00276c2c9f403a5"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0009",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9592,\"p95_latency_ms\":243.2,\"error_rate\":0.0102,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "6100554b1ddd583d3146a64a9c2acf90550c4ea11e94cdb81b61f5b7e6119873"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0010",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9893,\"p95_latency_ms\":93.5,\"error_rate\":0.0027,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "95e894543e02d0a09dcaaa4919bc23c6d5e8ce03b3499362020290269c8cec98"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0009",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9712,\"p95_latency_ms\":302.0,\"error_rate\":0.0072,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "e0822d4247276fe585ddf04e881caddab4e475f88540b8b540ef8a7cda4ae658"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0010",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9905,\"p95_latency_ms\":112.4,\"error_rate\":0.0024,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "c0cbc7efcc8805bfd82d56800bcff2a5df7457ee857d36b2b9b04b22b95ea62d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0010",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.7868,\"p95_latency_ms\":918.2,\"error_rate\":0.0533,\"replicas_ready\":7,\"replicas_desired\":8}",
+      "payload_digest" : "df7220e58a9f3bfbe5cfe1bf82b3f5f3bd00c6742a22354439fb9d46cf004013"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0010",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9962,\"p95_latency_ms\":78.5,\"error_rate\":0.001,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "129ecd20cae2c505408dd28b31c4fb96b0dc23012ad04842619e9c9ced1ebf39"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0010",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.961,\"p95_latency_ms\":237.5,\"error_rate\":0.0098,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "2e99c7a16a8ba5f954fe2fe1663752ffa514532517a0519b35f962a9d3d41aab"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0011",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9905,\"p95_latency_ms\":98.4,\"error_rate\":0.0024,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "9bdbe1ed142c56b9a621e3af0f13de2890f892b69ad2561b4b513ecfff9c66da"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0010",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9748,\"p95_latency_ms\":316.7,\"error_rate\":0.0063,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "150793be3e752c34b080f62ffd080e5f2508dcc032e996f506adfe1541bdea2f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0011",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9947,\"p95_latency_ms\":114.4,\"error_rate\":0.0013,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "7330a199957a2ba1909bfc60215e53bba5bfac92413eb1a7ece24411164f72c0"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0011",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9833,\"p95_latency_ms\":197.7,\"error_rate\":0.0042,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "741521cf611c4ab74a4b08c7c4fc33d8d3116c2dc12709893a0e122c3a59e4ec"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0011",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9955,\"p95_latency_ms\":91.0,\"error_rate\":0.0011,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "22da9df6e1159f6c31e182d983d6a13d314bf5ccd5fe85ad740e017e924a35da"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0011",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9892,\"p95_latency_ms\":141.2,\"error_rate\":0.0027,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "9c7f48ba8cba930e47206fdc305a1808c9c780d55509b41b57ad37645fda2b1a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0012",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9936,\"p95_latency_ms\":101.0,\"error_rate\":0.0016,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "4601931a32c8d692730a60dd8f7478fd2ae6ef80cb927280063fc660cb84d6c2"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0011",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9801,\"p95_latency_ms\":297.1,\"error_rate\":0.005,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "50d78c09ea0f81f8de528d5556f846c05988589c370ee926e047b47ad2d581d0"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-payments-api-0012",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.99,\"p95_latency_ms\":115.1,\"error_rate\":0.0025,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "8f9e7159fcf00c73bbf89d7f6d014819bbea87b1c8534dfe524512ea0b4681c0"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-checkout-web-0012",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9871,\"p95_latency_ms\":212.0,\"error_rate\":0.0032,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "55d9aae64a94d3406408a97242f99bb0cee269454826e1785057dfe7ba64c5fa"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-identity-gateway-0012",
+      "source_ref" : "sample:eu-west/prod/identity-gateway",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9964,\"p95_latency_ms\":80.2,\"error_rate\":9.0E-4,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "f06443b088cec3ea5d15a8d7ffc00d80ae03d87bd6a8370bbc0cc166d9702173"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-orders-service-0012",
+      "source_ref" : "sample:eu-west/prod/orders-service",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9897,\"p95_latency_ms\":153.3,\"error_rate\":0.0026,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "52da5a5106b01bf8d68ed6b069e08520ade57d0657c8569767d06012fc11b9a0"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-inventory-service-0013",
+      "source_ref" : "sample:eu-west/prod/inventory-service",
+      "sequence" : 13,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9906,\"p95_latency_ms\":94.9,\"error_rate\":0.0024,\"replicas_ready\":4,\"replicas_desired\":4}",
+      "payload_digest" : "a9e8b3b820814cb947b4c5af773e7555baa1182839a6c9700fb5952cddcce378"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-notifications-worker-0012",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9772,\"p95_latency_ms\":298.7,\"error_rate\":0.0057,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "826e782af1cfcee8e9bd4d16f3d8a3e144c48dee4f64917bed31669000bcfa16"
+    }
+  }, {
+    "expect" : "DUPLICATE",
+    "observation" : {
+      "id" : "obs-payments-api-0001",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9942,\"p95_latency_ms\":121.2,\"error_rate\":0.0014,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "abb9d52ac851c27d7661ba742efb8576055769311ed8bc1e4f9dc543d159819a"
+    }
+  }, {
+    "expect" : "QUARANTINED:STALE_SEQUENCE",
+    "observation" : {
+      "id" : "obs-notifications-worker-0005",
+      "source_ref" : "sample:eu-west/prod/notifications-worker",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.9807,\"p95_latency_ms\":286.3,\"error_rate\":0.0048,\"replicas_ready\":3,\"replicas_desired\":3}",
+      "payload_digest" : "80c35c0084d7957cdccb7ac66706d36c9049cb47d9f7f0295db16769ba00a640"
+    }
+  }, {
+    "expect" : "QUARANTINED:DIGEST_MISMATCH",
+    "observation" : {
+      "id" : "obs-checkout-web-tampered",
+      "source_ref" : "sample:eu-west/prod/checkout-web",
+      "sequence" : 17,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":0.99776,\"p95_latency_ms\":224.5,\"error_rate\":0.0056,\"replicas_ready\":8,\"replicas_desired\":8}",
+      "payload_digest" : "285d1581497578e88ca907cd0927cebb733a321f9fdeb33e4c445308b288ee63"
+    }
+  }, {
+    "expect" : "QUARANTINED:REPLAY_CONFLICT",
+    "observation" : {
+      "id" : "obs-payments-api-0001",
+      "source_ref" : "sample:eu-west/prod/payments-api",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:00:00Z",
+      "kind" : "service.health",
+      "payload" : "{\"availability\":1.0,\"p95_latency_ms\":1.0,\"error_rate\":0.0,\"replicas_ready\":6,\"replicas_desired\":6}",
+      "payload_digest" : "39b957d6cde43061121e6d19ed710dda25c7e0999b38e958f71fff4b66ed74ab"
+    }
+  } ]
+}

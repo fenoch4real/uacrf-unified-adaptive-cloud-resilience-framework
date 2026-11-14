@@ -1,0 +1,519 @@
+[
+  {
+    "name": "Owner receipt complete",
+    "schema": "owner-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_OWNER_RECEIPT_V1",
+      "receipt_id": "receipt-1",
+      "issuer_service": "S04",
+      "audience_service": "S10",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "actor_id": "operator-1",
+      "resource_type": "qualification",
+      "resource_id": "q-1",
+      "resource_revision": 1,
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "authority_epoch": 2,
+      "eligible": true,
+      "purpose": "RECOVERY",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "valid_until": "2026-11-03T10:00:30Z",
+      "signature": "structural-fixture-not-cryptographic-proof"
+    },
+    "valid": true
+  },
+  {
+    "name": "Missing scope denied",
+    "schema": "owner-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_OWNER_RECEIPT_V1",
+      "receipt_id": "receipt-1",
+      "issuer_service": "S04",
+      "audience_service": "S10",
+      "environment_id": "production",
+      "actor_id": "operator-1",
+      "resource_type": "qualification",
+      "resource_id": "q-1",
+      "resource_revision": 1,
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "authority_epoch": 2,
+      "eligible": true,
+      "purpose": "RECOVERY",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "valid_until": "2026-11-03T10:00:30Z",
+      "signature": "structural-fixture-not-cryptographic-proof"
+    },
+    "valid": false
+  },
+  {
+    "name": "Caller verification flag denied",
+    "schema": "owner-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_OWNER_RECEIPT_V1",
+      "receipt_id": "receipt-1",
+      "issuer_service": "S04",
+      "audience_service": "S10",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "actor_id": "operator-1",
+      "resource_type": "qualification",
+      "resource_id": "q-1",
+      "resource_revision": 1,
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "authority_epoch": 2,
+      "eligible": true,
+      "purpose": "RECOVERY",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "valid_until": "2026-11-03T10:00:30Z",
+      "signature": "structural-fixture-not-cryptographic-proof",
+      "verified": true
+    },
+    "valid": false
+  },
+  {
+    "name": "Unknown issuer denied",
+    "schema": "owner-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_OWNER_RECEIPT_V1",
+      "receipt_id": "receipt-1",
+      "issuer_service": "UNKNOWN",
+      "audience_service": "S10",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "actor_id": "operator-1",
+      "resource_type": "qualification",
+      "resource_id": "q-1",
+      "resource_revision": 1,
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "authority_epoch": 2,
+      "eligible": true,
+      "purpose": "RECOVERY",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "valid_until": "2026-11-03T10:00:30Z",
+      "signature": "structural-fixture-not-cryptographic-proof"
+    },
+    "valid": false
+  },
+  {
+    "name": "Invalid receipt time denied",
+    "schema": "owner-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_OWNER_RECEIPT_V1",
+      "receipt_id": "receipt-1",
+      "issuer_service": "S04",
+      "audience_service": "S10",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "actor_id": "operator-1",
+      "resource_type": "qualification",
+      "resource_id": "q-1",
+      "resource_revision": 1,
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "authority_epoch": 2,
+      "eligible": true,
+      "purpose": "RECOVERY",
+      "issued_at": "yesterday",
+      "valid_until": "2026-11-03T10:00:30Z",
+      "signature": "structural-fixture-not-cryptographic-proof"
+    },
+    "valid": false
+  },
+  {
+    "name": "Bound permit structurally complete",
+    "schema": "execution-reservation.schema.json",
+    "value": {
+      "protocol": "UACRF_EXECUTION_RESERVATION_V1",
+      "reservation_id": "reservation-1",
+      "authorization_id": "auth-1",
+      "attempt_id": "attempt-1",
+      "issuer_service": "S10",
+      "executor_id": "executor-1",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "workload_id": "workload-1",
+      "plan_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "context_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "resource_scope_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "control_generation": 1,
+      "state": "RESERVED",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "expires_at": "2026-11-03T10:00:05Z",
+      "signature": "structural-fixture-only"
+    },
+    "valid": true
+  },
+  {
+    "name": "Bad plan digest",
+    "schema": "execution-reservation.schema.json",
+    "value": {
+      "protocol": "UACRF_EXECUTION_RESERVATION_V1",
+      "reservation_id": "reservation-1",
+      "authorization_id": "auth-1",
+      "attempt_id": "attempt-1",
+      "issuer_service": "S10",
+      "executor_id": "executor-1",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "workload_id": "workload-1",
+      "plan_digest": "not-a-digest",
+      "context_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "resource_scope_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "control_generation": 1,
+      "state": "RESERVED",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "expires_at": "2026-11-03T10:00:05Z",
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Invented permit state",
+    "schema": "execution-reservation.schema.json",
+    "value": {
+      "protocol": "UACRF_EXECUTION_RESERVATION_V1",
+      "reservation_id": "reservation-1",
+      "authorization_id": "auth-1",
+      "attempt_id": "attempt-1",
+      "issuer_service": "S10",
+      "executor_id": "executor-1",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "workload_id": "workload-1",
+      "plan_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "context_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "resource_scope_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "control_generation": 1,
+      "state": "SUCCESS",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "expires_at": "2026-11-03T10:00:05Z",
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Wrong permit issuer",
+    "schema": "execution-reservation.schema.json",
+    "value": {
+      "protocol": "UACRF_EXECUTION_RESERVATION_V1",
+      "reservation_id": "reservation-1",
+      "authorization_id": "auth-1",
+      "attempt_id": "attempt-1",
+      "issuer_service": "S11",
+      "executor_id": "executor-1",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "workload_id": "workload-1",
+      "plan_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "context_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "resource_scope_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "control_generation": 1,
+      "state": "RESERVED",
+      "issued_at": "2026-11-03T10:00:00Z",
+      "expires_at": "2026-11-03T10:00:05Z",
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Exact decimal usage string",
+    "schema": "usage-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_USAGE_RECEIPT_V1",
+      "source_event_id": "source-1",
+      "producer": "S11",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "account_id": "account-1",
+      "metric": "tokens",
+      "unit": "token",
+      "quantity": "1.2500",
+      "observed_from": "2026-11-03T10:00:00Z",
+      "observed_until": "2026-11-03T10:00:05Z",
+      "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "MEASURED",
+      "correction_of": null,
+      "signature": "structural-fixture-only"
+    },
+    "valid": true
+  },
+  {
+    "name": "Floating point usage denied",
+    "schema": "usage-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_USAGE_RECEIPT_V1",
+      "source_event_id": "source-1",
+      "producer": "S11",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "account_id": "account-1",
+      "metric": "tokens",
+      "unit": "token",
+      "quantity": 1.25,
+      "observed_from": "2026-11-03T10:00:00Z",
+      "observed_until": "2026-11-03T10:00:05Z",
+      "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "MEASURED",
+      "correction_of": null,
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Missing measured quantity denied",
+    "schema": "usage-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_USAGE_RECEIPT_V1",
+      "source_event_id": "source-1",
+      "producer": "S11",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "account_id": "account-1",
+      "metric": "tokens",
+      "unit": "token",
+      "quantity": null,
+      "observed_from": "2026-11-03T10:00:00Z",
+      "observed_until": "2026-11-03T10:00:05Z",
+      "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "MEASURED",
+      "correction_of": null,
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Negative ordinary quantity denied",
+    "schema": "usage-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_USAGE_RECEIPT_V1",
+      "source_event_id": "source-1",
+      "producer": "S11",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "account_id": "account-1",
+      "metric": "tokens",
+      "unit": "token",
+      "quantity": "-1",
+      "observed_from": "2026-11-03T10:00:00Z",
+      "observed_until": "2026-11-03T10:00:05Z",
+      "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "MEASURED",
+      "correction_of": null,
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Unknown quantity remains null",
+    "schema": "usage-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_USAGE_RECEIPT_V1",
+      "source_event_id": "source-1",
+      "producer": "S11",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "account_id": "account-1",
+      "metric": "tokens",
+      "unit": "token",
+      "quantity": null,
+      "observed_from": "2026-11-03T10:00:00Z",
+      "observed_until": "2026-11-03T10:00:05Z",
+      "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "UNKNOWN",
+      "correction_of": null,
+      "signature": "structural-fixture-only"
+    },
+    "valid": true
+  },
+  {
+    "name": "Unknown cannot invent zero",
+    "schema": "usage-receipt.schema.json",
+    "value": {
+      "protocol": "UACRF_USAGE_RECEIPT_V1",
+      "source_event_id": "source-1",
+      "producer": "S11",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "account_id": "account-1",
+      "metric": "tokens",
+      "unit": "token",
+      "quantity": "0",
+      "observed_from": "2026-11-03T10:00:00Z",
+      "observed_until": "2026-11-03T10:00:05Z",
+      "source_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcome": "UNKNOWN",
+      "correction_of": null,
+      "signature": "structural-fixture-only"
+    },
+    "valid": false
+  },
+  {
+    "name": "Scoped event envelope",
+    "schema": "event-envelope.schema.json",
+    "value": {
+      "protocol": "UACRF_DOMAIN_EVENT_V1",
+      "event_id": "event-1",
+      "event_type": "uacrf.s04.observation.retained.v1",
+      "schema_version": 1,
+      "producer": "S04",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "aggregate_type": "observation",
+      "aggregate_id": "observation-1",
+      "aggregate_revision": 1,
+      "aggregate_sequence": 1,
+      "observed_at": "2026-11-03T10:00:00Z",
+      "published_at": "2026-11-03T10:00:01Z",
+      "correlation_id": "correlation-1",
+      "causation_id": null,
+      "traceparent": null,
+      "data_schema": "observation-fact-v1",
+      "payload_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "canonicalization": "RFC8785_DECIMAL_STRINGS_V1",
+      "data": {
+        "owned_resource_id": "observation-1",
+        "owned_revision": 1,
+        "owned_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "minimal_outcome_metadata": {
+          "state": "RETAINED"
+        }
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "Fractional sequence denied",
+    "schema": "event-envelope.schema.json",
+    "value": {
+      "protocol": "UACRF_DOMAIN_EVENT_V1",
+      "event_id": "event-1",
+      "event_type": "uacrf.s04.observation.retained.v1",
+      "schema_version": 1,
+      "producer": "S04",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "aggregate_type": "observation",
+      "aggregate_id": "observation-1",
+      "aggregate_revision": 1,
+      "aggregate_sequence": 1.5,
+      "observed_at": "2026-11-03T10:00:00Z",
+      "published_at": "2026-11-03T10:00:01Z",
+      "correlation_id": "correlation-1",
+      "causation_id": null,
+      "traceparent": null,
+      "data_schema": "observation-fact-v1",
+      "payload_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "canonicalization": "RFC8785_DECIMAL_STRINGS_V1",
+      "data": {
+        "owned_resource_id": "observation-1",
+        "owned_revision": 1,
+        "owned_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "minimal_outcome_metadata": {
+          "state": "RETAINED"
+        }
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "Unknown event producer denied",
+    "schema": "event-envelope.schema.json",
+    "value": {
+      "protocol": "UACRF_DOMAIN_EVENT_V1",
+      "event_id": "event-1",
+      "event_type": "uacrf.s04.observation.retained.v1",
+      "schema_version": 1,
+      "producer": "UNKNOWN",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "aggregate_type": "observation",
+      "aggregate_id": "observation-1",
+      "aggregate_revision": 1,
+      "aggregate_sequence": 1,
+      "observed_at": "2026-11-03T10:00:00Z",
+      "published_at": "2026-11-03T10:00:01Z",
+      "correlation_id": "correlation-1",
+      "causation_id": null,
+      "traceparent": null,
+      "data_schema": "observation-fact-v1",
+      "payload_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "canonicalization": "RFC8785_DECIMAL_STRINGS_V1",
+      "data": {
+        "owned_resource_id": "observation-1",
+        "owned_revision": 1,
+        "owned_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "minimal_outcome_metadata": {
+          "state": "RETAINED"
+        }
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "Invalid payload digest denied",
+    "schema": "event-envelope.schema.json",
+    "value": {
+      "protocol": "UACRF_DOMAIN_EVENT_V1",
+      "event_id": "event-1",
+      "event_type": "uacrf.s04.observation.retained.v1",
+      "schema_version": 1,
+      "producer": "S04",
+      "tenant_id": "tenant-1",
+      "environment_id": "production",
+      "aggregate_type": "observation",
+      "aggregate_id": "observation-1",
+      "aggregate_revision": 1,
+      "aggregate_sequence": 1,
+      "observed_at": "2026-11-03T10:00:00Z",
+      "published_at": "2026-11-03T10:00:01Z",
+      "correlation_id": "correlation-1",
+      "causation_id": null,
+      "traceparent": null,
+      "data_schema": "observation-fact-v1",
+      "payload_digest": "wrong",
+      "canonicalization": "RFC8785_DECIMAL_STRINGS_V1",
+      "data": {
+        "owned_resource_id": "observation-1",
+        "owned_revision": 1,
+        "owned_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "minimal_outcome_metadata": {
+          "state": "RETAINED"
+        }
+      }
+    },
+    "valid": false
+  },
+  {
+    "name": "Event environment required",
+    "schema": "event-envelope.schema.json",
+    "value": {
+      "protocol": "UACRF_DOMAIN_EVENT_V1",
+      "event_id": "event-1",
+      "event_type": "uacrf.s04.observation.retained.v1",
+      "schema_version": 1,
+      "producer": "S04",
+      "tenant_id": "tenant-1",
+      "aggregate_type": "observation",
+      "aggregate_id": "observation-1",
+      "aggregate_revision": 1,
+      "aggregate_sequence": 1,
+      "observed_at": "2026-11-03T10:00:00Z",
+      "published_at": "2026-11-03T10:00:01Z",
+      "correlation_id": "correlation-1",
+      "causation_id": null,
+      "traceparent": null,
+      "data_schema": "observation-fact-v1",
+      "payload_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "canonicalization": "RFC8785_DECIMAL_STRINGS_V1",
+      "data": {
+        "owned_resource_id": "observation-1",
+        "owned_revision": 1,
+        "owned_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "minimal_outcome_metadata": {
+          "state": "RETAINED"
+        }
+      }
+    },
+    "valid": false
+  }
+]

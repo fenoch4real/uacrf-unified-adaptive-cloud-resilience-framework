@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant P0 as S11 workflow
+  participant P1 as S10 authority
+  participant P2 as Source owners
+  participant P3 as Executor
+  participant P4 as Provider
+  participant P5 as S12 validation
+  alt Required current prerequisites hold
+    P0->>P1: 1 Request bound authorization
+    P1->>P2: 2 Verify current owner receipts
+    P1->>P0: 3 Reserve one exact attempt
+    P3->>P1: 4 Revalidate permit and fence
+    P3->>P3: 5 Retain dispatch intent
+    P3->>P4: 6 Apply conditional provider action
+    P0->>P5: 7 Reconcile effect and request probes
+    P5->>P1: 8 Retain justified validation outcome
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P5: Denial stops dispatch. An uncertain provider effect stays Unknown. Only observed independent validation can establish recovery.
+  end

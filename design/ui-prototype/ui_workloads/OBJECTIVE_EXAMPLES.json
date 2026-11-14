@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "status": "ILLUSTRATIVE_NOT_APPROVED",
+  "objectives": [
+    {
+      "id": "checkout-latency",
+      "journey": "order",
+      "workload": "Checkout",
+      "owner": "Maya Chen",
+      "metric": "p95 response time",
+      "target": 2,
+      "unit": "seconds",
+      "window": "Rolling 30 days",
+      "evidence": "Authorized request telemetry with failure and timeout counts",
+      "status": "PROPOSED",
+      "version": 1,
+      "measurement": "UNKNOWN",
+      "illustrative": true
+    },
+    {
+      "id": "checkout-recovery",
+      "journey": "order",
+      "workload": "Checkout",
+      "owner": "Maya Chen",
+      "metric": "Recovery time",
+      "target": 15,
+      "unit": "minutes",
+      "window": "Each controlled recovery test plus a 30-minute stable window",
+      "evidence": "Independent customer order test and dependency observations",
+      "status": "PROPOSED",
+      "version": 1,
+      "measurement": "UNKNOWN",
+      "illustrative": true
+    },
+    {
+      "id": "support-correctness",
+      "journey": "support",
+      "workload": "Order support agent",
+      "owner": "Maya Chen",
+      "metric": "Independently reviewed correct order lookups",
+      "target": 98,
+      "unit": "percent",
+      "window": "Versioned evaluation suite and rolling 100 reviewed tasks",
+      "evidence": "Authorized order-system record compared with agent output",
+      "status": "PROPOSED",
+      "version": 1,
+      "measurement": "UNKNOWN",
+      "illustrative": true
+    },
+    {
+      "id": "support-handoff",
+      "journey": "support",
+      "workload": "Order support agent",
+      "owner": "Maya Chen",
+      "metric": "Time to human handoff on unresolved lookup",
+      "target": 60,
+      "unit": "seconds",
+      "window": "Each unresolved or timed-out lookup",
+      "evidence": "Broker timestamps and acknowledged human handoff",
+      "status": "PROPOSED",
+      "version": 1,
+      "measurement": "UNKNOWN",
+      "illustrative": true
+    },
+    {
+      "id": "policy-role",
+      "journey": "support",
+      "workload": "Policy review team",
+      "owner": "Noah Brooks",
+      "metric": "Mandatory reviewer role outputs",
+      "target": 100,
+      "unit": "percent",
+      "window": "Every admitted multi-agent task",
+      "evidence": "Independent role coverage and lineage review",
+      "status": "PROPOSED",
+      "version": 1,
+      "measurement": "UNKNOWN",
+      "illustrative": true
+    }
+  ]
+}

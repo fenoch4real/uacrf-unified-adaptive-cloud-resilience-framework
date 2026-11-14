@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "expected_generation",
+    "state",
+    "reason"
+  ],
+  "properties": {
+    "expected_generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "state": {
+      "enum": [
+        "PAUSED",
+        "CANCELLED",
+        "ESCALATED",
+        "FAILED",
+        "TIMED_OUT"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    }
+  }
+}

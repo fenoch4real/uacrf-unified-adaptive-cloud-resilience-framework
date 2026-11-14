@@ -1,0 +1,918 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF retained action recommendations",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Recommendation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "revision": {
+            "const": 1
+          },
+          "service_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "case_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "producer_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "actor_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "candidate_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bounds_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "const": "RECOMMENDATION_RETAINED_NOT_EXECUTABLE"
+          },
+          "authority": {
+            "const": "NO_ACTION_AUTHORITY"
+          },
+          "current_context": {
+            "type": "boolean"
+          },
+          "source_availability": {
+            "const": "REVERIFY_AT_USE"
+          },
+          "manifest": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "protocol": {
+                "const": "UACRF_ACTION_PROPOSAL_V1"
+              },
+              "case_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "input_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "request": {
+                "$ref": "../api_reference/openapi.json#/components/schemas/canonical_010_request"
+              },
+              "origin": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "principal_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "token_iat": {
+                    "type": "integer"
+                  },
+                  "authority_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "principal_id",
+                  "token_iat",
+                  "authority_digest"
+                ]
+              },
+              "actor_authority_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "candidate": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "document": {
+                    "$ref": "candidate.schema.json"
+                  },
+                  "source_text": {
+                    "type": "string",
+                    "maxLength": 1048576
+                  },
+                  "object_ref": {
+                    "type": "string",
+                    "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "document",
+                  "source_text",
+                  "object_ref",
+                  "digest"
+                ]
+              },
+              "bounds": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "document": {
+                    "$ref": "effect-bounds.schema.json"
+                  },
+                  "source_text": {
+                    "type": "string",
+                    "maxLength": 1048576
+                  },
+                  "object_ref": {
+                    "type": "string",
+                    "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "document",
+                  "source_text",
+                  "object_ref",
+                  "digest"
+                ]
+              },
+              "referenced_artifacts": {
+                "type": "array",
+                "maxItems": 103,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "reference": {
+                      "type": "string",
+                      "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                    },
+                    "digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "size_bytes": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1048576
+                    }
+                  },
+                  "required": [
+                    "reference",
+                    "digest",
+                    "size_bytes"
+                  ]
+                }
+              },
+              "reference_verification": {
+                "const": "CONTENT_BYTES_ONLY_NOT_SAFETY_QUALIFIED"
+              },
+              "status": {
+                "const": "RECOMMENDATION_RETAINED_NOT_EXECUTABLE"
+              },
+              "authority": {
+                "const": "NO_ACTION_AUTHORITY"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "protocol",
+              "case_digest",
+              "input_digest",
+              "request",
+              "origin",
+              "actor_authority_digest",
+              "candidate",
+              "bounds",
+              "referenced_artifacts",
+              "reference_verification",
+              "status",
+              "authority",
+              "expires_at"
+            ]
+          },
+          "material": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": {
+                "const": "SHA-256"
+              },
+              "encoding": {
+                "const": "UTF-8"
+              },
+              "canonical_text": {
+                "type": "string",
+                "maxLength": 8388608
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "algorithm",
+              "encoding",
+              "canonical_text",
+              "digest"
+            ]
+          },
+          "validation_plan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "service_id",
+          "case_id",
+          "producer_id",
+          "actor_id",
+          "candidate_id",
+          "candidate_digest",
+          "bounds_digest",
+          "created_at",
+          "expires_at",
+          "status",
+          "authority",
+          "current_context",
+          "source_availability",
+          "manifest",
+          "material"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/actions/proposals/{id}": {
+      "get": {
+        "operationId": "action-proposal-get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Retained non-executable recommendation, never action authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "const": 1
+                    },
+                    "service_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "case_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "producer_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "actor_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "candidate_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "candidate_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "bounds_digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "status": {
+                      "const": "RECOMMENDATION_RETAINED_NOT_EXECUTABLE"
+                    },
+                    "authority": {
+                      "const": "NO_ACTION_AUTHORITY"
+                    },
+                    "current_context": {
+                      "type": "boolean"
+                    },
+                    "source_availability": {
+                      "const": "REVERIFY_AT_USE"
+                    },
+                    "manifest": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "protocol": {
+                          "const": "UACRF_ACTION_PROPOSAL_V1"
+                        },
+                        "case_digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "input_digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "request": {
+                          "$ref": "../api_reference/openapi.json#/components/schemas/canonical_010_request"
+                        },
+                        "origin": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "principal_id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                            },
+                            "token_iat": {
+                              "type": "integer"
+                            },
+                            "authority_digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "principal_id",
+                            "token_iat",
+                            "authority_digest"
+                          ]
+                        },
+                        "actor_authority_digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "candidate": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "document": {
+                              "$ref": "candidate.schema.json"
+                            },
+                            "source_text": {
+                              "type": "string",
+                              "maxLength": 1048576
+                            },
+                            "object_ref": {
+                              "type": "string",
+                              "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                            },
+                            "digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "document",
+                            "source_text",
+                            "object_ref",
+                            "digest"
+                          ]
+                        },
+                        "bounds": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "document": {
+                              "$ref": "effect-bounds.schema.json"
+                            },
+                            "source_text": {
+                              "type": "string",
+                              "maxLength": 1048576
+                            },
+                            "object_ref": {
+                              "type": "string",
+                              "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                            },
+                            "digest": {
+                              "type": "string",
+                              "pattern": "^[a-f0-9]{64}$"
+                            }
+                          },
+                          "required": [
+                            "document",
+                            "source_text",
+                            "object_ref",
+                            "digest"
+                          ]
+                        },
+                        "referenced_artifacts": {
+                          "type": "array",
+                          "maxItems": 103,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "reference": {
+                                "type": "string",
+                                "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+                              },
+                              "digest": {
+                                "type": "string",
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              "size_bytes": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1048576
+                              }
+                            },
+                            "required": [
+                              "reference",
+                              "digest",
+                              "size_bytes"
+                            ]
+                          }
+                        },
+                        "reference_verification": {
+                          "const": "CONTENT_BYTES_ONLY_NOT_SAFETY_QUALIFIED"
+                        },
+                        "status": {
+                          "const": "RECOMMENDATION_RETAINED_NOT_EXECUTABLE"
+                        },
+                        "authority": {
+                          "const": "NO_ACTION_AUTHORITY"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "protocol",
+                        "case_digest",
+                        "input_digest",
+                        "request",
+                        "origin",
+                        "actor_authority_digest",
+                        "candidate",
+                        "bounds",
+                        "referenced_artifacts",
+                        "reference_verification",
+                        "status",
+                        "authority",
+                        "expires_at"
+                      ]
+                    },
+                    "material": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "algorithm": {
+                          "const": "SHA-256"
+                        },
+                        "encoding": {
+                          "const": "UTF-8"
+                        },
+                        "canonical_text": {
+                          "type": "string",
+                          "maxLength": 8388608
+                        },
+                        "digest": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        }
+                      },
+                      "required": [
+                        "algorithm",
+                        "encoding",
+                        "canonical_text",
+                        "digest"
+                      ]
+                    },
+                    "validation_plan_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "service_id",
+                    "case_id",
+                    "producer_id",
+                    "actor_id",
+                    "candidate_id",
+                    "candidate_digest",
+                    "bounds_digest",
+                    "created_at",
+                    "expires_at",
+                    "status",
+                    "authority",
+                    "current_context",
+                    "source_availability",
+                    "manifest",
+                    "material"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/actions/proposals": {
+      "get": {
+        "operationId": "action-proposal-list",
+        "parameters": [
+          {
+            "name": "service_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "case_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped summaries; no candidate or safety-plan body on catalogue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "service_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "case_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "producer_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "actor_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "candidate_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "status": {
+                            "const": "RECOMMENDATION_RETAINED_NOT_EXECUTABLE"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "service_id",
+                          "case_id",
+                          "producer_id",
+                          "actor_id",
+                          "candidate_id",
+                          "status",
+                          "expires_at",
+                          "created_at"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register an agent workload | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Register an agent workload</h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p th:if="${serviceId == null}">This agent will be standalone, without a service anchor.</p>
+  <p th:if="${serviceId != null}">
+    Service-bound agent for <strong th:text="${serviceId}">Service identifier</strong>.
+  </p>
+  <p><a href="/journeys">Back to customer journeys</a></p>
+  <p role="status" th:if="${agentSuccess != null}" th:text="${agentSuccess}"></p>
+  <p role="status" th:if="${agentError != null}" th:text="${agentError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the agent details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <p th:if="${#lists.isEmpty(ownerCandidates)}">
+    No eligible owners are available on this owner page. Use the owner-page controls to search other pages.
+  </p>
+  <form method="post" th:action="${registrationAction}" th:object="${agentForm}">
+    <input type="hidden" th:field="*{ownerCursor}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" name="ownerCursorHistory"
+           th:each="cursor : ${ownerCursorHistory}" th:value="${cursor}">
+    <fieldset>
+      <legend>Agent details</legend>
+      <p>
+        <label for="name">Name (required)</label>
+        <input id="name" type="text" th:field="*{name}" maxlength="200" required
+               th:attr="aria-describedby=${invalidName == true ? 'name-help name-error' : 'name-help'},
+                        aria-invalid=${invalidName == true ? 'true' : 'false'},
+                        autofocus=${invalidName == true ? 'autofocus' : null}">
+        <span id="name-help">Use up to 200 characters.</span>
+        <span id="name-error" th:if="${invalidName == true}">Enter an agent name.</span>
+      </p>
+      <fieldset th:attr="aria-describedby=${invalidKind == true ? 'kind-error' : null},
+                         aria-invalid=${invalidKind == true ? 'true' : 'false'}">
+        <legend>Agent workload type (required)</legend>
+        <label>
+          <input type="radio" th:field="*{kind}" value="SINGLE_AGENT" required
+                 th:attr="aria-describedby=${invalidKind == true ? 'kind-error' : null},
+                          aria-invalid=${invalidKind == true ? 'true' : 'false'},
+                          autofocus=${invalidName != true and invalidKind == true ? 'autofocus' : null}">
+          Single agent
+        </label>
+        <label>
+          <input type="radio" th:field="*{kind}" value="MULTI_AGENT" required>
+          Multi-agent workload
+        </label>
+        <span id="kind-error" th:if="${invalidKind == true}">Choose a workload type.</span>
+      </fieldset>
+      <p>
+        <label for="ownerId">Eligible human owner (required)</label>
+        <select id="ownerId" th:field="*{ownerId}" required
+                th:attr="aria-describedby=${invalidOwner == true ? 'owner-help owner-error' : 'owner-help'},
+                         aria-invalid=${invalidOwner == true ? 'true' : 'false'},
+                         autofocus=${invalidName != true and invalidKind != true and invalidOwner == true ? 'autofocus' : null}">
+          <option value="">Select an eligible owner</option>
+          <option th:each="owner : ${ownerCandidates}" th:value="${owner.id}"
+                  th:text="${owner.displayName + ' (' + owner.id + ')'}">Owner</option>
+        </select>
+        <span id="owner-help">S01 supplies and revalidates eligible human owners for this scope.</span>
+        <span id="owner-error" th:if="${invalidOwner == true}">Select an eligible human owner.</span>
+      </p>
+      <p>
+        <label for="runtimePrincipalId">Runtime principal ID (required)</label>
+        <input id="runtimePrincipalId" type="text" th:field="*{runtimePrincipalId}"
+               pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}" maxlength="200" required
+               autocapitalize="none" spellcheck="false"
+               th:attr="aria-describedby=${invalidRuntimePrincipal == true ? 'runtime-help runtime-error' : 'runtime-help'},
+                        aria-invalid=${invalidRuntimePrincipal == true ? 'true' : 'false'},
+                        autofocus=${invalidName != true and invalidKind != true and invalidOwner != true and invalidRuntimePrincipal == true ? 'autofocus' : null}">
+        <span id="runtime-help">
+          S01 authorizes runtime principals for the selected scope; S02 verifies this ID before registration.
+        </span>
+        <span id="runtime-error" th:if="${invalidRuntimePrincipal == true}">
+          Enter a valid runtime principal ID.
+        </span>
+      </p>
+      <p>
+        <label for="purpose">Purpose (required)</label>
+        <textarea id="purpose" th:field="*{purpose}" maxlength="2048" required
+                  th:attr="aria-describedby=${invalidPurpose == true ? 'purpose-help purpose-error' : 'purpose-help'},
+                           aria-invalid=${invalidPurpose == true ? 'true' : 'false'},
+                           autofocus=${invalidName != true and invalidKind != true and invalidOwner != true and invalidRuntimePrincipal != true and invalidPurpose == true ? 'autofocus' : null}"></textarea>
+        <span id="purpose-help">Explain the agent workload's intended use.</span>
+        <span id="purpose-error" th:if="${invalidPurpose == true}">Enter a purpose of up to 2,048 characters.</span>
+      </p>
+    </fieldset>
+    <button type="submit" th:if="${!#lists.isEmpty(ownerCandidates)}">Register agent workload</button>
+    <button type="submit" formnovalidate
+            th:formaction="${ownerPageActionUrl}"
+            name="ownerPageAction" value="previous"
+            th:if="${hasPreviousOwners}">Previous eligible owners</button>
+    <button type="submit" formnovalidate
+            th:formaction="${ownerPageActionUrl}"
+            name="ownerPageAction" value="next"
+            th:if="${nextOwnerCursor != null}">More eligible owners</button>
+  </form>
+</main>
+</body>
+</html>

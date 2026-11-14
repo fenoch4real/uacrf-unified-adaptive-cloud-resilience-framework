@@ -1,0 +1,50 @@
+sequenceDiagram
+    participant P0 as Administrator
+    participant P1 as API
+    participant P2 as PostgreSQL
+    participant P3 as Source
+    participant P4 as Adapter
+    participant P5 as Admission
+    participant P6 as Scheduler
+    participant P7 as Evaluation
+    participant P8 as Recovery
+    P0->>P1: S01 Read or propose a scoped collection policy with expected revision
+    P1->>P1: S02 Verify current grants provider quotas supported delivery and freshness basis
+    alt S02 accepted
+        Note over P1: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P1: Retain restrictive disposition; no later success steps
+        end
+    end
+    P1->>P2: S03 Atomically retain policy idempotent command audit and outbox
+    P3->>P4: S04 Send event or polled observation with source observation time
+    P4->>P5: S05 Use existing evidence or workload event contract with source-bound identity
+    P5->>P5: S06 Verify integrity scope order dedupe observation time and coverage
+    alt S06 accepted
+        Note over P5: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P5: Retain restrictive disposition; no later success steps
+        end
+    end
+    P5->>P2: S07 Atomically retain admitted receipt expiry context audit and outbox
+    P6->>P6: S08 Claim due material window or expiry work with fenced lease, urgent controls bypass debounce
+    alt S08 accepted
+        Note over P6: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P6: Retain restrictive disposition; no later success steps
+        end
+    end
+    P6->>P7: S09 Evaluate exact objective graph policy and qualified evidence
+    P7->>P8: S10 Propose bounded response or return restrictive conclusion
+    P8->>P8: S11 Recheck current authority grants evidence and exact target before dispatch
+    alt S11 accepted
+        Note over P8: Continue only with accepted scoped context
+    else denied, stale or incomplete
+        break F1 stop this path
+            Note over P8: Retain restrictive disposition; no later success steps
+        end
+    end
+    Note over P0,P8: F1 Missing stale revoked or indeterminate evidence stays Unknown or blocked. Retry with fencing, receipt and timestamps do not prove healthy recovery.

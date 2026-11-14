@@ -1,0 +1,695 @@
+[
+  {
+    "event_type": "uacrf.s01.identity.changed.v1",
+    "producer": "S01",
+    "consumers": [
+      "S02",
+      "S09",
+      "S10",
+      "S11",
+      "S14"
+    ],
+    "topic": "uacrf.s01.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s02.workload.version.activated.v1",
+    "producer": "S02",
+    "consumers": [
+      "S06",
+      "S07",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S14"
+    ],
+    "topic": "uacrf.s02.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s02.relationship.proposed.v1",
+    "producer": "S02",
+    "consumers": [
+      "S06",
+      "S14"
+    ],
+    "topic": "uacrf.s02.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s03.source.batch.received.v1",
+    "producer": "S03",
+    "consumers": [
+      "S04",
+      "S14"
+    ],
+    "topic": "uacrf.s03.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s03.connection.state.changed.v1",
+    "producer": "S03",
+    "consumers": [
+      "S02",
+      "S14"
+    ],
+    "topic": "uacrf.s03.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s04.observation.retained.v1",
+    "producer": "S04",
+    "consumers": [
+      "S07",
+      "S14"
+    ],
+    "topic": "uacrf.s04.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s04.qualification.changed.v1",
+    "producer": "S04",
+    "consumers": [
+      "S07",
+      "S10",
+      "S12",
+      "S14"
+    ],
+    "topic": "uacrf.s04.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s04.waiver.revoked.v1",
+    "producer": "S04",
+    "consumers": [
+      "S07",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s04.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s05.objective.activated.v1",
+    "producer": "S05",
+    "consumers": [
+      "S07",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s05.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s05.objective.import.resolved.v1",
+    "producer": "S05",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s05.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s06.graph.accepted.v1",
+    "producer": "S06",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s06.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s06.graph.projected.v1",
+    "producer": "S06",
+    "consumers": [
+      "S07",
+      "S10",
+      "S12",
+      "S14"
+    ],
+    "topic": "uacrf.s06.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s06.graph.conflict.v1",
+    "producer": "S06",
+    "consumers": [
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s06.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.case.sealed.v1",
+    "producer": "S07",
+    "consumers": [
+      "S09",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.evaluation.completed.v1",
+    "producer": "S07",
+    "consumers": [
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.recommendation.retained.v1",
+    "producer": "S07",
+    "consumers": [
+      "S09",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.forecast.retained.v1",
+    "producer": "S07",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.learning.proposed.v1",
+    "producer": "S07",
+    "consumers": [
+      "S02",
+      "S05",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s08.knowledge.review.changed.v1",
+    "producer": "S08",
+    "consumers": [
+      "S09",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s08.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s08.retrieval.retained.v1",
+    "producer": "S08",
+    "consumers": [
+      "S09",
+      "S14"
+    ],
+    "topic": "uacrf.s08.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s09.run.changed.v1",
+    "producer": "S09",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s09.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s09.output.retained.v1",
+    "producer": "S09",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s09.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s09.arbitration.retained.v1",
+    "producer": "S09",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s09.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s10.decision.retained.v1",
+    "producer": "S10",
+    "consumers": [
+      "S11",
+      "S14"
+    ],
+    "topic": "uacrf.s10.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s10.authorization.revoked.v1",
+    "producer": "S10",
+    "consumers": [
+      "S11",
+      "S12",
+      "S14"
+    ],
+    "topic": "uacrf.s10.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s10.control.fenced.v1",
+    "producer": "S10",
+    "consumers": [
+      "S11",
+      "S14"
+    ],
+    "topic": "uacrf.s10.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s11.attempt.outcome.changed.v1",
+    "producer": "S11",
+    "consumers": [
+      "S12",
+      "S13",
+      "S14"
+    ],
+    "topic": "uacrf.s11.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s11.agent.checkpoint.retained.v1",
+    "producer": "S11",
+    "consumers": [
+      "S12",
+      "S14"
+    ],
+    "topic": "uacrf.s11.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s12.validation.completed.v1",
+    "producer": "S12",
+    "consumers": [
+      "S07",
+      "S10",
+      "S11",
+      "S14"
+    ],
+    "topic": "uacrf.s12.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s12.certification.changed.v1",
+    "producer": "S12",
+    "consumers": [
+      "S07",
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s12.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s13.usage.admitted.v1",
+    "producer": "S13",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s13.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s13.invoice.posted.v1",
+    "producer": "S13",
+    "consumers": [
+      "S14"
+    ],
+    "topic": "uacrf.s13.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s13.entitlement.changed.v1",
+    "producer": "S13",
+    "consumers": [
+      "S01",
+      "S14"
+    ],
+    "topic": "uacrf.s13.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s14.notification.delivery.changed.v1",
+    "producer": "S14",
+    "consumers": [],
+    "topic": "uacrf.s14.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  }
+]

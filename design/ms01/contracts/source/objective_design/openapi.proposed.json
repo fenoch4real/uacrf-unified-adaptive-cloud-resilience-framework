@@ -1,0 +1,926 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Proposed governed workload objectives extension",
+    "version": "1.0",
+    "description": "Seven proposed operations outside the 74-operation baseline; implementation and engine acceptance pending.",
+    "x-contract-review": "Implementation review 1; typed response addendum, not a deployed handler"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/objective-templates": {
+      "get": {
+        "summary": "List authorized template versions",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/TemplatePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an immutable template version",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./template-write.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workloads/{id}/objectives": {
+      "get": {
+        "summary": "Read authorized objective revisions and history",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "pattern": "\\S"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/ObjectivePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Propose a new objective revision",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./objective-revision.schema.json"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-revisions/{id}:submit": {
+      "post": {
+        "summary": "Submit a draft for review",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-revisions/{id}:decide": {
+      "post": {
+        "summary": "Independently approve or reject",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "decision": {
+                    "enum": [
+                      "APPROVE",
+                      "REJECT"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "decision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objective-revisions/{id}:activate": {
+      "post": {
+        "summary": "Activate an approved due revision",
+        "description": "PROPOSED, not an implemented handler. Authenticate and derive tenant, environment and actor on server. Recheck workload scope and role, template constraints, expected revision and authorization at commit. Require Idempotency-Key for mutations; atomically retain immutable revision/decision/activation, audit and outbox. Changed-key content conflicts. Reject self-approval and stale or future activation. Current objective digest must match the evaluation and recovery decision; never overwrite historical evidence. Paginated reads recheck current disclosure policy. First template creation uses template_id=null and expected_revision=0; a later version identifies that template and the previous revision. Publishing a template makes its versioned bounds available for proposals; it does not approve a workload target. Workload path id and body workload_id must match and resolve within the authenticated scope. Mutation responses are command receipts; a current evaluation and activation remain separate. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; no workload outcome asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid lifecycle, self approval or violated organization constraint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -1,0 +1,1194 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF recovery assurance extension",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/v1/recovery-assessments": {
+      "post": {
+        "operationId": "assurance-create",
+        "summary": "assurance create",
+        "description": "Diagnostic assurance only. Current journey and graph permissions are checked. No certification, recovery or cloud mutation.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "journey_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "baseline_graph_revision_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "graph_revision_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "primary_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "recovery_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "scenario": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "state": {
+                      "enum": [
+                        "REVIEW_REQUIRED",
+                        "INSUFFICIENT_EVIDENCE",
+                        "NO_RELEVANT_CHANGE_OBSERVED"
+                      ]
+                    },
+                    "independence": {
+                      "const": "NOT_CERTIFIED"
+                    },
+                    "runtime_verification": {
+                      "const": "NOT_ESTABLISHED"
+                    },
+                    "observed_at": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "findings": {
+                      "type": "array",
+                      "maxItems": 10000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "explanation": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "subject",
+                          "explanation"
+                        ]
+                      }
+                    },
+                    "shared_nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                      }
+                    },
+                    "required_next_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "revision": {
+                            "type": "integer"
+                          },
+                          "graph_revision_id": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                          },
+                          "state": {
+                            "type": "string"
+                          },
+                          "observed_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "revision",
+                          "graph_revision_id",
+                          "state",
+                          "observed_at"
+                        ]
+                      }
+                    },
+                    "history_truncated": {
+                      "type": "boolean"
+                    },
+                    "coverage": {
+                      "const": "SELECTED_ACCEPTED_GRAPH_ONLY"
+                    },
+                    "automatic_recovery": {
+                      "const": false
+                    },
+                    "pending_graph_revisions": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                      }
+                    },
+                    "pending_truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "journey_id",
+                    "baseline_graph_revision_id",
+                    "graph_revision_id",
+                    "primary_id",
+                    "recovery_id",
+                    "scenario",
+                    "revision",
+                    "state",
+                    "independence",
+                    "runtime_verification",
+                    "observed_at",
+                    "reason",
+                    "findings",
+                    "shared_nodes",
+                    "required_next_steps",
+                    "history",
+                    "history_truncated",
+                    "coverage",
+                    "automatic_recovery",
+                    "pending_graph_revisions",
+                    "pending_truncated"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "journey_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                  },
+                  "graph_revision_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                  },
+                  "primary_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                  },
+                  "recovery_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                  },
+                  "scenario": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "journey_id",
+                  "graph_revision_id",
+                  "primary_id",
+                  "recovery_id",
+                  "scenario",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recovery-assessments/{id}": {
+      "get": {
+        "operationId": "assurance-get",
+        "summary": "assurance get",
+        "description": "Diagnostic assurance only. Current journey and graph permissions are checked. No certification, recovery or cloud mutation.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "journey_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "baseline_graph_revision_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "graph_revision_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "primary_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "recovery_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "scenario": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "state": {
+                      "enum": [
+                        "REVIEW_REQUIRED",
+                        "INSUFFICIENT_EVIDENCE",
+                        "NO_RELEVANT_CHANGE_OBSERVED"
+                      ]
+                    },
+                    "independence": {
+                      "const": "NOT_CERTIFIED"
+                    },
+                    "runtime_verification": {
+                      "const": "NOT_ESTABLISHED"
+                    },
+                    "observed_at": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "findings": {
+                      "type": "array",
+                      "maxItems": 10000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "explanation": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "subject",
+                          "explanation"
+                        ]
+                      }
+                    },
+                    "shared_nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                      }
+                    },
+                    "required_next_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "revision": {
+                            "type": "integer"
+                          },
+                          "graph_revision_id": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                          },
+                          "state": {
+                            "type": "string"
+                          },
+                          "observed_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "revision",
+                          "graph_revision_id",
+                          "state",
+                          "observed_at"
+                        ]
+                      }
+                    },
+                    "history_truncated": {
+                      "type": "boolean"
+                    },
+                    "coverage": {
+                      "const": "SELECTED_ACCEPTED_GRAPH_ONLY"
+                    },
+                    "automatic_recovery": {
+                      "const": false
+                    },
+                    "pending_graph_revisions": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                      }
+                    },
+                    "pending_truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "journey_id",
+                    "baseline_graph_revision_id",
+                    "graph_revision_id",
+                    "primary_id",
+                    "recovery_id",
+                    "scenario",
+                    "revision",
+                    "state",
+                    "independence",
+                    "runtime_verification",
+                    "observed_at",
+                    "reason",
+                    "findings",
+                    "shared_nodes",
+                    "required_next_steps",
+                    "history",
+                    "history_truncated",
+                    "coverage",
+                    "automatic_recovery",
+                    "pending_graph_revisions",
+                    "pending_truncated"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/recovery-assessments/{id}:reassess": {
+      "post": {
+        "operationId": "assurance-review",
+        "summary": "assurance review",
+        "description": "Diagnostic assurance only. Current journey and graph permissions are checked. No certification, recovery or cloud mutation.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "journey_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "baseline_graph_revision_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "graph_revision_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "primary_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "recovery_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                    },
+                    "scenario": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "state": {
+                      "enum": [
+                        "REVIEW_REQUIRED",
+                        "INSUFFICIENT_EVIDENCE",
+                        "NO_RELEVANT_CHANGE_OBSERVED"
+                      ]
+                    },
+                    "independence": {
+                      "const": "NOT_CERTIFIED"
+                    },
+                    "runtime_verification": {
+                      "const": "NOT_ESTABLISHED"
+                    },
+                    "observed_at": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "findings": {
+                      "type": "array",
+                      "maxItems": 10000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "explanation": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "subject",
+                          "explanation"
+                        ]
+                      }
+                    },
+                    "shared_nodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                      }
+                    },
+                    "required_next_steps": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "revision": {
+                            "type": "integer"
+                          },
+                          "graph_revision_id": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                          },
+                          "state": {
+                            "type": "string"
+                          },
+                          "observed_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "revision",
+                          "graph_revision_id",
+                          "state",
+                          "observed_at"
+                        ]
+                      }
+                    },
+                    "history_truncated": {
+                      "type": "boolean"
+                    },
+                    "coverage": {
+                      "const": "SELECTED_ACCEPTED_GRAPH_ONLY"
+                    },
+                    "automatic_recovery": {
+                      "const": false
+                    },
+                    "pending_graph_revisions": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                      }
+                    },
+                    "pending_truncated": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "journey_id",
+                    "baseline_graph_revision_id",
+                    "graph_revision_id",
+                    "primary_id",
+                    "recovery_id",
+                    "scenario",
+                    "revision",
+                    "state",
+                    "independence",
+                    "runtime_verification",
+                    "observed_at",
+                    "reason",
+                    "findings",
+                    "shared_nodes",
+                    "required_next_steps",
+                    "history",
+                    "history_truncated",
+                    "coverage",
+                    "automatic_recovery",
+                    "pending_graph_revisions",
+                    "pending_truncated"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Rejected or unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "graph_revision_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_.:-]{1,200}$"
+                  },
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "graph_revision_id",
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

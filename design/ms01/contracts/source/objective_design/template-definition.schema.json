@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Objective template definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "kind",
+    "metric",
+    "unit",
+    "target",
+    "minimum",
+    "maximum",
+    "window",
+    "evidence",
+    "comparison",
+    "measurement_kind",
+    "percentile"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "kind": {
+      "enum": [
+        "service",
+        "agent",
+        "both"
+      ]
+    },
+    "metric": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "\\S"
+    },
+    "target": {
+      "type": "number",
+      "minimum": 0
+    },
+    "minimum": {
+      "type": "number",
+      "minimum": 0
+    },
+    "maximum": {
+      "type": "number",
+      "minimum": 0
+    },
+    "window": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "evidence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "comparison": {
+      "enum": [
+        "AT_MOST",
+        "AT_LEAST",
+        "EQUAL"
+      ]
+    },
+    "measurement_kind": {
+      "enum": [
+        "THRESHOLD",
+        "PERCENTILE",
+        "RATIO",
+        "RECOVERY_TIME",
+        "OUTCOME"
+      ]
+    },
+    "percentile": {
+      "anyOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "description": "Trusted worker also enforces minimum <= target <= maximum and percent maximum <= 100. Local prototype uses the same cross-field checks.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "measurement_kind": {
+            "const": "PERCENTILE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "percentile": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "percentile": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

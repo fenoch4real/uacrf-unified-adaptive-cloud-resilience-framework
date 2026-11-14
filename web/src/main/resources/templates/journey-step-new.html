@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add a journey step | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Add a step to <span th:text="${journey != null ? journey.name : journeyId}">customer journey</span></h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a th:href="@{/journeys/{id}(id=${journeyId})}">Back to customer journey</a></p>
+  <p role="status" th:if="${journeyError != null}" th:text="${journeyError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the step details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <form method="post" th:action="@{/journeys/{id}/steps(id=${journeyId})}" th:object="${stepForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <fieldset>
+      <legend>Journey step details</legend>
+      <p>
+        <label for="position">Position</label>
+        <input id="position" type="number" th:field="*{position}" min="1" required
+               th:attr="aria-describedby=${invalidPosition == true ? 'position-error' : null},
+                        aria-invalid=${invalidPosition == true ? 'true' : null}">
+        <span id="position-error" th:if="${invalidPosition == true}">Enter a positive step position.</span>
+      </p>
+      <p>
+        <label for="name">Name</label>
+        <input id="name" type="text" th:field="*{name}" maxlength="200" required
+               th:attr="aria-describedby=${invalidName == true ? 'name-help name-error' : 'name-help'},
+                        aria-invalid=${invalidName == true ? 'true' : null}">
+        <span id="name-help">Up to 200 characters.</span>
+        <span id="name-error" th:if="${nameError != null}" th:text="${nameError}"></span>
+      </p>
+      <p>
+        <label for="intendedOutcome">Intended outcome</label>
+        <textarea id="intendedOutcome" th:field="*{intendedOutcome}" maxlength="2000" required
+                  th:attr="aria-describedby=${invalidOutcome == true ? 'outcome-help outcome-error' : 'outcome-help'},
+                           aria-invalid=${invalidOutcome == true ? 'true' : null}"></textarea>
+        <span id="outcome-help">Describe the outcome expected from this step.</span>
+        <span id="outcome-error" th:if="${outcomeError != null}" th:text="${outcomeError}"></span>
+      </p>
+    </fieldset>
+    <button type="submit">Add journey step</button>
+  </form>
+</main>
+</body>
+</html>
