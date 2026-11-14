@@ -1,10 +1,13 @@
 package org.uacrf.assessment;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,10 +19,13 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.util.UriUtils;
 import org.uacrf.assessment.AssessmentRequests.GraphRef;
 import org.uacrf.assessment.AssessmentRequests.ObjectiveRef;
+import org.uacrf.assessment.AssessmentRequests.Measurement;
 import org.uacrf.assessment.AssessmentResponses.GraphReceipt;
+import org.uacrf.assessment.AssessmentResponses.MeasurementReceipt;
 import org.uacrf.assessment.AssessmentResponses.ObjectiveReceipt;
 
 @Component
@@ -31,6 +37,7 @@ class HttpReceiptVerifier implements ReceiptVerifier {
   private final String clientId;
   private final String clientSecret;
   private final String delegationUrl;
+  private final String evidenceBaseUrl;
   private final String objectivesBaseUrl;
   private final String topologyBaseUrl;
   private final RestClient http;
@@ -44,29 +51,34 @@ class HttpReceiptVerifier implements ReceiptVerifier {
       @Value("${uacrf.assessment.receipts.client-id}") String clientId,
       @Value("${uacrf.assessment.receipts.client-secret:}") String clientSecret,
       @Value("${uacrf.assessment.receipts.delegation-url}") String delegationUrl,
+      @Value("${uacrf.assessment.receipts.evidence-base-url}") String evidenceBaseUrl,
       @Value("${uacrf.assessment.receipts.objectives-base-url}") String objectivesBaseUrl,
       @Value("${uacrf.assessment.receipts.topology-base-url}") String topologyBaseUrl) {
-    this(enabled, tokenUrl, clientId, clientSecret, delegationUrl, objectivesBaseUrl,
+    this(enabled, tokenUrl, clientId, clientSecret, delegationUrl, evidenceBaseUrl, objectivesBaseUrl,
         topologyBaseUrl, createClient());
   }
 
   HttpReceiptVerifier(boolean enabled, String tokenUrl, String clientId, String clientSecret,
-      String delegationUrl, String objectivesBaseUrl, String topologyBaseUrl, RestClient http) {
+      String delegationUrl, String evidenceBaseUrl, String objectivesBaseUrl, String topologyBaseUrl, RestClient http) {
     this.enabled = enabled;
     this.tokenUrl = tokenUrl;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.delegationUrl = delegationUrl;
+    this.evidenceBaseUrl = stripTrailingSlash(evidenceBaseUrl);
     this.objectivesBaseUrl = stripTrailingSlash(objectivesBaseUrl);
     this.topologyBaseUrl = stripTrailingSlash(topologyBaseUrl);
     this.http = http;
   }
 
   @Override
-  public Verification verify(AssessmentResponses.Case item, String tenantId, String environmentId) {
+  public Verification verify(AssessmentResponses.Case item, List<Measurement> measurements, Instant cutoff,
+      String tenantId, String environmentId) {
     if (!enabled) return Verification.skipped();
     ObjectiveReceipt objectiveReceipt = null;
     GraphReceipt graphReceipt = null;
+    List<MeasurementReceipt> measurementReceipts = new ArrayList<>();
+    Map<String, String> sourceFailures = new HashMap<>();
     String failureReason = null;
     try {
       String objectiveToken = delegation("S05", "objectives.objective.read", tenantId, environmentId);
@@ -101,9 +113,54 @@ class HttpReceiptVerifier implements ReceiptVerifier {
       if (failureReason == null) failureReason = "OWNER_UNAVAILABLE";
     }
 
+    for (Measurement measurement : measurements) {
+      try {
+        String evidenceToken = delegation("S04", "evidence.event.read", tenantId, environmentId);
+        MeasurementResponse body = http.post()
+            .uri(evidenceBaseUrl + "/internal/v1/qualifications/"
+                + UriUtils.encodePathSegment(measurement.sourceReceiptId(), StandardCharsets.UTF_8) + ":measurement")
+            .headers(headers -> headers.setBearerAuth(evidenceToken))
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of("purpose", item.purpose(), "metric", item.metric(), "cutoff", cutoff))
+            .retrieve().body(MeasurementResponse.class);
+        SourceCheck source = measurementReceipt(body, measurement, item);
+        if (source.receipt() != null) measurementReceipts.add(source.receipt());
+        if (source.reasonCode() != null) sourceFailures.put(measurement.sourceReceiptId(), source.reasonCode());
+        if (failureReason == null) failureReason = source.reasonCode();
+      } catch (HttpClientErrorException error) {
+        sourceFailures.put(measurement.sourceReceiptId(), "SOURCE_UNVERIFIED");
+        if (failureReason == null) failureReason = "SOURCE_UNVERIFIED";
+      } catch (RestClientException | IllegalStateException error) {
+        sourceFailures.put(measurement.sourceReceiptId(), "OWNER_UNAVAILABLE");
+        if (failureReason == null) failureReason = "OWNER_UNAVAILABLE";
+      }
+    }
+
     return failureReason == null
-        ? Verification.verified(objectiveReceipt, graphReceipt)
-        : Verification.failed(failureReason, objectiveReceipt, graphReceipt);
+        ? Verification.verified(objectiveReceipt, graphReceipt, measurementReceipts)
+        : Verification.failed(failureReason, objectiveReceipt, graphReceipt, measurementReceipts, sourceFailures);
+  }
+
+  private static SourceCheck measurementReceipt(MeasurementResponse body, Measurement expected,
+      AssessmentResponses.Case item) {
+    if (body == null || !Boolean.TRUE.equals(body.usableAsEvidence())
+        || !"QUALIFIED".equals(body.qualificationState()) || body.revision() == null || body.revision() < 1
+        || body.payloadDigest() == null || !body.payloadDigest().matches("[0-9a-f]{64}")
+        || text(body.evidenceId()) == null || text(body.purpose()) == null
+        || body.observedAt() == null || text(body.sourceKind()) == null || text(body.metric()) == null
+        || body.value() == null || text(body.unit()) == null) {
+      return new SourceCheck("SOURCE_UNVERIFIED", null);
+    }
+    MeasurementReceipt receipt = new MeasurementReceipt(body.evidenceId(), body.purpose(),
+        body.qualificationState(), true, body.payloadDigest(), body.revision(), body.observedAt(),
+        body.sourceKind(), body.metric(), body.value().stripTrailingZeros(), body.unit(), body.reason());
+    if (!expected.sourceReceiptId().equals(body.evidenceId()) || !item.purpose().equals(body.purpose())
+        || !expected.sourceKind().equals(body.sourceKind()) || !expected.observedAt().equals(body.observedAt())
+        || !item.metric().equals(body.metric()) || expected.value().compareTo(body.value()) != 0
+        || !expected.unit().equals(body.unit()) || !item.unit().equals(body.unit())) {
+      return new SourceCheck("SOURCE_MISMATCH", receipt);
+    }
+    return new SourceCheck(null, receipt);
   }
 
   private synchronized String delegation(String audience, String capability, String tenantId,
@@ -240,4 +297,12 @@ class HttpReceiptVerifier implements ReceiptVerifier {
   private record CachedToken(String value, Instant expiresAt) {}
   private record ObjectiveCheck(String reasonCode, ObjectiveReceipt receipt) {}
   private record GraphCheck(String reasonCode, GraphReceipt receipt) {}
+  private record SourceCheck(String reasonCode, MeasurementReceipt receipt) {}
+  private record MeasurementResponse(
+      @JsonProperty("evidence_id") String evidenceId, String purpose,
+      @JsonProperty("qualification_state") String qualificationState,
+      @JsonProperty("usable_as_evidence") Boolean usableAsEvidence,
+      @JsonProperty("payload_digest") String payloadDigest, Long revision,
+      @JsonProperty("observed_at") Instant observedAt,
+      @JsonProperty("source_kind") String sourceKind, String metric, BigDecimal value, String unit, String reason) {}
 }

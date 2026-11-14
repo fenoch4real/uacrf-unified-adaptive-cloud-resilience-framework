@@ -55,6 +55,12 @@ class EvidenceController {
     return evidence.receipt(DelegationPrincipal.from(jwt), id, request);
   }
 
+  @PostMapping("/internal/v1/qualifications/{id}:measurement")
+  MeasurementReceipt measurement(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody MeasurementRequest request) {
+    return evidence.measurement(DelegationPrincipal.from(jwt), id, request);
+  }
+
   @PostMapping("/internal/v1/inbox/events")
   @ResponseStatus(HttpStatus.ACCEPTED)
   InboxResult inbox(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody InboxEvent event) {

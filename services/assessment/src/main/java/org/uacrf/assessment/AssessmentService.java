@@ -75,7 +75,6 @@ class AssessmentService {
     Instant start = cutoff.minusSeconds(item.windowSeconds());
     Set<String> ids = new HashSet<>();
     List<Measurement> inputs = new ArrayList<>();
-    // Caller-supplied measurements are placeholders for S04-qualified receipts, not verified evidence.
     for (Measurement m : request.measurements()) {
       if (!ids.add(m.sourceReceiptId())) throw invalid("Each source receipt may occur only once per evaluation.");
       inputs.add(new Measurement(m.sourceReceiptId(), m.sourceKind(), m.observedAt(), canonical(m.value()), m.unit()));
@@ -99,11 +98,15 @@ class AssessmentService {
       if ((item.comparator() == AssessmentRequests.Comparator.LTE && comparison > 0) || (item.comparator() == AssessmentRequests.Comparator.GTE && comparison < 0)) { outcome = "CONFIRMED_BREACH"; break; }
     }
     ReceiptVerifier.Verification verification =
-        receiptVerifier.verify(item, actor.tenantId(), actor.environmentId());
+        receiptVerifier.verify(item, inputs, cutoff, actor.tenantId(), actor.environmentId());
     if (verification.status().equals("FAILED")) outcome = "INSUFFICIENT_EVIDENCE";
+    evidence.replaceAll(entry -> {
+      String failure = verification.sourceFailures().get(entry.measurement().sourceReceiptId());
+      return failure == null ? entry : new Evidence(entry.measurement(), failure);
+    });
     DependencyVector vector = new DependencyVector(item.caseDigest(), item.objectiveRef(), item.graphRef(),
         verification.status(), verification.reasonCode(), verification.objectiveReceipt(),
-        verification.graphReceipt(), List.copyOf(evidence));
+        verification.graphReceipt(), List.copyOf(evidence), verification.measurementReceipts());
     String digest = hash(write(new ResultMaterial(cutoff, request.mode(), outcome, vector)));
     Long revision = jdbc.queryForObject("SELECT COALESCE(MAX(revision),0)+1 FROM " + DB + "evaluation WHERE tenant_id=? AND environment_id=? AND case_id=?", Long.class, actor.tenantId(), actor.environmentId(), id);
     String evalId = UUID.randomUUID().toString();

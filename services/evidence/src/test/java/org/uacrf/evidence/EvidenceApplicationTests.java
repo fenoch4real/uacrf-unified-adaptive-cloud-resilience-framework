@@ -29,6 +29,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.uacrf.security.DelegationJwtEncoderFactory;
 import org.uacrf.security.DelegationPrincipal;
 import org.uacrf.security.DelegationTokenIssuer;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -63,6 +64,7 @@ class EvidenceApplicationTests {
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private ObjectMapper json;
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
@@ -106,6 +108,72 @@ class EvidenceApplicationTests {
                     receiptBody(sha("p2")).replace("2999-01-01", "2000-01-01"))
                 .body())
         .contains("\"within_cutoff\":false");
+  }
+
+  @Test
+  void measurementReceiptBindsQualifiedPayloadAndHidesOtherTenants() throws Exception {
+    String submit = bearer("submitter", "tenant-measurement", SUBMITTER);
+    String reviewer = bearer("reviewer", "tenant-measurement", REVIEWER);
+    String payload = "{\"metric\":\"latency\",\"value\":1.250,\"unit\":\"ms\"}";
+    String escapedPayload = json.writeValueAsString(payload);
+    String request = measurementRequest("latency", "2999-01-01T00:00:00Z");
+    String path = "/internal/v1/qualifications/measurement-1:measurement";
+    assertEquals(202, post("/internal/v1/observations", submit,
+        evidence("measurement-1", "PROVIDER", "measurement-source", 1, escapedPayload.substring(1, escapedPayload.length() - 1), sha(payload))).statusCode());
+    assertThat(post(path, reviewer, request).body()).contains("\"usable_as_evidence\":false");
+    assertEquals(200, post("/v1/evidence/measurement-1/reviews", reviewer,
+        "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
+    HttpResponse<String> receipt = post(path, reviewer, request);
+    assertEquals(200, receipt.statusCode());
+    var result = json.readTree(receipt.body());
+    assertThat(result.get("usable_as_evidence").asBoolean()).isTrue();
+    assertEquals("measurement-1", result.get("evidence_id").asString());
+    assertEquals(2, result.get("revision").asInt());
+    assertEquals(sha(payload), result.get("payload_digest").asString());
+    assertEquals("2026-01-01T00:00:00Z", result.get("observed_at").asString());
+    assertEquals("measurement.latency", result.get("source_kind").asString());
+    assertEquals("latency", result.get("metric").asString());
+    assertEquals(0, result.get("value").decimalValue().compareTo(new java.math.BigDecimal("1.250")));
+    assertEquals("ms", result.get("unit").asString());
+    assertThat(receipt.body()).doesNotContain("\"payload\":");
+    assertThat(post(path, reviewer, measurementRequest("other", "2999-01-01T00:00:00Z")).body())
+        .contains("\"usable_as_evidence\":false").contains("metric");
+    assertThat(post(path, reviewer, measurementRequest("latency", "2000-01-01T00:00:00Z")).body())
+        .contains("\"usable_as_evidence\":false").contains("cutoff");
+    assertEquals(404, post(path, bearer("reader", "other-tenant", REVIEWER), request).statusCode());
+    assertEquals(403, post(path, bearer("reader", "tenant-measurement", List.of()), request).statusCode());
+    jdbc.update("UPDATE uacrf_evidence.evidence_event SET payload=? WHERE tenant_id=? AND id=?",
+        "{\"metric\":\"latency\",\"value\":999,\"unit\":\"ms\"}", "tenant-measurement", "measurement-1");
+    assertThat(post(path, reviewer, request).body()).contains("\"usable_as_evidence\":false").contains("digest");
+  }
+
+  @Test
+  void malformedAndAmbiguousPayloadsAreIneligible() throws Exception {
+    String submit = bearer("submitter", "tenant-malformed", SUBMITTER);
+    String reviewer = bearer("reviewer", "tenant-malformed", REVIEWER);
+    List<String> payloads = List.of("{", "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\"} true",
+        "{\"metric\":\"latency\",\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\"}",
+        "{\"metric\":\"latency\",\"value\":\"1\",\"unit\":\"ms\"}",
+        "{\"metric\":\"latency\",\"value\":1e9999999999,\"unit\":\"ms\"}",
+        "{\"metric\":\"latency\",\"value\":NaN,\"unit\":\"ms\"}",
+        "{\"metric\":\"latency\",\"value\":1,\"unit\":\" \"}",
+        "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\",\"extra\":1}");
+    for (int i = 0; i < payloads.size(); i++) {
+      String payload = payloads.get(i);
+      String escaped = json.writeValueAsString(payload);
+      String id = "malformed-" + i;
+      assertEquals(202, post("/internal/v1/observations", submit,
+          evidence(id, "PROVIDER", "malformed-source", i + 1, escaped.substring(1, escaped.length() - 1), sha(payload))).statusCode());
+      assertEquals(200, post("/v1/evidence/" + id + "/reviews", reviewer,
+          "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
+      assertThat(post("/internal/v1/qualifications/" + id + ":measurement", reviewer,
+          measurementRequest("latency", "2999-01-01T00:00:00Z")).body())
+          .contains("\"usable_as_evidence\":false").contains("valid measurement");
+    }
+  }
+
+  private static String measurementRequest(String metric, String cutoff) {
+    return "{\"purpose\":\"assessment\",\"metric\":\"" + metric + "\",\"cutoff\":\"" + cutoff + "\"}";
   }
 
   @Test

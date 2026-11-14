@@ -34,6 +34,20 @@ final class EvidenceResponses {
       long revision,
       String reason) {}
 
+  record MeasurementReceipt(
+      String evidenceId,
+      String purpose,
+      String qualificationState,
+      boolean usableAsEvidence,
+      String payloadDigest,
+      long revision,
+      java.time.Instant observedAt,
+      String sourceKind,
+      String metric,
+      java.math.BigDecimal value,
+      String unit,
+      String reason) {}
+
   record InboxResult(String eventId, String status, String reason) {}
 
   record Error(String code, String message, String requestId) {}

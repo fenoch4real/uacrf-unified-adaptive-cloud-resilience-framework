@@ -3,6 +3,7 @@ package org.uacrf.evidence;
 import static org.uacrf.evidence.EvidenceRequests.*;
 import static org.uacrf.evidence.EvidenceResponses.*;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -11,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
@@ -253,6 +257,61 @@ class EvidenceService {
         ((Number) row.get("revision")).longValue(),
         reason);
   }
+
+  @Transactional(readOnly = true)
+  MeasurementReceipt measurement(DelegationPrincipal actor, String id, MeasurementRequest request) {
+    requireCapability(actor, "evidence.event.read");
+    List<Map<String, Object>> rows = jdbc.queryForList(
+        "SELECT payload, payload_digest, kind, observed_at, qualification_state, revision, reviewed_at FROM "
+            + SCHEMA + "evidence_event WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+        actor.tenantId(), actor.environmentId(), id);
+    if (rows.isEmpty()) throw notFound();
+    Map<String, Object> row = rows.getFirst();
+    String payload = (String) row.get("payload");
+    String digest = row.get("payload_digest").toString().trim();
+    String state = (String) row.get("qualification_state");
+    Timestamp reviewedAt = (Timestamp) row.get("reviewed_at");
+    ParsedMeasurement parsed = parseMeasurement(payload);
+    String reason = !"QUALIFIED".equals(state) ? "Evidence is not qualified."
+        : reviewedAt == null || reviewedAt.toInstant().isAfter(request.cutoff()) ? "Qualification happened after the cutoff."
+        : !sha256(payload).equals(digest) ? "Stored payload digest does not match."
+        : parsed == null ? "Payload is not a valid measurement."
+        : !parsed.metric().equals(request.metric()) ? "Payload metric does not match."
+        : null;
+    return new MeasurementReceipt(id, request.purpose(), state, reason == null, digest,
+        ((Number) row.get("revision")).longValue(), ((Timestamp) row.get("observed_at")).toInstant(),
+        (String) row.get("kind"), parsed == null ? null : parsed.metric(),
+        parsed == null ? null : parsed.value(), parsed == null ? null : parsed.unit(),
+        reason == null ? "Qualified measurement." : reason);
+  }
+
+  private ParsedMeasurement parseMeasurement(String payload) {
+    try (JsonParser parser = objectMapper.tokenStreamFactory().createParser(payload)) {
+      if (parser.nextToken() != JsonToken.START_OBJECT) return null;
+      String metric = null;
+      String unit = null;
+      BigDecimal value = null;
+      var fields = new HashSet<String>();
+      while (parser.nextToken() != JsonToken.END_OBJECT) {
+        if (parser.currentToken() != JsonToken.PROPERTY_NAME) return null;
+        String name = parser.currentName();
+        if (!fields.add(name)) return null;
+        JsonToken token = parser.nextToken();
+        if ("metric".equals(name) && token == JsonToken.VALUE_STRING) metric = parser.getText();
+        else if ("unit".equals(name) && token == JsonToken.VALUE_STRING) unit = parser.getText();
+        else if ("value".equals(name) && (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT))
+          value = parser.getDecimalValue();
+        else return null;
+      }
+      if (parser.nextToken() != null || fields.size() != 3 || metric == null || metric.isBlank()
+          || unit == null || unit.isBlank() || value == null) return null;
+      return new ParsedMeasurement(metric, value, unit);
+    } catch (JacksonException | ArithmeticException | IllegalArgumentException error) {
+      return null;
+    }
+  }
+
+  private record ParsedMeasurement(String metric, BigDecimal value, String unit) {}
 
   @Transactional
   InboxResult receiveEvent(DelegationPrincipal actor, InboxEvent event) {

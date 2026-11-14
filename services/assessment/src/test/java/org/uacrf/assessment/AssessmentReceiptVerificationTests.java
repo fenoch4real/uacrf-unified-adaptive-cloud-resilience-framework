@@ -63,6 +63,7 @@ class AssessmentReceiptVerificationTests {
     p.add("uacrf.assessment.receipts.client-id", () -> "uacrf-s07-evaluator");
     p.add("uacrf.assessment.receipts.client-secret", () -> "test-s07-secret");
     p.add("uacrf.assessment.receipts.delegation-url", OWNERS::delegationUrl);
+    p.add("uacrf.assessment.receipts.evidence-base-url", OWNERS::baseUrl);
     p.add("uacrf.assessment.receipts.objectives-base-url", OWNERS::baseUrl);
     p.add("uacrf.assessment.receipts.topology-base-url", OWNERS::baseUrl);
   }
@@ -87,9 +88,16 @@ class AssessmentReceiptVerificationTests {
     assertEquals("od", first.at("/dependency_vector/objective_receipt/digest").asString());
     assertEquals("g1", first.at("/dependency_vector/graph_receipt/graph_id").asString());
     assertEquals("gd", first.at("/dependency_vector/graph_receipt/digest").asString());
+    assertEquals("source-1", first.at("/dependency_vector/measurement_receipts/0/evidence_id").asString());
+    assertEquals(2, first.at("/dependency_vector/measurement_receipts/0/revision").asInt());
+    assertEquals("a", first.at("/dependency_vector/measurement_receipts/0/source_kind").asString());
+    assertEquals("latency", first.at("/dependency_vector/measurement_receipts/0/metric").asString());
+    assertEquals(5, first.at("/dependency_vector/measurement_receipts/0/value").asInt());
+    assertEquals("a".repeat(64), first.at("/dependency_vector/measurement_receipts/0/payload_digest").asString());
     assertEquals(first.get("result_digest").asString(), second.get("result_digest").asString());
     assertEquals(1, OWNERS.delegationCount("t-receipts-match", "S05"));
     assertEquals(1, OWNERS.delegationCount("t-receipts-match", "S06"));
+    assertEquals(1, OWNERS.delegationCount("t-receipts-match", "S04"));
     assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
   }
 
@@ -128,14 +136,85 @@ class AssessmentReceiptVerificationTests {
 
   @Test void refusedOwnerConnectionIsUnavailable() {
     HttpReceiptVerifier verifier = new HttpReceiptVerifier(true, OWNERS.tokenUrl(), "uacrf-s07-evaluator",
-        "secret", OWNERS.delegationUrl(), "http://127.0.0.1:1", OWNERS.baseUrl(),
+        "secret", OWNERS.delegationUrl(), OWNERS.baseUrl(), "http://127.0.0.1:1", OWNERS.baseUrl(),
         RestClient.create());
     AssessmentResponses.Case item = new AssessmentResponses.Case("case", "w1", "assessment", "latency",
         AssessmentRequests.Comparator.LTE, java.math.BigDecimal.TEN, "ms", 3600,
         new AssessmentRequests.ObjectiveRef("o1", 1, "od"),
         new AssessmentRequests.GraphRef("g1", 1, "gd"), List.of("a"), "SEALED", 2, "case-digest");
-    ReceiptVerifier.Verification result = verifier.verify(item, "t-connection-refused", "env-1");
+    ReceiptVerifier.Verification result = verifier.verify(item, List.of(), java.time.Instant.parse("2026-01-01T01:00:00Z"), "t-connection-refused", "env-1");
     assertEquals("OWNER_UNAVAILABLE", result.reasonCode());
+  }
+
+  @Test void refusedEvidenceConnectionIsUnavailable() {
+    HttpReceiptVerifier verifier = new HttpReceiptVerifier(true, OWNERS.tokenUrl(), "uacrf-s07-evaluator",
+        "secret", OWNERS.delegationUrl(), "http://127.0.0.1:1", OWNERS.baseUrl(), OWNERS.baseUrl(),
+        RestClient.create());
+    AssessmentResponses.Case item = new AssessmentResponses.Case("case", "w1", "assessment", "latency",
+        AssessmentRequests.Comparator.LTE, java.math.BigDecimal.TEN, "ms", 3600,
+        new AssessmentRequests.ObjectiveRef("o1", 1, "od"),
+        new AssessmentRequests.GraphRef("g1", 1, "gd"), List.of("a"), "SEALED", 2, "case-digest");
+    AssessmentRequests.Measurement input = new AssessmentRequests.Measurement("source-1", "a",
+        java.time.Instant.parse("2026-01-01T00:59:00Z"), java.math.BigDecimal.valueOf(5), "ms");
+    ReceiptVerifier.Verification result = verifier.verify(item, List.of(input),
+        java.time.Instant.parse("2026-01-01T01:00:00Z"), "t-evidence-refused", "env-1");
+    assertEquals("OWNER_UNAVAILABLE", result.reasonCode());
+    assertEquals("OWNER_UNAVAILABLE", result.sourceFailures().get("source-1"));
+  }
+
+  @Test void fabricatedMeasurementFieldsCannotProduceRecommendations() throws Exception {
+    String token = token("t-receipts-fabricated");
+    String id = sealed(token);
+    for (String input : List.of(
+        measurement().replace("\"value\":5", "\"value\":20"),
+        measurement().replace("\"unit\":\"ms\"", "\"unit\":\"s\""),
+        measurement().replace("\"source_kind\":\"a\"", "\"source_kind\":\"b\""),
+        measurement().replace("00:59:00Z", "00:58:00Z"),
+        measurement().replace("source-1", "source-2"))) {
+      JsonNode result = body(evaluate(id, token, evalJson("2026-01-01T01:00:00Z", input)), 201);
+      assertEquals("INSUFFICIENT_EVIDENCE", result.get("outcome").asString());
+      assertEquals("SOURCE_MISMATCH", result.at("/dependency_vector/receipt_reason_code").asString());
+      assertEquals("SOURCE_MISMATCH", result.at("/dependency_vector/measurements/0/disposition").asString());
+    }
+    OWNERS.evidenceMode = "WRONG_METRIC";
+    JsonNode wrongMetric = body(evaluate(id, token, evalJson("2026-01-01T01:00:00Z", measurement())), 201);
+    assertEquals("SOURCE_MISMATCH", wrongMetric.at("/dependency_vector/receipt_reason_code").asString());
+    assertEquals("INSUFFICIENT_EVIDENCE", wrongMetric.get("outcome").asString());
+    assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
+  }
+
+  @Test void ineligibleAndUnavailableEvidenceFailClosed() throws Exception {
+    String token = token("t-receipts-evidence-error");
+    String id = sealed(token);
+    OWNERS.evidenceMode = "INELIGIBLE";
+    JsonNode ineligible = body(evaluate(id, token, evalJson("2026-01-01T01:00:00Z", measurement())), 201);
+    assertEquals("INSUFFICIENT_EVIDENCE", ineligible.get("outcome").asString());
+    assertEquals("SOURCE_UNVERIFIED", ineligible.at("/dependency_vector/receipt_reason_code").asString());
+    OWNERS.evidenceMode = "ERROR";
+    JsonNode unavailable = body(evaluate(id, token, evalJson("2026-01-01T01:00:00Z", measurement())), 201);
+    assertEquals("INSUFFICIENT_EVIDENCE", unavailable.get("outcome").asString());
+    assertEquals("OWNER_UNAVAILABLE", unavailable.at("/dependency_vector/receipt_reason_code").asString());
+    assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
+  }
+
+  @Test void verifiesEveryMeasurementAndEveryMode() throws Exception {
+    String token = token("t-receipts-all-measurements");
+    String id = sealed(token);
+    String older = measurement().replace("source-1", "source-3").replace("00:59:00Z", "00:58:00Z");
+    String payload = evalJson("2026-01-01T01:00:00Z", older + "," + measurement());
+    int start = OWNERS.evidenceRequests.get();
+    JsonNode matched = body(evaluate(id, token, payload), 201);
+    assertEquals("CONFIRMED_SUCCESS", matched.get("outcome").asString());
+    assertEquals(2, matched.at("/dependency_vector/measurement_receipts").size());
+    assertEquals(2, OWNERS.evidenceRequests.get() - start);
+    for (String mode : List.of("SHADOW", "DRY_RUN", "LIVE")) {
+      String fabricated = payload.replace("\"mode\":\"LIVE\"", "\"mode\":\"" + mode + "\"")
+          .replace("\"value\":5", "\"value\":20");
+      JsonNode result = body(evaluate(id, token, fabricated), 201);
+      assertEquals("INSUFFICIENT_EVIDENCE", result.get("outcome").asString());
+      assertEquals("SOURCE_MISMATCH", result.at("/dependency_vector/receipt_reason_code").asString());
+    }
+    assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
   }
 
   private String token(String tenant) {
@@ -186,6 +265,8 @@ class AssessmentReceiptVerificationTests {
     private final HttpServer server;
     private volatile String objectiveMode = "MATCH";
     private volatile String graphMode = "MATCH";
+    private volatile String evidenceMode = "MATCH";
+    private final AtomicInteger evidenceRequests = new AtomicInteger();
     private final Map<String, AtomicInteger> delegationCounts = new ConcurrentHashMap<>();
     StubOwners() {
       try {
@@ -194,9 +275,10 @@ class AssessmentReceiptVerificationTests {
             tokenResponse("identity-token", 300)));
         server.createContext("/delegations", exchange -> {
           String request = new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-          String audience = request.contains("S05") ? "S05" : "S06";
+          String audience = request.contains("S04") ? "S04" : request.contains("S05") ? "S05" : "S06";
           String tenant = extract(request, "tenant_id");
-          String capability = "S05".equals(audience) ? "objectives.objective.read" : "topology.graph.read";
+          String capability = "S04".equals(audience) ? "evidence.event.read"
+              : "S05".equals(audience) ? "objectives.objective.read" : "topology.graph.read";
           if (!"Bearer identity-token".equals(exchange.getRequestHeaders().getFirst("Authorization"))
               || !request.contains("\"capability_ids\":[\"" + capability + "\"]")) {
             respond(exchange, 403, "{}");
@@ -228,6 +310,24 @@ class AssessmentReceiptVerificationTests {
               + "\"digest\":\"gd\",\"status\":\"ACCEPTED\","
               + "\"projection_status\":\"PROJECTED\",\"eligibility\":" + eligible + "}");
         });
+        server.createContext("/internal/v1/qualifications/", exchange -> {
+          evidenceRequests.incrementAndGet();
+          String request = new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+          if (!"Bearer delegation-S04".equals(exchange.getRequestHeaders().getFirst("Authorization"))
+              || !request.contains("\"purpose\":\"assessment\"") || !request.contains("\"metric\":\"latency\"")
+              || !request.contains("2026-01-01T01:00:00Z")) {
+            respond(exchange, 403, "{}");
+            return;
+          }
+          if ("ERROR".equals(evidenceMode)) { respond(exchange, 500, "{}"); return; }
+          boolean older = exchange.getRequestURI().getPath().contains("source-3:measurement");
+          respond(exchange, 200, "{\"evidence_id\":\"" + (older ? "source-3" : "source-1") + "\",\"purpose\":\"assessment\","
+              + "\"qualification_state\":\"QUALIFIED\",\"usable_as_evidence\":"
+              + !"INELIGIBLE".equals(evidenceMode) + ",\"payload_digest\":\"" + "a".repeat(64)
+              + "\",\"revision\":2,\"observed_at\":\"2026-01-01T00:" + (older ? "58" : "59") + ":00Z\",\"source_kind\":\"a\","
+              + "\"metric\":\"" + ("WRONG_METRIC".equals(evidenceMode) ? "other" : "latency")
+              + "\",\"value\":5,\"unit\":\"ms\",\"reason\":\"Qualified measurement.\"}");
+        });
         server.start();
       } catch (IOException error) { throw new IllegalStateException(error); }
     }
@@ -235,7 +335,7 @@ class AssessmentReceiptVerificationTests {
     String tokenUrl() { return baseUrl() + "/token"; }
     String delegationUrl() { return baseUrl() + "/delegations"; }
     void stop() { server.stop(0); }
-    void reset() { objectiveMode = "MATCH"; graphMode = "MATCH"; }
+    void reset() { objectiveMode = "MATCH"; graphMode = "MATCH"; evidenceMode = "MATCH"; }
     int delegationCount(String tenant, String audience) {
       AtomicInteger count = delegationCounts.get(tenant + "/" + audience);
       return count == null ? 0 : count.get();

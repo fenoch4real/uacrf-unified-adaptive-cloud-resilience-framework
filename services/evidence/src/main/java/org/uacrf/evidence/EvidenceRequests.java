@@ -39,6 +39,11 @@ final class EvidenceRequests {
       @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String expectedDigest,
       @NotNull java.time.Instant cutoff) {}
 
+  record MeasurementRequest(
+      @NotBlank @Size(max = 200) String purpose,
+      @NotBlank @Size(max = 100) String metric,
+      @NotNull java.time.Instant cutoff) {}
+
   record InboxEvent(
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String eventId,
       @NotBlank @Pattern(regexp = "^S[0-9]{2}$") String sourceService,

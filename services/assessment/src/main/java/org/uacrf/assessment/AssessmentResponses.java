@@ -1,5 +1,6 @@
 package org.uacrf.assessment;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.List;
 import org.uacrf.assessment.AssessmentRequests.*;
@@ -13,9 +14,13 @@ final class AssessmentResponses {
   record Evidence(Measurement measurement, String disposition) {}
   record ObjectiveReceipt(String workloadId, String setDigest, String objectiveId, long revision, String digest) {}
   record GraphReceipt(String graphId, long revision, String digest) {}
+  record MeasurementReceipt(String evidenceId, String purpose, String qualificationState,
+      boolean usableAsEvidence, String payloadDigest, long revision, Instant observedAt,
+      String sourceKind, String metric, java.math.BigDecimal value, String unit, String reason) {}
   record DependencyVector(String caseDigest, ObjectiveRef objectiveRef, GraphRef graphRef,
       String receiptVerification, String receiptReasonCode, ObjectiveReceipt objectiveReceipt,
-      GraphReceipt graphReceipt, List<Evidence> measurements) {}
+      GraphReceipt graphReceipt, List<Evidence> measurements,
+      @JsonInclude(JsonInclude.Include.NON_NULL) List<MeasurementReceipt> measurementReceipts) {}
   record Evaluation(String id, String caseId, long revision, Instant observationCutoff, Instant receivedAt,
       Mode mode, String outcome, DependencyVector dependencyVector, String resultDigest) {}
   record Bounds(String metric, Comparator comparator, java.math.BigDecimal threshold, String unit, String effect) {}

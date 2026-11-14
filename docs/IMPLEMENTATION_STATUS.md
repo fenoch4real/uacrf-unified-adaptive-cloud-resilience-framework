@@ -342,6 +342,9 @@ retains evidence events and decides qualification.
   expected revision.
 - `POST /internal/v1/qualifications/{id}:receipt` returns whether evidence is usable
   for a purpose given an expected digest and cutoff.
+- `POST /internal/v1/qualifications/{id}:measurement` internally attests parsed
+  measurement fields from the qualified, digest-checked owner payload at the cutoff;
+  it does not return the raw payload.
 - `POST /internal/v1/inbox/events` is the consumer-side inbox (digest, duplicate,
   per-aggregate sequence checks, quarantine). The S03 publisher below delivers to it.
 - S01 registers `evidence.event.read|write`, `evidence.inbox.write` and
@@ -400,9 +403,9 @@ retains evidence events and decides qualification.
 ## M3 / S07 assessment (first slice)
 
 - `services/assessment` (port 8089, audience S07, database/schema `uacrf_assessment`) provides fixed assessment cases, deterministic evaluation, and non-executable recommendations. EDGE01 routes the public operations under `/internal/assessment`; the private `/internal/v1/cases/{id}:receipt` endpoint is not routed.
-- When `UACRF_ASSESSMENT_RECEIPTS_ENABLED=true`, every evaluation obtains short-lived S01 delegations as the S07 service account and verifies current S05 active objectives plus S06 projected graph eligibility. Verification failures force `INSUFFICIENT_EVIDENCE`, retain a reason code and any received owner receipt facts in the dependency vector, and cannot produce a recommendation. Verification is off by default; disabled evaluations explicitly retain `receipt_verification: SKIPPED`. Before enabling it, grant the S07 SYSTEM principal `objectives.objective.read` and `topology.graph.read` through normal S01 membership administration.
-- Evaluation measurements are caller-supplied and are **not yet S04-verified receipts**. There is no prediction/model execution, model versioning or learning, or incident record support yet.
-- Remaining work: verify S04 measurement receipts; add workers/triggers and the outbox publisher; build forecasts, model versions, and learning behind feature gates; and integrate S10 consumption.
+- When `UACRF_ASSESSMENT_RECEIPTS_ENABLED=true`, every evaluation obtains short-lived S01 delegations as the S07 service account and verifies each measurement against the qualified S04 owner payload, current S05 active objectives, and S06 projected graph eligibility. Verification failures force `INSUFFICIENT_EVIDENCE`, retain a reason code and received owner receipt facts in the dependency vector, and cannot produce a recommendation. Verification is off by default; disabled evaluations retain `receipt_verification: SKIPPED` and caller-supplied measurements are not verified. Before enabling it, grant the S07 SYSTEM principal `evidence.event.read`, `objectives.objective.read`, and `topology.graph.read` through normal S01 membership administration.
+- There is no prediction/model execution, model versioning or learning, or incident record support yet.
+- Remaining work: add workers/triggers and the outbox publisher; build forecasts, model versions, and learning behind feature gates; and integrate S10 consumption.
 
 ## Next implementation step
 
