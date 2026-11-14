@@ -6,6 +6,7 @@ import java.net.URI;
 import java.net.http.*;
 import java.security.*;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +32,8 @@ class AssessmentApplicationTests {
   private static final JwtEncoder ENCODER = DelegationJwtEncoderFactory.create(KEY_PAIR, KEY_ID);
   private static final List<String> ALL = List.of("assessment.case.read", "assessment.case.write",
       "assessment.evaluation.run", "assessment.evaluation.read", "assessment.recommendation.read",
-      "assessment.model.read", "assessment.model.write", "assessment.model.review");
+      "assessment.model.read", "assessment.model.write", "assessment.model.review",
+      "assessment.incident.read", "assessment.incident.write", "assessment.learning.write");
   @Container private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81").withDatabaseName("uacrf_assessment").withUsername("assessment_test").withPassword("assessment_test");
   @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
     p.add("spring.datasource.url", POSTGRES::getJdbcUrl); p.add("spring.datasource.username", POSTGRES::getUsername); p.add("spring.datasource.password", POSTGRES::getPassword);
@@ -213,6 +215,127 @@ class AssessmentApplicationTests {
     assertTrue(jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
         + "WHERE tenant_id='t-model-promote' AND aggregate_type='MODEL_VERSION'", Integer.class) >= 10);
   }
+
+  @Test void incidentRequiresVerifiedMeasurementsAtOrBeforeObservationAndIsAttributable() throws Exception {
+    String owner = token("t-incident-valid", "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-incident-valid", caseId, "2026-01-01T01:00:00Z", "VERIFIED",
+        measurementReceipt("r-incident", "2026-01-01T00:59:00Z"));
+    String forged = incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-incident\"]")
+        .replace("\"reason\":\"retain incident evidence\"}",
+            "\"reason\":\"retain incident evidence\",\"capabilities\":[\"assessment.incident.write\"]}");
+    String readOnly = token("t-incident-valid", "*", List.of("assessment.incident.read"));
+    assertEquals(403, post("/v1/incidents", readOnly,
+        incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-incident\"]")).statusCode());
+    assertEquals(400, post("/v1/incidents", readOnly, forged).statusCode());
+    String incidentWriter = token("t-incident-valid", "*",
+        List.of("assessment.incident.write"), "incident-writer");
+    JsonNode incident = body(post("/v1/incidents", incidentWriter,
+        incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-incident\",\"r-incident\"]")), 201);
+    assertEquals(1, incident.get("revision").asInt());
+    assertEquals(List.of("r-incident"), json.convertValue(incident.get("evidence_refs"), List.class));
+    assertThat(incident.get("created_by").asString()).endsWith("|incident-writer");
+    assertEquals(200, get("/v1/incidents/" + incident.get("id").asString(), owner).statusCode());
+    assertEquals(404, get("/v1/incidents/" + incident.get("id").asString(),
+        token("t-incident-other", "*", ALL)).statusCode());
+    assertEquals(403, get("/v1/incidents/" + incident.get("id").asString(),
+        token("t-incident-valid", "*", List.of("assessment.incident.write"))).statusCode());
+  }
+
+  @Test void incidentRejectsUnverifiedMissingAndStaleEvaluationEvidence() throws Exception {
+    String owner = token("t-incident-invalid", "*", ALL);
+    String cutoff = "2026-01-01T01:00:00Z";
+    String unverifiedCase = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-incident-invalid", unverifiedCase, cutoff, "SKIPPED",
+        measurementReceipt("r-unverified", "2026-01-01T00:59:00Z"));
+    assertEquals(409, post("/v1/incidents", owner,
+        incidentJson(unverifiedCase, "w1", cutoff, "[\"r-unverified\"]")).statusCode());
+
+    String noReceiptCase = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-incident-invalid", noReceiptCase, cutoff, "VERIFIED", "[]");
+    assertEquals(409, post("/v1/incidents", owner,
+        incidentJson(noReceiptCase, "w1", cutoff, "[\"r-missing\"]")).statusCode());
+
+    String futureEvaluationCase = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-incident-invalid", futureEvaluationCase, "2026-01-01T01:01:00Z",
+        "VERIFIED", measurementReceipt("r-future", "2026-01-01T01:00:30Z"));
+    assertEquals(409, post("/v1/incidents", owner,
+        incidentJson(futureEvaluationCase, "w1", cutoff, "[\"r-future\"]")).statusCode());
+
+    String futureReceiptCase = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-incident-invalid", futureReceiptCase, "2026-01-01T00:59:00Z",
+        "VERIFIED", measurementReceipt("r-late", "2026-01-01T01:00:30Z"));
+    assertEquals(409, post("/v1/incidents", owner,
+        incidentJson(futureReceiptCase, "w1", cutoff, "[\"r-late\"]")).statusCode());
+  }
+
+  @Test void incidentRejectsCrossTenantWrongWorkloadAndUnreferencedMeasurements() throws Exception {
+    String owner = token("t-incident-scope", "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-incident-scope", caseId, "2026-01-01T01:00:00Z", "VERIFIED",
+        measurementReceipt("r-scoped", "2026-01-01T00:59:00Z"));
+    assertEquals(404, post("/v1/incidents", token("t-incident-foreign", "*", ALL),
+        incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-scoped\"]")).statusCode());
+    assertEquals(404, post("/v1/incidents", owner,
+        incidentJson(caseId, "w-other", "2026-01-01T01:00:00Z", "[\"r-scoped\"]")).statusCode());
+    assertEquals(409, post("/v1/incidents", owner,
+        incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-other\"]")).statusCode());
+  }
+
+  @Test void learningRecordsAreImmutableRevisionFencedProposalsWithTransactionalOutbox() throws Exception {
+    String owner = token("t-learning-proposal", "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation("t-learning-proposal", caseId, "2026-01-01T01:00:00Z", "VERIFIED",
+        measurementReceipt("r-learning", "2026-01-01T00:59:00Z"));
+    JsonNode incident = body(post("/v1/incidents", owner,
+        incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-learning\"]")), 201);
+    String incidentId = incident.get("id").asString();
+    String learningWriter = token("t-learning-proposal", "*",
+        List.of("assessment.learning.write"), "learning-writer");
+    String recordBody = learningJson(incidentId, 1, "[\"r-learning\",\"r-learning\"]");
+    assertEquals(409, post("/v1/learning-records", learningWriter,
+        learningJson(incidentId, 2, "[\"r-learning\"]")).statusCode());
+    assertEquals(409, post("/v1/learning-records", learningWriter,
+        learningJson(incidentId, 1, "[\"r-not-retained\"]")).statusCode());
+    assertEquals(404, post("/v1/learning-records", token("t-learning-foreign", "*", ALL),
+        learningJson(incidentId, 1, "[\"r-learning\"]")).statusCode());
+    assertEquals(400, post("/v1/learning-records", learningWriter, recordBody.replace(
+        "\"owner_id\":\"owner-1\"", "\"owner_id\":\"\"")).statusCode());
+
+    int modelCount = jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.model_version "
+        + "WHERE tenant_id='t-learning-proposal'", Integer.class);
+    JsonNode proposed = body(post("/v1/learning-records", learningWriter, recordBody), 201);
+    assertEquals("PROPOSED", proposed.get("state").asString());
+    assertEquals(1, proposed.get("revision").asInt());
+    assertEquals(1, proposed.get("expected_revision").asInt());
+    assertThat(proposed.get("proposed_by").asString()).endsWith("|learning-writer");
+    assertEquals(List.of("r-learning"), json.convertValue(proposed.get("evidence_refs"), List.class));
+    assertThat(proposed.toString()).contains("owner-1", "closure_test");
+    assertEquals(modelCount, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.model_version "
+        + "WHERE tenant_id='t-learning-proposal'", Integer.class));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id='t-learning-proposal' AND event_type='uacrf.s07.learning.proposed.v1' "
+        + "AND aggregate_id=?", Integer.class, proposed.get("id").asString()));
+    assertEquals("https://uacrf.local/s01|learning-writer", jdbc.queryForObject(
+        "SELECT payload->>'actor_id' FROM uacrf_assessment.outbox_event "
+            + "WHERE tenant_id='t-learning-proposal' AND aggregate_id=?",
+        String.class, proposed.get("id").asString()));
+    assertEquals("PROPOSED", jdbc.queryForObject(
+        "SELECT payload->'minimal_outcome_metadata'->>'state' "
+            + "FROM uacrf_assessment.outbox_event WHERE tenant_id='t-learning-proposal' "
+            + "AND aggregate_id=?",
+        String.class, proposed.get("id").asString()));
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "UPDATE uacrf_assessment.learning_record SET state='APPROVED' WHERE tenant_id=? AND id=?",
+        "t-learning-proposal", proposed.get("id").asString()));
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "DELETE FROM uacrf_assessment.learning_record WHERE tenant_id=? AND id=?",
+        "t-learning-proposal", proposed.get("id").asString()));
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "UPDATE uacrf_assessment.incident SET reason='changed' WHERE tenant_id=? AND id=?",
+        "t-learning-proposal", incidentId));
+  }
+
   private JsonNode create(String token,String kinds,String comparator) throws Exception { return body(post("/v1/cases",token,caseJson(kinds,comparator)),201); }
   private JsonNode modelVersion(String token, String model, String version) throws Exception {
     return body(post("/v1/model-versions", token, modelJson(model, version)), 201);
@@ -250,6 +373,48 @@ class AssessmentApplicationTests {
   }
   private String sealed(String token,String kinds,String comparator) throws Exception { String id=create(token,kinds,comparator).get("id").asString(); body(post("/v1/cases/"+id+":seal",token,"{\"expected_revision\":1}"),200); return id; }
   private static String caseJson(String kinds,String comparator) { return "{\"workload_id\":\"w1\",\"purpose\":\"assessment\",\"metric\":\"latency\",\"comparator\":\""+comparator+"\",\"threshold\":10,\"unit\":\"ms\",\"window_seconds\":3600,\"objective_ref\":{\"objective_id\":\"o1\",\"revision\":1,\"digest\":\"od\"},\"graph_ref\":{\"graph_id\":\"g1\",\"revision\":1,\"digest\":\"gd\"},\"required_source_kinds\":"+kinds+"}"; }
+  private static String incidentJson(String caseId, String workloadId, String observedFrom,
+      String evidenceRefs) {
+    return "{\"workload_id\":\"" + workloadId + "\",\"source_case_id\":\"" + caseId
+        + "\",\"observed_from\":\"" + observedFrom + "\",\"description\":\"observed incident\","
+        + "\"evidence_refs\":" + evidenceRefs + ",\"reason\":\"retain incident evidence\"}";
+  }
+  private static String learningJson(String incidentId, int expectedRevision, String evidenceRefs) {
+    return "{\"incident_id\":\"" + incidentId + "\",\"experiment_id\":\"exp-1\","
+        + "\"hypotheses\":[\"recovery path may be delayed\"],\"action_items\":[{"
+        + "\"description\":\"test the recovery path\",\"owner_id\":\"owner-1\","
+        + "\"due_at\":\"2026-02-01T00:00:00Z\",\"proposed_version_ref\":\"candidate://v2\","
+        + "\"closure_test\":\"replay verified evidence\"}],\"evidence_refs\":" + evidenceRefs
+        + ",\"expected_revision\":" + expectedRevision
+        + ",\"reason\":\"propose follow-up only\"}";
+  }
+  private static String measurementReceipt(String id, String observedAt) {
+    return "{\"evidence_id\":\"" + id + "\",\"purpose\":\"assessment\","
+        + "\"qualification_state\":\"QUALIFIED\",\"usable_as_evidence\":true,"
+        + "\"payload_digest\":\"" + "a".repeat(64) + "\",\"revision\":1,"
+        + "\"observed_at\":\"" + observedAt + "\",\"source_kind\":\"a\","
+        + "\"metric\":\"latency\",\"value\":5,\"unit\":\"ms\"}";
+  }
+  private void seedIncidentEvaluation(String tenant, String caseId, String cutoff,
+      String verification, String receipts) {
+    String id = UUID.randomUUID().toString();
+    int revision = jdbc.queryForObject("SELECT COALESCE(MAX(revision),0)+1 FROM "
+        + "uacrf_assessment.evaluation WHERE tenant_id=? AND environment_id='env-1' AND case_id=?",
+        Integer.class, tenant, caseId);
+    Instant cutoffInstant = Instant.parse(cutoff);
+    String receiptList = receipts.stripLeading().startsWith("{") ? "[" + receipts + "]" : receipts;
+    String vector = "{\"receipt_verification\":\"" + verification
+        + "\",\"objective_receipt\":{\"workload_id\":\"w1\",\"set_digest\":\""
+        + "b".repeat(64) + "\",\"objective_id\":\"o1\",\"revision\":1,\"digest\":\"od\"},"
+        + "\"graph_receipt\":{\"graph_id\":\"g1\",\"revision\":1,\"digest\":\"gd\"},"
+        + "\"measurement_receipts\":" + receiptList + "}";
+    jdbc.update("INSERT INTO uacrf_assessment.evaluation "
+        + "(tenant_id,environment_id,id,case_id,revision,observation_cutoff,cutoff_epoch_second,"
+        + "cutoff_nano,mode,outcome,dependency_vector,result_digest) "
+        + "VALUES (?, 'env-1', ?, ?, ?, ?, ?, ?, 'SHADOW','CONFIRMED_SUCCESS',?::jsonb,?)",
+        tenant, id, caseId, revision, cutoff, cutoffInstant.getEpochSecond(), cutoffInstant.getNano(),
+        vector, "c".repeat(64));
+  }
   private static String measurement(String receipt,String kind,String at,String value,String unit) { return "{\"source_receipt_id\":\""+receipt+"\",\"source_kind\":\""+kind+"\",\"observed_at\":\""+at+"\",\"value\":"+value+",\"unit\":\""+unit+"\"}"; }
   private static String evalJson(String cutoff,String mode,String inputs) { return "{\"observation_cutoff\":\""+cutoff+"\",\"mode\":\""+mode+"\",\"measurements\":["+inputs+"]}"; }
   private JsonNode eval(String token,String id,String cutoff,String mode,String inputs) throws Exception { return body(post("/v1/cases/"+id+":evaluate",token,evalJson(cutoff,mode,inputs)),201); }

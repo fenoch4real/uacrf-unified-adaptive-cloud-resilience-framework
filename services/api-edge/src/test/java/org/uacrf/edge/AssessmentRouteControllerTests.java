@@ -72,6 +72,15 @@ class AssessmentRouteControllerTests {
     .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server.expect(requestTo(URL + "/v1/model-versions/mv-1:promote")).andExpect(method(HttpMethod.POST))
     .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/incidents"))
+        .andExpect(method(HttpMethod.POST))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/incidents/i-1"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/learning-records"))
+        .andExpect(method(HttpMethod.POST))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
 
     mvc.perform(get("/internal/assessment/v1/cases").param("workload_id", "w1"))
         .andExpect(status().isUnauthorized())
@@ -102,6 +111,13 @@ class AssessmentRouteControllerTests {
     mvc.perform(post("/internal/assessment/v1/model-versions/mv-1:promote")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
+    mvc.perform(post("/internal/assessment/v1/incidents")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    mvc.perform(get("/internal/assessment/v1/incidents/i-1")).andExpect(status().isOk());
+    mvc.perform(post("/internal/assessment/v1/learning-records")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
     mvc.perform(post("/internal/assessment/internal/v1/cases/c-1:receipt")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isNotFound());

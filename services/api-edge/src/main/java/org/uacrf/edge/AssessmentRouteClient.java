@@ -109,6 +109,19 @@ class AssessmentRouteClient {
     return sendBody(HttpMethod.POST, "/v1/model-versions/{id}:promote", id, authorization, requestBody);
   }
 
+  ResponseEntity<String> createIncident(String authorization, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/incidents", null, authorization, requestBody);
+  }
+
+  ResponseEntity<String> getIncident(String authorization, String id) {
+    return send(assessmentRestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/v1/incidents/{id}").build(id)), authorization);
+  }
+
+  ResponseEntity<String> proposeLearningRecord(String authorization, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/learning-records", null, authorization, requestBody);
+  }
+
   private ResponseEntity<String> sendBody(
       HttpMethod method, String path, String variable, String authorization, String requestBody) {
     RestClient.RequestBodySpec request =

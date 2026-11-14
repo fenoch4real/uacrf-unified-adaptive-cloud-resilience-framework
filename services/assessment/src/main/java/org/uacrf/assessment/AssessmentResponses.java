@@ -32,5 +32,11 @@ final class AssessmentResponses {
       String proposedBy, Instant createdAt, String reviewedBy, String decision,
       List<String> evaluationResultIds, String reviewReason, Instant reviewedAt,
       String promotedBy, String targetMode, String promotionReason, Instant promotedAt) {}
+  record Incident(String id, String workloadId, String sourceCaseId, Instant observedFrom,
+      String description, List<String> evidenceRefs, String reason, long revision,
+      String createdBy, Instant createdAt) {}
+  record LearningRecord(String id, String incidentId, String experimentId, List<String> hypotheses,
+      List<ActionItem> actionItems, List<String> evidenceRefs, long expectedRevision,
+      String reason, String state, long revision, String proposedBy, Instant createdAt) {}
   record Error(String code, String message, String requestId) {}
 }

@@ -38,4 +38,19 @@ final class AssessmentRequests {
       @NotBlank @Size(max=2000) String reason) {}
   record PromoteModelVersion(@Min(1) long expectedRevision, @NotNull TargetMode targetMode,
       @NotBlank @Size(max=2000) String reason) {}
+  record CreateIncident(@NotBlank @Size(max=200) String workloadId,
+      @NotBlank @Size(max=200) String sourceCaseId, @NotNull Instant observedFrom,
+      @NotBlank @Size(max=4000) String description,
+      @NotEmpty @Size(max=100) List<@NotBlank @Size(max=200) String> evidenceRefs,
+      @NotBlank @Size(max=2000) String reason) {}
+  record ActionItem(@NotBlank @Size(max=2000) String description,
+      @NotBlank @Size(max=200) String ownerId, @NotNull Instant dueAt,
+      @Size(max=1000) String proposedVersionRef,
+      @NotBlank @Size(max=2000) String closureTest) {}
+  record ProposeLearningRecord(@NotBlank @Size(max=200) String incidentId,
+      @Size(max=200) String experimentId,
+      @NotEmpty @Size(max=100) List<@NotBlank @Size(max=2000) String> hypotheses,
+      @NotEmpty @Size(max=100) List<@NotNull @Valid ActionItem> actionItems,
+      @NotEmpty @Size(max=100) List<@NotBlank @Size(max=200) String> evidenceRefs,
+      @Min(1) long expectedRevision, @NotBlank @Size(max=2000) String reason) {}
 }

@@ -128,6 +128,27 @@ class AssessmentRouteController {
     return forward(() -> assessment.promoteModelVersion(authorization, id, requestBody));
   }
 
+  @PostMapping("/v1/incidents")
+  ResponseEntity<String> createIncident(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestBody String requestBody) {
+    return forward(() -> assessment.createIncident(authorization, requestBody));
+  }
+
+  @GetMapping("/v1/incidents/{id}")
+  ResponseEntity<String> getIncident(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> assessment.getIncident(authorization, id));
+  }
+
+  @PostMapping("/v1/learning-records")
+  ResponseEntity<String> proposeLearningRecord(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestBody String requestBody) {
+    return forward(() -> assessment.proposeLearningRecord(authorization, requestBody));
+  }
+
   private static ResponseEntity<String> forward(Supplier<ResponseEntity<String>> request) {
     try {
       return request.get();

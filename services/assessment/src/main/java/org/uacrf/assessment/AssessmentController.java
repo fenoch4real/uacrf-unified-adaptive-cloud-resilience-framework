@@ -14,9 +14,12 @@ import org.uacrf.security.DelegationPrincipal;
 class AssessmentController {
   private final AssessmentService service;
   private final ModelVersionService modelVersions;
-  AssessmentController(AssessmentService service, ModelVersionService modelVersions) {
+  private final IncidentLearningService incidentLearning;
+  AssessmentController(AssessmentService service, ModelVersionService modelVersions,
+      IncidentLearningService incidentLearning) {
     this.service = service;
     this.modelVersions = modelVersions;
+    this.incidentLearning = incidentLearning;
   }
   @PostMapping("/v1/cases") @ResponseStatus(HttpStatus.CREATED)
   Case create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateCase request) { return service.create(DelegationPrincipal.from(jwt), request); }
@@ -60,5 +63,18 @@ class AssessmentController {
   ModelVersion promoteModelVersion(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
       @Valid @RequestBody PromoteModelVersion request) {
     return modelVersions.promote(DelegationPrincipal.from(jwt), id, request);
+  }
+  @PostMapping("/v1/incidents") @ResponseStatus(HttpStatus.CREATED)
+  Incident createIncident(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateIncident request) {
+    return incidentLearning.createIncident(DelegationPrincipal.from(jwt), request);
+  }
+  @GetMapping("/v1/incidents/{id}")
+  Incident getIncident(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return incidentLearning.getIncident(DelegationPrincipal.from(jwt), id);
+  }
+  @PostMapping("/v1/learning-records") @ResponseStatus(HttpStatus.CREATED)
+  LearningRecord proposeLearningRecord(@AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody ProposeLearningRecord request) {
+    return incidentLearning.proposeLearningRecord(DelegationPrincipal.from(jwt), request);
   }
 }

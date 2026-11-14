@@ -791,13 +791,15 @@ class IdentityApplicationTests {
   void modelVersionCapabilitiesAreDelegableOnlyWhenGranted() throws Exception {
     seedScopedMemberships();
     List<String> modelCapabilities =
-        List.of("assessment.model.read", "assessment.model.write", "assessment.model.review");
+        List.of("assessment.model.read", "assessment.model.write", "assessment.model.review",
+            "assessment.incident.read", "assessment.incident.write", "assessment.learning.write");
     assertEquals(
         0,
         jdbc.queryForObject(
             "SELECT count(*) FROM uacrf_identity.membership WHERE principal_id='admin-test' "
                 + "AND capability IN ('assessment.model.read','assessment.model.write',"
-                + "'assessment.model.review') AND revoked_at IS NULL",
+                + "'assessment.model.review','assessment.incident.read',"
+                + "'assessment.incident.write','assessment.learning.write') AND revoked_at IS NULL",
             Integer.class));
     try {
       for (String capability : modelCapabilities) {
@@ -826,7 +828,8 @@ class IdentityApplicationTests {
       jdbc.update(
           "DELETE FROM uacrf_identity.membership WHERE principal_id='admin-test' "
               + "AND capability IN ('assessment.model.read','assessment.model.write',"
-              + "'assessment.model.review')");
+              + "'assessment.model.review','assessment.incident.read',"
+              + "'assessment.incident.write','assessment.learning.write')");
     }
   }
 
