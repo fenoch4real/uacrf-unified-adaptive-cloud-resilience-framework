@@ -326,7 +326,33 @@ submits batches through the existing intake; credential handling (no secrets in
 the repo); lifting a provider from `UNACCEPTED` only after the live read-only
 conformance suite passes for pagination, permission denial, source outage, rate
 limits, checkpoint recovery and out-of-order delivery. The sample-data fixture
-shows each case. Not yet built: the event inbox and S04-S06.
+shows each case. Not yet built: S05-S06.
+
+## M2 / S04 evidence and qualification (first slice)
+
+`services/evidence` (port 8086, audience `S04`, schema and database `uacrf_evidence`)
+retains evidence events and decides qualification.
+
+- `POST /internal/v1/observations` retains typed source bytes. Digest mismatch,
+  replay conflict and stale per-source sequence are quarantined, never dropped.
+- Sample data (`SAMPLE_LOCAL`) is always `SAMPLE_ONLY` and can never be qualified;
+  the database also enforces this and the independent-reviewer rule by CHECK.
+- Provider evidence starts `UNVERIFIED`; `POST /v1/evidence/{id}/reviews` needs
+  `evidence.qualification.review`, a reviewer who is not the submitter, and the
+  expected revision.
+- `POST /internal/v1/qualifications/{id}:receipt` returns whether evidence is usable
+  for a purpose given an expected digest and cutoff.
+- `POST /internal/v1/inbox/events` is the consumer-side inbox (digest, duplicate,
+  per-aggregate sequence checks, quarantine). No poller delivers S03 outbox events
+  to it yet.
+- S01 registers `evidence.event.read|write`, `evidence.inbox.write` and
+  `evidence.qualification.review`.
+- Wired into Dockerfile, compose, CI, release, ownership check and image smoke test.
+- EDGE01 routes only `GET /v1/evidence`, `GET /v1/evidence/{id}` and
+  `POST /v1/evidence/{id}/reviews` under `/internal/evidence`; the `/internal/v1`
+  S04 endpoints are deliberately not routed publicly.
+- Not yet built: outbox publisher/poller, source schemas, policies, gap waivers,
+  raw-byte metadata.
 
 ## Next implementation step
 
