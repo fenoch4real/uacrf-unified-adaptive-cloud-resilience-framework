@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "guide_revision": 9,
+  "status": "PASS_SOURCE_AND_CONTRACT_CHECKS",
+  "schema_and_diagram_checks": 28,
+  "protected_implementation_files_unchanged": 82,
+  "normative_definitions_unchanged": 131,
+  "local_planning_bound": [
+    1,
+    50
+  ],
+  "bound_scope": "Ephemeral UI preview only; not a database model limit",
+  "canonical_api_and_sql_changes": false,
+  "browser_and_live_acceptance": "NOT_EXECUTED",
+  "score_change": 0
+}

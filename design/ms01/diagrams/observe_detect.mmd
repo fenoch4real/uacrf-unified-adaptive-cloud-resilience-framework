@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant P0 as Source S03
+  participant P1 as Evidence S04
+  participant P2 as Objectives S05
+  participant P3 as Topology S06
+  participant P4 as Assessment S07
+  alt Required current prerequisites hold
+    P0->>P1: 1 Submit observation with source time
+    P1->>P1: 2 Verify bytes and qualify under exact policy
+    P1->>P4: 3 Publish qualified observation trigger
+    P4->>P2: 4 Read current approved target set
+    P4->>P3: 5 Read exact accepted graph receipt
+    P4->>P4: 6 Reverify required artifacts and seal case
+    P4->>P4: 7 Compare exact measurements and targets
+    P4->>P4: 8 Retain findings and advisory recommendations
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P4: Late arrival cannot refresh old measurements. Missing or stale input remains Unknown; a risk classifier is not a forecast.
+  end

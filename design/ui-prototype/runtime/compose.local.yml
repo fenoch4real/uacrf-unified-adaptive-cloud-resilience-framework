@@ -1,0 +1,24 @@
+name: uacrf_dual_store_local_v1
+services:
+  postgres:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_PASSWORD: ${UACRF_LOCAL_POSTGRES_PASSWORD:?Set a private local PostgreSQL administrator password}
+    ports:
+      - "127.0.0.1:${UACRF_LOCAL_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - uacrf_local_pgdata_v3:/var/lib/postgresql
+  neo4j:
+    image: neo4j@sha256:adaa077a3ab023015143b8f73f7076a7d053f12985f5b06f4c6a128c3a2f7240
+    environment:
+      NEO4J_AUTH: neo4j/${UACRF_LOCAL_NEO4J_PASSWORD:?Set a private local Neo4j password}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 128m
+    ports:
+      - "127.0.0.1:${UACRF_LOCAL_NEO4J_PORT:-57687}:7687"
+    volumes:
+      - uacrf_local_neo4j_data_v3:/data
+volumes:
+  uacrf_local_pgdata_v3:
+  uacrf_local_neo4j_data_v3:

@@ -1,0 +1,78 @@
+{
+  "scope": "Text and media preservation against revision 3; not independent semantic or domain acceptance",
+  "documents_checked": 9,
+  "results": [
+    {
+      "document": "00_Technical_and_Schema/UACRF_Complete_Graph_Schema_Reference_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 3,
+      "media_files": 11
+    },
+    {
+      "document": "00_Technical_and_Schema/UACRF_Technical_Approach_Design_v1_0_with_Complete_Graph_Schema.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 167,
+      "media_files": 36
+    },
+    {
+      "document": "01_Patent_Specifications/01_reconstructable_decisions_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    },
+    {
+      "document": "01_Patent_Specifications/02_graph_revision_authorization_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    },
+    {
+      "document": "01_Patent_Specifications/03_provider_neutral_authorization_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    },
+    {
+      "document": "01_Patent_Specifications/04_evidence_qualified_state_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    },
+    {
+      "document": "01_Patent_Specifications/05_independent_recovery_paths_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    },
+    {
+      "document": "01_Patent_Specifications/06_cross_layer_validation_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    },
+    {
+      "document": "01_Patent_Specifications/07_collaborative_agent_arbitration_v1_0.docx",
+      "protected_claim_abstract_filing_code_text": "PASS",
+      "all_table_text": "PASS except revision markers",
+      "embedded_media_bytes": "PASS",
+      "table_count": 21,
+      "media_files": 3
+    }
+  ]
+}

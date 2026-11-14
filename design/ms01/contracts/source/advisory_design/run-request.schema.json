@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "agent_case_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "retrieval_manifest_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "workflow_version": {
+      "enum": [
+        "SINGLE_ANALYST_V1",
+        "INDEPENDENT_REVIEW_V1",
+        "ADVERSARIAL_REVIEW_V1"
+      ]
+    },
+    "model_config_ref": {
+      "type": "string",
+      "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+    },
+    "model_config_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "prompt_ref": {
+      "type": "string",
+      "pattern": "^artifact:sha256:[a-f0-9]{64}$"
+    },
+    "prompt_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "max_calls": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000000
+    },
+    "max_cost_units": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "\\S"
+    },
+    "allocations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "role": {
+            "enum": [
+              "ANALYST",
+              "REVIEWER",
+              "CRITIC"
+            ]
+          },
+          "agent_profile_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000000
+          },
+          "cost_units": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "role",
+          "agent_profile_id",
+          "tokens",
+          "cost_units"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 3
+    },
+    "proposal_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+      },
+      "minItems": 1,
+      "maxItems": 10,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "agent_case_id",
+    "retrieval_manifest_id",
+    "workflow_version",
+    "model_config_ref",
+    "model_config_digest",
+    "prompt_ref",
+    "prompt_digest",
+    "max_calls",
+    "max_tokens",
+    "max_cost_units",
+    "deadline",
+    "reason",
+    "allocations",
+    "proposal_ids"
+  ]
+}

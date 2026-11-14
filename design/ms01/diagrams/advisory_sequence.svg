@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1070" viewBox="0 0 1000 1070" role="img" aria-label="Bounded advisory agent workflow"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">Bounded advisory agent workflow</text>
+<text x="10.0" y="85" font-size="19" fill="#152b43">Owner UI</text>
+<line x1="85.0" y1="120" x2="85.0" y2="930" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="217.5" y="85" font-size="19" fill="#152b43">S09</text>
+<line x1="292.5" y1="120" x2="292.5" y2="930" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="425.0" y="85" font-size="19" fill="#152b43">S02 S07 S08</text>
+<line x1="500.0" y1="120" x2="500.0" y2="930" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="632.5" y="85" font-size="19" fill="#152b43">Runtime</text>
+<line x1="707.5" y1="120" x2="707.5" y2="930" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="840.0" y="85" font-size="19" fill="#152b43">Independent</text>
+<text x="840.0" y="109" font-size="19" fill="#152b43">reviewer</text>
+<line x1="915.0" y1="120" x2="915.0" y2="930" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<path d="M85.0,210 L292.5,210" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="150" font-size="19" fill="#152b43">1 Choose fixed case</text>
+<text x="93.0" y="174" font-size="19" fill="#152b43">guidance and roles</text>
+<path d="M292.5,287 L500.0,287" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="227" font-size="19" fill="#152b43">2 Verify active</text>
+<text x="300.5" y="251" font-size="19" fill="#152b43">profiles and same-</text>
+<text x="300.5" y="275" font-size="19" fill="#152b43">purpose sources</text>
+<rect x="152.5" y="284" width="300" height="70" rx="8" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="164.5" y="305" font-size="19" fill="#152b43">3 Reserve one attempt per</text>
+<text x="164.5" y="329" font-size="19" fill="#152b43">required role</text>
+<path d="M707.5,441 L292.5,441" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="381" font-size="19" fill="#152b43">4 Claim only assigned input once</text>
+<path d="M292.5,518 L707.5,518" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="458" font-size="19" fill="#152b43">5 Issue exact verified bounded packet</text>
+<rect x="567.5" y="515" width="300" height="70" rx="8" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="579.5" y="536" font-size="19" fill="#152b43">6 Journal intent before model</text>
+<text x="579.5" y="560" font-size="19" fill="#152b43">invocation</text>
+<path d="M707.5,672 L292.5,672" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="612" font-size="19" fill="#152b43">7 Submit output and every dissent record</text>
+<path d="M915.0,749 L292.5,749" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="689" font-size="19" fill="#152b43">8 Review exact revision and complete outputs</text>
+<path d="M292.5,826 L500.0,826" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="766" font-size="19" fill="#152b43">9 Reverify current</text>
+<text x="300.5" y="790" font-size="19" fill="#152b43">source and actual</text>
+<text x="300.5" y="814" font-size="19" fill="#152b43">files</text>
+<path d="M292.5,903 L915.0,903" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="843" font-size="19" fill="#152b43">10 Retain advisory review and rationale</text>
+<text x="35" y="970" font-size="19" fill="#152b43">Unknown model usage stays null. Missing or abstaining roles block; dissent is</text>
+<text x="35" y="994" font-size="19" fill="#152b43">preserved. Cancellation retains late ineligible output.</text>
+</g></svg>

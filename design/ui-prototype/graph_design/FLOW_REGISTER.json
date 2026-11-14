@@ -1,0 +1,194 @@
+{
+  "version": "1.0",
+  "flow_revision": 8,
+  "counts_in_canonical_flows": false,
+  "flows": [
+    {
+      "flow_id": "GRAPH-01",
+      "title": "Import and accept an attributable graph source",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Operator",
+          "to": "Java admin",
+          "action": "Verify source file hash manifest contract and current source-verified human",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "Java admin",
+          "to": "PostgreSQL",
+          "action": "Begin transaction and derive tenant environment and accountable actor",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S03",
+          "from": "Java admin",
+          "to": "PostgreSQL",
+          "action": "Insert BUILDING revision with append-only qualified nodes and typed edges",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Java admin",
+          "to": "PostgreSQL",
+          "action": "Lock revision and verify current qualifications workload bindings and capacity",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "PostgreSQL",
+          "to": "PostgreSQL",
+          "action": "Finalize canonical digest through the controlled owner procedure",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S06",
+          "from": "PostgreSQL",
+          "to": "PostgreSQL",
+          "action": "Commit sealed revision acceptance audit outbox and durable projection work",
+          "classification": "SQL",
+          "gate": false
+        },
+        {
+          "id": "S07",
+          "from": "Java admin",
+          "to": "Operator",
+          "action": "Return pending projection metadata only",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted.",
+      "status": "IMPLEMENTED_LOCAL_DUAL_DATABASE_NOT_FULL_SYSTEM_ACCEPTED"
+    },
+    {
+      "flow_id": "GRAPH-02",
+      "title": "Project an accepted revision across both stores",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Java worker",
+          "to": "PostgreSQL",
+          "action": "Claim work using the login-bound environment and an expiring lease",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "PostgreSQL",
+          "to": "Java worker",
+          "action": "Commit lease and export canonical snapshot with digest",
+          "classification": "APP",
+          "gate": false
+        },
+        {
+          "id": "S03",
+          "from": "Java worker",
+          "to": "Java worker",
+          "action": "Verify canonical bytes protocol identities and projection allowlist",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Java worker",
+          "to": "Neo4j",
+          "action": "Write nodes relationships and sealed receipt in one managed transaction",
+          "classification": "GRAPH",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "Neo4j",
+          "to": "Java worker",
+          "action": "Commit exact verified graph or recognize an identical sealed duplicate",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S06",
+          "from": "Java worker",
+          "to": "PostgreSQL",
+          "action": "Acknowledge the current lease and digest after the Neo4j commit",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S07",
+          "from": "PostgreSQL",
+          "to": "Java worker",
+          "action": "Mark projected or retain delayed retry after failure or lease expiry",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted.",
+      "status": "IMPLEMENTED_LOCAL_DUAL_DATABASE_NOT_FULL_SYSTEM_ACCEPTED"
+    },
+    {
+      "flow_id": "GRAPH-03",
+      "title": "Read dependencies and bounded diagnostic witnesses",
+      "steps": [
+        {
+          "id": "S01",
+          "from": "Caller",
+          "to": "Spring Boot",
+          "action": "Submit a verified token explicit graph revision and bounded parameters",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S02",
+          "from": "Spring Boot",
+          "to": "PostgreSQL",
+          "action": "Check current identity all workload scopes evidence and projection acknowledgement",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S03",
+          "from": "Spring Boot",
+          "to": "Neo4j",
+          "action": "Compare sealed receipt watermark counts and full projected content",
+          "classification": "GRAPH",
+          "gate": true
+        },
+        {
+          "id": "S04",
+          "from": "Spring Boot",
+          "to": "Spring Boot",
+          "action": "Return typed topology or calculate direction-aware bounded diagnostic witnesses",
+          "classification": "APP",
+          "gate": true
+        },
+        {
+          "id": "S05",
+          "from": "Spring Boot",
+          "to": "PostgreSQL",
+          "action": "Recheck accepted source evidence and acknowledgement before finishing",
+          "classification": "SQL",
+          "gate": true
+        },
+        {
+          "id": "S06",
+          "from": "Spring Boot",
+          "to": "Caller",
+          "action": "Return revision-bound scope-limited results with no recovery certification",
+          "classification": "APP",
+          "gate": false
+        }
+      ],
+      "parallel_step_ids": [],
+      "failure": "F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted.",
+      "status": "IMPLEMENTED_LOCAL_DUAL_DATABASE_NOT_FULL_SYSTEM_ACCEPTED"
+    }
+  ]
+}

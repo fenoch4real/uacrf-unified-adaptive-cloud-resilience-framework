@@ -1,0 +1,14 @@
+// Consistency and finite source checks. No browser or live setup acceptance.
+const fs=require('fs'),path=require('path'),assert=require('assert'),vm=require('vm');
+const R=path.resolve(__dirname,'..'),U=path.join(R,'ui_workloads');let checks=0;function check(v,m){assert(v,m);checks++}
+const read=p=>fs.readFileSync(path.join(U,p),'utf8');const walk=JSON.parse(read('SETUP_WALKTHROUGH.json')),overview=JSON.parse(read('SETUP_OVERVIEW.json')),app=read('index.html'),standalone=read('START_HERE.html'),md=read('SETUP_HOW_TO_v1_0.md');
+const at=app.indexOf('setupSteps=')+11;const embedded=JSON.parse(app.slice(at,app.indexOf('],screenTransitions=',at)+1));
+check(JSON.stringify(embedded)===JSON.stringify(walk.steps),'embedded stages diverge');check(JSON.stringify(walk.steps)===JSON.stringify(overview.stages),'map stages diverge');check(walk.steps.length===12,'twelve stages');check(walk.steps[8].id==='assess'&&walk.steps[8].title.includes('baseline'),'baseline stage');check(walk.steps[11].title.includes('reassess'),'reassessment stage');
+for(const step of walk.steps){for(const s of [standalone,md]){check(s.includes(step.title),'missing title '+step.id);check(s.includes('index.html#'+step.screen),'missing destination '+step.id)}check(read('SETUP_OVERVIEW.svg').includes('index.html#'+step.screen),'missing map destination '+step.id)}
+check(JSON.stringify(walk.review_loop)===JSON.stringify(overview.review_loop),'review loop diverges');for(const step of walk.review_loop.steps){check(standalone.includes(step.title),'standalone loop');check(md.includes(step.title),'markdown loop');check(read('SETUP_OVERVIEW.svg').includes(step.title),'graph loop')}
+for(const id of ['UI-03','UI-06','UI-20','UI-27'])check(walk.review_loop.steps.some(x=>x.screen===id),'loop destination '+id);
+for(const s of [standalone,md,app])check(s.includes('INSUFFICIENT_EVIDENCE')&&s.includes('NOT_CERTIFIED'),'diagnostic limits absent');
+check(app.includes('${setupReviewCycle()}'),'cycle not rendered');check(app.includes('data-assurance-open="order"')&&app.includes('data-assurance-open="support"'),'service and agent entry points');
+for(const op of ['POST /v1/recovery-assessments','GET /v1/recovery-assessments/{id}','POST /v1/recovery-assessments/{id}:reassess'])check(md.includes(op),'Java endpoint instruction absent');
+const routes=fs.readFileSync(path.join(R,'runtime/src/main/java/org/uacrf/runtime/Routes.java'),'utf8');for(const endpoint of ['/v1/recovery-assessments','/v1/recovery-assessments/{id}','/v1/recovery-assessments/{id}:reassess'])check(routes.includes('"'+endpoint+'"'),'Java route absent');
+const result={status:'PASS_SETUP_ASSURANCE_SOURCE_ALIGNMENT',checks,stages:12,review_loop_steps:4,browser_acceptance:'NOT_EXECUTED',java_runtime_changed:false,api_connected_ui:false};console.log(JSON.stringify(result));

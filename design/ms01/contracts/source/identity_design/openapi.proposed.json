@@ -1,0 +1,2501 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF identity and ownership design extension",
+    "version": "1.0",
+    "description": "Ten identity operations implemented in the local runtime slice; live provider and production acceptance remain pending. Canonical totals unchanged."
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^\\S+$"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^\\S+$"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/identity-providers": {
+      "get": {
+        "operationId": "identity_list_configured_trusted_identity_sources",
+        "summary": "List configured trusted identity sources",
+        "description": "Local runtime implementation; live provider and production acceptance remain pending. tenant_id and environment_id are optional selectors and must be supplied together. S01 revalidates the trusted principal's current membership in the selected context. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access.",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "display_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "\\S"
+                          },
+                          "status": {
+                            "enum": [
+                              "TRUSTED",
+                              "DISABLED"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "display_name",
+                          "status"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "items"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.directory.read",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/principals": {
+      "get": {
+        "operationId": "identity_list_visible_users_and_runtime_identities",
+        "summary": "List visible users and runtime identities",
+        "description": "Local runtime implementation; principal admission and mutation handlers remain pending. tenant_id and environment_id are optional selectors and must be supplied together. S01 revalidates the trusted principal's current membership in the selected context. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "display_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "kind": {
+                            "enum": [
+                              "HUMAN",
+                              "SYSTEM",
+                              "AGENT"
+                            ]
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "owner_eligible": {
+                            "type": "boolean"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "display_name",
+                          "kind",
+                          "enabled",
+                          "owner_eligible",
+                          "revision"
+                        ],
+                        "allOf": [
+                          {
+                            "if": {
+                              "properties": {
+                                "owner_eligible": {
+                                  "const": true
+                                }
+                              }
+                            },
+                            "then": {
+                              "properties": {
+                                "kind": {
+                                  "const": "HUMAN"
+                                },
+                                "enabled": {
+                                  "const": true
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.directory.read",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      },
+      "post": {
+        "operationId": "identity_resolve_and_provision_a_verified_source_identity",
+        "summary": "Resolve and provision a verified source identity",
+        "description": "PROPOSED, outside the 74 canonical operations. Server derives tenant/environment/actor from a verified session and rechecks current permission, expiry and target visibility. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access. No handlers are supplied. Verify provider allowlist and source directory response using a server-held connection. Derive immutable issuer/subject, kind and display name from the verified source, never an email lookup alone or caller assertion. New principals receive no memberships. A unique issuer/subject conflict returns 409; only an exact idempotent replay returns the prior receipt.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S+$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Exact idempotent replay of the retained metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.principal.manage",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "provider_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^\\S+$"
+                  },
+                  "directory_subject_ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^\\S+$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "expected_revision": {
+                    "const": 0
+                  }
+                },
+                "required": [
+                  "id",
+                  "provider_id",
+                  "directory_subject_ref",
+                  "reason",
+                  "expected_revision"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/principals/{id}:set-status": {
+      "post": {
+        "operationId": "identity_disable_or_reverify_and_enable_an_existing_identity",
+        "summary": "Disable or reverify and enable an existing identity",
+        "description": "PROPOSED, outside the 74 canonical operations. Server derives tenant/environment/actor from a verified session and rechecks current permission, expiry and target visibility. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access. No handlers are supplied. Lock the principal and compare revision. Disable immediately even if it owns objects: retain all references, report ownership gaps, invalidate sessions/current grants and stop new protected admission. Never delete or cascade owners. Re-enable requires fresh source verification; revoked/expired grants are not restored. Remaining unrevoked grants require explicit review before enabling; return 409 if their review is absent. Protect the final active administrator or require a separately controlled audited break-glass path.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.principal.manage",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "grant_review_ref": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^\\S+$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "expected_revision",
+                  "reason",
+                  "grant_review_ref"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "enabled": {
+                          "const": true
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "grant_review_ref": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^\\S+$"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/owner-candidates": {
+      "get": {
+        "operationId": "identity_list_eligible_human_owners_for_an_authorized_target",
+        "summary": "List eligible human owners for an authorized target",
+        "description": "Local runtime implementation; production acceptance remains pending. tenant_id and environment_id are optional selectors and must be supplied together. S01 revalidates the trusted principal's current membership in the selected context. Require the corresponding object create/write permission before listing candidates. Return enabled HUMAN principals from an admitted trusted issuer with current owner.eligible membership in this environment. For a create form, omit object_id but require create permission. Filter before pagination; do not expose invisible counts. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "object_kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "JOURNEY",
+                "SERVICE",
+                "AGENT",
+                "RESOURCE",
+                "ONBOARDING",
+                "KNOWLEDGE"
+              ]
+            }
+          },
+          {
+            "name": "object_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S+$"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "display_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "kind": {
+                            "const": "HUMAN"
+                          },
+                          "enabled": {
+                            "const": true
+                          },
+                          "owner_eligible": {
+                            "const": true
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "display_name",
+                          "kind",
+                          "enabled",
+                          "owner_eligible",
+                          "revision"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.owner.select",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/ownership:transfer": {
+      "post": {
+        "operationId": "identity_transfer_an_accountable_owner_without_transferring_permissions",
+        "summary": "Transfer an accountable owner without transferring permissions",
+        "description": "PROPOSED, outside the 74 canonical operations. Server derives tenant/environment/actor from a verified session and rechecks current permission, expiry and target visibility. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access. No handlers are supplied. Also require the object-specific write permission. Lock target, old/new principal and relevant eligibility grants in deterministic order; compare target revision and candidate eligibility at commit. Retain before/after owner and reason with command, audit and outbox atomically. Transfer does not approve objectives or confer reviewer/runtime access. For AGENT, lock and update both protected workload profile and internal service anchor in the same transaction, comparing expected_revision and expected_anchor_revision. A SERVICE request targeting an internal agent anchor is rejected; use AGENT transfer. The two metadata records remain one customer capability.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "ownership.transfer",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "object_kind": {
+                    "enum": [
+                      "JOURNEY",
+                      "SERVICE",
+                      "AGENT",
+                      "RESOURCE",
+                      "ONBOARDING",
+                      "KNOWLEDGE"
+                    ]
+                  },
+                  "object_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "owner_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "expected_anchor_revision": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "object_kind",
+                  "object_id",
+                  "owner_id",
+                  "expected_revision",
+                  "reason",
+                  "expected_anchor_revision"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "object_kind": {
+                          "const": "AGENT"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "expected_anchor_revision": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "expected_anchor_revision": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/memberships": {
+      "get": {
+        "operationId": "identity_read_scoped_capability_memberships",
+        "summary": "Read scoped capability memberships",
+        "description": "Local runtime implementation; production acceptance remains pending. tenant_id and environment_id are optional selectors and must be supplied together. S01 revalidates the trusted principal's current membership in the selected context. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "principal_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "capability": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^\\S+$"
+                          },
+                          "service_scope": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^\\S+$"
+                          },
+                          "expires_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "revision": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "principal_id",
+                          "capability",
+                          "service_scope",
+                          "expires_at",
+                          "revision"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.membership.read",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      },
+      "post": {
+        "operationId": "identity_create_an_explicitly_delegated_capability_grant",
+        "summary": "Create an explicitly delegated capability grant",
+        "description": "PROPOSED, outside the 74 canonical operations. Server derives tenant/environment/actor from a verified session and rechecks current permission, expiry and target visibility. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access. No handlers are supplied. Require an explicit current delegable capability/scope ceiling, bounded expiry and independent authorization for elevated grants. Server resolves the capability registry, service target and principal; reject wildcard escalation, self-escalation, SYSTEM/AGENT owner.eligible grants and unknown capabilities. owner.eligible is environment-local and uses service_scope=* but carries no runtime permission. Duplicate key/capability/scope conflicts return 409. Bind authorization_ref to a current independently authorized grant decision for the exact principal capability scope and expiry. A caller-supplied reference is not authority; verify its issuer, current validity and target match.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S+$"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Exact idempotent replay of the retained metadata result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.membership.manage",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "principal_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "capability": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^\\S+$"
+                  },
+                  "service_scope": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^\\S+$"
+                  },
+                  "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  },
+                  "expected_revision": {
+                    "const": 0
+                  },
+                  "authorization_ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^\\S+$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "principal_id",
+                  "capability",
+                  "service_scope",
+                  "expires_at",
+                  "reason",
+                  "expected_revision",
+                  "authorization_ref"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/memberships/{id}:revoke": {
+      "post": {
+        "operationId": "identity_revoke_a_capability_membership_and_invalidate_current_authority",
+        "summary": "Revoke a capability membership and invalidate current authority",
+        "description": "Local runtime implementation; production acceptance remains pending. tenant_id and environment_id are optional selectors and must be supplied together. S01 revalidates the trusted principal's current membership in the selected context. Lock the affected principal before membership changes, compare revision, retain expiry/revocation reason and invalidate cached/current authority and pending dispatch. Do not remove historical rows. Identity administration, owner eligibility, catalogue ownership and runtime authorization are distinct. Ownership never grants access.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^\\S+$"
+            }
+          },
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "name": "environment_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized metadata only; committed atomically for writes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "result": {
+                      "enum": [
+                        "CREATED",
+                        "UPDATED",
+                        "REVOKED",
+                        "REPLAYED"
+                      ]
+                    },
+                    "runtime_effect": {
+                      "const": "NONE"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "revision",
+                    "result",
+                    "runtime_effect"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Absent or undisclosable target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, identity or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid domain input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; bounded retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Trusted source unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-required-capability": "identity.membership.manage",
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "expected_revision": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "\\S"
+                  }
+                },
+                "required": [
+                  "expected_revision",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "x-local-runtime": {
+          "implementation": "runtime/server.py",
+          "evidence": "runtime/TEST_RESULTS.json",
+          "scope": "LOCAL_POSTGRES_HTTP_NOT_LIVE_PROVIDER_ACCEPTANCE"
+        }
+      }
+    },
+    "/v1/me/contexts": {
+      "get": {
+        "operationId": "me-list-current-contexts",
+        "summary": "List current tenant and environment contexts",
+        "description": "Lists active tenant/environment contexts for the authenticated human identity from current, unrevoked, unexpired S01 memberships. The returned IDs are selectors only; they do not grant authority. S01 revalidates the trusted issuer, subject, principal status, and current membership when access is evaluated.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "maxLength": 600
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A bounded page of contexts available through current memberships",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 100,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "tenant_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "tenant_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300,
+                            "pattern": "\\S"
+                          },
+                          "environment_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                          },
+                          "environment_name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300,
+                            "pattern": "\\S"
+                          }
+                        },
+                        "required": [
+                          "tenant_id",
+                          "tenant_name",
+                          "environment_id",
+                          "environment_name"
+                        ]
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 600
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed pagination input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Identity is not currently trusted or valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED"
+      }
+    },
+    "/internal/v1/delegations": {
+      "post": {
+        "operationId": "create-s02-delegation",
+        "summary": "Issue a narrowed S02 delegation",
+        "x-service-scope-enforcement": "S02 filters service and agent reads to the delegated service, requires a matching scope for service and agent registration, and requires global scope for journey reads, writes, and capability links because journeys are not service-scoped.",
+        "description": "Issues a short-lived S02 token only after S01 resolves the trusted principal and confirms every requested capability against current membership in the selected context. The token binds the requested service target in its service_scope claim (the service ID when supplied, or * for global scope); S02 enforces that scope for service-bound agent registration. tenant_id and environment_id are optional selectors that must be supplied together; they never grant authority. If omitted, S01 uses the signed context claims.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "audience": {
+                    "type": "string",
+                    "const": "S02"
+                  },
+                  "service_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "capability_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "\\S"
+                    }
+                  },
+                  "tenant_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "environment_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  }
+                },
+                "required": [
+                  "audience",
+                  "capability_ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Narrowed delegation valid for 30 seconds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "access_token": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "token_type": {
+                      "type": "string",
+                      "const": "Bearer"
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "const": 30
+                    }
+                  },
+                  "required": [
+                    "access_token",
+                    "token_type",
+                    "expires_in"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or unsupported audience",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Principal is not admitted or requested capabilities exceed current authority",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED"
+      }
+    },
+    "/v1/me/access": {
+      "get": {
+        "operationId": "me-access",
+        "summary": "me access",
+        "description": "Without tenant_id and environment_id, uses the verified token context. If supplied, both are required and are treated only as selectors; S01 resolves the trusted identity and rechecks active membership for the selected tenant/environment. Client-supplied values never grant authority.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "service_id",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "description": "Optional context selector; must be supplied together with environment_id and is revalidated by S01 against current membership.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "environment_id",
+            "description": "Optional context selector; must be supplied together with tenant_id and is revalidated by S01 against current membership.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current authorized projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "principal_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "\\S"
+                    },
+                    "display_name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300,
+                      "pattern": "\\S"
+                    },
+                    "kind": {
+                      "enum": [
+                        "HUMAN",
+                        "SYSTEM"
+                      ]
+                    },
+                    "service_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "scope": {
+                      "enum": [
+                        "GLOBAL_GRANTS_ONLY",
+                        "GLOBAL_AND_SELECTED_SERVICE_GRANTS"
+                      ]
+                    },
+                    "capability_ids": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "\\S"
+                      }
+                    }
+                  },
+                  "required": [
+                    "principal_id",
+                    "display_name",
+                    "kind",
+                    "service_id",
+                    "scope",
+                    "capability_ids"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Guarded failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

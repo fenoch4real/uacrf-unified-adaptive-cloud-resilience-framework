@@ -1,0 +1,78 @@
+services:
+  identity-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: ${IDENTITY_DB_NAME:?copy .env.example to .env and configure it}
+      POSTGRES_USER: ${IDENTITY_DB_ADMIN_USER:?set an identity database admin user}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_ADMIN_PASSWORD:?set an identity database admin password}
+      APP_DB_USER: ${IDENTITY_DB_USER:?copy .env.example to .env and configure it}
+      APP_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?copy .env.example to .env and configure it}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - identity-data:/var/lib/postgresql/data
+      - ./config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  catalog-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: ${CATALOG_DB_NAME:?copy .env.example to .env and configure it}
+      POSTGRES_USER: ${CATALOG_DB_ADMIN_USER:?set a catalog database admin user}
+      POSTGRES_PASSWORD: ${CATALOG_DB_ADMIN_PASSWORD:?set a catalog database admin password}
+      APP_DB_USER: ${CATALOG_DB_USER:?copy .env.example to .env and configure it}
+      APP_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?copy .env.example to .env and configure it}
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - catalog-data:/var/lib/postgresql/data
+      - ./config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  connections-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: ${CONNECTIONS_DB_NAME:?copy .env.example to .env and configure it}
+      POSTGRES_USER: ${CONNECTIONS_DB_ADMIN_USER:?set a connections database admin user}
+      POSTGRES_PASSWORD: ${CONNECTIONS_DB_ADMIN_PASSWORD:?set a connections database admin password}
+      APP_DB_USER: ${CONNECTIONS_DB_USER:?copy .env.example to .env and configure it}
+      APP_DB_PASSWORD: ${CONNECTIONS_DB_PASSWORD:?copy .env.example to .env and configure it}
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - connections-data:/var/lib/postgresql/data
+      - ./config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?set a local Keycloak admin username}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?set a local Keycloak admin password}
+      KC_HOSTNAME: http://localhost:8180
+      KEYCLOAK_LOCAL_ADMIN_PASSWORD: ${KEYCLOAK_LOCAL_ADMIN_PASSWORD:?set a local UACRF admin password}
+      KEYCLOAK_DIRECTORY_CLIENT_SECRET: ${KEYCLOAK_DIRECTORY_CLIENT_SECRET:?set the identity directory client secret}
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./config/keycloak/uacrf-realm.json:/opt/keycloak/data/import/uacrf-realm.json:ro
+
+volumes:
+  identity-data:
+  catalog-data:
+  connections-data:
+  keycloak-data:

@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "design_revision": 7,
+  "visual_refinement": 2,
+  "guide_revision": 8,
+  "source_fixture_checks": 704,
+  "views": 49,
+  "next_review_placement": "Inside How to set up UACRF",
+  "action_link_geometry": "Shared inline-flex, padding, minimum height and wrapping",
+  "location_cue": "Section label, selected sidebar and page heading; no full breadcrumb trail",
+  "schema_api_change": "NONE",
+  "browser_acceptance": "NOT_EXECUTED_LOCAL_FILE_POLICY_BLOCK",
+  "readiness_score_change": 0
+}

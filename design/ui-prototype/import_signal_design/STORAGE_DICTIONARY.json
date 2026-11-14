@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "status": "PROPOSED_NOT_ENGINE_EXPORTED",
+  "prerequisites": [
+    "Existing baseline uacrf environment/service/connection/principal tables",
+    "Earlier proposed objective_design schema"
+  ],
+  "new_record_families": {
+    "source_binding": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.source_binding (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), service_id text NOT NULL, connection_id text NOT NULL, source_system text NOT NULL, external_objective_id text NOT NULL, authority_mode text NOT NULL CHECK(authority_mode IN ('TRACK_SOURCE','LOCAL_OVERRIDE')), mapping jsonb NOT NULL CHECK(jsonb_typeof(mapping)='object'), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,service_id) REFERENCES uacrf.service(tenant_id,environment_id,id), FOREIGN KEY(tenant_id,environment_id,connection_id) REFERENCES uacrf.connection(tenant_id,environment_id,id));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    },
+    "source_checkpoint": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.source_checkpoint (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), binding_id text NOT NULL, binding_revision bigint NOT NULL, source_version text NOT NULL, source_digest text NOT NULL CHECK(length(source_digest)=64), source_checked_at timestamptz NOT NULL, cursor_ref text, scope_complete boolean NOT NULL, PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,binding_id,binding_revision) REFERENCES uacrf_ingestion_design.source_binding(tenant_id,environment_id,id,revision));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    },
+    "objective_import": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.objective_import (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), binding_id text NOT NULL, binding_revision bigint NOT NULL, candidate jsonb NOT NULL CHECK(jsonb_typeof(candidate)='object'), status text NOT NULL CHECK(status IN ('NEW','UNCHANGED','CONFLICT','INVALID','WITHDRAWN')), expected_local_revision bigint NOT NULL CHECK(expected_local_revision>=0), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,binding_id,binding_revision) REFERENCES uacrf_ingestion_design.source_binding(tenant_id,environment_id,id,revision));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    },
+    "import_resolution": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.import_resolution (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), import_id text NOT NULL, import_revision bigint NOT NULL, actor_id text NOT NULL, choice text NOT NULL CHECK(choice IN ('KEEP_LOCAL','PROPOSE_SOURCE','DETACH_SOURCE')), reason text NOT NULL CHECK(length(trim(reason))>0), expected_local_revision bigint NOT NULL CHECK(expected_local_revision>=0), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,import_id,import_revision) REFERENCES uacrf_ingestion_design.objective_import(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id,actor_id) REFERENCES uacrf.principal(tenant_id,environment_id,id));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    },
+    "collection_policy": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.collection_policy (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), connection_id text NOT NULL, policy jsonb NOT NULL CHECK(jsonb_typeof(policy)='object'), effective_from timestamptz NOT NULL, PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,connection_id) REFERENCES uacrf.connection(tenant_id,environment_id,id));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    },
+    "signal_receipt": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.signal_receipt (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), service_id text NOT NULL, connection_id text NOT NULL, source_event_id text NOT NULL, payload_digest text NOT NULL CHECK(length(payload_digest)=64), observed_at timestamptz NOT NULL, received_at timestamptz NOT NULL, envelope jsonb NOT NULL CHECK(jsonb_typeof(envelope)='object'), UNIQUE(tenant_id,environment_id,connection_id,source_event_id), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,connection_id) REFERENCES uacrf.connection(tenant_id,environment_id,id), FOREIGN KEY(tenant_id,environment_id,service_id) REFERENCES uacrf.service(tenant_id,environment_id,id));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    },
+    "evaluation_schedule": {
+      "status": "PROPOSED_NOT_MIGRATED",
+      "definition": "CREATE TABLE uacrf_ingestion_design.evaluation_schedule (tenant_id text NOT NULL, environment_id text NOT NULL, id text NOT NULL, revision bigint NOT NULL CHECK(revision>0), created_at timestamptz NOT NULL DEFAULT clock_timestamp(), service_id text NOT NULL, trigger_id text NOT NULL, context_digest text NOT NULL CHECK(length(context_digest)=64), due_at timestamptz NOT NULL, urgent boolean NOT NULL, state text NOT NULL CHECK(state IN ('PENDING','CLAIMED','COMPLETED','INVALIDATED')), lease_generation bigint NOT NULL DEFAULT 0 CHECK(lease_generation>=0), attempt_count integer NOT NULL DEFAULT 0 CHECK(attempt_count>=0), lease_until timestamptz, definition jsonb NOT NULL CHECK(jsonb_typeof(definition)='object'), PRIMARY KEY(tenant_id,environment_id,id,revision), FOREIGN KEY(tenant_id,environment_id) REFERENCES uacrf.environment(tenant_id,environment_id), FOREIGN KEY(tenant_id,environment_id,service_id) REFERENCES uacrf.service(tenant_id,environment_id,id), UNIQUE(tenant_id,environment_id,trigger_id,context_digest));",
+      "scope": "tenant_id and environment_id; service/connection/binding references as declared",
+      "mutation": "Controlled transactions with audit/outbox; no direct application grants"
+    }
+  },
+  "objective_revision_addendum": [
+    "Nullable import_id/import_revision/import_source_digest",
+    "All-or-none origin constraint",
+    "Scoped FK to retained import candidate",
+    "Trusted worker verifies source digest and definition before proposal admission"
+  ]
+}

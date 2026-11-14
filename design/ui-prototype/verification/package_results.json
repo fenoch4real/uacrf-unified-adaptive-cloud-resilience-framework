@@ -1,0 +1,121 @@
+{
+  "scope": "Package structure and documentary alignment checks",
+  "tests_run": 28,
+  "passed": 28,
+  "results": [
+    {
+      "test_id": "__main__.PackageChecks.test_A01_nine_versions",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A02_paper_cited_all_nine",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A03_no_dangling_section_77",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A04_seven_patent_filenames_resolve",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A05_published_bytes_unchanged",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A06_exact_formal_definition_coverage",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A07_unique_scenario_ids_and_honest_status",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A08_trace_artifact_links_exist",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A09_catalog_counts_unique",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A10_endpoint_roles_exhaustive",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A11_csv_json_field_parity",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A12_environment_service_key",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A13_no_unsafe_legacy_runtime_query",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A14_word_local_hyperlinks_exist",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A15_document_map_includes_later_appendices",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A16_p4_and_p6_restrictive_branches",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A17_canonical_API_inventory_complete",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A18_trace_interfaces_objects_resolve",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A19_paper_crosswalk_requirement_targets",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A20_score_arithmetic",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A21_no_dangling_formal_requirement_ids",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A22_qualification_field_is_canonical",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A23_original_figures_retained",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A24_integration_plan_consistency",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A25_learning_and_score_scope",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A26_knowledge_schemas_and_projection_scope",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A27_preserved_claims_and_old_requirements",
+      "status": "PASS"
+    },
+    {
+      "test_id": "__main__.PackageChecks.test_A28_manifest_coverage_and_contract_mapping",
+      "status": "PASS"
+    }
+  ],
+  "failures": 0,
+  "errors": 0
+}

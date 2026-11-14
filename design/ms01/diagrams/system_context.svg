@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000" role="img" aria-label="UACRF service architecture"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">UACRF service architecture</text>
+<rect x="35" y="78" width="440" height="105" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="50" y="106" font-size="20" fill="#152b43">One browser application</text>
+<text x="50" y="135" font-size="18" fill="#152b43">UX01 behind the edge composes domain APIs.</text>
+<rect x="525" y="78" width="440" height="105" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="540" y="106" font-size="20" fill="#152b43">One public API edge</text>
+<text x="540" y="135" font-size="18" fill="#152b43">EDGE01 accepts browser and API transport.</text>
+<path d="M525,130 L477,130" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="35" y="223" font-size="22" fill="#152b43">Fourteen domain services with exclusive data ownership</text>
+<rect x="35" y="250" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="278" font-size="20" fill="#152b43">S01 Identity and access</text>
+<rect x="355" y="250" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="370" y="278" font-size="20" fill="#152b43">S02 Estate catalog</text>
+<rect x="675" y="250" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="690" y="278" font-size="20" fill="#152b43">S03 Connections and</text>
+<text x="690" y="303" font-size="20" fill="#152b43">ingestion</text>
+<rect x="35" y="360" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="388" font-size="20" fill="#152b43">S04 Evidence and</text>
+<text x="50" y="413" font-size="20" fill="#152b43">qualification</text>
+<rect x="355" y="360" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="370" y="388" font-size="20" fill="#152b43">S05 Objectives and imports</text>
+<rect x="675" y="360" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="690" y="388" font-size="20" fill="#152b43">S06 Topology and</text>
+<text x="690" y="413" font-size="20" fill="#152b43">dependencies</text>
+<rect x="35" y="470" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="498" font-size="20" fill="#152b43">S07 Assessment and</text>
+<text x="50" y="523" font-size="20" fill="#152b43">learning</text>
+<rect x="355" y="470" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="370" y="498" font-size="20" fill="#152b43">S08 Knowledge and</text>
+<text x="370" y="523" font-size="20" fill="#152b43">retrieval</text>
+<rect x="675" y="470" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="690" y="498" font-size="20" fill="#152b43">S09 Advisory agent</text>
+<text x="690" y="523" font-size="20" fill="#152b43">orchestration</text>
+<rect x="35" y="580" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="608" font-size="20" fill="#152b43">S10 Decision governance</text>
+<rect x="355" y="580" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="370" y="608" font-size="20" fill="#152b43">S11 Execution and workload</text>
+<text x="370" y="633" font-size="20" fill="#152b43">control</text>
+<rect x="675" y="580" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="690" y="608" font-size="20" fill="#152b43">S12 Recovery assurance and</text>
+<text x="690" y="633" font-size="20" fill="#152b43">validation</text>
+<rect x="35" y="690" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="50" y="718" font-size="20" fill="#152b43">S13 Commercial and billing</text>
+<rect x="355" y="690" width="295" height="95" rx="10" fill="#fff" stroke="#bbcad9"/>
+<text x="370" y="718" font-size="20" fill="#152b43">S14 Audit reporting and</text>
+<text x="370" y="743" font-size="20" fill="#152b43">notifications</text>
+<text x="35" y="825" font-size="23" fill="#152b43">Isolated workers</text>
+<rect x="35" y="855" width="295" height="112" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="50" y="883" font-size="20" fill="#152b43">Collection</text>
+<text x="50" y="912" font-size="18" fill="#152b43">Read-only source</text>
+<text x="50" y="935" font-size="18" fill="#152b43">credentials</text>
+<rect x="355" y="855" width="295" height="112" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="370" y="883" font-size="20" fill="#152b43">Advisory runtimes</text>
+<text x="370" y="912" font-size="18" fill="#152b43">Bounded model context and</text>
+<text x="370" y="935" font-size="18" fill="#152b43">journal</text>
+<rect x="675" y="855" width="295" height="112" rx="10" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="690" y="883" font-size="20" fill="#152b43">Execution cells</text>
+<text x="690" y="912" font-size="18" fill="#152b43">Action-specific permits and</text>
+<text x="690" y="935" font-size="18" fill="#152b43">credentials</text>
+</g></svg>

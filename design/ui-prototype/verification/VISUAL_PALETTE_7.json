@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "design_revision": 7,
+  "status": "PASS_SELECTED_TEXT_PALETTE_CHECKS",
+  "pairs": [
+    {
+      "foreground": "#152c43",
+      "background": "#ffffff",
+      "ratio": 14.25
+    },
+    {
+      "foreground": "#536b80",
+      "background": "#ffffff",
+      "ratio": 5.55
+    },
+    {
+      "foreground": "#14563d",
+      "background": "#e4f4ed",
+      "ratio": 7.6
+    },
+    {
+      "foreground": "#725009",
+      "background": "#fff4d9",
+      "ratio": 6.7
+    },
+    {
+      "foreground": "#3f556b",
+      "background": "#edf2f7",
+      "ratio": 6.85
+    },
+    {
+      "foreground": "#8e3433",
+      "background": "#faeae9",
+      "ratio": 6.7
+    }
+  ],
+  "scope": "Six shared text/state pairs only; excludes all rendered contexts. Not a complete accessibility audit."
+}

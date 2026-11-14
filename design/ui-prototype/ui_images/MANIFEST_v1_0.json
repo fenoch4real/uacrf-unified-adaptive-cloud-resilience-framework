@@ -1,0 +1,558 @@
+{
+  "version": "1.0",
+  "design_revision": 3,
+  "architecture_revision": 5,
+  "scope": "33 concept images; 25 revised and 8 new",
+  "generation_mode": "Built-in image generation",
+  "status": "Earlier revision 3 concept images preserved. The current interactive prototype is design revision 8 with 58 registered views across 13 destinations.",
+  "images": [
+    {
+      "key": "Overview",
+      "file": "UACRF_Overview_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "f1f729abfed981589f21ff593018a260bd06f32b577d705126a3c5a0c6624dfa"
+    },
+    {
+      "key": "Services",
+      "file": "UACRF_Services_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "c440a5870357bc4faaeaf1a0b13f0973486bfac6cbc98b4bb58c5ad9b28889d5"
+    },
+    {
+      "key": "Assess",
+      "file": "UACRF_Assess_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "a3787004d268daf2a35e796bdc7becde623225bbc811e47add8e79c17b60c6be"
+    },
+    {
+      "key": "Control",
+      "file": "UACRF_Control_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "0b40cbcc371f24f3c9919e165ce76b4c69bc8f1feb17698e3756132c8feb8f05"
+    },
+    {
+      "key": "Recover",
+      "file": "UACRF_Recover_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "90f255aa4b45e381d02a2100391c2b2e5ad21236ae9bf495759c963e3c8f589e"
+    },
+    {
+      "key": "Evidence",
+      "file": "UACRF_Evidence_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "64474679353d4fd1da13e26fbeceea6940b1c56f9c7856bb11a242d20226d2a4"
+    },
+    {
+      "key": "Knowledge_Library",
+      "file": "UACRF_Knowledge_Library_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "32627775421ef0453b190b1e3fda472f37f60299694e7dce8cfccccf9d48e7fe"
+    },
+    {
+      "key": "Knowledge_Intake",
+      "file": "UACRF_Knowledge_Intake_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1671,
+        941
+      ],
+      "sha256": "a7916b2b92465a7b080283c4141d1ca422411c01601dbd776db83d6ea91dde9c"
+    },
+    {
+      "key": "Knowledge_Review",
+      "file": "UACRF_Knowledge_Review_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "dc0dd3dfe4f1bf5e10a1ff9845020e95b4e505e6b9e2adecd885cb6f257359dc"
+    },
+    {
+      "key": "Knowledge_Search",
+      "file": "UACRF_Knowledge_Search_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "78acdfe9b9d80c16c9712229a108e65adc3beb6f75c5709180dc7271ed8ffa49"
+    },
+    {
+      "key": "Agent_Run_Setup",
+      "file": "UACRF_Agent_Run_Setup_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "a4723dfa8a05e33bfe85624a8a880e918e1642b0b444fb2805dc37125cd0dbed"
+    },
+    {
+      "key": "Agent_Run_Detail",
+      "file": "UACRF_Agent_Run_Detail_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "b0dfcd2e8f8e53e5f586208cbe4a867f33214e4700df9ad1c3bcdb49351b14f7"
+    },
+    {
+      "key": "Agent_Output_Review",
+      "file": "UACRF_Agent_Output_Review_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "b8e180bab4e737010ed5a2327b31d1b9ddd3347b88b90ec280ea314cf0136f72"
+    },
+    {
+      "key": "Assistance_Settings",
+      "file": "UACRF_Assistance_Settings_Concept_v1_0.png",
+      "status": "NEW",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "907e4f8394db96b70e8673a89f70cd8a25dd9c6ab6867d04b2b57e38217063fe"
+    },
+    {
+      "key": "Workspace_Onboarding",
+      "file": "UACRF_Workspace_Onboarding_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "f423d9610913cad99596f6dc76aa4e3122dd2a062604f8e4ea584cf7bc744dab"
+    },
+    {
+      "key": "Service_Onboarding",
+      "file": "UACRF_Service_Onboarding_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "f1d6b809494b35573dc8647f6918a9f0614f00b976bdd462a12ee705e9b0141a"
+    },
+    {
+      "key": "Connections",
+      "file": "UACRF_Connections_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "ea8c4e8ad1143b75433bbdf226895d9f41f1c452f0a913324ffea60dce8f02c3"
+    },
+    {
+      "key": "Dependency_Graph",
+      "file": "UACRF_Dependency_Graph_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "7ad904af7ef7543fefc4f722a6b48563a2fa54e82c944f82eb23e70d78c3aa99"
+    },
+    {
+      "key": "Recovery_Paths",
+      "file": "UACRF_Recovery_Paths_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "8e2b3c279d6f4a9521de944f23afdbf39d7790a9963aa16a89657c28ae474f54"
+    },
+    {
+      "key": "Graph_Changes",
+      "file": "UACRF_Graph_Changes_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "93a91d783639e3579abc5156be315bf7246dc7ed287b6aef10628d2595bf961a"
+    },
+    {
+      "key": "Evidence_Quality",
+      "file": "UACRF_Evidence_Quality_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "195fb042ea576027aaff005b77edd0675424ec45f79a20fcba427000e9058eaf"
+    },
+    {
+      "key": "Service_Objectives",
+      "file": "UACRF_Service_Objectives_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "cc54a781ede681b818f04996bf9f771f4180b960145c2a08009723c23be4a2e7"
+    },
+    {
+      "key": "AI_Dependencies",
+      "file": "UACRF_AI_Dependencies_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "4f45cfcbc872f7790f0c5ebbf37404d81d342d7f31405a00bcaab9b3d3146e2e"
+    },
+    {
+      "key": "Incident_Analysis",
+      "file": "UACRF_Incident_Analysis_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "e35aaa1d054d673843189f106d613af74afb5b8d349a8384e25a0ac2c062acc1"
+    },
+    {
+      "key": "Approval_Review",
+      "file": "UACRF_Approval_Review_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "5aea6217df72114b1beb9855d22cf580e04892ce2afd1d9b855ca2481324e933"
+    },
+    {
+      "key": "Runbook_Catalog",
+      "file": "UACRF_Runbook_Catalog_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "4ac8b1c114a083aa9c28f8241a1be633544ffb6d9f0c2bd1017e198748247213"
+    },
+    {
+      "key": "Controlled_Test",
+      "file": "UACRF_Controlled_Test_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "34b5244e803c167432fb9166b66a352909b46359381d9a9c8c30a3dc47f8fc0a"
+    },
+    {
+      "key": "Recovery_Validation",
+      "file": "UACRF_Recovery_Validation_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "f28549a80700ebdc26e377377e9cdcea5a543167f6356c06fbdad1ffecf0460e"
+    },
+    {
+      "key": "Learning",
+      "file": "UACRF_Learning_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "b4436971cc917ed82d6973d6b40b41d70540108719be75549f6ce007a413711a"
+    },
+    {
+      "key": "Access_Management",
+      "file": "UACRF_Access_Management_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "d9af9ac7d452ef81118178cbae9012a507afc2b3bf1077479e6580028e7ee3a5"
+    },
+    {
+      "key": "Assessment_Report",
+      "file": "UACRF_Assessment_Report_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "c5df4ae7f552f3db7bdc6d284b5dd58079963ba31286ac9484fdb9964c77edcb"
+    },
+    {
+      "key": "Policy_Settings",
+      "file": "UACRF_Policy_Settings_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "471c8601af6f793331b3fbc3db6a43ccb578cd66960e34102cbe822bb3b52fa4"
+    },
+    {
+      "key": "Notifications",
+      "file": "UACRF_Notifications_Concept_v1_0.png",
+      "status": "REVISED",
+      "dimensions": [
+        1672,
+        941
+      ],
+      "sha256": "9fe3a958ebce06d4ed5084ae13c25776d606cd821eb7daee4cb532981792212b"
+    }
+  ],
+  "files": [
+    {
+      "path": "EXPERIENCE_GUIDE_v1_0.md",
+      "bytes": 14232,
+      "sha256": "3a375ad7324eb747d7f6ea4d8936be859498b8dd760088a24505ba2f08ba4345"
+    },
+    {
+      "path": "IMAGE_PROMPTS_v1_0.json",
+      "bytes": 59031,
+      "sha256": "fdcf58f30e19f60d9b7e9459fb6d7151c5f636832474aea390331cbf05fd7209"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1825,
+      "sha256": "96825acfe006e39cea1165baa75bf0e7bd6e648757f528a507c561282660d6a1"
+    },
+    {
+      "path": "REVIEW_CORRECTIONS_v1_0.json",
+      "bytes": 6219,
+      "sha256": "1ab29d7035042c0fe10b2c6ba150fc5c2ee4e9235b5ef3758bb9512db7aeb60b"
+    },
+    {
+      "path": "SCREEN_REGISTER_v1_0.json",
+      "bytes": 15057,
+      "sha256": "46bc84d8a62494b75681710c3c094d1c74df28042994add220f5aab299587a54"
+    },
+    {
+      "path": "SCREEN_REGISTER_v1_0.md",
+      "bytes": 7766,
+      "sha256": "906f6986cf2e5925039ddf10a2f3378e5ab846b8b03d1703d0c888af39251a55"
+    },
+    {
+      "path": "UACRF_AI_Dependencies_Concept_v1_0.png",
+      "bytes": 1609683,
+      "sha256": "4f45cfcbc872f7790f0c5ebbf37404d81d342d7f31405a00bcaab9b3d3146e2e"
+    },
+    {
+      "path": "UACRF_Access_Management_Concept_v1_0.png",
+      "bytes": 1633185,
+      "sha256": "d9af9ac7d452ef81118178cbae9012a507afc2b3bf1077479e6580028e7ee3a5"
+    },
+    {
+      "path": "UACRF_Agent_Output_Review_Concept_v1_0.png",
+      "bytes": 1679326,
+      "sha256": "b8e180bab4e737010ed5a2327b31d1b9ddd3347b88b90ec280ea314cf0136f72"
+    },
+    {
+      "path": "UACRF_Agent_Run_Detail_Concept_v1_0.png",
+      "bytes": 1615360,
+      "sha256": "b0dfcd2e8f8e53e5f586208cbe4a867f33214e4700df9ad1c3bcdb49351b14f7"
+    },
+    {
+      "path": "UACRF_Agent_Run_Setup_Concept_v1_0.png",
+      "bytes": 1718048,
+      "sha256": "a4723dfa8a05e33bfe85624a8a880e918e1642b0b444fb2805dc37125cd0dbed"
+    },
+    {
+      "path": "UACRF_Approval_Review_Concept_v1_0.png",
+      "bytes": 1670599,
+      "sha256": "5aea6217df72114b1beb9855d22cf580e04892ce2afd1d9b855ca2481324e933"
+    },
+    {
+      "path": "UACRF_Assess_Concept_v1_0.png",
+      "bytes": 1642967,
+      "sha256": "a3787004d268daf2a35e796bdc7becde623225bbc811e47add8e79c17b60c6be"
+    },
+    {
+      "path": "UACRF_Assessment_Report_Concept_v1_0.png",
+      "bytes": 1536657,
+      "sha256": "c5df4ae7f552f3db7bdc6d284b5dd58079963ba31286ac9484fdb9964c77edcb"
+    },
+    {
+      "path": "UACRF_Assistance_Settings_Concept_v1_0.png",
+      "bytes": 1682560,
+      "sha256": "907e4f8394db96b70e8673a89f70cd8a25dd9c6ab6867d04b2b57e38217063fe"
+    },
+    {
+      "path": "UACRF_Connections_Concept_v1_0.png",
+      "bytes": 1522556,
+      "sha256": "ea8c4e8ad1143b75433bbdf226895d9f41f1c452f0a913324ffea60dce8f02c3"
+    },
+    {
+      "path": "UACRF_Control_Concept_v1_0.png",
+      "bytes": 1665575,
+      "sha256": "0b40cbcc371f24f3c9919e165ce76b4c69bc8f1feb17698e3756132c8feb8f05"
+    },
+    {
+      "path": "UACRF_Controlled_Test_Concept_v1_0.png",
+      "bytes": 1680638,
+      "sha256": "34b5244e803c167432fb9166b66a352909b46359381d9a9c8c30a3dc47f8fc0a"
+    },
+    {
+      "path": "UACRF_Dependency_Graph_Concept_v1_0.png",
+      "bytes": 1621841,
+      "sha256": "7ad904af7ef7543fefc4f722a6b48563a2fa54e82c944f82eb23e70d78c3aa99"
+    },
+    {
+      "path": "UACRF_Evidence_Concept_v1_0.png",
+      "bytes": 1594182,
+      "sha256": "64474679353d4fd1da13e26fbeceea6940b1c56f9c7856bb11a242d20226d2a4"
+    },
+    {
+      "path": "UACRF_Evidence_Quality_Concept_v1_0.png",
+      "bytes": 1610382,
+      "sha256": "195fb042ea576027aaff005b77edd0675424ec45f79a20fcba427000e9058eaf"
+    },
+    {
+      "path": "UACRF_Graph_Changes_Concept_v1_0.png",
+      "bytes": 1604782,
+      "sha256": "93a91d783639e3579abc5156be315bf7246dc7ed287b6aef10628d2595bf961a"
+    },
+    {
+      "path": "UACRF_Incident_Analysis_Concept_v1_0.png",
+      "bytes": 1567767,
+      "sha256": "e35aaa1d054d673843189f106d613af74afb5b8d349a8384e25a0ac2c062acc1"
+    },
+    {
+      "path": "UACRF_Knowledge_Intake_Concept_v1_0.png",
+      "bytes": 1463886,
+      "sha256": "a7916b2b92465a7b080283c4141d1ca422411c01601dbd776db83d6ea91dde9c"
+    },
+    {
+      "path": "UACRF_Knowledge_Library_Concept_v1_0.png",
+      "bytes": 1649953,
+      "sha256": "32627775421ef0453b190b1e3fda472f37f60299694e7dce8cfccccf9d48e7fe"
+    },
+    {
+      "path": "UACRF_Knowledge_Review_Concept_v1_0.png",
+      "bytes": 1645296,
+      "sha256": "dc0dd3dfe4f1bf5e10a1ff9845020e95b4e505e6b9e2adecd885cb6f257359dc"
+    },
+    {
+      "path": "UACRF_Knowledge_Search_Concept_v1_0.png",
+      "bytes": 1736076,
+      "sha256": "78acdfe9b9d80c16c9712229a108e65adc3beb6f75c5709180dc7271ed8ffa49"
+    },
+    {
+      "path": "UACRF_Learning_Concept_v1_0.png",
+      "bytes": 1545184,
+      "sha256": "b4436971cc917ed82d6973d6b40b41d70540108719be75549f6ce007a413711a"
+    },
+    {
+      "path": "UACRF_Notifications_Concept_v1_0.png",
+      "bytes": 1668836,
+      "sha256": "9fe3a958ebce06d4ed5084ae13c25776d606cd821eb7daee4cb532981792212b"
+    },
+    {
+      "path": "UACRF_Overview_Concept_v1_0.png",
+      "bytes": 1650332,
+      "sha256": "f1f729abfed981589f21ff593018a260bd06f32b577d705126a3c5a0c6624dfa"
+    },
+    {
+      "path": "UACRF_Policy_Settings_Concept_v1_0.png",
+      "bytes": 1647521,
+      "sha256": "471c8601af6f793331b3fbc3db6a43ccb578cd66960e34102cbe822bb3b52fa4"
+    },
+    {
+      "path": "UACRF_Recover_Concept_v1_0.png",
+      "bytes": 1683778,
+      "sha256": "90f255aa4b45e381d02a2100391c2b2e5ad21236ae9bf495759c963e3c8f589e"
+    },
+    {
+      "path": "UACRF_Recovery_Paths_Concept_v1_0.png",
+      "bytes": 1619380,
+      "sha256": "8e2b3c279d6f4a9521de944f23afdbf39d7790a9963aa16a89657c28ae474f54"
+    },
+    {
+      "path": "UACRF_Recovery_Validation_Concept_v1_0.png",
+      "bytes": 1580030,
+      "sha256": "f28549a80700ebdc26e377377e9cdcea5a543167f6356c06fbdad1ffecf0460e"
+    },
+    {
+      "path": "UACRF_Runbook_Catalog_Concept_v1_0.png",
+      "bytes": 1554702,
+      "sha256": "4ac8b1c114a083aa9c28f8241a1be633544ffb6d9f0c2bd1017e198748247213"
+    },
+    {
+      "path": "UACRF_Service_Objectives_Concept_v1_0.png",
+      "bytes": 1690983,
+      "sha256": "cc54a781ede681b818f04996bf9f771f4180b960145c2a08009723c23be4a2e7"
+    },
+    {
+      "path": "UACRF_Service_Onboarding_Concept_v1_0.png",
+      "bytes": 1554174,
+      "sha256": "f1d6b809494b35573dc8647f6918a9f0614f00b976bdd462a12ee705e9b0141a"
+    },
+    {
+      "path": "UACRF_Services_Concept_v1_0.png",
+      "bytes": 1554680,
+      "sha256": "c440a5870357bc4faaeaf1a0b13f0973486bfac6cbc98b4bb58c5ad9b28889d5"
+    },
+    {
+      "path": "UACRF_Workspace_Onboarding_Concept_v1_0.png",
+      "bytes": 1599035,
+      "sha256": "f423d9610913cad99596f6dc76aa4e3122dd2a062604f8e4ea584cf7bc744dab"
+    },
+    {
+      "path": "UI_IMPLEMENTATION_CONTRACT_v1_0.md",
+      "bytes": 2275,
+      "sha256": "6c562712a4150372959634c55a654dce3675efc46f1d9b4f077c82115ced1c93"
+    },
+    {
+      "path": "VISUAL_REVIEW_v1_0.md",
+      "bytes": 2154,
+      "sha256": "846bb1fc847a576c015ec3184c001041ca08f82251c8ecca4abfaffeefe679d1"
+    },
+    {
+      "path": "index.html",
+      "bytes": 18592,
+      "sha256": "46d8711d3c7b936ff4f7b6060a5f4f858742ba74cbc3e37b9ea60aeeebad3831"
+    }
+  ],
+  "guide_revision": 21,
+  "database_revision": 2,
+  "flow_revision": 9,
+  "current_architecture_revision": 6,
+  "current_design_revision": 7,
+  "current_prototype": "ui_workloads/index.html in the complete release"
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "capability_kind": {
+      "type": "string",
+      "enum": [
+        "SERVICE",
+        "AGENT"
+      ]
+    },
+    "capability_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "step_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "criticality": {
+      "type": "string",
+      "enum": [
+        "REQUIRED",
+        "OPTIONAL",
+        "UNKNOWN"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "capability_kind",
+    "capability_id",
+    "step_id",
+    "criticality"
+  ]
+}

@@ -1,0 +1,94 @@
+flowchart LR
+  %% Full UACRF Neo4j schema. Properties are abbreviated here; CSV and DOCX catalogs are normative.
+  subgraph D0["Evidence and tenancy"]
+    Tenant["Tenant<br/>tenant_id · name · status"]
+    Environment["Environment<br/>environment_id · tenant_id · class · production · authority_tier"]
+    EvidenceSource["EvidenceSource<br/>evidence_source_id · tenant_id · source_type · provider · authority_class"]
+    EvidenceEvent["EvidenceEvent<br/>event_id · tenant_id · occurred_at · ingested_at · source_id"]
+    EvidenceQualification["EvidenceQualification<br/>qualification_id · event_id · qualification_state · reason_codes · ruleset_version"]
+  end
+  subgraph D1["Infrastructure and location"]
+    CloudProvider["CloudProvider<br/>cloud_provider_id · name · provider_code · assurance_status · status"]
+    Account["Account<br/>account_id · provider · native_id · tenant_id · environment_id"]
+    Region["Region<br/>region_id · provider · native_id · jurisdiction · status"]
+    AvailabilityZone["AvailabilityZone<br/>availability_zone_id · region_id · provider · native_id · status"]
+    FailureDomain["FailureDomain<br/>failure_domain_id · domain_type · name · scope · confidence"]
+    Cluster["Cluster<br/>cluster_id · provider · account_id · region_id · cluster_type"]
+    ComputeNode["ComputeNode<br/>compute_node_id · cluster_id · provider · native_id · region"]
+    CloudResource["CloudResource<br/>resource_id · provider · account_id · native_id · resource_type"]
+    Network["Network<br/>network_id · provider · account_id · native_id · network_type"]
+    DNSService["DNSService<br/>dns_service_id · provider · scope · zones · failure_domain_id"]
+  end
+  subgraph D2["Service and runtime"]
+    Service["Service<br/>service_id · tenant_id · environment_id · name · domain"]
+    ApplicationComponent["ApplicationComponent<br/>component_id · service_id · component_type · version · lifecycle"]
+    Deployment["Deployment<br/>deployment_id · component_id · version · environment_id · provider"]
+    API["API<br/>api_id · service_id · protocol · operation · classification"]
+    Queue["Queue<br/>queue_id · provider · native_id · delivery_semantics · region"]
+    Database["Database<br/>database_id · provider · native_id · database_type · classification"]
+    DataStore["DataStore<br/>data_store_id · provider · native_id · store_type · classification"]
+    ExternalDependency["ExternalDependency<br/>external_dependency_id · provider_id · dependency_type · criticality · contract_ref"]
+  end
+  subgraph D3["Identity ownership and control"]
+    Team["Team<br/>team_id · name · on_call_ref · status"]
+    Identity["Identity<br/>identity_id · identity_type · authority · native_subject · privilege_tier"]
+    IdentityProvider["IdentityProvider<br/>identity_provider_id · provider · scope · region · independence_domain"]
+    EncryptionKey["EncryptionKey<br/>key_id · authority · purpose · region · rotation_status"]
+    Control["Control<br/>control_id · framework · control_code · version · status"]
+    Policy["Policy<br/>policy_id · policy_type · version · digest · owner_team_id"]
+    SLO["SLO<br/>slo_id · service_id · sli_query · target · window"]
+  end
+  subgraph D4["AI and data"]
+    AIModel["AIModel<br/>model_id · service_id · purpose · risk_class · lifecycle"]
+    ModelVersion["ModelVersion<br/>model_version_id · model_id · version · artifact_digest · approval_status"]
+    ModelEndpoint["ModelEndpoint<br/>model_endpoint_id · model_version_id · endpoint · environment_id · traffic_weight"]
+    FeatureStore["FeatureStore<br/>feature_store_id · provider · native_id · owner_team_id · classification"]
+    Dataset["Dataset<br/>dataset_id · classification · owner · lineage_ref · retention_class"]
+    ModelFallback["ModelFallback<br/>model_fallback_id · source_model_id · target_id · capacity · certification_status"]
+  end
+  subgraph D5["External context"]
+    ExternalProvider["ExternalProvider<br/>provider_id · name · service_type · criticality · assurance_status"]
+    Location["Location<br/>location_id · provider · location_type · jurisdiction"]
+  end
+  subgraph D6["Customer and business"]
+    CustomerJourney["CustomerJourney<br/>journey_id · name · owner · start_criteria · completion_criteria"]
+    JourneyStep["JourneyStep<br/>step_id · journey_id · sequence · success_condition · timeout"]
+    CustomerSegment["CustomerSegment<br/>segment_id · definition · geography · commitment · vulnerability_flags"]
+    EssentialFunction["EssentialFunction<br/>function_id · name · priority · maximum_tolerable_outage · impact_dimensions"]
+    Impact["Impact<br/>impact_id · impact_type · affected_scope · time_window · magnitude"]
+    Outcome["Outcome<br/>outcome_id · outcome_type · owner · status · measurement_method"]
+  end
+  subgraph D7["Recovery and action"]
+    Runbook["Runbook<br/>runbook_id · action_type · version · certification_status · owner_team_id"]
+    RecoveryPath["RecoveryPath<br/>recovery_path_id · scenario · target_id · certification_status · witness_ref"]
+    CandidateAction["CandidateAction<br/>action_id · action_type · target_selector · bounds · reversibility"]
+    Authorization["Authorization<br/>authorization_id · action_id · policy_version · graph_revision · nonce"]
+    Execution["Execution<br/>execution_id · authorization_id · provider_request_id · idempotency_key · state"]
+    ValidationPlan["ValidationPlan<br/>validation_plan_id · action_id · version · stable_window · compensation_policy"]
+    ValidationResult["ValidationResult<br/>validation_result_id · plan_id · check_id · state · observed_value"]
+  end
+  subgraph D8["Decision provenance"]
+    GraphRevision["GraphRevision<br/>graph_revision · parent_revision · content_digest · reconciliation_state · created_at"]
+    DecisionEnvelope["DecisionEnvelope<br/>decision_id · context_hash · graph_revision · policy_digest · evidence_refs"]
+  end
+  subgraph D9["Collaborative agents"]
+    AgentAnalysisCase["AgentAnalysisCase<br/>case_id · manifest_digest · evidence_qualification_id · graph_revision · policy_version"]
+    AgentAssignment["AgentAssignment<br/>assignment_id · case_id · role · capability · independent_context_flag"]
+    AgentProposal["AgentProposal<br/>proposal_id · case_id · assignment_id · producer · model_version"]
+    AgentDissentRecord["AgentDissentRecord<br/>dissent_id · case_id · producer · disputed_claim · category"]
+    ArbitrationRecord["ArbitrationRecord<br/>arbitration_id · case_id · rule_bundle_version · ordered_eligible · rejected_with_reasons"]
+  end
+  EvidenceSource --> EvidenceEvent
+  EvidenceEvent --> EvidenceQualification
+  CloudResource --> Deployment
+  Deployment --> Service
+  Service --> JourneyStep
+  JourneyStep --> CustomerJourney
+  CustomerJourney --> EssentialFunction
+  Impact --> Outcome
+  CandidateAction --> Authorization
+  Authorization --> Execution
+  Execution --> ValidationResult
+  AgentAnalysisCase --> AgentAssignment
+  AgentAssignment --> AgentProposal
+  AgentProposal --> ArbitrationRecord

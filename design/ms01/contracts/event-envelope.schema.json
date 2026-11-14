@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol": {
+      "const": "UACRF_DOMAIN_EVENT_V1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "event_type": {
+      "type": "string",
+      "pattern": "^uacrf\\.[a-z0-9_.-]+\\.v[1-9][0-9]*$"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "producer": {
+      "enum": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06",
+        "S07",
+        "S08",
+        "S09",
+        "S10",
+        "S11",
+        "S12",
+        "S13",
+        "S14",
+        "UX01",
+        "EDGE01"
+      ]
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "environment_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "aggregate_type": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "aggregate_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "aggregate_revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "aggregate_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "observed_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "causation_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "traceparent": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "data_schema": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
+    "payload_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "canonicalization": {
+      "const": "RFC8785_DECIMAL_STRINGS_V1"
+    },
+    "data": {
+      "type": "object",
+      "maxProperties": 64
+    }
+  },
+  "required": [
+    "protocol",
+    "event_id",
+    "event_type",
+    "schema_version",
+    "producer",
+    "tenant_id",
+    "environment_id",
+    "aggregate_type",
+    "aggregate_id",
+    "aggregate_revision",
+    "aggregate_sequence",
+    "observed_at",
+    "published_at",
+    "correlation_id",
+    "causation_id",
+    "traceparent",
+    "data_schema",
+    "payload_digest",
+    "canonicalization",
+    "data"
+  ]
+}

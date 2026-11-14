@@ -1,0 +1,265 @@
+{
+  "version": "1.0",
+  "architecture_revision": "MS-01",
+  "domain_services": 14,
+  "edge_components": 2,
+  "services": [
+    {
+      "service_id": "S01",
+      "name": "identity-access",
+      "title": "Identity and access",
+      "scope": "Tenant and environment enrollment, principal admission, owners, scoped grants, revocation and service identity",
+      "authority": "Principal and membership lifecycle; authoritative current access receipts",
+      "existing_code_examples": [
+        "Identity.java",
+        "Database.java"
+      ],
+      "loop": "Identity",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_identity_access",
+      "port": 8080
+    },
+    {
+      "service_id": "S02",
+      "name": "estate-catalog",
+      "title": "Estate catalog",
+      "scope": "Customer journeys, services, protected agent profiles and versions, shared resources and authored relationships",
+      "authority": "Inventory identity, accountable ownership and independently activated agent versions",
+      "existing_code_examples": [
+        "ApplicationCommands.java",
+        "UiController.java"
+      ],
+      "loop": "Catalog",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_estate_catalog",
+      "port": 8080
+    },
+    {
+      "service_id": "S03",
+      "name": "integration",
+      "title": "Connections and ingestion",
+      "scope": "Connections, discovery, provider inventory receipts, signal intake, collection policies and scheduler leases",
+      "authority": "Provider source bindings and collection checkpoints; never computes health from arrival time",
+      "existing_code_examples": [
+        "runtime/008_collection_policy_runtime.sql"
+      ],
+      "loop": "Observe",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_integration",
+      "port": 8080
+    },
+    {
+      "service_id": "S04",
+      "name": "evidence",
+      "title": "Evidence and qualification",
+      "scope": "Immutable observations, source attestations, classification, qualification policies, reviews and waivers",
+      "authority": "Observation provenance and quality; stale or missing data remains explicitly unknown",
+      "existing_code_examples": [
+        "EvidenceProcessor.java",
+        "QualificationProcessor.java",
+        "WaiverTrust.java"
+      ],
+      "loop": "Observe and qualify",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_evidence",
+      "port": 8080
+    },
+    {
+      "service_id": "S05",
+      "name": "objectives",
+      "title": "Objectives and imports",
+      "scope": "Versioned objective templates, mandatory rules, proposals, independent activation and imported objective resolution",
+      "authority": "Approved desired outcomes and source-definition provenance; never fabricates measurements",
+      "existing_code_examples": [
+        "UiController.java"
+      ],
+      "loop": "Define",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_objectives",
+      "port": 8080
+    },
+    {
+      "service_id": "S06",
+      "name": "topology",
+      "title": "Topology and dependencies",
+      "scope": "Accepted graph revisions, scoped Neo4j projection, service and agent graphs, impact, differences and reconciliation",
+      "authority": "PostgreSQL owns accepted graph material; Neo4j is a verified query projection",
+      "existing_code_examples": [
+        "GraphStore.java",
+        "GraphService.java",
+        "GraphWorker.java"
+      ],
+      "loop": "Detect and analyze",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_topology",
+      "port": 8080
+    },
+    {
+      "service_id": "S07",
+      "name": "assessment",
+      "title": "Assessment and learning",
+      "scope": "Fixed analysis cases, deterministic evaluations, observed risk, recommendations, forecasts and learning proposals",
+      "authority": "Observed facts remain distinct from future prediction and proposed adaptations",
+      "existing_code_examples": [
+        "AnalysisCases.java",
+        "EvaluationWorker.java",
+        "ProposalProcessor.java"
+      ],
+      "loop": "Detect Predict Learn",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_assessment",
+      "port": 8080
+    },
+    {
+      "service_id": "S08",
+      "name": "knowledge",
+      "title": "Knowledge and retrieval",
+      "scope": "Knowledge source/version review, purpose and classification rules, bounded retrieval and immutable citations",
+      "authority": "Approved supplied knowledge and exact excerpt provenance",
+      "existing_code_examples": [
+        "KnowledgeRetrieval.java",
+        "RetrievalService.java"
+      ],
+      "loop": "Inform",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_knowledge",
+      "port": 8080
+    },
+    {
+      "service_id": "S09",
+      "name": "agent-orchestration",
+      "title": "Advisory agent orchestration",
+      "scope": "Attributable agent-case seals, bounded multi-agent runs, one-time assignments, outputs, dissent and human arbitration",
+      "authority": "A0 A1 A2 advisory assistance; no cloud execution authority",
+      "existing_code_examples": [
+        "AgentCases.java",
+        "AdvisoryRuns.java",
+        "AdvisoryWorkflow.java"
+      ],
+      "loop": "Assist",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_agent_orchestration",
+      "port": 8080
+    },
+    {
+      "service_id": "S10",
+      "name": "decision-governance",
+      "title": "Decision governance",
+      "scope": "Signed authorization-policy lifecycle, durable policy evaluation, approvals, one-time authorizations, fences, decision envelopes and replay",
+      "authority": "Authoritative action permission, cancellation and bounded decision-context receipts",
+      "existing_code_examples": [
+        "ActionPolicyEngine.java",
+        "PolicyTrust.java",
+        "PolicyAttestor.java"
+      ],
+      "loop": "Prevent and adapt governance",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_decision_governance",
+      "port": 8080
+    },
+    {
+      "service_id": "S11",
+      "name": "execution",
+      "title": "Execution and workload control",
+      "scope": "Provider plan translation, durable workflows, protected agent execution, control generations, checkpoints, compensation and isolated action dispatch",
+      "authority": "Exactly attributable attempts; ambiguous external effects remain unknown until reconciled",
+      "existing_code_examples": [
+        "runtime/005_agent_runtime.sql"
+      ],
+      "loop": "Withstand and recover",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_execution",
+      "port": 8080
+    },
+    {
+      "service_id": "S12",
+      "name": "recovery-assurance",
+      "title": "Recovery assurance and validation",
+      "scope": "Validation plan/probe lifecycle, resilience experiments, recovery paths, path certification and independence baselines",
+      "authority": "Independent observed recovery validation; topology alone never certifies recovery",
+      "existing_code_examples": [
+        "ValidationPlanProcessor.java",
+        "Assurance.java"
+      ],
+      "loop": "Withstand Recover Learn",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_recovery_assurance",
+      "port": 8080
+    },
+    {
+      "service_id": "S13",
+      "name": "commercial-billing",
+      "title": "Commercial and billing",
+      "scope": "Customer qualifications, pilots, approved product claims, launch gates, subscriptions, metering, rating, invoices, payment reconciliation and value review",
+      "authority": "Immutable admitted usage and money ledger; entitlements never increase operational authority",
+      "existing_code_examples": [
+        "database/billing/README.md"
+      ],
+      "loop": "Commercial",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_commercial_billing",
+      "port": 8080
+    },
+    {
+      "service_id": "S14",
+      "name": "audit-reporting",
+      "title": "Audit reporting and notifications",
+      "scope": "Domain audit receipt aggregation, evidence-bundle export, recent activity, findings routing and notification delivery",
+      "authority": "Read models and sealed exports preserve source ownership and current disclosure",
+      "existing_code_examples": [
+        "runtime/001_runtime.sql"
+      ],
+      "loop": "Explain",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_audit_reporting",
+      "port": 8080
+    },
+    {
+      "service_id": "UX01",
+      "name": "experience-api",
+      "title": "Unified experience API",
+      "scope": "One browser application, backend for frontend, journey composition, saved views and personal preferences",
+      "authority": "Uses domain APIs; no cross-service SQL or independent action permissions",
+      "existing_code_examples": [
+        "UiGateway.java",
+        "UiSecurity.java",
+        "UiController.java"
+      ],
+      "loop": "Experience",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "uacrf_experience_api",
+      "port": 8080
+    },
+    {
+      "service_id": "EDGE01",
+      "name": "edge-gateway",
+      "title": "API edge",
+      "scope": "External route compatibility, limits, TLS ingress and command routing",
+      "authority": "Routes and authenticates transport; each owner still authorizes its operation",
+      "existing_code_examples": [
+        "Api.java",
+        "Routes.java"
+      ],
+      "loop": "Edge",
+      "design_status": "PROPOSED",
+      "implementation_status": "NOT_IMPLEMENTED_AS_MICROSERVICE",
+      "database": "none",
+      "port": 8080
+    }
+  ]
+}

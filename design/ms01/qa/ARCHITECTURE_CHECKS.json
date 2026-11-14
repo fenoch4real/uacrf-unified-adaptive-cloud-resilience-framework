@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "architecture_revision": "MS-01",
+  "status": "PASS",
+  "scope": "Checked-in MS01 design artifact consistency; target runtime acceptance is not evaluated",
+  "checks": [
+    "Fourteen domains and two edge components",
+    "Every existing API has one valid owner",
+    "Exactly74 canonical existing operations",
+    "All107 inherited route records allocated",
+    "All153 inherited table records allocated",
+    "Polymorphic analysis case split explicit",
+    "All131 unique formal requirement IDs allocated",
+    "Every formal requirement retains normative source wording",
+    "Every formal requirement has accountable owner and known target services",
+    "Original47 identities preserved",
+    "Thirty-nine inherited scenarios remain unexecuted in target",
+    "Target additions separately labelled with no duplicate existing route",
+    "All target routes have an owner",
+    "All event producers and consumers are known services",
+    "No event claims operational authorization",
+    "All twelve diagrams have SVG PNG and editable source",
+    "All Markdown local links resolve",
+    "Reading library links resolve at prepackaging stage"
+  ],
+  "check_count": 18,
+  "failed_checks": [],
+  "source_contract_reference_findings": 0,
+  "target_runtime_acceptance": "NOT_EXECUTED"
+}

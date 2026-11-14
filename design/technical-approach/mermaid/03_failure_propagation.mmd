@@ -1,0 +1,23 @@
+flowchart LR
+  %% 03 Failure Propagation
+  subgraph SG0["Technical"]
+    N0["Deployment<br/>defect"]
+    N1["Service<br/>degraded"]
+    N2["SLO<br/>breached"]
+  end
+  subgraph SG1["Customer"]
+    N3["JourneyStep<br/>blocked"]
+    N4["CustomerJourney<br/>failed"]
+    N5["CustomerSegment<br/>affected"]
+  end
+  subgraph SG2["Impact"]
+    N6["Impact<br/>orders"]
+    N7["Outcome<br/>revenue"]
+  end
+  N0 -->|FAILURE_PROPAGATES_TO| N1
+  N1 -->|GOVERNED_BY_SLO| N2
+  N1 -->|SUPPORTS_STEP| N3
+  N3 -->|PART_OF_JOURNEY| N4
+  N4 -->|SERVES_SEGMENT| N5
+  N5 -->|AFFECTS| N6
+  N6 -->|CONTRIBUTES_TO| N7

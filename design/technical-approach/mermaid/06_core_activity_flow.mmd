@@ -1,0 +1,21 @@
+flowchart LR
+  A[Ingest provider signals] --> B[Normalize canonical evidence]
+  B --> C{Evidence qualified}
+  C -- no --> Q[Quarantine and record reasons]
+  C -- yes --> D[Project idempotently to Neo4j]
+  D --> E[Create graph revision and subgraph digest]
+  E --> F[Assess failure paths impact SLO and recovery options]
+  F --> G[Generate bounded provider neutral candidates]
+  G --> H{OPA policy decision}
+  H -- deny --> Z[Record denial and escalate]
+  H -- approval required --> I[Human approval]
+  I -- reject or expire --> Z
+  I -- approve --> J[Issue signed bounded authorization]
+  H -- allow --> J
+  J --> K[Execute through provider adapter with idempotency key]
+  K --> L[Run ordered cross layer validation]
+  L -- fail --> M[Compensate stop or escalate]
+  M --> L
+  L -- pass stable window --> N[Confirm recovered customer outcome]
+  N --> O[Create DecisionEnvelope and evidence package]
+  O --> P[Governed learning and improvement]

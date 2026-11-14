@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "guide_revision": 11,
+  "visual_refinement": 8,
+  "status": "PASS_LOCAL_UI_AND_PROPOSED_CONTRACT_REVIEW",
+  "schema_and_navigation_checks": 55,
+  "canonical_baseline_files_preserved": 49,
+  "existing_guide_media_preserved": 2,
+  "formal_requirements_preserved": 131,
+  "templates": "Page-memory catalog with immutable local versions",
+  "application": "Template snapshot, unit and allowed-range checks; stale revision rejected",
+  "server_persistence": "NOT_IMPLEMENTED",
+  "real_role_enforcement": "NOT_IMPLEMENTED",
+  "activation_and_live_use": "NOT_IMPLEMENTED",
+  "browser_acceptance": "NOT_EXECUTED",
+  "score_change": 0
+}

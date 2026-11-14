@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "revisions": [
+    {
+      "revision": "MS01",
+      "date": "2026-11-03",
+      "change": "New microservices architecture, service specifications, ownership inventories, interfaces, diagrams, migration plan and acceptance criteria.",
+      "implementation_status": "NOT_STARTED",
+      "readiness_score_change": 0
+    }
+  ]
+}

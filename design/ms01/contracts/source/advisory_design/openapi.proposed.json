@@ -1,0 +1,124 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF attributable advisory case reads",
+    "version": "1.0"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/v1/agent-cases/{id}": {
+      "get": {
+        "summary": "Read an immutable attributable advisory input case",
+        "description": "Read metadata and original case material under current full source-case disclosure. Current eligibility is separate from the immutable seal; actual graph/policy/evidence bytes require verification again before use.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scoped immutable advisory input and current eligibility",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./agent-case.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Current identity, source scope, contract, revision or availability rejected the operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED"
+      }
+    }
+  }
+}

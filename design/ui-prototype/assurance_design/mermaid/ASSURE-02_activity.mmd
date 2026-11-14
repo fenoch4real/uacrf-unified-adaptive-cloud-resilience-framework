@@ -1,0 +1,21 @@
+flowchart TD
+S01["S01 Read assessment and pending accepted graph revisions"]
+S01 -->|fail or incomplete| F1
+S02["S02 Check current access to baseline review history and pending graph scopes"]
+S01 --> S02
+S02 -->|fail or incomplete| F1
+S03["S03 Select accepted graph and submit expected revision and review reason"]
+S02 --> S03
+S03 -->|fail or incomplete| F1
+S04["S04 Verify selected projection and current SQL evidence eligibility"]
+S03 --> S04
+S04 -->|fail or incomplete| F1
+S05["S05 Compare relevant nodes and semantic relationships with the original baseline"]
+S04 --> S05
+S05 -->|fail or incomplete| F1
+S06["S06 Append review with revision fencing audit and notification outbox"]
+S05 --> S06
+S06 -->|fail or incomplete| F1
+S07["S07 Explain relevant changes shared dependencies and required retest review"]
+S06 --> S07
+F1["F1 Stop without recovery or certification"]

@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant P0 as Owner UI
+  participant P1 as S09
+  participant P2 as S02 S07 S08
+  participant P3 as Runtime
+  participant P4 as Independent reviewer
+  alt Required current prerequisites hold
+    P0->>P1: 1 Choose fixed case guidance and roles
+    P1->>P2: 2 Verify active profiles and same-purpose sources
+    P1->>P1: 3 Reserve one attempt per required role
+    P3->>P1: 4 Claim only assigned input once
+    P1->>P3: 5 Issue exact verified bounded packet
+    P3->>P3: 6 Journal intent before model invocation
+    P3->>P1: 7 Submit output and every dissent record
+    P4->>P1: 8 Review exact revision and complete outputs
+    P1->>P2: 9 Reverify current source and actual files
+    P1->>P4: 10 Retain advisory review and rationale
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P4: Unknown model usage stays null. Missing or abstaining roles block; dissent is preserved. Cancellation retains late ineligible output.
+  end

@@ -1,0 +1,25 @@
+sequenceDiagram
+  participant P0 as User and S11
+  participant P1 as S10 governance
+  participant P2 as Owner APIs
+  participant P3 as Executor
+  participant P4 as Provider
+  participant P5 as S12 validation
+  alt Required current prerequisites hold
+    P0->>P1: 1 Request exact plan and context
+    P1->>P2: 2 Read current source and access receipts
+    P2->>P1: 3 Return bounded current owner facts
+    P1->>P0: 4 Reserve one bound attempt
+    P0->>P3: 5 Deliver plan and reservation
+    P3->>P1: 6 Current permit and fence check
+    P3->>P4: 7 Check provider preconditions
+    P3->>P3: 8 Persist DISPATCHING attempt
+    P3->>P4: 9 Dispatch conditional request
+    P4->>P3: 10 Return observed effect or uncertainty
+    P3->>P0: 11 Retain outcome and request identity
+    P0->>P5: 12 Request independent mandatory probes
+    P5->>P0: 13 Return observed validation evidence
+    P0->>P1: 14 Retain final justified disposition
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P5: Denied, stale or unavailable current authority stops new dispatch. A lost provider response stays Unknown until reconciliation.
+  end

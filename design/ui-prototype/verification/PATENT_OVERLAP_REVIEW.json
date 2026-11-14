@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "review": [
+    {
+      "file": "01_Patent_Specifications/01_reconstructable_decisions_v1_0.docx",
+      "title": "System and Method for Reconstructable Policy Governed Recovery Decisions in Distributed Cloud Systems",
+      "reviewed_paragraphs": 221,
+      "formal_claims_changed": false
+    },
+    {
+      "file": "01_Patent_Specifications/02_graph_revision_authorization_v1_0.docx",
+      "title": "Dependency Revision Aware Authorization of Recovery Actions in Distributed Computing Environments",
+      "reviewed_paragraphs": 220,
+      "formal_claims_changed": false
+    },
+    {
+      "file": "01_Patent_Specifications/03_provider_neutral_authorization_v1_0.docx",
+      "title": "Provider Neutral Bounded Authorization for Automated Recovery Across Heterogeneous Cloud Platforms",
+      "reviewed_paragraphs": 221,
+      "formal_claims_changed": false
+    },
+    {
+      "file": "01_Patent_Specifications/04_evidence_qualified_state_v1_0.docx",
+      "title": "Evidence Qualified State Determination for Safe Automated Recovery of Cloud Services",
+      "reviewed_paragraphs": 221,
+      "formal_claims_changed": false
+    },
+    {
+      "file": "01_Patent_Specifications/05_independent_recovery_paths_v1_0.docx",
+      "title": "Graph Based Certification of Independent Recovery Paths in Multi Cloud Systems",
+      "reviewed_paragraphs": 223,
+      "formal_claims_changed": false
+    },
+    {
+      "file": "01_Patent_Specifications/06_cross_layer_validation_v1_0.docx",
+      "title": "Cross Layer Validation and Compensating Recovery for AI Enabled Cloud Services",
+      "reviewed_paragraphs": 222,
+      "formal_claims_changed": false
+    },
+    {
+      "file": "01_Patent_Specifications/07_collaborative_agent_arbitration_v1_0.docx",
+      "title": "System and Method for Deterministic Arbitration of Independently Attributable Collaborative Agent Proposals for Governed Cloud Recovery",
+      "reviewed_paragraphs": 224,
+      "formal_claims_changed": false
+    }
+  ],
+  "candidates": 3,
+  "new_claims": 0,
+  "novelty": "NOT_ESTABLISHED",
+  "prior_art_search": "NOT_PERFORMED",
+  "recommendation": "Preserve seven disclosures; evaluate candidates separately"
+}

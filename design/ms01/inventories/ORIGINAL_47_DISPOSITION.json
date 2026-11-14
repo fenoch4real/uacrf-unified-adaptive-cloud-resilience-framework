@@ -1,0 +1,378 @@
+[
+  {
+    "original_number": 1,
+    "endpoint": "GET /v1/decision-envelopes/{id}",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 2,
+    "endpoint": "GET /v1/economics/customers/{id}",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 3,
+    "endpoint": "GET /v1/evidence/bundles/{id}",
+    "target_owner": "S14",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 4,
+    "endpoint": "GET /v1/path-certifications/{id}",
+    "target_owner": "S12",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 5,
+    "endpoint": "GET /v1/recovery-paths/{id}",
+    "target_owner": "S12",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 6,
+    "endpoint": "POST /v1/agent-arbitrations",
+    "target_owner": "S09",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 7,
+    "endpoint": "POST /v1/agent-cases",
+    "target_owner": "S09",
+    "recorded_status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 8,
+    "endpoint": "POST /v1/agent-outputs",
+    "target_owner": "S09",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 9,
+    "endpoint": "POST /v1/approvals/{id}:decide",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 10,
+    "endpoint": "POST /v1/authorizations",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 11,
+    "endpoint": "POST /v1/authorizations/{id}:revalidate",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 12,
+    "endpoint": "POST /v1/claims",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 13,
+    "endpoint": "POST /v1/customers/qualifications",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 14,
+    "endpoint": "POST /v1/decision-envelopes",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 15,
+    "endpoint": "POST /v1/decision-replays",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 16,
+    "endpoint": "POST /v1/dependencies",
+    "target_owner": "S02",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 17,
+    "endpoint": "POST /v1/experiments",
+    "target_owner": "S12",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 18,
+    "endpoint": "POST /v1/gates/{gate}:decide",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 19,
+    "endpoint": "POST /v1/graphs/differences:classify",
+    "target_owner": "S06",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 20,
+    "endpoint": "POST /v1/graphs/subgraphs:select",
+    "target_owner": "S06",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 21,
+    "endpoint": "POST /v1/impact:calculate",
+    "target_owner": "S06",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 22,
+    "endpoint": "POST /v1/metering/events",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 23,
+    "endpoint": "POST /v1/onboarding/{id}:transition",
+    "target_owner": "S03",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 24,
+    "endpoint": "POST /v1/pilots",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 25,
+    "endpoint": "POST /v1/policies:evaluate",
+    "target_owner": "S10",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 26,
+    "endpoint": "POST /v1/provider-actions:execute",
+    "target_owner": "S11",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 27,
+    "endpoint": "POST /v1/provider-plans:translate",
+    "target_owner": "S11",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 28,
+    "endpoint": "POST /v1/reconciliations",
+    "target_owner": "S06",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 29,
+    "endpoint": "POST /v1/recovery-paths:certify",
+    "target_owner": "S12",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 30,
+    "endpoint": "POST /v1/validations",
+    "target_owner": "S12",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 31,
+    "endpoint": "POST /v1/value-reviews",
+    "target_owner": "S13",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 32,
+    "endpoint": "POST /v1/workflows/{id}:compensate",
+    "target_owner": "S11",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 33,
+    "endpoint": "POST /v1/workflows/{id}:execute",
+    "target_owner": "S11",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 34,
+    "endpoint": "POST /v1/workflows/{id}:validate",
+    "target_owner": "S11",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 35,
+    "endpoint": "POST /v1/knowledge-search",
+    "target_owner": "S08",
+    "recorded_status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 36,
+    "endpoint": "GET /v1/retrieval-manifests/{id}",
+    "target_owner": "S08",
+    "recorded_status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 37,
+    "endpoint": "POST /v1/orchestration-runs",
+    "target_owner": "S09",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 38,
+    "endpoint": "POST /v1/orchestration-runs/{id}:cancel",
+    "target_owner": "S09",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 39,
+    "endpoint": "GET /v1/orchestration-runs/{id}",
+    "target_owner": "S09",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 40,
+    "endpoint": "GET /v1/commands/{id}",
+    "target_owner": "EDGE01",
+    "recorded_status": "PARTIALLY_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 41,
+    "endpoint": "POST /v1/workloads/{id}/objectives",
+    "target_owner": "S05",
+    "recorded_status": "PARTIALLY_IMPLEMENTED",
+    "runtime_registered": true,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 42,
+    "endpoint": "POST /v1/objective-imports:preview",
+    "target_owner": "S05",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 43,
+    "endpoint": "GET /v1/objective-imports/{id}",
+    "target_owner": "S05",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 44,
+    "endpoint": "POST /v1/objective-imports/{id}:resolve",
+    "target_owner": "S05",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 45,
+    "endpoint": "POST /v1/objective-imports/{id}:propose",
+    "target_owner": "S05",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 46,
+    "endpoint": "GET /v1/objective-imports/{id}/history",
+    "target_owner": "S05",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  },
+  {
+    "original_number": 47,
+    "endpoint": "POST /v1/connections/{id}:reconcile",
+    "target_owner": "S03",
+    "recorded_status": "NOT_IMPLEMENTED",
+    "runtime_registered": false,
+    "microservice_status": "NOT_IMPLEMENTED"
+  }
+]

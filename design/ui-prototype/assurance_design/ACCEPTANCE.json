@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "local_evidence": "../runtime/TEST_RESULTS.json",
+  "planned_not_executed": [
+    "live provider change ingestion",
+    "scheduled unattended reassessment",
+    "notifications delivery",
+    "connected UI access and accessibility",
+    "scenario-specific independence certification",
+    "controlled retest execution and independent sign-off",
+    "agent effect reconciliation before retry"
+  ],
+  "full_system_scenarios": 39,
+  "full_system_status": "NOT_EXECUTED",
+  "score_change": 0
+}

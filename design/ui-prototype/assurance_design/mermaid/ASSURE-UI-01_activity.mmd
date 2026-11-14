@@ -1,0 +1,15 @@
+flowchart TD
+S01["S01 Choose a registered example journey inside Assess"]
+S01 -->|fail or incomplete| F1
+S02["S02 Validate scenario reason workload and local owner before local baseline creation"]
+S01 --> S02
+S02 -->|fail or incomplete| F1
+S03["S03 Inspect a local change and review the diagnostic result"]
+S02 --> S03
+S03 -->|fail or incomplete| F1
+S04["S04 Append local reassessment and preserve earlier local reviews"]
+S03 --> S04
+S04 -->|fail or incomplete| F1
+S05["S05 Show the same scoped status in journey graph evidence recovery and activity views"]
+S04 --> S05
+F1["F1 Stop without recovery or certification"]

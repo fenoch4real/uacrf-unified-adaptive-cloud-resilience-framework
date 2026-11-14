@@ -1,0 +1,1260 @@
+{
+  "_label" : "SAMPLE DATA - synthetic, provider-SHAPED payloads, not captured provider responses. Regenerate with the sample-data-tools module.",
+  "connection" : {
+    "id" : "conn-sample-multicloud",
+    "name" : "Sample multi-cloud estate (AWS, Azure, Google Cloud shapes)",
+    "provider" : "SAMPLE_LOCAL",
+    "read_only_identity_ref" : "sample/readonly-collector",
+    "owner_id" : "owner-platform",
+    "expected_revision" : 0
+  },
+  "provider_capability_matrix" : {
+    "_note" : "Declared per provider, never inferred as equivalent. Every provider stays UNACCEPTED until conformance.",
+    "aws" : {
+      "acceptance" : "UNACCEPTED",
+      "inventory_snapshot" : "SAMPLE_SHAPE",
+      "signal_batches" : "SAMPLE_SHAPE",
+      "configuration_receipts" : "SAMPLE_SHAPE",
+      "source_definition_reads" : "UNSUPPORTED",
+      "execution" : "UNSUPPORTED",
+      "pagination" : "NextToken",
+      "rate_limit_signal" : "ThrottlingException"
+    },
+    "azure" : {
+      "acceptance" : "UNACCEPTED",
+      "inventory_snapshot" : "SAMPLE_SHAPE",
+      "signal_batches" : "SAMPLE_SHAPE",
+      "configuration_receipts" : "UNSUPPORTED",
+      "source_definition_reads" : "UNSUPPORTED",
+      "execution" : "UNSUPPORTED",
+      "pagination" : "$skipToken",
+      "rate_limit_signal" : "TooManyRequests"
+    },
+    "gcp" : {
+      "acceptance" : "UNACCEPTED",
+      "inventory_snapshot" : "SAMPLE_SHAPE",
+      "signal_batches" : "SAMPLE_SHAPE",
+      "configuration_receipts" : "UNSUPPORTED",
+      "source_definition_reads" : "UNSUPPORTED",
+      "execution" : "UNSUPPORTED",
+      "pagination" : "nextPageToken",
+      "rate_limit_signal" : "RESOURCE_EXHAUSTED"
+    }
+  },
+  "bindings" : [ {
+    "id" : "bind-aws-checkout-web",
+    "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+    "service_ref" : "svc-checkout-web",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-aws-payments-api",
+    "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+    "service_ref" : "svc-payments-api",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-aws-orders-service",
+    "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+    "service_ref" : "svc-orders-service",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-azure-identity-gateway",
+    "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+    "service_ref" : "svc-identity-gateway",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-azure-notifications-worker",
+    "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+    "service_ref" : "svc-notifications-worker",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-gcp-inventory-service",
+    "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+    "service_ref" : "svc-inventory-service",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-gcp-recommendation-ranker",
+    "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+    "service_ref" : "svc-recommendation-ranker",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-aws-inventory",
+    "source_ref" : "sample:aws/eu-west-1/config/inventory",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-aws-collection-status",
+    "source_ref" : "sample:aws/eu-west-1/cloudwatch/collection-status",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-azure-inventory",
+    "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-azure-collection-status",
+    "source_ref" : "sample:azure/westeurope/monitor/collection-status",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-gcp-inventory",
+    "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+    "expected_revision" : 0
+  }, {
+    "id" : "bind-gcp-collection-status",
+    "source_ref" : "sample:gcp/europe-west1/monitoring/collection-status",
+    "expected_revision" : 0
+  } ],
+  "deliveries" : [ {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0001",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[0.2122]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[4.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "4852919f1cdfed6d2de02ac3f9bb3c1c6bc6cf988826a8176066e0221d35b30c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0001",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[0.1197]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[3.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "42cee2e3cdb661f768e016c3e78719b7d3fac62e74b60f89bd1e1579fbd994de"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0001",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[5.3]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[232.0]}],\"Messages\":[]}",
+      "payload_digest" : "240ea03246b4c356119151bd22cbcd4e0c04d78cac6fd18f070b2289dc94ce2e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0001",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:00:00Z/2026-11-12T09:05:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:05:00Z\",\"average\":0.087}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:05:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "cac916095103863c448ef12d91559d7d57df3287fdfcffbb6da3678556c70b13"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0001",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:00:00Z/2026-11-12T09:05:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:05:00Z\",\"average\":329.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:05:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "73b0e3de61a3c0845ad5ee66a2b030ea7f7e68d3f0447870cbe6d7ea37863f4a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0001",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:00:00Z\",\"endTime\":\"2026-11-12T09:05:00Z\"},\"value\":{\"doubleValue\":101.6}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:00:00Z\",\"endTime\":\"2026-11-12T09:05:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "c1ec9c42f0bc9a04e5f7f7b326597e5f96e7b86fb167a56d448ee8c78370ff21"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0001",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:00:00Z\",\"endTime\":\"2026-11-12T09:05:00Z\"},\"value\":{\"doubleValue\":63.9}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:00:00Z\",\"endTime\":\"2026-11-12T09:05:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "73d360f604c787f3b8f4361a67db216856577efd8ebe73f8c8cea8978be56932"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0001",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceName\":\"checkout-alb\"},{\"resourceType\":\"AWS::EKS::Cluster\",\"resourceId\":\"checkout-eks\",\"resourceName\":\"checkout-eks\"},{\"resourceType\":\"AWS::EKS::Nodegroup\",\"resourceId\":\"checkout-eks/ng-general\",\"resourceName\":\"ng-general\"}],\"nextToken\":\"sample-token-1-1\"}",
+      "payload_digest" : "d3ce963f695bf916debea30c41f7e132e1ab0d65e0cc3543cd362ab4de3cda33"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0002",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2\",\"resourceName\":\"orders-db\"},{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceName\":\"orders-db-replica\"},{\"resourceType\":\"AWS::SQS::Queue\",\"resourceId\":\"orders-events\",\"resourceName\":\"orders-events\"}],\"nextToken\":\"sample-token-1-2\"}",
+      "payload_digest" : "36cd3caae33b4c774174692b5e0e03ebee58cbc8a862ac9d1847f5e9eabcaa07"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0003",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::KMS::Key\",\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceName\":\"orders-data-key\"},{\"resourceType\":\"AWS::EC2::VPC\",\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceName\":\"checkout-vpc\"},{\"resourceType\":\"AWS::Route53::HostedZone\",\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceName\":\"meridian-sample.example\"}]}",
+      "payload_digest" : "68d50064a108755a44c841c689f13219d04f7905f3fec3c9e07c3d9145566810"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0001",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"true\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway\",\"microsoft.web/sites\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity\",\"microsoft.web/serverfarms\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify\",\"microsoft.servicebus/namespaces\",\"westeurope\"]]},\"$skipToken\":\"sample-skip-1-1\"}",
+      "payload_digest" : "8afbc74c3537b7b6613ece6b0dd3cab84ca40508e884fbb71347a3ff1d1312df"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0002",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"false\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks\",\"microsoft.containerservice/managedclusters\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity\",\"microsoft.network/virtualnetworks\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify\",\"microsoft.managedidentity/userassignedidentities\",\"westeurope\"]]}}",
+      "payload_digest" : "8c9095b1fa073f35d584c409e289551778f5a06b18137ce13ce263ace2b6ab9f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0001",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"assets\":[{\"name\":\"//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service\",\"assetType\":\"run.googleapis.com/Service\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987\",\"assetType\":\"aiplatform.googleapis.com/Endpoint\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke\",\"assetType\":\"container.googleapis.com/Cluster\",\"updateTime\":\"2026-11-12T09:00:00Z\"}],\"nextPageToken\":\"sample-page-1-1\"}",
+      "payload_digest" : "ba8f654d2c281fedd7b954cc9527a503926fafdb91d635e09c7be030694a3e46"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0002",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"assets\":[{\"name\":\"//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc\",\"assetType\":\"compute.googleapis.com/Network\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)\",\"assetType\":\"firestore.googleapis.com/Database\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features\",\"assetType\":\"aiplatform.googleapis.com/FeatureOnlineStore\",\"updateTime\":\"2026-11-12T09:00:00Z\"}]}",
+      "payload_digest" : "31e9aa9db5892fd6b7ab6e5e42ec6e73344d4abf210546eb5f333bd82151edcc"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0002",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[0.2217]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[6.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "03dc2d22240d6c23bc18d80b8d962712e0d5622c91df9900e20ea17fbc27b1f3"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0002",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[0.1228]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "28e233feb4d86e43cc1664526f28f3a4d3ab9e17c78a44ab47aef8a7a882afa7"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0002",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[4.1]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:10:00Z\"],\"Values\":[235.0]}],\"Messages\":[]}",
+      "payload_digest" : "53a6f3027ec2c6ce10593cbc4c3beb7c58d304abbaf3ab6cecf907527e2ae0c1"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0002",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:05:00Z/2026-11-12T09:10:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:10:00Z\",\"average\":0.0843}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:10:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "57df1a25b528a556b52d330c9af3d92bd2d91f73278a7d71ee6dd01d75d62ba1"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0002",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:05:00Z/2026-11-12T09:10:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:10:00Z\",\"average\":348.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:10:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "2cfcec45264897ad2b57f4bc85a2bcc0ebb2138180654f0a21bb1bf2e3d1f2f0"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0002",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:05:00Z\",\"endTime\":\"2026-11-12T09:10:00Z\"},\"value\":{\"doubleValue\":96.2}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:05:00Z\",\"endTime\":\"2026-11-12T09:10:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "3d3f0d213b2272fc80975704d9ce37cbce7070ee7b99f1429d9cca81a851709b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0002",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:05:00Z\",\"endTime\":\"2026-11-12T09:10:00Z\"},\"value\":{\"doubleValue\":63.2}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:05:00Z\",\"endTime\":\"2026-11-12T09:10:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "aad2eed9f938e74cf496a041fe3f48bce67b34b5aa2fd2cf25e8fced6c40c75f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0003",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[0.207]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[5.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "4ec10d738d3add2fc2ce3ac43685d0960690b84a36a39b3a8b02d1ea84759a59"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0003",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[0.1283]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "a9e0be76af12dfdae5a4fe7f08ad8a151bf279e5b97c15c9b2f15790f067df1c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0003",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[2.9]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:15:00Z\"],\"Values\":[227.0]}],\"Messages\":[]}",
+      "payload_digest" : "1d7d098751134e29134e0f6ba8ec530d6ae3672713358188e52f40cafaedb160"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0003",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:10:00Z/2026-11-12T09:15:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:15:00Z\",\"average\":0.0881}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:15:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "98b0bd9596e2c3800abe37cf70a44cd7558aa7f36a1a76a826219aacb2934c90"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0003",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:10:00Z/2026-11-12T09:15:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:15:00Z\",\"average\":328.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:15:00Z\",\"average\":0.2}]}]}]}",
+      "payload_digest" : "b350a1a322b5502fbc8fe758bea9bc6c5f0064e8534a17c1cf316239db50b455"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0003",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:10:00Z\",\"endTime\":\"2026-11-12T09:15:00Z\"},\"value\":{\"doubleValue\":100.2}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:10:00Z\",\"endTime\":\"2026-11-12T09:15:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "0aa202636339e6d80109db91ebfdb2fd85481f7f7fb82a7eaa3049895c7f22e6"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0003",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:10:00Z\",\"endTime\":\"2026-11-12T09:15:00Z\"},\"value\":{\"doubleValue\":57.2}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:10:00Z\",\"endTime\":\"2026-11-12T09:15:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "cedede69c5151d809ddb3dbd5c70b6bfbafc61ac6776bad1f1d8c2871298c3ba"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-collection-status-0001",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/collection-status",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:15:20Z",
+      "kind" : "aws.error",
+      "payload" : "{\"__type\":\"ThrottlingException\",\"message\":\"Rate exceeded\",\"retry_after_ms\":1200}",
+      "payload_digest" : "b643e6881ece1d2785881b3b6a037ef6791baa13833ddbf8cec04c28f8510a9c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0004",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[0.2164]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[3.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "d3f3f0b3edd16f398a22d5b7d07b9c51e936b03bd63220f0c433d9519905c8fe"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0004",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[0.1174]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "212fbb99aae72cd53186f0ffa78266cc0cda4a28b9429fc9773f0042cfd25fca"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0004",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[3.8]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:20:00Z\"],\"Values\":[234.0]}],\"Messages\":[]}",
+      "payload_digest" : "c57bdd81b754765d36809aa57777699b7890e68e932904174f37abbd48df5823"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0004",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:15:00Z/2026-11-12T09:20:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:20:00Z\",\"average\":0.0913}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:20:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "c02880e5d7385a504250dd63ecf3d9087b4f275d0703048adfff614e1de30ace"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0004",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:15:00Z/2026-11-12T09:20:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:20:00Z\",\"average\":329.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:20:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "1277381fb4f33e0f627312879b4694df7658cc9f2141247b1eb76ea266525704"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0004",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:15:00Z\",\"endTime\":\"2026-11-12T09:20:00Z\"},\"value\":{\"doubleValue\":97.8}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:15:00Z\",\"endTime\":\"2026-11-12T09:20:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "cf11601df3e8a4f9a10c823cd450ed0d3c6f1f0e916a7c4c5a2a239196020d84"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0004",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:20:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:15:00Z\",\"endTime\":\"2026-11-12T09:20:00Z\"},\"value\":{\"doubleValue\":61.9}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:15:00Z\",\"endTime\":\"2026-11-12T09:20:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "94379432499232ed2e5789827506d7cab150f62b7b7cd96400ae2a3d0fa59359"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0005",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[0.1986]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[4.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "3f1f144513917136f6f71cdaa902cd5621e146cf5d6e36da8c769cc1de4e534f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0005",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[0.1117]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "ecfb99575b6cb9bf758ae70ea6914683a90774b4ba56269f57d1d91287d29c95"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0005",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[2.4]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:25:00Z\"],\"Values\":[257.0]}],\"Messages\":[]}",
+      "payload_digest" : "ef18250e6a5e938e7614227edf526f5675d13392487aa41196c2e209dd1b5118"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0005",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:20:00Z/2026-11-12T09:25:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:25:00Z\",\"average\":0.0808}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:25:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "19827337d37b9a5530f25d84d4fcd3add63ae38fc0183467e8b48b7078dc0657"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0005",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:20:00Z/2026-11-12T09:25:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:25:00Z\",\"average\":352.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:25:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "259bedc900ea85cdfdcb4e6017a5424046375766f14d3787d04cfefc9ea0abf5"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0005",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:20:00Z\",\"endTime\":\"2026-11-12T09:25:00Z\"},\"value\":{\"doubleValue\":88.3}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:20:00Z\",\"endTime\":\"2026-11-12T09:25:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "6655b719e870b5816892f26cf2ed06030c1507c5964d7477a46a52b8a33a6d47"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-collection-status-0001",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/collection-status",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:25:20Z",
+      "kind" : "gcp.error",
+      "payload" : "{\"error\":{\"code\":403,\"message\":\"Permission 'monitoring.timeSeries.list' denied on resource.\",\"status\":\"PERMISSION_DENIED\"}}",
+      "payload_digest" : "a0924d35d8946094a4abc9b84caf8be38ad333cbff4b4e60542d62d473b0cf55"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0006",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[0.2051]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[4.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "15526de25268941f195cabfc2bb1de1ebee1631a1124a348ec501bfb4f09e829"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0006",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[0.112]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[1.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "963e6f6c192034e7b98ed108efdc4c83ecafa30f3ecbe48221eda56c8b28eb88"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0006",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[3.1]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:30:00Z\"],\"Values\":[228.0]}],\"Messages\":[]}",
+      "payload_digest" : "44c0553867606958fae8994b7e4eb797332662a36d6ea7da86410320e9391295"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0006",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:25:00Z/2026-11-12T09:30:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:30:00Z\",\"average\":0.079}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:30:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "5b5949c19741c5b5f249b684a15b262e018716bc41418e11342dd8862fe491ac"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0006",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:25:00Z/2026-11-12T09:30:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:30:00Z\",\"average\":353.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:30:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "8e9540c68b28a66e5c12c03635782c4cbb942e4d65c912bbd02c76fd8ae84533"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0006",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:30:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:25:00Z\",\"endTime\":\"2026-11-12T09:30:00Z\"},\"value\":{\"doubleValue\":97.1}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:25:00Z\",\"endTime\":\"2026-11-12T09:30:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "214244212901ea43b73c6ec0c098722d82d5c074bc9b4fa263f43c8cda3fb93e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-collection-status-0002",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/collection-status",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:30:20Z",
+      "kind" : "gcp.error",
+      "payload" : "{\"error\":{\"code\":403,\"message\":\"Permission 'monitoring.timeSeries.list' denied on resource.\",\"status\":\"PERMISSION_DENIED\"}}",
+      "payload_digest" : "a0924d35d8946094a4abc9b84caf8be38ad333cbff4b4e60542d62d473b0cf55"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0007",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[0.3692]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[16.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "8e806c56ee654ca9691be65301222c358c9f883797a5b829c62ae046ee0a44f7"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0007",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[0.1285]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "a3c0e02976098bfd5c6f86938f6aa6360a8f4a5095fa0fc0a6b9ec8aceee1c9c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0007",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[4.3]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:35:00Z\"],\"Values\":[254.0]}],\"Messages\":[]}",
+      "payload_digest" : "fb7c2c1c2ba671360885e3cad385c163fac231f958d838843aafd6fc817fc9d6"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0007",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:30:00Z/2026-11-12T09:35:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:35:00Z\",\"average\":0.0784}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:35:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "8ebbe15c816d88fb2267dd9a144381dd210f2fd3f4edfed16c7eb1e823698162"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0007",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:30:00Z/2026-11-12T09:35:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:35:00Z\",\"average\":307.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:35:00Z\",\"average\":0.2}]}]}]}",
+      "payload_digest" : "e5611e3f1ab548836b7928b6fe77690d2134c7eccd4f6336740dddf707c6a84e"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0007",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:30:00Z\",\"endTime\":\"2026-11-12T09:35:00Z\"},\"value\":{\"doubleValue\":90.0}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:30:00Z\",\"endTime\":\"2026-11-12T09:35:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "d37de50b388209c3ddb0edd27472db1879eb60032f0efec406f577691bc9034d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0007",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:35:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:30:00Z\",\"endTime\":\"2026-11-12T09:35:00Z\"},\"value\":{\"doubleValue\":58.5}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:30:00Z\",\"endTime\":\"2026-11-12T09:35:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "102fc1ed3f4d11920a805406088eba124ecdb626c4233ffba8a526f0daf22844"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0008",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[0.5854]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[27.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "b247be163c1cf300e32e3aaa88042c02652fa2085efb67656468095b6ff1b53d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0008",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[0.1253]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[1.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "320ccb98459beb710459293192a3ca9a4a663d23575457bdeb5d40cd542304b4"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0008",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[40.0]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:40:00Z\"],\"Values\":[231.0]}],\"Messages\":[]}",
+      "payload_digest" : "6ecc6ac3d730e3aab81ff6b5d53e32773165a76577c15af87b3e5f4d9f226e83"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0008",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:35:00Z/2026-11-12T09:40:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:40:00Z\",\"average\":0.0783}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:40:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "2dc775fdfc4e45707692234c66bb082c12a6b9aa7bc336825688a40ceb18d12c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0008",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:35:00Z\",\"endTime\":\"2026-11-12T09:40:00Z\"},\"value\":{\"doubleValue\":100.7}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:35:00Z\",\"endTime\":\"2026-11-12T09:40:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "974f450ecaf251918c12c434b9f66a21be928213f47237fbe3384d2422c661cb"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0008",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:35:00Z\",\"endTime\":\"2026-11-12T09:40:00Z\"},\"value\":{\"doubleValue\":57.5}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:35:00Z\",\"endTime\":\"2026-11-12T09:40:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "4dc606b035a4218cee241a2ae6130fab81e5eff3359baa9633804d4ff474daaa"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-collection-status-0001",
+      "source_ref" : "sample:azure/westeurope/monitor/collection-status",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:40:20Z",
+      "kind" : "azure.error",
+      "payload" : "{\"error\":{\"code\":\"TooManyRequests\",\"message\":\"Too many requests. Retry after 30s.\"}}",
+      "payload_digest" : "a0115e0823d58c40ddb5ddb81ccc7d7701bea9506cedf9abee55cb9bed62410d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0009",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[0.7772]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[41.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[7.0]}],\"Messages\":[]}",
+      "payload_digest" : "da7553bfe18b656754b323995ac4a1a57ef33d548bd4481782807868bfeb1dae"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0009",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[0.1274]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "2a6779ad8fb0f55103d0cc24865c17c23ffa09cf97a05d8a910eba10927efb6f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0009",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[80.0]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:45:00Z\"],\"Values\":[272.0]}],\"Messages\":[]}",
+      "payload_digest" : "50419d80bc30a541ea814f56412c5c8f455c4825835ca20f91a16caca193a4c2"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0009",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:40:00Z/2026-11-12T09:45:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:45:00Z\",\"average\":0.0816}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:45:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "36c835ba2228e8a2f398a63010e76a2a085bca7b195b7c53eddde9e2ee7c4d55"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0009",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:40:00Z\",\"endTime\":\"2026-11-12T09:45:00Z\"},\"value\":{\"doubleValue\":96.0}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:40:00Z\",\"endTime\":\"2026-11-12T09:45:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "b346eacfd4d3a3709be8e2a467a8b44d85605ac79ab17e91086c6549312b6ddb"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0009",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:45:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:40:00Z\",\"endTime\":\"2026-11-12T09:45:00Z\"},\"value\":{\"doubleValue\":198.6}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:40:00Z\",\"endTime\":\"2026-11-12T09:45:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "232a0c16caace4754d13181037f6295957ee7f10bad24f3f00fcf0987665a3f3"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-collection-status-0002",
+      "source_ref" : "sample:azure/westeurope/monitor/collection-status",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:45:20Z",
+      "kind" : "azure.error",
+      "payload" : "{\"error\":{\"code\":\"TooManyRequests\",\"message\":\"Too many requests. Retry after 60s.\"}}",
+      "payload_digest" : "9c53cd69a1e85c1dd166e13d5b6f22ca9bfce13666b2c01417db7e9844773ad1"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0010",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[1.04]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[56.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[7.0]}],\"Messages\":[]}",
+      "payload_digest" : "4eaa7ef6b4aca68a1c92482961f81518140f7a4457085112c570e7c5347c0e0a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0010",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[0.1177]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[1.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "54fe2e3bf0731a6abd6c1aad113142caa0f8d5339886789d115bb580bc45ac8a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0010",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[120.0]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:50:00Z\"],\"Values\":[247.0]}],\"Messages\":[]}",
+      "payload_digest" : "1806b57a9104474bb00eda1393ac03b3bb875f4f8a276707c79168d829e0d840"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0010",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:45:00Z/2026-11-12T09:50:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:50:00Z\",\"average\":0.086}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:50:00Z\",\"total\":2.0}]}]}]}",
+      "payload_digest" : "877ce335347ea2cc0a1e4b41a64098358a0c8e84e019534de56a7548755b120b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0010",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:45:00Z/2026-11-12T09:50:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:50:00Z\",\"average\":319.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:50:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "c3ce7309aa979b5ded669ded2b4bd47a67281d7c0f0f24ce4cc4b74600779508"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0010",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:45:00Z\",\"endTime\":\"2026-11-12T09:50:00Z\"},\"value\":{\"doubleValue\":87.6}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:45:00Z\",\"endTime\":\"2026-11-12T09:50:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "e12df2919e50822274a6800e6039a36c2398fec486581d72dc6fdcb35f28335d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0010",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T09:50:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:45:00Z\",\"endTime\":\"2026-11-12T09:50:00Z\"},\"value\":{\"doubleValue\":190.1}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:45:00Z\",\"endTime\":\"2026-11-12T09:50:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "2a3a4b4ca8a054e18f33df916b1d843946f72ce18adb3754f69131d5c4614a0b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0011",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[0.2226]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[6.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "0236b53d4248e5ced0904ed2f303de6d84768432257335ba480fcd0a1e0e5f5f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0011",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[0.1182]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "f187fac8aa1235168cd9af8e2b99a8c950a13fd196fb540ee8db66bc9ff412b3"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0011",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[2.8]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:55:00Z\"],\"Values\":[254.0]}],\"Messages\":[]}",
+      "payload_digest" : "258dfcdcf62323b919ae5827eefe91e61f79add790d27db75976c27fe59230df"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0011",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:50:00Z/2026-11-12T09:55:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:55:00Z\",\"average\":0.0865}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:55:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "b78fc82afb4a0096214eb4afe6ae471520662ef8df46191e74b2c8083c66e083"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0011",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:50:00Z/2026-11-12T09:55:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:55:00Z\",\"average\":324.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:55:00Z\",\"average\":0.2}]}]}]}",
+      "payload_digest" : "e7212e67080b3dd8de7431300d4ad1b9a9f0cf84798fb345b2337c6fd9db06f2"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0011",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:50:00Z\",\"endTime\":\"2026-11-12T09:55:00Z\"},\"value\":{\"doubleValue\":94.4}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:50:00Z\",\"endTime\":\"2026-11-12T09:55:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "8c3eadc65fe0998d27c786323a1aae2bf1bdee7b5830b84e62b61182473e41a2"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0011",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T09:55:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:50:00Z\",\"endTime\":\"2026-11-12T09:55:00Z\"},\"value\":{\"doubleValue\":64.0}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:50:00Z\",\"endTime\":\"2026-11-12T09:55:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "c22aa7ff05a5c070043814d6f69d1dea15a92d0387b8bdd79c3f29abd9fd8b43"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-collection-status-0002",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/collection-status",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:55:20Z",
+      "kind" : "aws.error",
+      "payload" : "{\"__type\":\"AccessDeniedException\",\"message\":\"User is not authorized to perform: config:SelectResourceConfig\"}",
+      "payload_digest" : "472e407455075c3903c5b6b052d6afcacfcbf1ec852aa4bda24ac2a77c3e2cee"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0012",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[0.1976]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[5.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "901d5f516821a60c3aabb3f35626ccdc31fd80c208a3b70c6e3639c7ae21e6f6"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0012",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[0.1135]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[2.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[6.0]}],\"Messages\":[]}",
+      "payload_digest" : "87682b749178667a1e2579dfe0d8b73bd49d49be65983f370a604059d26cf8ee"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-orders-service-0012",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/orders-service",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"age\",\"Label\":\"ApproximateAgeOfOldestMessage\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[2.8]},{\"Id\":\"visible\",\"Label\":\"ApproximateNumberOfMessagesVisible\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T10:00:00Z\"],\"Values\":[269.0]}],\"Messages\":[]}",
+      "payload_digest" : "10b758e3ef92bcdb481901bbc925495911dada8acddba39560abac0e7528e6be"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-identity-gateway-0012",
+      "source_ref" : "sample:azure/westeurope/monitor/identity-gateway",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:55:00Z/2026-11-12T10:00:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.Web/sites\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/HttpResponseTime\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"HttpResponseTime\",\"localizedValue\":\"Response Time\"},\"unit\":\"Seconds\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T10:00:00Z\",\"average\":0.0905}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/Microsoft.Web/sites/app-identity-gateway/providers/Microsoft.Insights/metrics/Http5xx\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"Http5xx\",\"localizedValue\":\"Http Server Errors\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T10:00:00Z\",\"total\":1.0}]}]}]}",
+      "payload_digest" : "9cb2568adc7f8d4ef2258cf97afa38425a111c3ad9baca67c927315c1f417cc3"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-0012",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:55:00Z/2026-11-12T10:00:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T10:00:00Z\",\"average\":347.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T10:00:00Z\",\"average\":0.2}]}]}]}",
+      "payload_digest" : "c19c01077bfb550c26794d77acdfdd5a3d43602f7a45431695c2cf4409254b89"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-0012",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:55:00Z\",\"endTime\":\"2026-11-12T10:00:00Z\"},\"value\":{\"doubleValue\":99.4}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:55:00Z\",\"endTime\":\"2026-11-12T10:00:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "5110a6a7bdc3896829ec38dbb8b7788b3a41fc3c93599745b0aa296c95b10939"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-0012",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:55:00Z\",\"endTime\":\"2026-11-12T10:00:00Z\"},\"value\":{\"doubleValue\":58.3}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:55:00Z\",\"endTime\":\"2026-11-12T10:00:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "edc77083cce80048b93aa1d7eb59f62133af843ca1d3336efc21cb303efe428d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0004",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceName\":\"checkout-alb\"},{\"resourceType\":\"AWS::EKS::Cluster\",\"resourceId\":\"checkout-eks\",\"resourceName\":\"checkout-eks\"},{\"resourceType\":\"AWS::EKS::Nodegroup\",\"resourceId\":\"checkout-eks/ng-general\",\"resourceName\":\"ng-general\"}],\"nextToken\":\"sample-token-12-1\"}",
+      "payload_digest" : "b9a84de7d092dbc6329653409f6639a54fd11ecdac11e8e95191fe7ff0d21bae"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0005",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2\",\"resourceName\":\"orders-db\"},{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceName\":\"orders-db-replica\"},{\"resourceType\":\"AWS::SQS::Queue\",\"resourceId\":\"orders-events\",\"resourceName\":\"orders-events\"}],\"nextToken\":\"sample-token-12-2\"}",
+      "payload_digest" : "1e2afcab2ed58bce2a9aa35aa1b305f81ca17d4f5d6ea6f88cebb331ab2ac00b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0006",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::KMS::Key\",\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceName\":\"orders-data-key\"},{\"resourceType\":\"AWS::EC2::VPC\",\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceName\":\"checkout-vpc\"},{\"resourceType\":\"AWS::Route53::HostedZone\",\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceName\":\"meridian-sample.example\"}]}",
+      "payload_digest" : "68d50064a108755a44c841c689f13219d04f7905f3fec3c9e07c3d9145566810"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0003",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"true\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway\",\"microsoft.web/sites\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity\",\"microsoft.web/serverfarms\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify\",\"microsoft.servicebus/namespaces\",\"westeurope\"]]},\"$skipToken\":\"sample-skip-12-1\"}",
+      "payload_digest" : "1faf0e813dc19131372941c9dad5ba4950543bd628208652cb4048321cad5589"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0004",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"false\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks\",\"microsoft.containerservice/managedclusters\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity\",\"microsoft.network/virtualnetworks\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify\",\"microsoft.managedidentity/userassignedidentities\",\"westeurope\"]]}}",
+      "payload_digest" : "8c9095b1fa073f35d584c409e289551778f5a06b18137ce13ce263ace2b6ab9f"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0003",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"assets\":[{\"name\":\"//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service\",\"assetType\":\"run.googleapis.com/Service\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987\",\"assetType\":\"aiplatform.googleapis.com/Endpoint\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke\",\"assetType\":\"container.googleapis.com/Cluster\",\"updateTime\":\"2026-11-12T09:00:00Z\"}],\"nextPageToken\":\"sample-page-12-1\"}",
+      "payload_digest" : "39e67cd3420ef1f27b0b487b68334b7f2c2f97b314c7ad5225fe995fefbd895d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0004",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"assets\":[{\"name\":\"//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc\",\"assetType\":\"compute.googleapis.com/Network\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)\",\"assetType\":\"firestore.googleapis.com/Database\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features\",\"assetType\":\"aiplatform.googleapis.com/FeatureOnlineStore\",\"updateTime\":\"2026-11-12T09:00:00Z\"}]}",
+      "payload_digest" : "31e9aa9db5892fd6b7ab6e5e42ec6e73344d4abf210546eb5f333bd82151edcc"
+    }
+  }, {
+    "expect" : "DUPLICATE",
+    "observation" : {
+      "id" : "obs-aws-checkout-web-0001",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
+      "sequence" : 1,
+      "observed_at" : "2026-11-12T09:05:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[{\"Id\":\"p95\",\"Label\":\"TargetResponseTime\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[0.2122]},{\"Id\":\"err\",\"Label\":\"HTTPCode_Target_5XX_Count\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[4.0]},{\"Id\":\"healthy\",\"Label\":\"HealthyHostCount\",\"StatusCode\":\"Complete\",\"Timestamps\":[\"2026-11-12T09:05:00Z\"],\"Values\":[8.0]}],\"Messages\":[]}",
+      "payload_digest" : "4852919f1cdfed6d2de02ac3f9bb3c1c6bc6cf988826a8176066e0221d35b30c"
+    }
+  }, {
+    "expect" : "QUARANTINED:STALE_SEQUENCE",
+    "observation" : {
+      "id" : "obs-azure-notifications-worker-late-0008",
+      "source_ref" : "sample:azure/westeurope/monitor/notifications-worker",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:40:00Z",
+      "kind" : "azure.monitor.metrics",
+      "payload" : "{\"cost\":59,\"timespan\":\"2026-11-12T09:35:00Z/2026-11-12T09:40:00Z\",\"interval\":\"PT5M\",\"namespace\":\"Microsoft.ServiceBus/namespaces\",\"resourceregion\":\"westeurope\",\"value\":[{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/ActiveMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"ActiveMessages\",\"localizedValue\":\"Active Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:40:00Z\",\"average\":320.0}]}]},{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/Microsoft.ServiceBus/namespaces/sb-meridian-notify/providers/Microsoft.Insights/metrics/DeadletteredMessages\",\"type\":\"Microsoft.Insights/metrics\",\"name\":{\"value\":\"DeadletteredMessages\",\"localizedValue\":\"Dead-lettered Messages\"},\"unit\":\"Count\",\"timeseries\":[{\"metadatavalues\":[],\"data\":[{\"timeStamp\":\"2026-11-12T09:40:00Z\",\"average\":0.3}]}]}]}",
+      "payload_digest" : "b6d49a3044e1b00e9a1fdd88509bb8877d6deb32c6b1ba4d69e35c0a45e4e86f"
+    }
+  }, {
+    "expect" : "QUARANTINED:STALE_SEQUENCE",
+    "observation" : {
+      "id" : "obs-gcp-recommendation-ranker-late-0005",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/recommendation-ranker",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:25:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/prediction_latencies\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:20:00Z\",\"endTime\":\"2026-11-12T09:25:00Z\"},\"value\":{\"doubleValue\":61.3}}]},{\"metric\":{\"type\":\"aiplatform.googleapis.com/prediction/online/error_count\",\"labels\":{}},\"resource\":{\"type\":\"aiplatform.googleapis.com/Endpoint\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"endpoint_id\":\"5551200987\"}},\"metricKind\":\"DELTA\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:20:00Z\",\"endTime\":\"2026-11-12T09:25:00Z\"},\"value\":{\"int64Value\":\"1\"}}]}],\"unit\":\"ms\"}",
+      "payload_digest" : "b0a85dcafb3eb14354123f48408638a571487838c71928f91dc2af5e5c32841c"
+    }
+  }, {
+    "expect" : "QUARANTINED:DIGEST_MISMATCH",
+    "observation" : {
+      "id" : "obs-gcp-inventory-service-tampered",
+      "source_ref" : "sample:gcp/europe-west1/monitoring/inventory-service",
+      "sequence" : 17,
+      "observed_at" : "2026-11-12T09:15:00Z",
+      "kind" : "gcp.monitoring.timeseries",
+      "payload" : "{\"timeSeries\":[{\"metric\":{\"type\":\"run.googleapis.com/request_latencies\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"DOUBLE\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:10:00Z\",\"endTime\":\"2026-11-12T09:15:00Z\"},\"value\":{\"doubleValue\":100.2}}]},{\"metric\":{\"type\":\"run.googleapis.com/container/instance_count\",\"labels\":{}},\"resource\":{\"type\":\"cloud_run_revision\",\"labels\":{\"project_id\":\"meridian-sample-441\",\"location\":\"europe-west1\",\"service_name\":\"inventory-service\",\"revision_name\":\"inventory-service-00042-qux\"}},\"metricKind\":\"GAUGE\",\"valueType\":\"INT64\",\"points\":[{\"interval\":{\"startTime\":\"2026-11-12T09:10:00Z\",\"endTime\":\"2026-11-12T09:15:00Z\"},\"value\":{\"int64Value\":\"4\"}}]}],\"unit\":\"s\"}",
+      "payload_digest" : "0aa202636339e6d80109db91ebfdb2fd85481f7f7fb82a7eaa3049895c7f22e6"
+    }
+  }, {
+    "expect" : "QUARANTINED:REPLAY_CONFLICT",
+    "observation" : {
+      "id" : "obs-aws-payments-api-0002",
+      "source_ref" : "sample:aws/eu-west-1/cloudwatch/payments-api",
+      "sequence" : 2,
+      "observed_at" : "2026-11-12T09:10:00Z",
+      "kind" : "aws.cloudwatch.metrics",
+      "payload" : "{\"MetricDataResults\":[],\"Messages\":[{\"Code\":\"InternalError\",\"Value\":\"replayed\"}]}",
+      "payload_digest" : "0b7240f3bc248cc8f97d4badb3505b1ab23495c93689ec96f3ddf31f7c827d40"
+    }
+  } ]
+}

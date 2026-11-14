@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "status": "PASS_FINITE_SCHEMA_AND_CONTRACT_CHECKS",
+  "checks": 218,
+  "schemas": 9,
+  "proposed_operations": 8,
+  "storage_record_families": 7,
+  "planned_acceptance_scenarios": 22,
+  "extension_promoted": false,
+  "engine_and_live_acceptance": "NOT_EXECUTED",
+  "browser_acceptance": "NOT_EXECUTED",
+  "score_change": 0
+}

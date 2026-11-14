@@ -1,0 +1,56 @@
+{
+  "revision_id": "example-graph",
+  "service_id": "checkout",
+  "object_ref": "internal:replace-with-verified-source-artifact",
+  "source_watermark": 1,
+  "nodes": [
+    {
+      "canonical_id": "checkout",
+      "label": "Service",
+      "qualification_id": "replace-with-qualified-record",
+      "expires_at": "2030-01-01T00:00:00Z",
+      "workload_kind": "SERVICE",
+      "workload_id": "checkout",
+      "name": "Checkout",
+      "provider": "AWS"
+    },
+    {
+      "canonical_id": "support",
+      "label": "Service",
+      "qualification_id": "replace-with-qualified-record",
+      "expires_at": "2030-01-01T00:00:00Z",
+      "workload_kind": "AGENT",
+      "workload_id": "replace-with-agent-profile-id",
+      "name": "Support agent"
+    },
+    {
+      "canonical_id": "orders",
+      "label": "DataStore",
+      "qualification_id": "replace-with-qualified-record",
+      "expires_at": "2030-01-01T00:00:00Z",
+      "name": "Orders store"
+    }
+  ],
+  "edges": [
+    {
+      "relationship_id": "example-checkout-orders",
+      "source_id": "checkout",
+      "target_id": "orders",
+      "type": "DEPENDS_ON",
+      "qualification_id": "replace-with-qualified-record",
+      "confidence": 1,
+      "valid_from": "2026-10-31T00:00:00Z",
+      "expires_at": "2030-01-01T00:00:00Z"
+    },
+    {
+      "relationship_id": "example-agent-orders",
+      "source_id": "support",
+      "target_id": "orders",
+      "type": "READS_FROM",
+      "qualification_id": "replace-with-qualified-record",
+      "confidence": 1,
+      "valid_from": "2026-10-31T00:00:00Z",
+      "expires_at": "2030-01-01T00:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Unified Adaptive Cloud Resilience Framework</h1>
+  <section th:if="${authenticated}">
+    <p>Signed in as <strong th:text="${displayName}">User</strong>.</p>
+    <p>Identity: <code th:text="${subject}">subject</code></p>
+    <p>
+      Sign-in verifies your identity; it does not assign UACRF permissions.
+      Access must be authorized separately by S01.
+    </p>
+    <p><a href="/access">Check current access</a></p>
+    <p><a href="/agents/new">Register a standalone agent workload</a></p>
+    <form method="post" th:action="@{/logout}">
+      <button type="submit">Sign out of UACRF</button>
+    </form>
+  </section>
+  <section th:unless="${authenticated}">
+    <p>Sign in with the configured identity provider to start a server-side session.</p>
+    <a href="/oauth2/authorization/keycloak">Sign in</a>
+  </section>
+</main>
+</body>
+</html>

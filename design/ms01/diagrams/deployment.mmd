@@ -1,0 +1,12 @@
+flowchart TD
+ Browser --> Edge[API edge]
+ Edge --> UX[Experience API]
+ UX --> Control[Authenticated domain services]
+ Edge --> Control
+ Control --> DB[Owned logical databases]
+ Control --> Bus[Kafka]
+ Control --> Storage[Owner scoped object storage]
+ S06[Topology] --> Neo4j[Private Neo4j]
+ Control --> Collection[Read only collection workers]
+ Control --> Advisory[Bounded model workers]
+ Control --> Execution[Isolated privileged execution cells]

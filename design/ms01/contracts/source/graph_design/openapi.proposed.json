@@ -1,0 +1,777 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF scoped graph diagnostic extension",
+    "version": "1.0"
+  },
+  "paths": {
+    "/v1/graphs/revisions/{revision}/dependencies": {
+      "get": {
+        "operationId": "graph_runtime_dependencies",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified Neo4j projection of an authorized accepted PostgreSQL graph revision; no resilience certification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "graph_revision_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "source_watermark": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "state": {
+                      "const": "AVAILABLE"
+                    },
+                    "runtime_verification": {
+                      "const": "NOT_ESTABLISHED"
+                    },
+                    "nodes": {
+                      "type": "array",
+                      "maxItems": 10000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "canonical_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "properties": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "scope_service_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "workload_kind": {
+                                "enum": [
+                                  "SERVICE",
+                                  "AGENT",
+                                  "RESOURCE"
+                                ]
+                              },
+                              "workload_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "qualification_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "qualification_state": {
+                                "const": "QUALIFIED"
+                              },
+                              "expires_at": {
+                                "type": "integer"
+                              },
+                              "metadata_json": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "scope_service_id",
+                              "workload_kind",
+                              "qualification_id",
+                              "qualification_state",
+                              "expires_at",
+                              "metadata_json"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "canonical_id",
+                          "label",
+                          "properties"
+                        ]
+                      }
+                    },
+                    "edges": {
+                      "type": "array",
+                      "maxItems": 75000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "relationship_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "source_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "target_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "type": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "properties": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "qualification_id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "qualification_state": {
+                                "const": "QUALIFIED"
+                              },
+                              "confidence": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "valid_from": {
+                                "type": "integer"
+                              },
+                              "valid_to": {
+                                "type": "integer"
+                              },
+                              "expires_at": {
+                                "type": "integer"
+                              },
+                              "metadata_json": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "qualification_id",
+                              "qualification_state",
+                              "confidence",
+                              "valid_from",
+                              "expires_at",
+                              "metadata_json"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "relationship_id",
+                          "source_id",
+                          "target_id",
+                          "type",
+                          "properties"
+                        ]
+                      }
+                    },
+                    "completeness": {
+                      "const": "ACCEPTED_REVISION_ONLY"
+                    }
+                  },
+                  "required": [
+                    "graph_revision_id",
+                    "digest",
+                    "source_watermark",
+                    "state",
+                    "runtime_verification",
+                    "nodes",
+                    "edges",
+                    "completeness"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "IMPLEMENTED_DUAL_DATABASE_LOCAL_NOT_LIVE_ACCEPTED"
+      }
+    },
+    "/v1/graphs/revisions/{revision}/impact": {
+      "get": {
+        "operationId": "graph_runtime_impact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "affected_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_depth",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified Neo4j projection of an authorized accepted PostgreSQL graph revision; no resilience certification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "graph_revision_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "source_watermark": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "state": {
+                      "const": "AVAILABLE"
+                    },
+                    "runtime_verification": {
+                      "const": "NOT_ESTABLISHED"
+                    },
+                    "affected_nodes": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "witnesses": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "node_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "node_path": {
+                            "type": "array",
+                            "maxItems": 9,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "edge_path": {
+                            "type": "array",
+                            "maxItems": 8,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          }
+                        },
+                        "required": [
+                          "node_id",
+                          "node_path",
+                          "edge_path"
+                        ]
+                      }
+                    },
+                    "completeness": {
+                      "enum": [
+                        "ACCEPTED_REVISION_ONLY",
+                        "INCOMPLETE"
+                      ]
+                    },
+                    "decision": {
+                      "const": "DIAGNOSTIC_ONLY"
+                    }
+                  },
+                  "required": [
+                    "graph_revision_id",
+                    "digest",
+                    "source_watermark",
+                    "state",
+                    "runtime_verification",
+                    "affected_nodes",
+                    "witnesses",
+                    "completeness",
+                    "decision"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "IMPLEMENTED_DUAL_DATABASE_LOCAL_NOT_LIVE_ACCEPTED"
+      }
+    },
+    "/v1/graphs/revisions/{revision}/recovery-independence": {
+      "get": {
+        "operationId": "graph_runtime_recovery_independence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "primary_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "recovery_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_depth",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified Neo4j projection of an authorized accepted PostgreSQL graph revision; no resilience certification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "graph_revision_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "digest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "source_watermark": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "state": {
+                      "const": "AVAILABLE"
+                    },
+                    "runtime_verification": {
+                      "const": "NOT_ESTABLISHED"
+                    },
+                    "shared_nodes": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      }
+                    },
+                    "primary_witnesses": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "node_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "node_path": {
+                            "type": "array",
+                            "maxItems": 9,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "edge_path": {
+                            "type": "array",
+                            "maxItems": 8,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          }
+                        },
+                        "required": [
+                          "node_id",
+                          "node_path",
+                          "edge_path"
+                        ]
+                      }
+                    },
+                    "recovery_witnesses": {
+                      "type": "array",
+                      "maxItems": 1000,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "node_id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "node_path": {
+                            "type": "array",
+                            "maxItems": 9,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          },
+                          "edge_path": {
+                            "type": "array",
+                            "maxItems": 8,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            }
+                          }
+                        },
+                        "required": [
+                          "node_id",
+                          "node_path",
+                          "edge_path"
+                        ]
+                      }
+                    },
+                    "completeness": {
+                      "enum": [
+                        "ACCEPTED_REVISION_ONLY",
+                        "INCOMPLETE"
+                      ]
+                    },
+                    "relationship": {
+                      "enum": [
+                        "SHARED_DEPENDENCIES_FOUND",
+                        "NO_SHARED_DEPENDENCIES_OBSERVED"
+                      ]
+                    },
+                    "independence": {
+                      "const": "NOT_CERTIFIED"
+                    }
+                  },
+                  "required": [
+                    "graph_revision_id",
+                    "digest",
+                    "source_watermark",
+                    "state",
+                    "runtime_verification",
+                    "shared_nodes",
+                    "primary_witnesses",
+                    "recovery_witnesses",
+                    "completeness",
+                    "relationship",
+                    "independence"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Restrictive response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/core.openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "IMPLEMENTED_DUAL_DATABASE_LOCAL_NOT_LIVE_ACCEPTED"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
+}

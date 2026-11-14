@@ -8,13 +8,13 @@ UACRF will be implemented as independently deployable Java Spring Boot services 
 
 The recommended target has fourteen domain services, one experience API and one API edge. A service boundary follows a business responsibility, a data owner and a failure or privilege boundary. It does not follow a screen, table or cloud provider. Services can share managed infrastructure while retaining separate databases, credentials, migrations and release lifecycles. Provider collection, model invocation and privileged execution run in isolated worker deployments behind explicit contracts.
 
-The existing application is the migration source. Its Java calculations, strict artifact verification, bounded agent runtime, schemas and local tests are reusable. Its shared database functions, global environment lock and cross-domain foreign keys cannot simply be moved into separate processes. This design replaces those dependencies with owner APIs, retained evidence receipts, durable workflows and explicit execution fencing.
+This is a fresh microservices implementation. The existing application is not a build, runtime, regression, or acceptance dependency. The design defines new owner APIs, retained evidence receipts, durable workflows and explicit execution fencing for the target services.
 
 This package specifies the target and its implementation gates. It does not establish that the microservices already exist. Working documents remain Version 1.0; architecture revisions and execution evidence are recorded separately. The published paper, recovered originals and historical releases remain intact.
 
 ## 2 Source baseline and completeness boundary
 
-The latest retained local application checkpoint passed 322 tests, including 204 runtime methods. The source JAR registers 107 routes. The older completion inventory still records 99 routes, 97 full operations, two partial routes and 44 unclosed operations from the original backlog. Five additional advisory operations have working locally tested implementations whose artifact promotion was unfinished. These different checkpoints must not be combined into a claim of complete delivery.
+The inherited route inventories have different scopes: one records 107 registered routes, while an older completion inventory records 99 routes, 97 full operations, two partial routes and 44 unclosed operations. These are planning inputs, not delivered runtime coverage. Delivery is measured by the target services' implemented contracts and executed acceptance evidence.
 
 The architecture inventory contains 74 canonical operations and 70 other documented operations, for 144 unique method/path pairs. It assigns an owner to each. It also assigns migration ownership to 153 source table declarations and allocates all 131 requirement IDs. The table count comes from the installer source and its SQL files, not inspection of a deployed database. Some declarations represent local technical patterns that must be split across services rather than copied into one shared database.
 

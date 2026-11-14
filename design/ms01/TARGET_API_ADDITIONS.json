@@ -1,0 +1,699 @@
+[
+  {
+    "id": "MS-PROP-001",
+    "owner": "S01",
+    "method": "POST",
+    "path": "/v1/tenants",
+    "purpose": "Enroll an organization",
+    "request_fields": [
+      "display_name",
+      "region_policy_ref",
+      "initial_owner_subject"
+    ],
+    "guard": "platform.tenant.admit with independently approved bootstrap proof",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-002",
+    "owner": "S01",
+    "method": "GET",
+    "path": "/v1/environments",
+    "purpose": "List current permitted environments",
+    "request_fields": [],
+    "guard": "identity.environment.read",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-003",
+    "owner": "S01",
+    "method": "POST",
+    "path": "/v1/environments",
+    "purpose": "Create an owned environment",
+    "request_fields": [
+      "name",
+      "provider_scope",
+      "data_policy_ref",
+      "reason"
+    ],
+    "guard": "identity.environment.manage",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-004",
+    "owner": "S03",
+    "method": "GET",
+    "path": "/v1/connections",
+    "purpose": "List permitted connections",
+    "request_fields": [],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-005",
+    "owner": "S03",
+    "method": "POST",
+    "path": "/v1/connections",
+    "purpose": "Enroll a provider/source connection",
+    "request_fields": [
+      "name",
+      "provider",
+      "credential_reference",
+      "allowed_scopes",
+      "source_capabilities",
+      "owner_id",
+      "reason"
+    ],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-006",
+    "owner": "S03",
+    "method": "GET",
+    "path": "/v1/connections/{id}",
+    "purpose": "Read connection and verification state",
+    "request_fields": [],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-007",
+    "owner": "S03",
+    "method": "POST",
+    "path": "/v1/connections/{id}:verify",
+    "purpose": "Verify actual read-only source access",
+    "request_fields": [
+      "expected_revision",
+      "reason"
+    ],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-008",
+    "owner": "S03",
+    "method": "POST",
+    "path": "/v1/connections/{id}:retire",
+    "purpose": "Stop new collection and retain history",
+    "request_fields": [
+      "expected_revision",
+      "reason"
+    ],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-009",
+    "owner": "S03",
+    "method": "POST",
+    "path": "/v1/connections/{id}/discoveries",
+    "purpose": "Start bounded inventory discovery",
+    "request_fields": [
+      "expected_revision",
+      "resource_scopes",
+      "deadline",
+      "reason"
+    ],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-010",
+    "owner": "S03",
+    "method": "GET",
+    "path": "/v1/discoveries/{id}",
+    "purpose": "Read source discovery and matching conflicts",
+    "request_fields": [],
+    "guard": "connection.read for reads; connection.manage or connection.collect for commands; current scope required",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-011",
+    "owner": "S07",
+    "method": "POST",
+    "path": "/v1/incidents",
+    "purpose": "Retain an attributable incident",
+    "request_fields": [
+      "workload_id",
+      "source_case_id",
+      "observed_from",
+      "description",
+      "evidence_refs",
+      "reason"
+    ],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-012",
+    "owner": "S07",
+    "method": "GET",
+    "path": "/v1/incidents/{id}",
+    "purpose": "Read incident and learning links",
+    "request_fields": [],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-013",
+    "owner": "S07",
+    "method": "POST",
+    "path": "/v1/learning-records",
+    "purpose": "Record hypotheses actions owners and closure tests",
+    "request_fields": [
+      "incident_id",
+      "experiment_id",
+      "hypotheses",
+      "action_items",
+      "evidence_refs",
+      "expected_revision",
+      "reason"
+    ],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-014",
+    "owner": "S07",
+    "method": "POST",
+    "path": "/v1/forecasts",
+    "purpose": "Request an approved advisory forecast",
+    "request_fields": [
+      "workload_id",
+      "model_version",
+      "feature_set_ref",
+      "feature_set_digest",
+      "horizon_seconds",
+      "mode",
+      "deadline",
+      "reason"
+    ],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-015",
+    "owner": "S07",
+    "method": "GET",
+    "path": "/v1/forecasts/{id}",
+    "purpose": "Read forecast lineage uncertainty and evaluation",
+    "request_fields": [],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-016",
+    "owner": "S07",
+    "method": "POST",
+    "path": "/v1/model-versions",
+    "purpose": "Retain a model card and immutable version",
+    "request_fields": [
+      "model_id",
+      "version",
+      "artifact_ref",
+      "digest",
+      "model_card_ref",
+      "evaluation_pack_ref",
+      "reason"
+    ],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-017",
+    "owner": "S07",
+    "method": "POST",
+    "path": "/v1/model-versions/{id}:review",
+    "purpose": "Independently decide a model version",
+    "request_fields": [
+      "expected_revision",
+      "decision",
+      "evaluation_result_ids",
+      "reason"
+    ],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-018",
+    "owner": "S07",
+    "method": "POST",
+    "path": "/v1/model-versions/{id}:promote",
+    "purpose": "Activate only a reviewed passing model version",
+    "request_fields": [
+      "expected_revision",
+      "target_mode",
+      "reason"
+    ],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-019",
+    "owner": "S07",
+    "method": "GET",
+    "path": "/v1/workloads/{id}/score",
+    "purpose": "Read separately calibrated quantitative results",
+    "request_fields": [],
+    "guard": "assessment/model/learning capability as appropriate; current source receipts; independent promotion; feature gates apply",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-020",
+    "owner": "S11",
+    "method": "POST",
+    "path": "/v1/workflows",
+    "purpose": "Retain a bounded workflow definition",
+    "request_fields": [
+      "workload_id",
+      "provider_plan_id",
+      "validation_plan_id",
+      "recovery_path_id",
+      "deadline",
+      "reason"
+    ],
+    "guard": "execution read/manage capability; S10 permits required for effects; cancellation does not erase accepted effects",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-021",
+    "owner": "S11",
+    "method": "GET",
+    "path": "/v1/workflows/{id}",
+    "purpose": "Read steps attempts budgets and observed outcomes",
+    "request_fields": [],
+    "guard": "execution read/manage capability; S10 permits required for effects; cancellation does not erase accepted effects",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-022",
+    "owner": "S11",
+    "method": "POST",
+    "path": "/v1/workflows/{id}:cancel",
+    "purpose": "Fence new dispatch and retain in-flight outcomes",
+    "request_fields": [
+      "expected_revision",
+      "control_generation",
+      "reason"
+    ],
+    "guard": "execution read/manage capability; S10 permits required for effects; cancellation does not erase accepted effects",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-023",
+    "owner": "S11",
+    "method": "GET",
+    "path": "/v1/provider-plans/{id}",
+    "purpose": "Read immutable translated plan and preconditions",
+    "request_fields": [],
+    "guard": "execution read/manage capability; S10 permits required for effects; cancellation does not erase accepted effects",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-024",
+    "owner": "S11",
+    "method": "GET",
+    "path": "/v1/execution-attempts/{id}",
+    "purpose": "Read attributable provider attempt and uncertainty",
+    "request_fields": [],
+    "guard": "execution read/manage capability; S10 permits required for effects; cancellation does not erase accepted effects",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-025",
+    "owner": "S12",
+    "method": "POST",
+    "path": "/v1/recovery-paths",
+    "purpose": "Retain a versioned recovery definition",
+    "request_fields": [
+      "workload_id",
+      "scenario",
+      "failure_domains",
+      "steps",
+      "probe_requirements",
+      "artifact_ref",
+      "digest",
+      "reason"
+    ],
+    "guard": "recovery.path.manage; actual certification remains separate",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-026",
+    "owner": "S12",
+    "method": "GET",
+    "path": "/v1/validation-results/{id}",
+    "purpose": "Read independent observed probe outcome",
+    "request_fields": [],
+    "guard": "validation.read plus source disclosure",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-027",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/accounts",
+    "purpose": "Create a tenant commercial account",
+    "request_fields": [
+      "customer_id",
+      "currency",
+      "billing_contact",
+      "tax_profile_ref",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-028",
+    "owner": "S13",
+    "method": "GET",
+    "path": "/v1/billing/accounts/{id}",
+    "purpose": "Read account and frozen commercial terms",
+    "request_fields": [],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-029",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/plan-versions",
+    "purpose": "Draft a versioned commercial plan",
+    "request_fields": [
+      "plan_id",
+      "version",
+      "currency",
+      "metrics",
+      "allowances",
+      "prices",
+      "effective_from",
+      "terms_ref",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-030",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/plan-versions/{id}:review",
+    "purpose": "Independently approve exact plan version",
+    "request_fields": [
+      "expected_revision",
+      "decision",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-031",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/subscriptions",
+    "purpose": "Create a governed subscription",
+    "request_fields": [
+      "account_id",
+      "approved_plan_version_id",
+      "starts_at",
+      "charging_policy_ref",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-032",
+    "owner": "S13",
+    "method": "GET",
+    "path": "/v1/billing/subscriptions/{id}",
+    "purpose": "Read subscription and effective periods",
+    "request_fields": [],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-033",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/subscriptions/{id}:change",
+    "purpose": "Schedule bounded subscription change",
+    "request_fields": [
+      "expected_revision",
+      "approved_plan_version_id",
+      "effective_at",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-034",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/subscriptions/{id}:cancel",
+    "purpose": "Schedule cancellation under the contract",
+    "request_fields": [
+      "expected_revision",
+      "effective_at",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-035",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/periods/{id}:rate",
+    "purpose": "Rate admitted measured usage once",
+    "request_fields": [
+      "expected_revision",
+      "usage_cutoff",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-036",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/invoices",
+    "purpose": "Draft an invoice for a frozen period",
+    "request_fields": [
+      "account_id",
+      "period_id",
+      "rated_usage_ids",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-037",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/invoices/{id}:post",
+    "purpose": "Post an immutable reviewed invoice",
+    "request_fields": [
+      "expected_revision",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-038",
+    "owner": "S13",
+    "method": "GET",
+    "path": "/v1/billing/invoices/{id}",
+    "purpose": "Read invoice lines taxes and allocations",
+    "request_fields": [],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-039",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/payment-attempts",
+    "purpose": "Request collection with stable provider identity",
+    "request_fields": [
+      "invoice_id",
+      "amount",
+      "currency",
+      "payment_method_ref",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-040",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/credits",
+    "purpose": "Record an attributable credit",
+    "request_fields": [
+      "invoice_id",
+      "line_allocations",
+      "amount",
+      "currency",
+      "reason",
+      "evidence_refs"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-041",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/refunds",
+    "purpose": "Request bounded refund against paid allocation",
+    "request_fields": [
+      "payment_id",
+      "credit_id",
+      "amount",
+      "currency",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-042",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/reconciliations",
+    "purpose": "Reconcile source usage invoices and provider settlements",
+    "request_fields": [
+      "account_id",
+      "period_id",
+      "source_cutoff",
+      "reason"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-043",
+    "owner": "S13",
+    "method": "POST",
+    "path": "/v1/billing/provider-webhooks/{provider}",
+    "purpose": "Admit a signed provider event",
+    "request_fields": [
+      "provider_event_id",
+      "signed_payload"
+    ],
+    "guard": "Current tenant finance capability and independent review where required; webhook uses verified provider signature and allowlisted source, never a finance role",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-044",
+    "owner": "S14",
+    "method": "GET",
+    "path": "/v1/activity",
+    "purpose": "Read scoped recent activity and projection watermark",
+    "request_fields": [],
+    "guard": "audit.read/export or notification.manage with current source and destination policy",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-045",
+    "owner": "S14",
+    "method": "POST",
+    "path": "/v1/notification-routes",
+    "purpose": "Create owner-aware finding delivery policy",
+    "request_fields": [
+      "workload_scope",
+      "event_types",
+      "destination_reference",
+      "escalation_policy",
+      "reason"
+    ],
+    "guard": "audit.read/export or notification.manage with current source and destination policy",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-046",
+    "owner": "S14",
+    "method": "POST",
+    "path": "/v1/notification-routes/{id}:update",
+    "purpose": "Revise routing without hiding prior deliveries",
+    "request_fields": [
+      "expected_revision",
+      "destination_reference",
+      "escalation_policy",
+      "reason"
+    ],
+    "guard": "audit.read/export or notification.manage with current source and destination policy",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  },
+  {
+    "id": "MS-PROP-047",
+    "owner": "S14",
+    "method": "POST",
+    "path": "/v1/evidence/bundles",
+    "purpose": "Request sealed export after source-owner disclosure",
+    "request_fields": [
+      "source_references",
+      "purpose",
+      "classification",
+      "deadline",
+      "reason"
+    ],
+    "guard": "audit.read/export or notification.manage with current source and destination policy",
+    "status": "PROPOSED_NOT_IMPLEMENTED",
+    "canonical_baseline": false
+  }
+]

@@ -1,0 +1,24 @@
+flowchart TD
+    Start(["Start: authenticated caller or trusted trigger"])
+    S01{"S01 · PostgreSQL · Claim work using the login-bound environment and an expiring lease"}
+    S02["S02 · Java worker · Commit lease and export canonical snapshot with digest"]
+    S03{"S03 · Java worker · Verify canonical bytes protocol identities and projection allowlist"}
+    S04{"S04 · Neo4j · Write nodes relationships and sealed receipt in one managed transaction"}
+    S05{"S05 · Java worker · Commit exact verified graph or recognize an identical sealed duplicate"}
+    S06{"S06 · PostgreSQL · Acknowledge the current lease and digest after the Neo4j commit"}
+    S07["S07 · Java worker · Mark projected or retain delayed retry after failure or lease expiry"]
+    F1["F1: F1 Stop on denied scope, stale evidence, invalid source, lease loss, digest mismatch, store outage or incomplete traversal. No certification or recovery authority is granted."]
+    End(["End: retained result or explicit pending/restrictive status"])
+    Start --> S01
+    S01 -->|pass| S02
+    S01 -->|fail or incomplete| F1
+    S02 --> S03
+    S03 -->|pass| S04
+    S03 -->|fail or incomplete| F1
+    S04 -->|pass| S05
+    S04 -->|fail or incomplete| F1
+    S05 -->|pass| S06
+    S05 -->|fail or incomplete| F1
+    S06 -->|pass| S07
+    S06 -->|fail or incomplete| F1
+    S07 --> End

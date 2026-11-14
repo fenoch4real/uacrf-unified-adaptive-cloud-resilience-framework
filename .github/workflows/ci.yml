@@ -1,0 +1,148 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify service ownership boundaries
+        run: python3 -B -m unittest tools.test_check_service_ownership
+      - name: Check service ownership configuration
+        run: python3 -B tools/check_service_ownership.py
+      - name: Verify modules
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+
+  container-images:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and verify independent runtime images
+        run: |
+          docker build \
+            --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
+            --target build \
+            --tag "uacrf/build-toolchain:${GITHUB_SHA}" \
+            .
+          while read -r target image port; do
+            docker build \
+              --build-arg "BUILD_REVISION=${GITHUB_SHA}" \
+              --target "$target" \
+              --tag "uacrf/${image}:${GITHUB_SHA}" \
+              .
+            actual_user=$(docker image inspect "uacrf/${image}:${GITHUB_SHA}" --format '{{.Config.User}}')
+            actual_port=$(docker image inspect "uacrf/${image}:${GITHUB_SHA}" --format '{{range $port, $_ := .Config.ExposedPorts}}{{$port}}{{end}}')
+            test "$actual_user" = "10001:10001"
+            test "$actual_port" = "${port}/tcp"
+          done <<'IMAGES'
+          api-edge api-edge 8080
+          experience-api experience-api 8081
+          identity identity-service 8082
+          estate-catalog estate-catalog-service 8083
+          connections connections-service 8085
+          web web 8084
+          IMAGES
+      - name: Smoke test all application images
+        run: bash tools/smoke_application_images.sh "${GITHUB_SHA}"
+      - name: Prepare supply-chain reports
+        run: mkdir -p artifacts/supply-chain
+      - name: Generate builder-stage SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/build-toolchain:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-build-toolchain.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate api-edge SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/api-edge:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-api-edge.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate experience-api SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/experience-api:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-experience-api.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate identity-service SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/identity-service:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-identity-service.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate estate-catalog-service SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/estate-catalog-service:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-estate-catalog-service.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate connections-service SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/connections-service:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-connections-service.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Generate web SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/web:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-web.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+      - name: Scan application and builder images
+        id: image-scan
+        run: |
+          set +e
+          scan_status=0
+          while read -r name image; do
+            trivy image \
+              --scanners vuln \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --output "artifacts/supply-chain/trivy-${name}.json" \
+              --exit-code 1 \
+              "$image"
+            result=$?
+            if [ "$result" -ne 0 ]; then
+              scan_status=1
+            fi
+          done <<'IMAGES'
+          build-toolchain uacrf/build-toolchain:${{ github.sha }}
+          api-edge uacrf/api-edge:${{ github.sha }}
+          experience-api uacrf/experience-api:${{ github.sha }}
+          identity-service uacrf/identity-service:${{ github.sha }}
+          estate-catalog-service uacrf/estate-catalog-service:${{ github.sha }}
+          connections-service uacrf/connections-service:${{ github.sha }}
+          web uacrf/web:${{ github.sha }}
+          IMAGES
+          exit "$scan_status"
+      - name: Upload SBOMs and vulnerability reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: supply-chain-reports-${{ github.sha }}
+          path: artifacts/supply-chain/
+          if-no-files-found: warn
+          retention-days: 30

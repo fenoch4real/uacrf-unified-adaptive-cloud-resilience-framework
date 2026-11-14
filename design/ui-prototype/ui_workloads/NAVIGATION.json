@@ -1,0 +1,185 @@
+{
+  "version": "1.0",
+  "design_revision": 8,
+  "pattern": "Journey-first orientation with separate service and agent inventories, shared resources and task-based operations",
+  "sections": [
+    {
+      "group": "Work",
+      "id": "UI-01",
+      "label": "Overview",
+      "children": [],
+      "icon": "overview"
+    },
+    {
+      "group": "Work",
+      "id": "UI-46",
+      "label": "Customer journeys",
+      "children": [
+        "UI-47"
+      ],
+      "icon": "journey"
+    },
+    {
+      "group": "Work",
+      "id": "UI-02",
+      "label": "Services",
+      "children": [
+        "UI-16"
+      ],
+      "icon": "service",
+      "objective_link": {
+        "target": "UI-22",
+        "label": "Objectives",
+        "kind": "service",
+        "tab": "workload"
+      }
+    },
+    {
+      "group": "Work",
+      "id": "UI-34",
+      "label": "Agents",
+      "children": [
+        "UI-35",
+        "UI-36",
+        "UI-38",
+        "UI-39",
+        "UI-40",
+        "UI-41",
+        "UI-42",
+        "UI-43",
+        "UI-45"
+      ],
+      "icon": "agent",
+      "objective_link": {
+        "target": "UI-22",
+        "label": "Objectives",
+        "kind": "agent",
+        "tab": "workload"
+      }
+    },
+    {
+      "group": "Work",
+      "id": "UI-18",
+      "label": "Dependencies",
+      "children": [
+        "UI-37",
+        "UI-19",
+        "UI-20",
+        "UI-23"
+      ],
+      "icon": "graph",
+      "entry_label": "Service dependencies"
+    },
+    {
+      "group": "Operations",
+      "id": "UI-03",
+      "label": "Assess",
+      "children": [
+        "UI-27",
+        "UI-31"
+      ],
+      "icon": "assess",
+      "assurance_link": {
+        "label": "Recovery readiness",
+        "target": "UI-03",
+        "mode": "LOCAL_REHEARSAL"
+      }
+    },
+    {
+      "group": "Operations",
+      "id": "UI-04",
+      "label": "Control",
+      "children": [
+        "UI-24",
+        "UI-25"
+      ],
+      "icon": "control"
+    },
+    {
+      "group": "Operations",
+      "id": "UI-05",
+      "label": "Recover",
+      "children": [
+        "UI-26",
+        "UI-28",
+        "UI-29"
+      ],
+      "icon": "recover"
+    },
+    {
+      "group": "Operations",
+      "id": "UI-06",
+      "label": "Evidence",
+      "children": [
+        "UI-21"
+      ],
+      "icon": "evidence"
+    },
+    {
+      "group": "Resources",
+      "id": "UI-48",
+      "label": "Shared resources",
+      "children": [
+        "UI-49"
+      ],
+      "icon": "resource"
+    },
+    {
+      "group": "Resources",
+      "id": "UI-07",
+      "label": "Knowledge",
+      "children": [
+        "UI-08",
+        "UI-09",
+        "UI-10"
+      ],
+      "icon": "knowledge"
+    },
+    {
+      "group": "Advisory tools",
+      "id": "UI-11",
+      "label": "UACRF advisory assistance",
+      "children": [
+        "UI-12",
+        "UI-13",
+        "UI-14"
+      ],
+      "icon": "agent"
+    },
+    {
+      "group": "Administration",
+      "id": "UI-50",
+      "label": "Customer administration",
+      "children": [
+        "UI-51",
+        "UI-52",
+        "UI-30",
+        "UI-53",
+        "UI-15",
+        "UI-17",
+        "UI-54",
+        "UI-32",
+        "UI-55",
+        "UI-22",
+        "UI-56",
+        "UI-33",
+        "UI-57",
+        "UI-58",
+        "UI-44"
+      ],
+      "icon": "settings"
+    }
+  ],
+  "views": 58,
+  "visual_refinement": 8,
+  "ui_refinement": 14,
+  "menu_contract": {
+    "revision": 22,
+    "primary_destinations": 13,
+    "registered_views": 58,
+    "direct_navigation": true,
+    "setup_sequence_lock": false,
+    "advisory_outside_customer_administration": true,
+    "platform_operator_controls_in_customer_menu": false
+  }
+}

@@ -1,0 +1,18 @@
+flowchart TD
+S01["S01 Submit journey graph primary recovery scenario and reason"]
+S01 -->|fail or incomplete| F1
+S02["S02 Verify current identity journey membership and all workload permissions"]
+S01 --> S02
+S02 -->|fail or incomplete| F1
+S03["S03 Verify complete accepted graph content against the SQL snapshot"]
+S02 --> S03
+S03 -->|fail or incomplete| F1
+S04["S04 Find shared dependencies within bounded traversal"]
+S03 --> S04
+S04 -->|fail or incomplete| F1
+S05["S05 Check idempotency and append baseline review audit and outbox atomically"]
+S04 --> S05
+S05 -->|fail or incomplete| F1
+S06["S06 Return diagnostic findings with independence NOT_CERTIFIED"]
+S05 --> S06
+F1["F1 Stop without recovery or certification"]

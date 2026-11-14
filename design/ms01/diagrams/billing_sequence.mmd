@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant P0 as Domain owner
+  participant P1 as S13 admission
+  participant P2 as S13 rating
+  participant P3 as Payment provider
+  participant P4 as Customer UI
+  alt Required current prerequisites hold
+    P0->>P1: 1 Submit immutable measured usage receipt
+    P1->>P1: 2 Verify source scope metric unit and identity
+    P1->>P2: 3 Admit once under frozen contract
+    P2->>P2: 4 Apply exact price allowance and currency rules
+    P2->>P2: 5 Post immutable invoice
+    P2->>P3: 6 Request collection with stable payment identity
+    P3->>P1: 7 Deliver deduplicated provider event
+    P1->>P2: 8 Reconcile or adjust payment
+    P2->>P4: 9 Show attributable invoice and economics
+  else A prerequisite fails or an external outcome is uncertain
+    Note over P0,P4: Unknown completion is not invented usage. A reservation is not a charge. Credits and corrections retain the original posted facts.
+  end

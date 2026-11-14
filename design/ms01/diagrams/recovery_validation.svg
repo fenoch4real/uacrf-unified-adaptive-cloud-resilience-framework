@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="916" viewBox="0 0 1000 916" role="img" aria-label="Recovery evidence and certification"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#45617d"/></marker></defs><rect width="100%" height="100%" fill="#f7f9fc"/><g font-family="Arial, sans-serif" fill="#152b43">
+<text x="35" y="44" font-size="28" font-weight="700">Recovery evidence and certification</text>
+<text x="10.0" y="85" font-size="19" fill="#152b43">Execution S11</text>
+<line x1="85.0" y1="120" x2="85.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="217.5" y="85" font-size="19" fill="#152b43">Assurance S12</text>
+<line x1="292.5" y1="120" x2="292.5" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="425.0" y="85" font-size="19" fill="#152b43">Probe worker</text>
+<line x1="500.0" y1="120" x2="500.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="632.5" y="85" font-size="19" fill="#152b43">Evidence S04</text>
+<line x1="707.5" y1="120" x2="707.5" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<text x="840.0" y="85" font-size="19" fill="#152b43">Decision S10</text>
+<line x1="915.0" y1="120" x2="915.0" y2="776" stroke="#c2cfdb" stroke-dasharray="5 5"/>
+<path d="M85.0,210 L292.5,210" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="150" font-size="19" fill="#152b43">1 Request exact</text>
+<text x="93.0" y="174" font-size="19" fill="#152b43">validation after</text>
+<text x="93.0" y="198" font-size="19" fill="#152b43">effect</text>
+<path d="M292.5,287 L707.5,287" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="227" font-size="19" fill="#152b43">2 Verify current approved probe policies</text>
+<path d="M292.5,364 L500.0,364" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="304" font-size="19" fill="#152b43">3 Lease bounded</text>
+<text x="300.5" y="328" font-size="19" fill="#152b43">independent probes</text>
+<path d="M500.0,441 L707.5,441" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="508.0" y="381" font-size="19" fill="#152b43">4 Retain actual</text>
+<text x="508.0" y="405" font-size="19" fill="#152b43">observations and</text>
+<text x="508.0" y="429" font-size="19" fill="#152b43">provenance</text>
+<path d="M500.0,518 L292.5,518" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="458" font-size="19" fill="#152b43">5 Submit fenced</text>
+<text x="300.5" y="482" font-size="19" fill="#152b43">probe results</text>
+<rect x="152.5" y="515" width="300" height="70" rx="8" fill="#e8f2ff" stroke="#bbcad9"/>
+<text x="164.5" y="536" font-size="19" fill="#152b43">6 Check every mandatory</text>
+<text x="164.5" y="560" font-size="19" fill="#152b43">recovery criterion</text>
+<path d="M292.5,672 L915.0,672" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="300.5" y="612" font-size="19" fill="#152b43">7 Publish justified validation and certification</text>
+<path d="M915.0,749 L85.0,749" fill="none" stroke="#45617d" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="93.0" y="689" font-size="19" fill="#152b43">8 Use current outcome in subsequent decisions</text>
+<text x="35" y="816" font-size="19" fill="#152b43">Provider success alone is not recovery. Missing, stale or failed mandatory evidence</text>
+<text x="35" y="840" font-size="19" fill="#152b43">prevents certification.</text>
+</g></svg>

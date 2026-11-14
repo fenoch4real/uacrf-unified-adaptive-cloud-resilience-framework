@@ -1,0 +1,1566 @@
+{
+  "common_node_properties": [
+    "tenant_id",
+    "canonical_id",
+    "source_kind",
+    "source_id",
+    "provenance",
+    "confidence",
+    "first_observed_at",
+    "last_observed_at",
+    "expires_at",
+    "lifecycle",
+    "schema_version",
+    "environment_id",
+    "graph_revision",
+    "qualification_state",
+    "valid_from",
+    "valid_to"
+  ],
+  "common_relationship_properties": [
+    "tenant_id",
+    "relationship_id",
+    "source_kind",
+    "source_id",
+    "provenance",
+    "confidence",
+    "valid_from",
+    "valid_to",
+    "observed_at",
+    "expires_at",
+    "graph_revision",
+    "schema_version",
+    "environment_id",
+    "qualification_state",
+    "source_version"
+  ],
+  "nodes": [
+    {
+      "domain": "Evidence and tenancy",
+      "label": "Tenant",
+      "represents": "Regulatory or organizational isolation boundary",
+      "properties": [
+        "tenant_id",
+        "name",
+        "status"
+      ]
+    },
+    {
+      "domain": "Evidence and tenancy",
+      "label": "Environment",
+      "represents": "Production staging development disaster recovery or regulated boundary",
+      "properties": [
+        "environment_id",
+        "tenant_id",
+        "class",
+        "production",
+        "authority_tier",
+        "status"
+      ]
+    },
+    {
+      "domain": "Evidence and tenancy",
+      "label": "EvidenceSource",
+      "represents": "Provider or enterprise system emitting attributable evidence",
+      "properties": [
+        "evidence_source_id",
+        "tenant_id",
+        "source_type",
+        "provider",
+        "authority_class",
+        "owner",
+        "status"
+      ]
+    },
+    {
+      "domain": "Evidence and tenancy",
+      "label": "EvidenceEvent",
+      "represents": "Normalized observation with immutable native payload reference",
+      "properties": [
+        "event_id",
+        "tenant_id",
+        "occurred_at",
+        "ingested_at",
+        "source_id",
+        "subject_id",
+        "signal_type",
+        "value",
+        "unit",
+        "raw_reference",
+        "digest",
+        "qualification_id"
+      ]
+    },
+    {
+      "domain": "Evidence and tenancy",
+      "label": "EvidenceQualification",
+      "represents": "Decision on schema identity freshness provenance integrity contradiction and mapping",
+      "properties": [
+        "qualification_id",
+        "event_id",
+        "qualification_state",
+        "reason_codes",
+        "ruleset_version",
+        "qualified_at",
+        "qualifier_id",
+        "expires_at"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "CloudProvider",
+      "represents": "Cloud provider or managed platform authority",
+      "properties": [
+        "cloud_provider_id",
+        "name",
+        "provider_code",
+        "assurance_status",
+        "status"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "Account",
+      "represents": "Provider account subscription project or administrative scope",
+      "properties": [
+        "account_id",
+        "provider",
+        "native_id",
+        "tenant_id",
+        "environment_id",
+        "status"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "Region",
+      "represents": "Provider region or geographic operating boundary",
+      "properties": [
+        "region_id",
+        "provider",
+        "native_id",
+        "jurisdiction",
+        "status"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "AvailabilityZone",
+      "represents": "Provider availability zone or fault isolation location",
+      "properties": [
+        "availability_zone_id",
+        "region_id",
+        "provider",
+        "native_id",
+        "status"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "FailureDomain",
+      "represents": "Shared infrastructure control plane network power organization or vendor domain",
+      "properties": [
+        "failure_domain_id",
+        "domain_type",
+        "name",
+        "scope",
+        "confidence"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "Cluster",
+      "represents": "Kubernetes scheduler database or platform cluster",
+      "properties": [
+        "cluster_id",
+        "provider",
+        "account_id",
+        "region_id",
+        "cluster_type",
+        "status"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "ComputeNode",
+      "represents": "Compute host virtual machine or worker node",
+      "properties": [
+        "compute_node_id",
+        "cluster_id",
+        "provider",
+        "native_id",
+        "region",
+        "zone",
+        "lifecycle"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "CloudResource",
+      "represents": "Provider native compute network storage security or managed service resource",
+      "properties": [
+        "resource_id",
+        "provider",
+        "account_id",
+        "native_id",
+        "resource_type",
+        "region",
+        "zone",
+        "lifecycle"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "Network",
+      "represents": "Network path virtual network load balancer gateway or control plane",
+      "properties": [
+        "network_id",
+        "provider",
+        "account_id",
+        "native_id",
+        "network_type",
+        "region",
+        "status"
+      ]
+    },
+    {
+      "domain": "Infrastructure and location",
+      "label": "DNSService",
+      "represents": "Authoritative or recursive DNS capability",
+      "properties": [
+        "dns_service_id",
+        "provider",
+        "scope",
+        "zones",
+        "failure_domain_id",
+        "status"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "Service",
+      "represents": "Governed business or technical service",
+      "properties": [
+        "service_id",
+        "tenant_id",
+        "environment_id",
+        "name",
+        "domain",
+        "criticality",
+        "lifecycle",
+        "catalog_version",
+        "owner_team_id"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "ApplicationComponent",
+      "represents": "Deployable application microservice function worker or scheduled workload",
+      "properties": [
+        "component_id",
+        "service_id",
+        "component_type",
+        "version",
+        "lifecycle"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "Deployment",
+      "represents": "Environment specific release realization",
+      "properties": [
+        "deployment_id",
+        "component_id",
+        "version",
+        "environment_id",
+        "provider",
+        "status",
+        "change_id"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "API",
+      "represents": "Inbound or outbound interface",
+      "properties": [
+        "api_id",
+        "service_id",
+        "protocol",
+        "operation",
+        "classification",
+        "lifecycle"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "Queue",
+      "represents": "Queue topic stream subscription or event channel",
+      "properties": [
+        "queue_id",
+        "provider",
+        "native_id",
+        "delivery_semantics",
+        "region"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "Database",
+      "represents": "Relational NoSQL graph time series or transactional database",
+      "properties": [
+        "database_id",
+        "provider",
+        "native_id",
+        "database_type",
+        "classification",
+        "region",
+        "durability_tier"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "DataStore",
+      "represents": "Database cache index file store data lake or warehouse",
+      "properties": [
+        "data_store_id",
+        "provider",
+        "native_id",
+        "store_type",
+        "classification",
+        "region",
+        "durability_tier"
+      ]
+    },
+    {
+      "domain": "Service and runtime",
+      "label": "ExternalDependency",
+      "represents": "Third party API SaaS managed service partner or external dependency",
+      "properties": [
+        "external_dependency_id",
+        "provider_id",
+        "dependency_type",
+        "criticality",
+        "contract_ref",
+        "status"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "Team",
+      "represents": "Accountable organizational unit",
+      "properties": [
+        "team_id",
+        "name",
+        "on_call_ref",
+        "status"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "Identity",
+      "represents": "Human workload role group or managed identity reference",
+      "properties": [
+        "identity_id",
+        "identity_type",
+        "authority",
+        "native_subject",
+        "privilege_tier"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "IdentityProvider",
+      "represents": "Identity authority used by services or recovery paths",
+      "properties": [
+        "identity_provider_id",
+        "provider",
+        "scope",
+        "region",
+        "independence_domain",
+        "status"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "EncryptionKey",
+      "represents": "Encryption or signing key reference without secret material",
+      "properties": [
+        "key_id",
+        "authority",
+        "purpose",
+        "region",
+        "rotation_status",
+        "failure_domain_id"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "Control",
+      "represents": "Security resilience compliance or governance control",
+      "properties": [
+        "control_id",
+        "framework",
+        "control_code",
+        "version",
+        "status",
+        "measurement_ref"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "Policy",
+      "represents": "Versioned rule authorization or governance policy",
+      "properties": [
+        "policy_id",
+        "policy_type",
+        "version",
+        "digest",
+        "owner_team_id",
+        "status"
+      ]
+    },
+    {
+      "domain": "Identity ownership and control",
+      "label": "SLO",
+      "represents": "Operational objective and error budget contract",
+      "properties": [
+        "slo_id",
+        "service_id",
+        "sli_query",
+        "target",
+        "window",
+        "error_budget",
+        "owner",
+        "breach_behavior",
+        "measurement_ref"
+      ]
+    },
+    {
+      "domain": "AI and data",
+      "label": "AIModel",
+      "represents": "Logical governed AI model",
+      "properties": [
+        "model_id",
+        "service_id",
+        "purpose",
+        "risk_class",
+        "lifecycle",
+        "owner_team_id"
+      ]
+    },
+    {
+      "domain": "AI and data",
+      "label": "ModelVersion",
+      "represents": "Immutable model artifact and approval state",
+      "properties": [
+        "model_version_id",
+        "model_id",
+        "version",
+        "artifact_digest",
+        "approval_status",
+        "lifecycle"
+      ]
+    },
+    {
+      "domain": "AI and data",
+      "label": "ModelEndpoint",
+      "represents": "Environment specific model serving endpoint and version",
+      "properties": [
+        "model_endpoint_id",
+        "model_version_id",
+        "endpoint",
+        "environment_id",
+        "traffic_weight",
+        "status"
+      ]
+    },
+    {
+      "domain": "AI and data",
+      "label": "FeatureStore",
+      "represents": "Versioned online or offline feature source",
+      "properties": [
+        "feature_store_id",
+        "provider",
+        "native_id",
+        "owner_team_id",
+        "classification",
+        "status"
+      ]
+    },
+    {
+      "domain": "AI and data",
+      "label": "Dataset",
+      "represents": "Dataset feature group or governed data source",
+      "properties": [
+        "dataset_id",
+        "classification",
+        "owner",
+        "lineage_ref",
+        "retention_class"
+      ]
+    },
+    {
+      "domain": "AI and data",
+      "label": "ModelFallback",
+      "represents": "Approved deterministic model or service fallback",
+      "properties": [
+        "model_fallback_id",
+        "source_model_id",
+        "target_id",
+        "capacity",
+        "certification_status",
+        "tested_at",
+        "expires_at"
+      ]
+    },
+    {
+      "domain": "External context",
+      "label": "ExternalProvider",
+      "represents": "SaaS vendor partner regulator or external platform",
+      "properties": [
+        "provider_id",
+        "name",
+        "service_type",
+        "criticality",
+        "assurance_status"
+      ]
+    },
+    {
+      "domain": "External context",
+      "label": "Location",
+      "represents": "Cloud region zone edge location site or jurisdiction",
+      "properties": [
+        "location_id",
+        "provider",
+        "location_type",
+        "jurisdiction"
+      ]
+    },
+    {
+      "domain": "Customer and business",
+      "label": "CustomerJourney",
+      "represents": "Versioned end to end customer or user experience",
+      "properties": [
+        "journey_id",
+        "name",
+        "owner",
+        "start_criteria",
+        "completion_criteria",
+        "operating_window",
+        "criticality",
+        "version"
+      ]
+    },
+    {
+      "domain": "Customer and business",
+      "label": "JourneyStep",
+      "represents": "Ordered step within a customer journey",
+      "properties": [
+        "step_id",
+        "journey_id",
+        "sequence",
+        "success_condition",
+        "timeout",
+        "alternative_path",
+        "failure_behavior"
+      ]
+    },
+    {
+      "domain": "Customer and business",
+      "label": "CustomerSegment",
+      "represents": "Governed population affected by a service or journey",
+      "properties": [
+        "segment_id",
+        "definition",
+        "geography",
+        "commitment",
+        "vulnerability_flags",
+        "measurement_method"
+      ]
+    },
+    {
+      "domain": "Customer and business",
+      "label": "EssentialFunction",
+      "represents": "Customer public safety or enterprise function protected by services",
+      "properties": [
+        "function_id",
+        "name",
+        "priority",
+        "maximum_tolerable_outage",
+        "impact_dimensions"
+      ]
+    },
+    {
+      "domain": "Customer and business",
+      "label": "Impact",
+      "represents": "Observed estimated forecast or bounded consequence",
+      "properties": [
+        "impact_id",
+        "impact_type",
+        "affected_scope",
+        "time_window",
+        "magnitude",
+        "unit",
+        "status",
+        "method",
+        "confidence",
+        "graph_revision"
+      ]
+    },
+    {
+      "domain": "Customer and business",
+      "label": "Outcome",
+      "represents": "Organizational consequence to which impact may contribute",
+      "properties": [
+        "outcome_id",
+        "outcome_type",
+        "owner",
+        "status",
+        "measurement_method"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "Runbook",
+      "represents": "Versioned recovery or containment workflow definition",
+      "properties": [
+        "runbook_id",
+        "action_type",
+        "version",
+        "certification_status",
+        "owner_team_id",
+        "tested_at",
+        "expires_at"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "RecoveryPath",
+      "represents": "Versioned path from affected state to validated target",
+      "properties": [
+        "recovery_path_id",
+        "scenario",
+        "target_id",
+        "certification_status",
+        "witness_ref",
+        "tested_at",
+        "expires_at"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "CandidateAction",
+      "represents": "Provider neutral proposed recovery intent",
+      "properties": [
+        "action_id",
+        "action_type",
+        "target_selector",
+        "bounds",
+        "reversibility",
+        "expected_effect",
+        "validation_plan_id"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "Authorization",
+      "represents": "Bounded single use authority for a candidate action",
+      "properties": [
+        "authorization_id",
+        "action_id",
+        "policy_version",
+        "graph_revision",
+        "nonce",
+        "audience",
+        "issued_at",
+        "expires_at",
+        "status"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "Execution",
+      "represents": "Provider adapter execution record",
+      "properties": [
+        "execution_id",
+        "authorization_id",
+        "provider_request_id",
+        "idempotency_key",
+        "state",
+        "started_at",
+        "completed_at",
+        "result_ref"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "ValidationPlan",
+      "represents": "Dependency ordered technical control and customer outcome checks",
+      "properties": [
+        "validation_plan_id",
+        "action_id",
+        "version",
+        "stable_window",
+        "compensation_policy",
+        "status"
+      ]
+    },
+    {
+      "domain": "Recovery and action",
+      "label": "ValidationResult",
+      "represents": "Result of one validation step or aggregate plan",
+      "properties": [
+        "validation_result_id",
+        "plan_id",
+        "check_id",
+        "state",
+        "observed_value",
+        "evidence_ref",
+        "completed_at"
+      ]
+    },
+    {
+      "domain": "Decision provenance",
+      "label": "GraphRevision",
+      "represents": "Immutable reconciled topology revision",
+      "properties": [
+        "graph_revision",
+        "parent_revision",
+        "content_digest",
+        "reconciliation_state",
+        "created_at"
+      ]
+    },
+    {
+      "domain": "Decision provenance",
+      "label": "DecisionEnvelope",
+      "represents": "Reconstructable decision context and outcome manifest",
+      "properties": [
+        "decision_id",
+        "context_hash",
+        "graph_revision",
+        "policy_digest",
+        "evidence_refs",
+        "decision",
+        "state",
+        "created_at"
+      ]
+    },
+    {
+      "domain": "Collaborative agents",
+      "label": "AgentAnalysisCase",
+      "represents": "Sealed optional Core agent analysis context",
+      "properties": [
+        "case_id",
+        "manifest_digest",
+        "evidence_qualification_id",
+        "graph_revision",
+        "policy_version",
+        "objective",
+        "deadline",
+        "state"
+      ]
+    },
+    {
+      "domain": "Collaborative agents",
+      "label": "AgentAssignment",
+      "represents": "Bounded role and tool grant",
+      "properties": [
+        "assignment_id",
+        "case_id",
+        "role",
+        "capability",
+        "independent_context_flag",
+        "allowed_evidence",
+        "tool_allowlist",
+        "expires_at"
+      ]
+    },
+    {
+      "domain": "Collaborative agents",
+      "label": "AgentProposal",
+      "represents": "Independently attributable structured proposal",
+      "properties": [
+        "proposal_id",
+        "case_id",
+        "assignment_id",
+        "producer",
+        "model_version",
+        "prompt_digest",
+        "evidence_refs",
+        "graph_revision",
+        "policy_version",
+        "action",
+        "rationale",
+        "confidence",
+        "signature"
+      ]
+    },
+    {
+      "domain": "Collaborative agents",
+      "label": "AgentDissentRecord",
+      "represents": "Signed material objection",
+      "properties": [
+        "dissent_id",
+        "case_id",
+        "producer",
+        "disputed_claim",
+        "category",
+        "severity",
+        "evidence_refs",
+        "rationale",
+        "required_resolution",
+        "signature"
+      ]
+    },
+    {
+      "domain": "Collaborative agents",
+      "label": "ArbitrationRecord",
+      "represents": "Deterministic selection rejection or human review record",
+      "properties": [
+        "arbitration_id",
+        "case_id",
+        "rule_bundle_version",
+        "ordered_eligible",
+        "rejected_with_reasons",
+        "selected_proposal",
+        "disposition",
+        "dissent"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "domain": "Evidence",
+      "type": "EMITS",
+      "source": "EvidenceSource",
+      "target": "EvidenceEvent",
+      "properties": [
+        "source_native_id",
+        "observed_at",
+        "raw_reference",
+        "digest",
+        "schema_version"
+      ],
+      "cardinality": "1:N"
+    },
+    {
+      "domain": "Evidence",
+      "type": "DESCRIBES_STATE_OF",
+      "source": "EvidenceEvent",
+      "target": "GovernedSubject",
+      "properties": [
+        "observation_type",
+        "occurred_at",
+        "confidence",
+        "valid_until"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Evidence",
+      "type": "QUALIFIED_BY",
+      "source": "EvidenceEvent",
+      "target": "EvidenceQualification",
+      "properties": [
+        "qualification_state",
+        "ruleset_version",
+        "decision_time",
+        "reason_codes"
+      ],
+      "cardinality": "1:N"
+    },
+    {
+      "domain": "Evidence",
+      "type": "CORRELATED_WITH",
+      "source": "EvidenceEvent",
+      "target": "EvidenceOrChange",
+      "properties": [
+        "correlation_method",
+        "window",
+        "confidence",
+        "reason"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Evidence",
+      "type": "SUPPORTED_BY_EVIDENCE",
+      "source": "FindingOrDecision",
+      "target": "EvidenceEvent",
+      "properties": [
+        "evidence_ref",
+        "evidence_digest",
+        "qualification_state",
+        "observed_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Evidence",
+      "type": "CONTRADICTED_BY",
+      "source": "FindingOrDecision",
+      "target": "EvidenceEvent",
+      "properties": [
+        "evidence_ref",
+        "reason",
+        "confidence",
+        "observed_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Versioning",
+      "type": "SUPERSEDES",
+      "source": "VersionedObject",
+      "target": "VersionedObject",
+      "properties": [
+        "prior_id",
+        "effective_at",
+        "reason",
+        "actor_id"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Runtime dependency",
+      "type": "DEPENDS_ON",
+      "source": "DependentEntity",
+      "target": "RequiredTarget",
+      "properties": [
+        "dependency_id",
+        "criticality",
+        "synchrony",
+        "propagation_rule",
+        "confidence",
+        "provenance",
+        "observed_at",
+        "expires_at",
+        "fallback_status"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Runtime dependency",
+      "type": "ROUTES_TO",
+      "source": "GatewayOrEndpoint",
+      "target": "APIOrService",
+      "properties": [
+        "route_id",
+        "protocol",
+        "operation",
+        "traffic_share",
+        "timeout",
+        "observed_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Runtime dependency",
+      "type": "CALLS",
+      "source": "Caller",
+      "target": "Callee",
+      "properties": [
+        "protocol",
+        "operation",
+        "traffic_class",
+        "request_rate",
+        "timeout",
+        "retry_policy",
+        "circuit_breaker"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Data dependency",
+      "type": "READS_FROM",
+      "source": "Consumer",
+      "target": "DataAsset",
+      "properties": [
+        "access_mode",
+        "consistency",
+        "classification",
+        "volume",
+        "integrity_requirement"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Data dependency",
+      "type": "WRITES_TO",
+      "source": "Producer",
+      "target": "DataAsset",
+      "properties": [
+        "access_mode",
+        "consistency",
+        "classification",
+        "volume",
+        "integrity_requirement"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Messaging",
+      "type": "PUBLISHES_TO",
+      "source": "Producer",
+      "target": "Queue",
+      "properties": [
+        "delivery_semantics",
+        "ordering",
+        "replay_window",
+        "schema_ref",
+        "consumer_group"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Messaging",
+      "type": "CONSUMES_FROM",
+      "source": "Consumer",
+      "target": "Queue",
+      "properties": [
+        "delivery_semantics",
+        "ordering",
+        "replay_window",
+        "schema_ref",
+        "consumer_group"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Deployment",
+      "type": "RUNS_ON",
+      "source": "DeploymentOrComponent",
+      "target": "CloudResource",
+      "properties": [
+        "deployment_version",
+        "capacity",
+        "allocation",
+        "scheduler",
+        "observed_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Deployment",
+      "type": "DEPLOYED_IN",
+      "source": "Entity",
+      "target": "EnvironmentOrLocation",
+      "properties": [
+        "effective_from",
+        "effective_to",
+        "active"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Deployment",
+      "type": "LOCATED_IN",
+      "source": "Entity",
+      "target": "Location",
+      "properties": [
+        "effective_from",
+        "effective_to",
+        "active"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Deployment",
+      "type": "INSTANCE_OF",
+      "source": "RuntimeResource",
+      "target": "Deployment",
+      "properties": [
+        "deployment_id",
+        "version",
+        "observed_at",
+        "expires_at"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Deployment",
+      "type": "IMPLEMENTS",
+      "source": "DeploymentOrComponent",
+      "target": "Service",
+      "properties": [
+        "implementation_role",
+        "version",
+        "valid_from",
+        "valid_to"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Structure",
+      "type": "PART_OF",
+      "source": "Child",
+      "target": "GovernedParent",
+      "properties": [
+        "membership_type",
+        "required",
+        "ordering",
+        "valid_from",
+        "valid_to"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Failure domain",
+      "type": "MEMBER_OF_FAILURE_DOMAIN",
+      "source": "Entity",
+      "target": "FailureDomain",
+      "properties": [
+        "exposure_type",
+        "confidence",
+        "evidence_ref",
+        "last_verified_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Resilience",
+      "type": "REPLICATES_TO",
+      "source": "Primary",
+      "target": "Replica",
+      "properties": [
+        "mode",
+        "lag_objective",
+        "consistency",
+        "recovery_role",
+        "last_validated_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Resilience",
+      "type": "FALLBACK_TO",
+      "source": "Primary",
+      "target": "ApprovedFallback",
+      "properties": [
+        "activation_rule",
+        "capacity_ratio",
+        "rto",
+        "certification_status",
+        "last_tested_at",
+        "expires_at",
+        "evidence_ref"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "AI",
+      "type": "USES_MODEL",
+      "source": "ServiceOrComponent",
+      "target": "AIModelOrEndpoint",
+      "properties": [
+        "purpose",
+        "decision_impact",
+        "fallback_mode",
+        "traffic_share",
+        "certified"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "AI",
+      "type": "SERVES_MODEL",
+      "source": "ModelEndpoint",
+      "target": "ModelVersion",
+      "properties": [
+        "traffic_share",
+        "status",
+        "deployed_at",
+        "artifact_digest"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "AI",
+      "type": "USES_FEATURES_FROM",
+      "source": "ModelEndpointOrVersion",
+      "target": "FeatureStore",
+      "properties": [
+        "feature_view",
+        "version",
+        "freshness_requirement",
+        "lineage_ref"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "AI",
+      "type": "TRAINED_FROM",
+      "source": "ModelVersion",
+      "target": "Dataset",
+      "properties": [
+        "dataset_version",
+        "usage_type",
+        "lineage_ref",
+        "approved_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "AI",
+      "type": "USES_DATASET",
+      "source": "ModelVersion",
+      "target": "Dataset",
+      "properties": [
+        "dataset_version",
+        "usage_type",
+        "lineage_ref",
+        "approved_at"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Security",
+      "type": "USES_IDENTITY",
+      "source": "ServiceOrAdapter",
+      "target": "IdentityOrProvider",
+      "properties": [
+        "mechanism",
+        "privilege_scope",
+        "credential_ref",
+        "rotation_status"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Security",
+      "type": "USES_KEY",
+      "source": "ServiceOrResource",
+      "target": "EncryptionKey",
+      "properties": [
+        "purpose",
+        "key_version",
+        "rotation_status",
+        "failure_behavior"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Security",
+      "type": "USES_DNS",
+      "source": "ServiceOrEndpoint",
+      "target": "DNSService",
+      "properties": [
+        "record_scope",
+        "resolution_mode",
+        "ttl",
+        "failure_behavior"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Governance",
+      "type": "OWNED_BY",
+      "source": "GovernedEntity",
+      "target": "TeamOrIdentity",
+      "properties": [
+        "owner_role",
+        "valid_from",
+        "valid_to",
+        "on_call_required"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Governance",
+      "type": "PROTECTED_BY",
+      "source": "GovernedEntity",
+      "target": "Control",
+      "properties": [
+        "control_version",
+        "enforcement_point",
+        "evidence_ref",
+        "status"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "External",
+      "type": "PROVIDED_BY",
+      "source": "ResourceOrService",
+      "target": "ExternalProvider",
+      "properties": [
+        "contract_ref",
+        "service_tier",
+        "exit_plan_status",
+        "concentration_risk"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Customer",
+      "type": "SUPPORTS_STEP",
+      "source": "ServiceOrComponent",
+      "target": "JourneyStep",
+      "properties": [
+        "criticality",
+        "success_contribution",
+        "fallback_mode",
+        "valid_from",
+        "valid_to"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Customer",
+      "type": "PART_OF_JOURNEY",
+      "source": "JourneyStep",
+      "target": "CustomerJourney",
+      "properties": [
+        "sequence",
+        "mandatory",
+        "alternative_path",
+        "version"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Customer",
+      "type": "ENABLES_FUNCTION",
+      "source": "CustomerJourney",
+      "target": "EssentialFunction",
+      "properties": [
+        "criticality",
+        "maximum_tolerable_disruption",
+        "evidence_ref"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Customer",
+      "type": "SERVES_SEGMENT",
+      "source": "JourneyOrFunction",
+      "target": "CustomerSegment",
+      "properties": [
+        "scope",
+        "geography",
+        "commitment",
+        "measurement_ref"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Objective",
+      "type": "GOVERNED_BY_SLO",
+      "source": "ServiceJourneyOrFunction",
+      "target": "SLO",
+      "properties": [
+        "scope",
+        "enforcement_behavior",
+        "owner"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Impact",
+      "type": "AFFECTS",
+      "source": "TechnicalStateOrFinding",
+      "target": "Impact",
+      "properties": [
+        "scenario",
+        "rule_version",
+        "status",
+        "confidence",
+        "evidence_ref"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Impact",
+      "type": "CONTRIBUTES_TO",
+      "source": "Impact",
+      "target": "Outcome",
+      "properties": [
+        "method",
+        "contribution_status",
+        "confidence",
+        "assumptions"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Impact",
+      "type": "MEASURED_BY",
+      "source": "ImpactOrOutcome",
+      "target": "MeasurementDefinition",
+      "properties": [
+        "metric_id",
+        "query_version",
+        "unit",
+        "window",
+        "source_ref"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Propagation",
+      "type": "FAILURE_PROPAGATES_TO",
+      "source": "AffectedNodeOrState",
+      "target": "DownstreamNodeOrState",
+      "properties": [
+        "scenario",
+        "propagation_rule",
+        "delay",
+        "maximum_state",
+        "suppressing_conditions",
+        "confidence"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Recovery",
+      "type": "TARGETED_BY_ACTION",
+      "source": "AffectedStateOrTarget",
+      "target": "CandidateAction",
+      "properties": [
+        "target_role",
+        "selector_version",
+        "expected_effect"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Recovery",
+      "type": "AUTHORIZED_BY",
+      "source": "CandidateAction",
+      "target": "Authorization",
+      "properties": [
+        "policy_version",
+        "scope_digest",
+        "graph_revision",
+        "expiry",
+        "nonce_status"
+      ],
+      "cardinality": "1:N"
+    },
+    {
+      "domain": "Recovery",
+      "type": "EXECUTES",
+      "source": "Authorization",
+      "target": "Execution",
+      "properties": [
+        "provider_adapter",
+        "idempotency_key",
+        "started_at",
+        "result"
+      ],
+      "cardinality": "1:N"
+    },
+    {
+      "domain": "Recovery",
+      "type": "USES_RUNBOOK",
+      "source": "CandidateAction",
+      "target": "Runbook",
+      "properties": [
+        "version",
+        "certification_status",
+        "bounds"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Recovery",
+      "type": "USES_RECOVERY_PATH",
+      "source": "CandidateAction",
+      "target": "RecoveryPath",
+      "properties": [
+        "scenario",
+        "certification_status",
+        "graph_revision",
+        "witness_ref"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Validation",
+      "type": "VALIDATED_BY",
+      "source": "ActionExecutionPathOrOutcome",
+      "target": "ValidationPlanOrResult",
+      "properties": [
+        "check_order",
+        "mandatory",
+        "status",
+        "evidence_ref",
+        "stable_window"
+      ],
+      "cardinality": "N:N"
+    },
+    {
+      "domain": "Provenance",
+      "type": "BOUND_TO_REVISION",
+      "source": "DecisionAuthorizationOrCertification",
+      "target": "GraphRevision",
+      "properties": [
+        "context_hash",
+        "subgraph_digest",
+        "materiality_policy"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Provenance",
+      "type": "RECORDED_IN",
+      "source": "DecisionArtifact",
+      "target": "DecisionEnvelope",
+      "properties": [
+        "artifact_digest",
+        "sequence",
+        "timestamp"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Agents",
+      "type": "ASSIGNED_TO",
+      "source": "AgentAssignment",
+      "target": "AgentAnalysisCase",
+      "properties": [
+        "role",
+        "deadline",
+        "grant_digest"
+      ],
+      "cardinality": "N:1"
+    },
+    {
+      "domain": "Agents",
+      "type": "PRODUCES_PROPOSAL",
+      "source": "AgentAssignment",
+      "target": "AgentProposal",
+      "properties": [
+        "producer_signature",
+        "submitted_at"
+      ],
+      "cardinality": "1:N"
+    },
+    {
+      "domain": "Agents",
+      "type": "RAISES_DISSENT",
+      "source": "AgentAssignment",
+      "target": "AgentDissentRecord",
+      "properties": [
+        "producer_signature",
+        "submitted_at"
+      ],
+      "cardinality": "1:N"
+    },
+    {
+      "domain": "Agents",
+      "type": "ARBITRATED_BY",
+      "source": "AgentAnalysisCase",
+      "target": "ArbitrationRecord",
+      "properties": [
+        "rule_bundle_version",
+        "disposition",
+        "decided_at"
+      ],
+      "cardinality": "1:1"
+    }
+  ],
+  "endpoint_roles_reference": "endpoint_roles.json",
+  "field_aliases_reference": "field_aliases.json"
+}

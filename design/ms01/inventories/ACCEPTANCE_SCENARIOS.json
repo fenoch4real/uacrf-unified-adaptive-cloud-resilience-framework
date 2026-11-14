@@ -1,0 +1,1563 @@
+[
+  {
+    "scenario_id": "INT-DB-01",
+    "family": "Database and graph consistency",
+    "title": "Duplicate and out-of-order projection",
+    "requirement_ids": [
+      "FR-GPH-004",
+      "NFR-GPH-001",
+      "FR-CAT-001"
+    ],
+    "setup_and_fault": "Deliver versions 2, 1, 2 and a conflicting version-2 payload.",
+    "expected_result": "One logical version-2 result; stale version rejected; duplicate acknowledged; conflicting equal version quarantined; no later decision uses divergent context.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-DB-02",
+    "family": "Database and graph consistency",
+    "title": "Concurrent updates and snapshot capture",
+    "requirement_ids": [
+      "FR-GPH-004",
+      "NFR-GPH-001",
+      "FR-CAT-001"
+    ],
+    "setup_and_fault": "Race two same-aggregate writers and mutate topology while capturing a decision snapshot.",
+    "expected_result": "Only a consistent source-version history is committed; the capture resolves one protected revision/digest or returns Unknown and retries under a bound.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-DB-03",
+    "family": "Database and graph consistency",
+    "title": "Outbox interruption and reconciliation",
+    "requirement_ids": [
+      "FR-GPH-004",
+      "NFR-GPH-001",
+      "FR-CAT-001"
+    ],
+    "setup_and_fault": "Stop a worker after source commit, after graph dispatch and before receipt; restart it.",
+    "expected_result": "Committed outbox events resume without duplicate logical effects; receipt/checkpoint and graph revision reconcile; incomplete snapshots remain decision-ineligible.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-GRAPH-01",
+    "family": "Dependency and customer-impact analysis",
+    "title": "Direction and witness paths",
+    "requirement_ids": [
+      "FR-GPH-003",
+      "FR-GPH-006",
+      "FR-GPH-007"
+    ],
+    "setup_and_fault": "Inject a database or deployment failure into a known dependency/journey graph.",
+    "expected_result": "Reverse dependency and forward consequence paths reach exactly the expected subjects, journeys and segments; retain query, revision, exclusions and witnesses.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S12"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-GRAPH-02",
+    "family": "Dependency and customer-impact analysis",
+    "title": "Scope and incomplete context",
+    "requirement_ids": [
+      "FR-GPH-003",
+      "FR-GPH-006",
+      "FR-GPH-007"
+    ],
+    "setup_and_fault": "Add a cross-tenant edge, stale evidence, cycle, low-confidence dependency and depth/path-budget exhaustion.",
+    "expected_result": "No unauthorized tenant/environment crossing; required missing or truncated context produces Unknown/Incomplete rather than zero impact.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S12"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-GRAPH-03",
+    "family": "Dependency and customer-impact analysis",
+    "title": "Impact deduplication",
+    "requirement_ids": [
+      "FR-GPH-003",
+      "FR-GPH-006",
+      "FR-GPH-007"
+    ],
+    "setup_and_fault": "Reach the same transaction/customer population through multiple paths and submit a corrected late measure.",
+    "expected_result": "Deduplicate by governed scope/window key; retain all witnesses; preserve observed versus estimated values and supersede the earlier calculation without rewriting it.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S12"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-PATH-01",
+    "family": "Recovery-path independence",
+    "title": "Hidden correlated dependency",
+    "requirement_ids": [
+      "FR-GPH-008",
+      "FR-IP-005"
+    ],
+    "setup_and_fault": "Place primary and alternate in different regions but give them shared identity, DNS, key, data or control-plane domains.",
+    "expected_result": "The declared failure hypothesis and domain policy identify prohibited common exposure and return Not Independent with witnesses.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-PATH-02",
+    "family": "Recovery-path independence",
+    "title": "Unproven fallback",
+    "requirement_ids": [
+      "FR-GPH-008",
+      "FR-IP-005"
+    ],
+    "setup_and_fault": "Remove a mandatory domain, expire certification, fail capacity/data compatibility or truncate upstream expansion.",
+    "expected_result": "Return Unknown or an ineligible path; no fallback suppression or failover authorization relies on an unproven certificate.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-PATH-03",
+    "family": "Recovery-path independence",
+    "title": "Conditional certification and change",
+    "requirement_ids": [
+      "FR-GPH-008",
+      "FR-IP-005"
+    ],
+    "setup_and_fault": "Apply a scoped approved exception, then expire it or materially change a domain.",
+    "expected_result": "Conditional status retains authority, limits and earliest expiry; a material change or exception expiry forces recertification before action.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AUTH-01",
+    "family": "Policy and bounded authorization",
+    "title": "Restrictive policy and human authority",
+    "requirement_ids": [
+      "FR-POL-001",
+      "FR-APR-001",
+      "FR-IP-002",
+      "FR-IP-003"
+    ],
+    "setup_and_fault": "Exercise deny, recommend, approval-required and preauthorized outcomes, including proposer/approver identity separation.",
+    "expected_result": "Returned obligations and separation rules are enforced at execution; a recommendation or unsatisfied approval never causes a provider action.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AUTH-02",
+    "family": "Policy and bounded authorization",
+    "title": "Replay and tampering",
+    "requirement_ids": [
+      "FR-POL-001",
+      "FR-APR-001",
+      "FR-IP-002",
+      "FR-IP-003"
+    ],
+    "setup_and_fault": "Replay a consumed authorization; alter target, audience, scope, expiry or signed content.",
+    "expected_result": "Signature, nonce, target and audience checks reject the request before provider dispatch; retain the denied attempt.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AUTH-03",
+    "family": "Policy and bounded authorization",
+    "title": "Context change and policy outage",
+    "requirement_ids": [
+      "FR-POL-001",
+      "FR-APR-001",
+      "FR-IP-002",
+      "FR-IP-003"
+    ],
+    "setup_and_fault": "Change a recovery target or path after approval; make OPA unavailable or its bundle stale.",
+    "expected_result": "Consequential action fails closed, is suspended or reauthorized under current context; no stale permit is silently reused.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-EXEC-01",
+    "family": "Recovery execution and failure handling",
+    "title": "Duplicate dispatch and ambiguous timeout",
+    "requirement_ids": [
+      "FR-WFL-001",
+      "FR-WFL-002",
+      "FR-IP-003"
+    ],
+    "setup_and_fault": "Repeat a request and interrupt acknowledgement after the provider accepted it.",
+    "expected_result": "Use the same execution identity/idempotency contract; reconcile provider request/state before retry; no second logical effect is produced.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S10",
+      "S11",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-EXEC-02",
+    "family": "Recovery execution and failure handling",
+    "title": "Throttle and partial application",
+    "requirement_ids": [
+      "FR-WFL-001",
+      "FR-WFL-002",
+      "FR-IP-003"
+    ],
+    "setup_and_fault": "Inject throttling, delayed completion, partial permissions or partially applied provider changes.",
+    "expected_result": "Bound retries, preserve actual observed state and return partial/unknown dispositions; no broadening of targets or blind non-idempotent repetition.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S10",
+      "S11",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-EXEC-03",
+    "family": "Recovery execution and failure handling",
+    "title": "Stop and bounded compensation",
+    "requirement_ids": [
+      "FR-WFL-001",
+      "FR-WFL-002",
+      "FR-IP-003"
+    ],
+    "setup_and_fault": "Activate operator stop/kill switch and force a compensating action to fail or reach a configured limit.",
+    "expected_result": "Stop further unsafe dispatch, preserve history and escalate; compensation obeys separate/current authority plus count, duration and cumulative-scope limits.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S10",
+      "S11",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-VAL-01",
+    "family": "Cross-layer recovery validation",
+    "title": "Mandatory result completeness",
+    "requirement_ids": [
+      "FR-VAL-001",
+      "FR-VAL-002",
+      "FR-IP-004",
+      "FR-IP-006"
+    ],
+    "setup_and_fault": "Make infrastructure pass while a required journey/data/security/AI check fails, is skipped, times out or stays Unknown.",
+    "expected_result": "Recovered is prohibited unless every mandatory check has qualified passing evidence and complete coverage; skipped/absent results do not count as passing.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S04",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-VAL-02",
+    "family": "Cross-layer recovery validation",
+    "title": "Stable observation window",
+    "requirement_ids": [
+      "FR-VAL-001",
+      "FR-VAL-002",
+      "FR-IP-004",
+      "FR-IP-006"
+    ],
+    "setup_and_fault": "Allow transient recovery, then introduce a failure or evidence expiry before the required stable window finishes.",
+    "expected_result": "The stable window resets or fails according to the bound plan; no premature success is emitted.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S04",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-VAL-03",
+    "family": "Cross-layer recovery validation",
+    "title": "Revalidation after compensation",
+    "requirement_ids": [
+      "FR-VAL-001",
+      "FR-VAL-002",
+      "FR-IP-004",
+      "FR-IP-006"
+    ],
+    "setup_and_fault": "Apply an authorized correction and rerun the entire plan or a verified affected-check dependency closure.",
+    "expected_result": "Required downstream checks rerun, earlier attempts remain immutable and final disposition reflects the latest fully supported result.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S04",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-EVD-01",
+    "family": "Decision evidence integrity and replay",
+    "title": "Independent historical reconstruction",
+    "requirement_ids": [
+      "FR-EVD-001",
+      "FR-EVD-002",
+      "FR-IP-001"
+    ],
+    "setup_and_fault": "Replay using the retained graph snapshot, source evidence, exact rules/policy, authorization, workflow and validation versions.",
+    "expected_result": "Verify digests/signatures and reproduce the determinate result or report explicit external-state exceptions; never query mutable state as historical truth.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S04",
+      "S10",
+      "S13",
+      "S14"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-EVD-02",
+    "family": "Decision evidence integrity and replay",
+    "title": "Missing or modified artifact",
+    "requirement_ids": [
+      "FR-EVD-001",
+      "FR-EVD-002",
+      "FR-IP-001"
+    ],
+    "setup_and_fault": "Delete a required copy in a test fixture, substitute a policy artifact or alter an evidence object.",
+    "expected_result": "Detect missing/digest/signature failure and mark Partial/Failed; preserve the original record and an attributable integrity finding.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S04",
+      "S10",
+      "S13",
+      "S14"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-EVD-03",
+    "family": "Decision evidence integrity and replay",
+    "title": "Retention and controlled disclosure",
+    "requirement_ids": [
+      "FR-EVD-001",
+      "FR-EVD-002",
+      "FR-IP-001"
+    ],
+    "setup_and_fault": "Test authorized export, unauthorized access, retention expiry/legal-hold behavior and signing-key rotation using a controlled configuration.",
+    "expected_result": "Tenant-scoped access, chain of custody, retained verification keys and configured retention/hold behavior work as specified; test storage constraints before locking real retention policies.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S04",
+      "S10",
+      "S13",
+      "S14"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-OPS-01",
+    "family": "Operational resilience security and acceptance",
+    "title": "Component interruption and restoration",
+    "requirement_ids": [
+      "NFR-RES-001",
+      "NFR-RPO-001",
+      "NFR-SEC-001",
+      "NFR-PRF-001",
+      "NFR-PRF-002",
+      "NFR-GPH-004"
+    ],
+    "setup_and_fault": "Restart workflow workers, graph/policy services and evidence ingestion; perform controlled backup/restore.",
+    "expected_result": "Protected workloads continue independently; consequential action stops or follows certified offline limits; workflows and retained evidence recover to declared objectives.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-OPS-02",
+    "family": "Operational resilience security and acceptance",
+    "title": "Isolation privilege and secrets",
+    "requirement_ids": [
+      "NFR-RES-001",
+      "NFR-RPO-001",
+      "NFR-SEC-001",
+      "NFR-PRF-001",
+      "NFR-PRF-002",
+      "NFR-GPH-004"
+    ],
+    "setup_and_fault": "Attempt tenant/environment boundary crossing, read-role mutation, invalid federation claims, unauthorized export and secret exposure.",
+    "expected_result": "Enforce least privilege and scope; read identities cannot mutate; invalid identity is rejected; secrets and sensitive content do not enter ordinary evidence/log output.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-OPS-03",
+    "family": "Operational resilience security and acceptance",
+    "title": "Certified load and operator exercise",
+    "requirement_ids": [
+      "NFR-RES-001",
+      "NFR-RPO-001",
+      "NFR-SEC-001",
+      "NFR-PRF-001",
+      "NFR-PRF-002",
+      "NFR-GPH-004"
+    ],
+    "setup_and_fault": "Run agreed event/query/workflow load and have an operator diagnose, approve, stop and reconstruct the scenario.",
+    "expected_result": "Measure against the specification\u2019s stated SLIs/SLOs and acceptance criteria, including lag, latency and completeness; retain load configuration, measurements and operator observations.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-MC-01",
+    "family": "Provider adapter conformance",
+    "title": "Equivalent bounded intent across GCP AWS and Azure",
+    "requirement_ids": [
+      "FR-IP-003",
+      "NFR-POR-001",
+      "NFR-INT-001"
+    ],
+    "setup_and_fault": "For the selected workload family, translate one canonical rollback intent on GCP, AWS and Azure. Include unsupported capability, differing provider units/limits, partial permissions and throttling.",
+    "expected_result": "Every adapter preserves target/scope/validation semantics or returns a typed unsupported/mismatch response. Preserve native resource IDs, request IDs, before/after state and attestations. Matching intent does not imply interchangeable APIs or identical recovery guarantees.",
+    "required_evidence": [
+      "Three provider translation plans",
+      "Capability/version matrix",
+      "Negative-path outcomes",
+      "Provider results and attestation",
+      "Cross-provider review"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "owner_role": "Provider integration owners and architecture reviewer",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "EDGE01",
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "UX01"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-E2E-01",
+    "family": "First controlled end-to-end scenario",
+    "title": "Qualified deployment failure to governed rollback and replay",
+    "requirement_ids": [
+      "FR-ING-001",
+      "FR-GPH-003",
+      "FR-POL-001",
+      "FR-WFL-001",
+      "FR-VAL-001",
+      "FR-EVD-001",
+      "FR-LRN-002"
+    ],
+    "setup_and_fault": "Use a nonproduction checkout journey with known dependencies, two compatible releases and a synthetic transaction probe. Record fixed lab objectives and safety bounds before injecting a defective deployment.",
+    "expected_result": "Qualify evidence; seal the graph context; trace the affected journey; evaluate the scenario-specific rollback path; obtain policy and any human approval; execute one bounded rollback; validate every mandatory layer and stable window; reconstruct the decision; record and verify an approved learning change.",
+    "required_evidence": [
+      "Approved nonproduction scope and stop conditions",
+      "Known graph and expected witnesses",
+      "Qualified telemetry and target compatibility proof",
+      "Policy/approval/single-use authorization",
+      "Provider operation and idempotency evidence",
+      "Stable-window journey/data/control results",
+      "Reconstructed envelope and learning/change record"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "owner_role": "Integration lead, SRE, service owner, security and independent reviewer",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S03",
+      "S04",
+      "S06",
+      "S07",
+      "S10",
+      "S11",
+      "S12",
+      "S14"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AGCORE-01",
+    "family": "Core knowledge and agent assistance",
+    "title": "Knowledge eligibility and disclosure",
+    "requirement_ids": [
+      "FR-KNO-001",
+      "FR-KNO-002",
+      "FR-KNO-003",
+      "FR-KNO-004",
+      "FR-KNO-005",
+      "FR-KNO-006",
+      "FR-AGT-005",
+      "FR-IP-007"
+    ],
+    "setup_and_fault": "Cross-tenant searches, revoked access with warm cache, withdrawn source during an active run, malformed intake, ungrounded citations and contradictory procedures.",
+    "expected_result": "No unauthorized exposure; invalid knowledge cannot support an active proposal; supplied context reconstructs; missing operational evidence remains Unknown.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S07",
+      "S08",
+      "S09",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AGCORE-02",
+    "family": "Core knowledge and agent assistance",
+    "title": "Bounded advisory orchestration",
+    "requirement_ids": [
+      "FR-ORC-001",
+      "FR-ORC-002",
+      "FR-ORC-003",
+      "FR-ORC-004",
+      "FR-ORC-005",
+      "FR-ORC-006",
+      "FR-AGT-005",
+      "FR-IP-007"
+    ],
+    "setup_and_fault": "Concurrent tool calls exhaust budget; duplicate, late and conflicting callbacks; mandatory critic failure; cancellation, model outage and attempted A2 auto-selection.",
+    "expected_result": "Atomic bounded use; preserved dissent and attempts; no agent-created authority; revoked grants; restrictive agent disposition and independently governed human continuation.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S07",
+      "S09",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-01",
+    "family": "Protected agent workloads",
+    "title": "Registration and frozen context",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Missing owner; cross-service version; mutable dependencies; unreviewed activation.",
+    "expected_result": "Reject invalid scope and context; retain a frozen attributable active version.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-02",
+    "family": "Protected agent workloads",
+    "title": "Bounded concurrent dispatch",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Two child dispatches compete for the final step/token/cost allowance; duplicate and conflicting keys.",
+    "expected_result": "At most the admitted amount is reserved; exact retry returns receipt; conflict changes nothing.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-03",
+    "family": "Protected agent workloads",
+    "title": "Knowledge and memory isolation",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Revoked access with warm cache; withdrawn procedure; poisoned checkpoint; cross-tenant memory.",
+    "expected_result": "No unauthorized disclosure; unsafe context cannot support continued work.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-04",
+    "family": "Protected agent workloads",
+    "title": "Cancellation and uncertain effects",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Cancel while a refund request is in flight; deliver late output; retry after timeout.",
+    "expected_result": "No new dispatch after fence; preserve late result; reconcile refund before retry.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-05",
+    "family": "Protected agent workloads",
+    "title": "Checkpoint and governed resumption",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Stale evaluation; expired checkpoint; changed input/version; repeated workflow; reset-budget request.",
+    "expected_result": "Reject unsafe resume; one linked pending execution; no second nonce consumption or budget reset.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-06",
+    "family": "Protected agent workloads",
+    "title": "Meaningful recovery validation",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Model responds but task fails; mandatory critic/tool check missing; insufficient observation window.",
+    "expected_result": "FAIL or UNKNOWN; no false Recovered; human handoff preserves uncertainty.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-07",
+    "family": "Protected agent workloads",
+    "title": "Multi-agent lineage and limits",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Cyclic handoff; mandatory child timeout; two agents depend on the same failed model/tool.",
+    "expected_result": "Bounded tree or explicitly bounded cycle; preserve dissent; no false independence.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-AWL-08",
+    "family": "Protected agent workloads",
+    "title": "Usage and commercial separation",
+    "requirement_ids": [
+      "FR-AWL-001",
+      "FR-AWL-002",
+      "FR-AWL-003",
+      "FR-AWL-004",
+      "FR-AWL-005",
+      "FR-AWL-006",
+      "FR-AWL-007",
+      "FR-AWL-008",
+      "FR-AWL-009",
+      "FR-AWL-010",
+      "FR-AWL-011",
+      "FR-AWL-012"
+    ],
+    "setup_and_fault": "Model request reserved but not completed; duplicate usage receipt; billing unavailable during containment.",
+    "expected_result": "No reservation treated as charge; idempotent measured usage; safety and exit remain available.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S10",
+      "S11",
+      "S12",
+      "S13"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-CAT-01",
+    "family": "Journeys and shared resources",
+    "title": "Journey scope and distinct inventories",
+    "requirement_ids": [
+      "FR-CAT-001",
+      "FR-GPH-001",
+      "FR-AWL-001"
+    ],
+    "setup_and_fault": "Create a journey containing a conventional service and standalone agent; revoke one grant between pages.",
+    "expected_result": "Return only currently authorized capabilities, keep Services and Agents separate, and invalidate a cursor when its bound scope changes.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S11",
+      "S12"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-CAT-02",
+    "family": "Journeys and shared resources",
+    "title": "Catalogue mutation admission and audit",
+    "requirement_ids": [
+      "FR-CAT-001",
+      "FR-GPH-001",
+      "FR-AWL-001"
+    ],
+    "setup_and_fault": "Replay a metadata command, then race two revisions and submit a cross-tenant link.",
+    "expected_result": "Retain one idempotent result and atomic audit/outbox; reject revision conflict, cross-tenant membership and an agent labelled as a conventional service.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S11",
+      "S12"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  },
+  {
+    "scenario_id": "INT-CAT-03",
+    "family": "Journeys and shared resources",
+    "title": "Shared resource access and runtime boundary",
+    "requirement_ids": [
+      "FR-CAT-001",
+      "FR-GPH-001",
+      "FR-AWL-001"
+    ],
+    "setup_and_fault": "Link a model and knowledge base to a service and two agents; withdraw knowledge eligibility while a run is queued.",
+    "expected_result": "Store each resource once with distinct consumers; recheck content and current grants at use time; metadata does not establish a qualified graph edge or recovered outcome.",
+    "required_evidence": [
+      "Immutable input/configuration manifest",
+      "Expected versus observed result",
+      "Relevant graph/policy/authorization/provider identifiers",
+      "Execution and validation history",
+      "Evidence digests, retained artifacts and reviewer disposition"
+    ],
+    "provider_targets": [
+      "GCP",
+      "AWS",
+      "Azure"
+    ],
+    "provider_scope": "Run shared-control-plane cases once per certified configuration; run adapter/identity/retention behavior separately for each provider; this is a target matrix, not an assertion of equal provider semantics.",
+    "owner_role": "Integration engineer plus the relevant service/security/evidence owner",
+    "verification_status": "NOT_EXECUTED",
+    "review_status": "Pending",
+    "target_services": [
+      "S02",
+      "S06",
+      "S11",
+      "S12"
+    ],
+    "microservice_execution_status": "NOT_EXECUTED"
+  }
+]

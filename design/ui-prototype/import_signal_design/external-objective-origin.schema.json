@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "external objective origin",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "connection_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_system": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "external_objective_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "source_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_modified_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "imported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "mapping_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "normalizer_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "source_payload_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000,
+      "pattern": "\\S"
+    },
+    "authority_mode": {
+      "enum": [
+        "TRACK_SOURCE",
+        "LOCAL_OVERRIDE"
+      ]
+    },
+    "last_common_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Digest of the last common normalized objective definition, not the raw source payload."
+    },
+    "connection_revision": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "connection_id",
+    "source_system",
+    "external_objective_id",
+    "source_version",
+    "source_digest",
+    "source_modified_at",
+    "source_checked_at",
+    "imported_at",
+    "mapping_revision",
+    "normalizer_version",
+    "source_payload_ref",
+    "authority_mode",
+    "last_common_digest",
+    "connection_revision"
+  ]
+}

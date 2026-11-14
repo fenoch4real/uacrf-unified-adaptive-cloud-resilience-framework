@@ -1,0 +1,787 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "UACRF Core knowledge and advisory orchestration",
+    "version": "1.0",
+    "description": "Version 1.0. Approved text retrieval is locally implemented and verified; advisory orchestration remains unfinished. Local tests do not establish live integrations or full system acceptance.",
+    "x-contract-review": "Implementation review 1; typed response addendum, not a deployed handler"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/v1/knowledge-items": {
+      "get": {
+        "summary": "List authorized knowledge metadata and lifecycle status, with optional item and version filters.",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized scoped metadata and status; no inference of approval or recovery",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "$ref": "../agent_contracts/knowledge.schema.json"
+                      }
+                    },
+                    "next_cursor": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500,
+                          "pattern": "\\S"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "coverage": {
+                      "const": "AUTHORIZED_VISIBLE_SCOPE_ONLY"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "next_cursor",
+                    "coverage"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": " Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance."
+      }
+    },
+    "/v1/knowledge-items/{id}/versions/{version}:review": {
+      "post": {
+        "summary": "Approve, withdraw or supersede an immutable version through an authorized human review.",
+        "description": "Proposed interface; not an implemented service. Current authorization and domain semantic checks are mandatory. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access-controlled domain result; analysis completion is not action approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied scope or operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed context, lifecycle or conflicting idempotency key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required service unavailable; no fabricated result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "decision",
+                  "reason",
+                  "expected_sequence"
+                ],
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "APPROVE",
+                      "WITHDRAW",
+                      "SUPERSEDE"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "expected_sequence": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/knowledge-search": {
+      "post": {
+        "summary": "Retrieve bounded authorized approved excerpts and a retrieval manifest.",
+        "description": "Bounded approved text retrieval with actual source-byte and excerpt verification, current classification/purpose/workload permissions, immutable provenance and stable request-key replay. Source text is untrusted advisory context, never action authority. New searches require a current sealed analysis case. Reads recheck selected sources under current approval and disclosure; withdrawal denies access. Historical manifests do not silently refresh or extend their validity. Local deterministic Unicode lexical matching supports scoped UACRF_KNOWLEDGE_TEXT_V1 artifacts, not remote fetching or model inference.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access-controlled domain result; analysis completion is not action approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/./retrieval.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied scope or operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed context, lifecycle or conflicting idempotency key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required service unavailable; no fabricated result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Current identity, scope or domain constraint rejected this operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Current identity, scope or domain constraint rejected this operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Current identity, scope or domain constraint rejected this operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "query",
+                  "case_id",
+                  "purpose",
+                  "max_results"
+                ],
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "case_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "pattern": "\\S"
+                  },
+                  "max_results": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED"
+      }
+    },
+    "/v1/retrieval-manifests/{id}": {
+      "get": {
+        "summary": "Retrieve an access-controlled immutable supplied-context manifest.",
+        "description": "Bounded approved text retrieval with actual source-byte and excerpt verification, current classification/purpose/workload permissions, immutable provenance and stable request-key replay. Source text is untrusted advisory context, never action authority. New searches require a current sealed analysis case. Reads recheck selected sources under current approval and disclosure; withdrawal denies access. Historical manifests do not silently refresh or extend their validity. Local deterministic Unicode lexical matching supports scoped UACRF_KNOWLEDGE_TEXT_V1 artifacts, not remote fetching or model inference.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access-controlled domain result; analysis completion is not action approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../agent_contracts/retrieval.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied scope or operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed context, lifecycle or conflicting idempotency key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required service unavailable; no fabricated result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Current identity, scope or domain constraint rejected this operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Current identity, scope or domain constraint rejected this operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Current identity, scope or domain constraint rejected this operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../api_reference/openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-implementation-status": "IMPLEMENTED_LOCAL_RUNTIME_NOT_LIVE_ACCEPTED"
+      }
+    },
+    "/v1/orchestration-runs": {
+      "post": {
+        "summary": "Start a bounded advisory workflow bound to a sealed case.",
+        "description": "Proposed interface; not an implemented service. Current authorization and domain semantic checks are mandatory. Start accepts only CREATED state and A0/A1/A2 permitted by independently verified promotion; server seals trusted context and issues scoped grants. Client-supplied state or tier never establishes authority. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access-controlled domain result; analysis completion is not action approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied scope or operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed context, lifecycle or conflicting idempotency key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required service unavailable; no fabricated result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "run"
+                ],
+                "properties": {
+                  "run": {
+                    "$ref": "./orchestration.schema.json"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orchestration-runs/{id}:cancel": {
+      "post": {
+        "summary": "Cancel new assignments, revoke grants and retain in-flight dispositions.",
+        "description": "Proposed interface; not an implemented service. Current authorization and domain semantic checks are mandatory. Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access-controlled domain result; analysis completion is not action approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid contract or bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied scope or operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Changed context, lifecycle or conflicting idempotency key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Required service unavailable; no fabricated result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Durable pending command receipt; no domain completion is asserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "../implementation_review/response.schema.json#/$defs/CommandReceipt"
+                    },
+                    {
+                      "properties": {
+                        "status": {
+                          "const": "PENDING"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orchestration-runs/{id}": {
+      "get": {
+        "summary": "Read scoped run status, assignments, attempts, retained dissent and review disposition.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized scoped metadata and status; no inference of approval or recovery",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../agent_contracts/orchestration.schema.json"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../implementation_review/response.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": " Responses follow implementation_review/response.schema.json or the named existing domain schema. Authentication, field disclosure, serializers and running handlers still require implementation and acceptance."
+      }
+    }
+  }
+}

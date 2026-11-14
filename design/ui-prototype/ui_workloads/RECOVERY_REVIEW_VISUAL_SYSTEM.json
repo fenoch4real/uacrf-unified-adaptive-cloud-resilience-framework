@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "ui_design_revision": 8,
+  "visual_refinement": 7,
+  "screens": [
+    "UI-19",
+    "UI-20"
+  ],
+  "shared_icons": [
+    "service",
+    "agent",
+    "recover",
+    "identity",
+    "graph",
+    "warning",
+    "lock",
+    "evidence",
+    "unknown",
+    "assess",
+    "journey",
+    "info",
+    "arrow"
+  ],
+  "layout": [
+    "Scenario and workload selector",
+    "Labelled conclusion and authority panels",
+    "Numbered review sequence",
+    "Four evidence-check cards",
+    "Next-review action",
+    "Expandable scope note",
+    "Existing detailed dependency canvas"
+  ],
+  "provider_marks": "Explicit sample placement only; never infer provider for unknown nodes",
+  "status_semantics": "Unknown and review required; no success, certification or dispatch inferred",
+  "responsive_rules": "Stack header and summary at 900px, checks and actions at 650px",
+  "browser_acceptance": "NOT_EXECUTED"
+}
