@@ -84,6 +84,7 @@ services:
       KC_HOSTNAME: http://localhost:8180
       KEYCLOAK_LOCAL_ADMIN_PASSWORD: ${KEYCLOAK_LOCAL_ADMIN_PASSWORD:?set a local UACRF admin password}
       KEYCLOAK_DIRECTORY_CLIENT_SECRET: ${KEYCLOAK_DIRECTORY_CLIENT_SECRET:?set the identity directory client secret}
+      KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET: ${KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET:?set the S03 publisher client secret}
     ports:
       - "127.0.0.1:8180:8080"
     volumes:

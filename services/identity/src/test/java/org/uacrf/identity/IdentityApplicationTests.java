@@ -728,7 +728,7 @@ class IdentityApplicationTests {
             "/internal/v1/delegations",
             token("keycloak-subject-1"),
             """
-            {"audience":"S04","service_id":"svc-1","capability_ids":["catalog.service.write"]}
+            {"audience":"S05","service_id":"svc-1","capability_ids":["catalog.service.write"]}
             """);
     assertEquals(400, unknownAudience.statusCode());
 
@@ -740,6 +740,15 @@ class IdentityApplicationTests {
             {"audience":"S03","service_id":"svc-1","capability_ids":["connections.connection.write"]}
             """);
     assertEquals(403, unmemberedConnections.statusCode(), unmemberedConnections.body());
+
+    HttpResponse<String> humanInboxWriter =
+        post(
+            "/internal/v1/delegations",
+            token("keycloak-subject-1"),
+            """
+            {"audience":"S04","capability_ids":["evidence.inbox.write"]}
+            """);
+    assertEquals(403, humanInboxWriter.statusCode(), humanInboxWriter.body());
   }
 
   @Test

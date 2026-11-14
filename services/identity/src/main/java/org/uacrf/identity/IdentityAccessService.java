@@ -70,8 +70,8 @@ class IdentityAccessService {
   @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   IdentityResponses.Delegation createDelegation(
       Jwt jwt, IdentityRequests.Delegation request) {
-    if (!Set.of("S02", "S03").contains(request.audience())) {
-      throw invalid("Only the S02 and S03 audiences are currently available.");
+    if (!Set.of("S02", "S03", "S04").contains(request.audience())) {
+      throw invalid("Only the S02, S03 and S04 audiences are currently available.");
     }
     if (request.serviceId() != null && !isValidId(request.serviceId())) {
       throw invalid("service_id is malformed.");
@@ -84,6 +84,9 @@ class IdentityAccessService {
     }
 
     Actor actor = resolveActor(jwt, request.tenantId(), request.environmentId());
+    if (requestedCapabilities.contains("evidence.inbox.write") && !"SYSTEM".equals(actor.kind())) {
+      throw denied("Service-to-service capabilities are only delegable to system principals.");
+    }
     for (String capability : requestedCapabilities) {
       if (!hasCapability(actor, capability, request.serviceId())) {
         throw denied("The requested delegation exceeds current membership authority.");

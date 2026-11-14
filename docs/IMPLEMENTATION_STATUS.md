@@ -343,16 +343,27 @@ retains evidence events and decides qualification.
 - `POST /internal/v1/qualifications/{id}:receipt` returns whether evidence is usable
   for a purpose given an expected digest and cutoff.
 - `POST /internal/v1/inbox/events` is the consumer-side inbox (digest, duplicate,
-  per-aggregate sequence checks, quarantine). No poller delivers S03 outbox events
-  to it yet.
+  per-aggregate sequence checks, quarantine). The S03 publisher below delivers to it.
 - S01 registers `evidence.event.read|write`, `evidence.inbox.write` and
   `evidence.qualification.review`.
 - Wired into Dockerfile, compose, CI, release, ownership check and image smoke test.
 - EDGE01 routes only `GET /v1/evidence`, `GET /v1/evidence/{id}` and
   `POST /v1/evidence/{id}/reviews` under `/internal/evidence`; the `/internal/v1`
   S04 endpoints are deliberately not routed publicly.
-- Not yet built: outbox publisher/poller, source schemas, policies, gap waivers,
-  raw-byte metadata.
+- S03 `OutboxPublisher` (off by default, `UACRF_OUTBOX_PUBLISHER_ENABLED`) delivers
+  pending `outbox_event` rows to the S04 inbox. It signs in to Keycloak with the
+  client-credentials grant, asks S01 for a 30-second S04 delegation limited to
+  `evidence.inbox.write`, and marks rows published only on RECEIVED, DUPLICATE or
+  QUARANTINED (retained by S04). Failures leave rows pending for retry. The digest is
+  recomputed over the exact jsonb text sent. S01 now accepts audience `S04` and
+  delegates `evidence.inbox.write` to SYSTEM principals only.
+- The Keycloak realm now defines the confidential client `uacrf-s03-publisher`
+  (service account id `...0d2`, `uacrf-s01-context` scope, secret from
+  `KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET`). Still needed before enabling the publisher:
+  admit that service account as a SYSTEM principal through the S01 admission flow,
+  grant it `evidence.inbox.write` through an approved grant, and set
+  `UACRF_S03_CLIENT_SECRET` for S03. Not yet built: source schemas, policies, gap
+  waivers, raw-byte metadata.
 
 ## Next implementation step
 

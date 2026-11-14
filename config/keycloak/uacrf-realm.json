@@ -29,6 +29,22 @@
       ]
     },
     {
+      "clientId": "uacrf-s03-publisher",
+      "name": "UACRF S03 outbox publisher",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "uacrf-s01-context"
+      ],
+      "fullScopeAllowed": false
+    },
+    {
       "clientId": "uacrf-s01-directory",
       "name": "UACRF S01 directory reader",
       "enabled": true,
@@ -233,6 +249,12 @@
           "temporary": false
         }
       ]
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000000d2",
+      "username": "service-account-uacrf-s03-publisher",
+      "enabled": true,
+      "serviceAccountClientId": "uacrf-s03-publisher"
     },
     {
       "id": "00000000-0000-4000-8000-0000000000d1",
