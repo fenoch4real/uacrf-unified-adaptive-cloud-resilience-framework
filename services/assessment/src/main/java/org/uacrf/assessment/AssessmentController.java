@@ -13,7 +13,11 @@ import org.uacrf.security.DelegationPrincipal;
 @RestController
 class AssessmentController {
   private final AssessmentService service;
-  AssessmentController(AssessmentService service) { this.service = service; }
+  private final ModelVersionService modelVersions;
+  AssessmentController(AssessmentService service, ModelVersionService modelVersions) {
+    this.service = service;
+    this.modelVersions = modelVersions;
+  }
   @PostMapping("/v1/cases") @ResponseStatus(HttpStatus.CREATED)
   Case create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateCase request) { return service.create(DelegationPrincipal.from(jwt), request); }
   @PostMapping("/v1/cases/{id}:seal")
@@ -34,4 +38,27 @@ class AssessmentController {
   Evaluation evaluation(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.evaluation(DelegationPrincipal.from(jwt), id); }
   @GetMapping("/v1/recommendations")
   List<Recommendation> recommendations(@AuthenticationPrincipal Jwt jwt, @RequestParam(value="workload_id") String workloadId) { return service.recommendations(DelegationPrincipal.from(jwt), workloadId); }
+  @PostMapping("/v1/model-versions") @ResponseStatus(HttpStatus.CREATED)
+  ModelVersion retainModelVersion(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody RetainModelVersion request) {
+    return modelVersions.retain(DelegationPrincipal.from(jwt), request);
+  }
+  @GetMapping("/v1/model-versions")
+  List<ModelVersion> modelVersions(@AuthenticationPrincipal Jwt jwt,
+      @RequestParam(value="model_id", required=false) String modelId) {
+    return modelVersions.list(DelegationPrincipal.from(jwt), modelId);
+  }
+  @GetMapping("/v1/model-versions/{id}")
+  ModelVersion modelVersion(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return modelVersions.get(DelegationPrincipal.from(jwt), id);
+  }
+  @PostMapping("/v1/model-versions/{id}:review")
+  ModelVersion reviewModelVersion(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @Valid @RequestBody ReviewModelVersion request) {
+    return modelVersions.review(DelegationPrincipal.from(jwt), id, request);
+  }
+  @PostMapping("/v1/model-versions/{id}:promote")
+  ModelVersion promoteModelVersion(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @Valid @RequestBody PromoteModelVersion request) {
+    return modelVersions.promote(DelegationPrincipal.from(jwt), id, request);
+  }
 }

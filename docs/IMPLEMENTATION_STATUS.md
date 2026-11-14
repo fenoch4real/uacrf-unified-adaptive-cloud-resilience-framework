@@ -404,8 +404,9 @@ retains evidence events and decides qualification.
 
 - `services/assessment` (port 8089, audience S07, database/schema `uacrf_assessment`) provides fixed assessment cases, deterministic evaluation, and non-executable recommendations. EDGE01 routes the public operations under `/internal/assessment`; the private `/internal/v1/cases/{id}:receipt` endpoint is not routed.
 - When `UACRF_ASSESSMENT_RECEIPTS_ENABLED=true`, every evaluation obtains short-lived S01 delegations as the S07 service account and verifies each measurement against the qualified S04 owner payload, current S05 active objectives, and S06 projected graph eligibility. Verification failures force `INSUFFICIENT_EVIDENCE`, retain a reason code and received owner receipt facts in the dependency vector, and cannot produce a recommendation. Verification is off by default; disabled evaluations retain `receipt_verification: SKIPPED` and caller-supplied measurements are not verified. Before enabling it, grant the S07 SYSTEM principal `evidence.event.read`, `objectives.objective.read`, and `topology.graph.read` through normal S01 membership administration.
-- There is no prediction/model execution, model versioning or learning, or incident record support yet.
-- Remaining work: add workers/triggers and the outbox publisher; build forecasts, model versions, and learning behind feature gates; and integrate S10 consumption.
+- Immutable model-version governance is implemented at `/v1/model-versions`: candidate metadata is immutable and tenant/environment scoped; independent reviews require verified S04/S05/S06 evaluation receipts and a passing result for approval; independent promotions activate only SHADOW or ADVISORY versions and supersede the prior active version atomically. Outbox events are transactional. Normal S01 grants control the distinct `assessment.model.read`, `assessment.model.write`, and `assessment.model.review` capabilities; there are no automatic grants. Commands are disabled by default and can be enabled with `UACRF_ASSESSMENT_MODELS_ENABLED=true`.
+- This slice provides governance only: there is no model execution, prediction/forecast generation, learning, or incident record support yet.
+- Remaining work: add workers/triggers and the outbox publisher; build forecasts and learning behind feature gates; and integrate S10 consumption.
 
 ## Next implementation step
 

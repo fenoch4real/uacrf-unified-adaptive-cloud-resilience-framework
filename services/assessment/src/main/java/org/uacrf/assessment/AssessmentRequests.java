@@ -10,6 +10,8 @@ final class AssessmentRequests {
   private AssessmentRequests() {}
   enum Comparator { LTE, GTE }
   enum Mode { SHADOW, DRY_RUN, LIVE }
+  enum ModelDecision { APPROVE, REJECT }
+  enum TargetMode { SHADOW, ADVISORY }
   record ObjectiveRef(@NotBlank @Size(max=200) String objectiveId, @Min(1) long revision,
       @NotBlank @Size(max=200) String digest) {}
   record GraphRef(@NotBlank @Size(max=200) String graphId, @Min(1) long revision,
@@ -25,4 +27,15 @@ final class AssessmentRequests {
       @NotNull BigDecimal value, @NotBlank @Size(max=30) String unit) {}
   record Evaluate(@NotNull Instant observationCutoff, @NotNull Mode mode,
       @NotNull @Size(max=1000) List<@NotNull @Valid Measurement> measurements) {}
+  record RetainModelVersion(@NotBlank @Size(max=200) String modelId,
+      @NotBlank @Size(max=100) String version, @NotBlank @Size(max=1000) String artifactRef,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{64}$") String digest,
+      @NotBlank @Size(max=1000) String modelCardRef,
+      @NotBlank @Size(max=1000) String evaluationPackRef,
+      @NotBlank @Size(max=2000) String reason) {}
+  record ReviewModelVersion(@Min(1) long expectedRevision, @NotNull ModelDecision decision,
+      @Size(max=100) List<@NotBlank @Size(max=200) String> evaluationResultIds,
+      @NotBlank @Size(max=2000) String reason) {}
+  record PromoteModelVersion(@Min(1) long expectedRevision, @NotNull TargetMode targetMode,
+      @NotBlank @Size(max=2000) String reason) {}
 }

@@ -82,6 +82,33 @@ class AssessmentRouteClient {
     return send(request, authorization);
   }
 
+  ResponseEntity<String> retainModelVersion(String authorization, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/model-versions", null, authorization, requestBody);
+  }
+
+  ResponseEntity<String> modelVersions(String authorization, String modelId) {
+    RestClient.RequestHeadersSpec<?> request =
+        assessmentRestClient.get().uri(uriBuilder -> {
+          uriBuilder.path("/v1/model-versions");
+          if (modelId != null && !modelId.isBlank()) uriBuilder.queryParam("model_id", modelId);
+          return uriBuilder.build();
+        });
+    return send(request, authorization);
+  }
+
+  ResponseEntity<String> modelVersion(String authorization, String id) {
+    return send(assessmentRestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/v1/model-versions/{id}").build(id)), authorization);
+  }
+
+  ResponseEntity<String> reviewModelVersion(String authorization, String id, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/model-versions/{id}:review", id, authorization, requestBody);
+  }
+
+  ResponseEntity<String> promoteModelVersion(String authorization, String id, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/model-versions/{id}:promote", id, authorization, requestBody);
+  }
+
   private ResponseEntity<String> sendBody(
       HttpMethod method, String path, String variable, String authorization, String requestBody) {
     RestClient.RequestBodySpec request =

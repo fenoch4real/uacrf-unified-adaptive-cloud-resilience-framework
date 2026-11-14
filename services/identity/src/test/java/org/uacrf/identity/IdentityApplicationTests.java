@@ -788,6 +788,49 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void modelVersionCapabilitiesAreDelegableOnlyWhenGranted() throws Exception {
+    seedScopedMemberships();
+    List<String> modelCapabilities =
+        List.of("assessment.model.read", "assessment.model.write", "assessment.model.review");
+    assertEquals(
+        0,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_identity.membership WHERE principal_id='admin-test' "
+                + "AND capability IN ('assessment.model.read','assessment.model.write',"
+                + "'assessment.model.review') AND revoked_at IS NULL",
+            Integer.class));
+    try {
+      for (String capability : modelCapabilities) {
+        jdbc.update(
+            "INSERT INTO uacrf_identity.membership "
+                + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+                + "VALUES (?,'tenant-test','environment-test','admin-test',?,'svc-1',"
+                + "'2099-12-31T23:59:59Z',1)",
+            java.util.UUID.randomUUID(), capability);
+        HttpResponse<String> response =
+            post(
+                "/internal/v1/delegations",
+                token("keycloak-subject-1"),
+                """
+                {"audience":"S07","service_id":"svc-1","capability_ids":["%s"]}
+                """.formatted(capability));
+        assertEquals(200, response.statusCode(), response.body());
+        String accessToken =
+            response.body().replaceFirst("^.*\"access_token\":\"([^\"]+)\".*$", "$1");
+        String claims = new String(
+            java.util.Base64.getUrlDecoder().decode(accessToken.split("\\.")[1]),
+            java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(claims).contains("\"capabilities\":[\"" + capability + "\"]");
+      }
+    } finally {
+      jdbc.update(
+          "DELETE FROM uacrf_identity.membership WHERE principal_id='admin-test' "
+              + "AND capability IN ('assessment.model.read','assessment.model.write',"
+              + "'assessment.model.review')");
+    }
+  }
+
+  @Test
   void bootstrapsASeparateApproverWhoseOnlyPowerIsApprovingGrants() throws Exception {
     assertThat(jdbc.queryForList(
             "SELECT capability FROM uacrf_identity.membership "

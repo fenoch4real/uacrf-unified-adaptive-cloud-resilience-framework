@@ -27,5 +27,10 @@ final class AssessmentResponses {
   record Prerequisites(String caseDigest, ObjectiveRef objectiveRef, GraphRef graphRef, String evaluationDigest) {}
   record Recommendation(String id, String evaluationId, String caseId, String workloadId,
       String kind, Bounds effectBounds, Prerequisites prerequisiteRefs, boolean executable) {}
+  record ModelVersion(String id, String modelId, String version, String artifactRef, String digest,
+      String modelCardRef, String evaluationPackRef, String reason, String state, long revision,
+      String proposedBy, Instant createdAt, String reviewedBy, String decision,
+      List<String> evaluationResultIds, String reviewReason, Instant reviewedAt,
+      String promotedBy, String targetMode, String promotionReason, Instant promotedAt) {}
   record Error(String code, String message, String requestId) {}
 }

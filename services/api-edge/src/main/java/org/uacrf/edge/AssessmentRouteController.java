@@ -91,6 +91,43 @@ class AssessmentRouteController {
     return forward(() -> assessment.recommendations(authorization, workloadId));
   }
 
+  @PostMapping("/v1/model-versions")
+  ResponseEntity<String> retainModelVersion(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestBody String requestBody) {
+    return forward(() -> assessment.retainModelVersion(authorization, requestBody));
+  }
+
+  @GetMapping("/v1/model-versions")
+  ResponseEntity<String> modelVersions(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestParam(value = "model_id", required = false) String modelId) {
+    return forward(() -> assessment.modelVersions(authorization, modelId));
+  }
+
+  @GetMapping("/v1/model-versions/{id}")
+  ResponseEntity<String> modelVersion(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> assessment.modelVersion(authorization, id));
+  }
+
+  @PostMapping("/v1/model-versions/{id}:review")
+  ResponseEntity<String> reviewModelVersion(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id,
+      @RequestBody String requestBody) {
+    return forward(() -> assessment.reviewModelVersion(authorization, id, requestBody));
+  }
+
+  @PostMapping("/v1/model-versions/{id}:promote")
+  ResponseEntity<String> promoteModelVersion(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id,
+      @RequestBody String requestBody) {
+    return forward(() -> assessment.promoteModelVersion(authorization, id, requestBody));
+  }
+
   private static ResponseEntity<String> forward(Supplier<ResponseEntity<String>> request) {
     try {
       return request.get();

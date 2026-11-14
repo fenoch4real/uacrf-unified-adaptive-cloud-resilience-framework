@@ -59,6 +59,9 @@ class IdentityAccessService {
           "assessment.evaluation.run",
           "assessment.evaluation.read",
           "assessment.recommendation.read",
+          "assessment.model.read",
+          "assessment.model.write",
+          "assessment.model.review",
           "owner.eligible",
           "runtime.principal.use");
   private static final Duration GRANT_DECISION_TTL = Duration.ofMinutes(15);

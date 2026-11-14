@@ -375,6 +375,86 @@
     "status": "PROPOSED"
   },
   {
+    "event_type": "uacrf.s07.model-version.retained.v1",
+    "producer": "S07",
+    "consumers": [
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.model-version.review-decided.v1",
+    "producer": "S07",
+    "consumers": [
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.model-version.promoted.v1",
+    "producer": "S07",
+    "consumers": [
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
+    "event_type": "uacrf.s07.model-version.superseded.v1",
+    "producer": "S07",
+    "consumers": [
+      "S10",
+      "S14"
+    ],
+    "topic": "uacrf.s07.domain.v1",
+    "schema_version": 1,
+    "partition_key": "tenant|environment|aggregate_type|aggregate_id",
+    "payload_requirements": [
+      "owned_resource_id",
+      "owned_revision",
+      "owned_digest",
+      "minimal_outcome_metadata"
+    ],
+    "delivery": "AT_LEAST_ONCE_WITH_INBOX_DEDUPLICATION",
+    "authority": "NOT_AN_EXECUTION_PERMIT",
+    "status": "PROPOSED"
+  },
+  {
     "event_type": "uacrf.s08.knowledge.review.changed.v1",
     "producer": "S08",
     "consumers": [
