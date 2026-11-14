@@ -58,6 +58,12 @@ class TopologyRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> reconciliation(String authorization, String id) {
+    return send(
+        topologyRestClient.get().uri(uriBuilder -> uriBuilder.path("/v1/graphs/{id}/reconciliation").build(id)),
+        authorization);
+  }
+
   ResponseEntity<String> subgraph(String authorization, String id, String rootType, String rootId, int depth) {
     RestClient.RequestHeadersSpec<?> request =
         topologyRestClient

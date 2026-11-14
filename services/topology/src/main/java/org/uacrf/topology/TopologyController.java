@@ -25,6 +25,8 @@ class TopologyController {
   Graph accept(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Accept request) { return service.accept(DelegationPrincipal.from(jwt), request); }
   @GetMapping("/v1/graphs/{id}")
   Graph graph(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.graph(DelegationPrincipal.from(jwt), id); }
+  @GetMapping("/v1/graphs/{id}/reconciliation")
+  Reconciliation reconciliation(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.reconciliation(DelegationPrincipal.from(jwt), id); }
   @GetMapping("/v1/graphs/{id}/subgraph")
   Subgraph subgraph(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @RequestParam("root_type") String type, @RequestParam("root_id") String rootId, @RequestParam int depth) { return service.subgraph(DelegationPrincipal.from(jwt), id, type, rootId, depth); }
   @GetMapping("/v1/graphs/{id}/impact")

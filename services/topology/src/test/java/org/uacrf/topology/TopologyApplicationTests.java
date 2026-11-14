@@ -14,9 +14,12 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.Session;
 import org.springframework.test.context.*;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.neo4j.Neo4jContainer;
 import org.uacrf.security.*;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -29,13 +32,24 @@ class TopologyApplicationTests {
   static final JwtEncoder ENCODER=DelegationJwtEncoderFactory.create(KEYS,KEY_ID);
   static final List<String> ALL=List.of("topology.graph.read","topology.proposal.write","topology.proposal.review","topology.graph.accept");
   @Container static final PostgreSQLContainer POSTGRES=new PostgreSQLContainer("postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81").withDatabaseName("uacrf_topology").withUsername("topology_test").withPassword("topology_test");
+  @Container static final Neo4jContainer NEO4J=neo4jContainer();
+  private static Neo4jContainer neo4jContainer() {
+    Neo4jContainer container=new Neo4jContainer("neo4j:5.26.0-community").withAdminPassword("topology_test_password");
+    container.setPortBindings(List.of("55689:7687"));
+    return container;
+  }
   @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
     p.add("spring.datasource.url",POSTGRES::getJdbcUrl); p.add("spring.datasource.username",POSTGRES::getUsername); p.add("spring.datasource.password",POSTGRES::getPassword);
+    p.add("uacrf.topology.neo4j.uri",NEO4J::getBoltUrl); p.add("uacrf.topology.neo4j.user",()->"neo4j"); p.add("uacrf.topology.neo4j.password",NEO4J::getAdminPassword);
+    p.add("uacrf.topology.neo4j.connection-timeout-ms",()->"500"); p.add("uacrf.topology.neo4j.max-transaction-retry-ms",()->"1000");
+    p.add("uacrf.topology.projection.enabled",()->"true"); p.add("uacrf.topology.projection.interval-ms",()->"3600000"); p.add("uacrf.topology.projection.retry-base-ms",()->"10");
     p.add("uacrf.delegation.public-key-base64",()->Base64.getEncoder().encodeToString(KEYS.getPublic().getEncoded())); p.add("uacrf.delegation.key-id",()->KEY_ID);
   }
   @LocalServerPort int port;
   @Autowired JdbcTemplate db;
   @Autowired ObjectMapper json;
+  @Autowired GraphProjectionWorker projectionWorker;
+  @Autowired Driver neo4j;
   final HttpClient http=HttpClient.newHttpClient();
 
   @Test void lifecycleConcurrencyIsolationAndReceipt() throws Exception {
@@ -53,7 +67,7 @@ class TopologyApplicationTests {
     assertThat(get("/v1/graphs/"+id+"/subgraph?root_type=service&root_id=svc&depth=1",reviewer).body()).contains("agent_workload");
     assertThat(get("/v1/graphs/"+id+"/impact?entity_type=service&entity_id=svc",reviewer).body()).contains("MIXED");
     JsonNode receipt=json.readTree(post("/internal/v1/graphs/"+id+":receipt",reviewer,"{}").body());
-    assertEquals(digest,receipt.get("digest").asString()); assertEquals("NOT_PROJECTED",receipt.get("projection_status").asString()); assertThat(receipt.get("eligibility").asBoolean()).isFalse();
+    assertEquals(digest,receipt.get("digest").asString()); assertEquals("PENDING",receipt.get("projection_status").asString()); assertThat(receipt.get("eligibility").asBoolean()).isFalse();
     assertEquals(1,db.queryForObject("SELECT count(*) FROM uacrf_topology.outbox_event WHERE tenant_id='life' AND event_type='uacrf.s06.graph.accepted.v1'",Integer.class));
   }
   @Test void validatesProvenanceRolesAndDatabaseInvariant() throws Exception {
@@ -105,6 +119,101 @@ class TopologyApplicationTests {
     }
     assertEquals(2,modelPaths); assertThat(mixed && serviceOnly).isTrue();
   }
+  @Test void projectionVerifiesDigestEmitsOutboxAndIsIdempotent() throws Exception {
+    String alice=token("alice","projection","*",ALL), bob=token("bob","projection","*",ALL);
+    createAndApprove(alice,bob,proposal("edge","service","svc","USES_MODEL","model","model-1","AUTHORED",""),"edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body()); String id=graph.get("id").asString();
+    isolateProjection(id);
+    projectUntil(id,"PROJECTED");
+    JsonNode receipt=json.readTree(post("/internal/v1/graphs/"+id+":receipt",bob,"{}").body());
+    assertEquals("PROJECTED",receipt.get("projection_status").asString()); assertThat(receipt.get("eligibility").asBoolean()).isTrue();
+    assertEquals(graph.get("digest").asString(),db.queryForObject("SELECT verified_digest FROM uacrf_topology.graph_projections WHERE graph_id=?",String.class,id).trim());
+    assertEquals(1,db.queryForObject("SELECT count(*) FROM uacrf_topology.outbox_event WHERE tenant_id='projection' AND event_type='uacrf.s06.graph.projected.v1'",Integer.class));
+    try(Session session=neo4j.session()) {
+      assertEquals(2,session.run("MATCH (n:UacrfTopologyNode {tenant_id:'projection', revision_id:$id}) RETURN count(n) AS count",Map.of("id",id)).single().get("count").asInt());
+      assertEquals(1,session.run("MATCH ()-[e:UACRF_TOPOLOGY_EDGE {tenant_id:'projection', revision_id:$id}]->() RETURN count(e) AS count",Map.of("id",id)).single().get("count").asInt());
+    }
+    db.update("UPDATE uacrf_topology.graph_projections SET status='PENDING',verified_digest=NULL,next_attempt_at=now(),updated_at=now() WHERE graph_id=?",id);
+    assertThat(projectionWorker.projectNext()).isTrue();
+    try(Session session=neo4j.session()) {
+      assertEquals(2,session.run("MATCH (n:UacrfTopologyNode {tenant_id:'projection', revision_id:$id}) RETURN count(n) AS count",Map.of("id",id)).single().get("count").asInt());
+      assertEquals(1,session.run("MATCH ()-[e:UACRF_TOPOLOGY_EDGE {tenant_id:'projection', revision_id:$id}]->() RETURN count(e) AS count",Map.of("id",id)).single().get("count").asInt());
+    }
+  }
+
+  @Test void reconciliationDetectsTamperingAndNeverRestoresEligibility() throws Exception {
+    String alice=token("alice","tamper","*",ALL), bob=token("bob","tamper","*",ALL);
+    createAndApprove(alice,bob,proposal("edge","service","svc","USES_MODEL","model","model-1","AUTHORED",""),"edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body()); String id=graph.get("id").asString();
+    isolateProjection(id);
+    projectUntil(id,"PROJECTED");
+    try(Session session=neo4j.session()) {
+      session.run("MATCH (n:UacrfTopologyNode {tenant_id:'tamper', revision_id:$id, entity_id:'svc'}) SET n.entity_id='modified'",Map.of("id",id)).consume();
+    }
+    JsonNode result=json.readTree(get("/v1/graphs/"+id+"/reconciliation",bob).body());
+    assertEquals("DRIFTED",result.get("projection_status").asString()); assertEquals(1,result.get("missing_nodes").size()); assertEquals(1,result.get("extra_nodes").size());
+    JsonNode receipt=json.readTree(post("/internal/v1/graphs/"+id+":receipt",bob,"{}").body());
+    assertEquals("DRIFTED",receipt.get("projection_status").asString()); assertThat(receipt.get("eligibility").asBoolean()).isFalse();
+  }
+
+  @Test void tenantScopedReadbackIgnoresAnotherTenantsMatchingRevisionMarker() throws Exception {
+    String alice=token("alice","tenant-a","*",ALL), bob=token("bob","tenant-a","*",ALL);
+    createAndApprove(alice,bob,proposal("edge","service","svc","USES_MODEL","model","model-1","AUTHORED",""),"edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body()); String id=graph.get("id").asString();
+    isolateProjection(id);
+    projectUntil(id,"PROJECTED");
+    try(Session session=neo4j.session()) {
+      session.run("CREATE (:UacrfTopologyNode {tenant_id:'tenant-b', environment_id:'env-1', revision_id:$id, revision_number:1, entity_type:'service', entity_id:'secret'})",Map.of("id",id)).consume();
+    }
+    JsonNode result=json.readTree(get("/v1/graphs/"+id+"/reconciliation",bob).body());
+    assertEquals("PROJECTED",result.get("projection_status").asString()); assertEquals(0,result.get("extra_nodes").size()); assertEquals(0,result.get("missing_nodes").size());
+    assertThat(result.get("actual_digest").asString()).isEqualTo(graph.get("digest").asString());
+  }
+
+  @Test void activeLeaseOwnedElsewhereIsNeverStolen() throws Exception {
+    String alice=token("alice","lease","*",ALL), bob=token("bob","lease","*",ALL);
+    createAndApprove(alice,bob,proposal("edge","service","svc","USES_MODEL","model","model-1","AUTHORED",""),"edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body()); String id=graph.get("id").asString();
+    isolateProjection(id);
+    db.update("UPDATE uacrf_topology.graph_projections SET status='PROJECTING',lease_owner='another-worker',lease_expires_at=now()+interval '1 minute' WHERE graph_id=?",id);
+    assertThat(projectionWorker.projectNext()).isFalse();
+    assertEquals("another-worker",db.queryForObject("SELECT lease_owner FROM uacrf_topology.graph_projections WHERE graph_id=?",String.class,id));
+  }
+
+  @Test void neo4jOutageIsRetryableAndRecoversAfterRestart() throws Exception {
+    String alice=token("alice","outage","*",ALL), bob=token("bob","outage","*",ALL);
+    createAndApprove(alice,bob,proposal("edge","service","svc","USES_MODEL","model","model-1","AUTHORED",""),"edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body()); String id=graph.get("id").asString();
+    isolateProjection(id);
+    NEO4J.stop();
+    try {
+      projectUntil(id,"FAILED");
+      assertEquals(1,db.queryForObject("SELECT attempt_count FROM uacrf_topology.graph_projections WHERE graph_id=?",Integer.class,id));
+    } finally { NEO4J.start(); }
+    neo4j.verifyConnectivity();
+    db.update("UPDATE uacrf_topology.graph_projections SET next_attempt_at=now() WHERE graph_id=?",id);
+    assertThat(projectionWorker.projectNext()).isTrue();
+    assertEquals("PROJECTED",db.queryForObject("SELECT status FROM uacrf_topology.graph_projections WHERE graph_id=?",String.class,id));
+    assertEquals(2,db.queryForObject("SELECT attempt_count FROM uacrf_topology.graph_projections WHERE graph_id=?",Integer.class,id));
+  }
+
+  private void isolateProjection(String id) {
+    db.update("UPDATE uacrf_topology.graph_projections SET status='DRIFTED',lease_owner=NULL,lease_expires_at=NULL,updated_at=now() WHERE graph_id<>? AND status IN ('PENDING','FAILED','PROJECTING')",id);
+  }
+
+  private void projectUntil(String id,String expected) throws Exception {
+    for(int i=0;i<100;i++) {
+      String status=db.queryForObject("SELECT status FROM uacrf_topology.graph_projections WHERE graph_id=?",String.class,id);
+      if(expected.equals(status)) return;
+      if("FAILED".equals(status) && !"FAILED".equals(expected)) {
+        String error=db.queryForObject("SELECT last_error FROM uacrf_topology.graph_projections WHERE graph_id=?",String.class,id);
+        throw new AssertionError("Projection failed before reaching " + expected + ": " + error);
+      }
+      projectionWorker.projectNext();
+    }
+    assertEquals(expected,db.queryForObject("SELECT status FROM uacrf_topology.graph_projections WHERE graph_id=?",String.class,id));
+  }
+
   private void createAndApprove(String a,String b,String body,String id) throws Exception { assertEquals(201,post("/v1/dependency-proposals",a,body).statusCode()); assertEquals(200,post("/v1/dependency-proposals/"+id+":review",b,review(1)).statusCode()); }
   private static String proposal(String id,String st,String si,String rel,String tt,String ti,String kind,String extra) { return "{\"id\":\"%s\",\"source_type\":\"%s\",\"source_id\":\"%s\",\"relationship_type\":\"%s\",\"target_type\":\"%s\",\"target_id\":\"%s\",\"provenance_kind\":\"%s\"%s}".formatted(id,st,si,rel,tt,ti,kind,extra); }
   private static String review(long revision) { return "{\"decision\":\"ACCEPT\",\"expected_revision\":"+revision+"}"; }

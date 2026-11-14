@@ -161,11 +161,32 @@ def check_service_ownership(root: Path = ROOT) -> list[str]:
             if dependency.findtext("m:groupId", namespaces=POM_NAMESPACE) == "org.uacrf"
         }
         peer_dependencies = (dependencies & service_artifacts) - {owner["artifact"]}
+        neo4j_dependency = any(
+            dependency.findtext("m:groupId", namespaces=POM_NAMESPACE) == "org.neo4j.driver"
+            and dependency.findtext("m:artifactId", namespaces=POM_NAMESPACE) == "neo4j-java-driver"
+            for dependency in service_pom.findall("./m:dependencies/m:dependency", POM_NAMESPACE)
+        )
+        if owner["module"] == "services/topology" and not neo4j_dependency:
+            errors.append("services/topology is missing its official Neo4j Java driver dependency")
+        if owner["module"] != "services/topology" and neo4j_dependency:
+            errors.append(f"{module} must not write the S06-owned Neo4j datastore")
         if peer_dependencies:
             errors.append(f"{module} depends on another service: {sorted(peer_dependencies)}")
 
         config_path = service_root / "src/main/resources/application.properties"
         config = _properties(config_path)
+        neo4j_keys = {key for key in config if key.startswith("uacrf.topology.neo4j.")}
+        if owner["module"] == "services/topology":
+            if neo4j_keys != {
+                "uacrf.topology.neo4j.uri",
+                "uacrf.topology.neo4j.user",
+                "uacrf.topology.neo4j.password",
+                "uacrf.topology.neo4j.connection-timeout-ms",
+                "uacrf.topology.neo4j.max-transaction-retry-ms",
+            }:
+                errors.append("services/topology must exclusively own Neo4j connection configuration")
+        elif neo4j_keys:
+            errors.append(f"{module} configures the S06-owned Neo4j datastore")
         url = config.get("spring.datasource.url", "")
         username = config.get("spring.datasource.username", "")
         password = config.get("spring.datasource.password", "")
@@ -248,6 +269,31 @@ def check_service_ownership(root: Path = ROOT) -> list[str]:
             errors.append(
                 f"Compose {owner['compose_service']} references another owner's credentials"
             )
+
+    topology_module = Path("services/topology")
+    for service_pom in (root / "services").glob("*/pom.xml"):
+        module = service_pom.parent.relative_to(root)
+        if module == topology_module:
+            continue
+        service_model = ET.parse(service_pom).getroot()
+        if any(
+            dependency.findtext("m:groupId", namespaces=POM_NAMESPACE) == "org.neo4j.driver"
+            and dependency.findtext("m:artifactId", namespaces=POM_NAMESPACE) == "neo4j-java-driver"
+            for dependency in service_model.findall("./m:dependencies/m:dependency", POM_NAMESPACE)
+        ):
+            errors.append(f"{module} must not write the S06-owned Neo4j datastore")
+    for source in (root / "services").rglob("*.java"):
+        if topology_module not in source.relative_to(root).parents and "org.neo4j.driver" in source.read_text():
+            errors.append(f"{source.relative_to(root)} contains a Neo4j writer outside S06")
+
+    neo4j_service = _compose_service(compose, "neo4j")
+    if neo4j_service is None:
+        errors.append("Compose is missing the S06-owned Neo4j service")
+    else:
+        if not re.search(r"^    image: neo4j:[0-9][A-Za-z0-9._-]*$", neo4j_service, re.MULTILINE):
+            errors.append("Compose Neo4j image must use a pinned version tag")
+        if "TOPOLOGY_NEO4J_PASSWORD" not in neo4j_service or "55687:7687" not in neo4j_service:
+            errors.append("Compose Neo4j must use S06 credentials and the documented host port")
 
     return errors
 

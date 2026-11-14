@@ -16,4 +16,5 @@ final class TopologyResponses {
   record Path(Node entity, String classification, List<Node> nodes) {}
   record Impact(String graphId, Node root, List<Path> paths, List<Node> sharedModels, List<Node> identities, List<Node> cloudResources, List<Node> regions, List<Node> failureDomains) {}
   record Receipt(String id, String scope, long revision, String digest, String status, String projectionStatus, boolean eligibility) {}
+  record Reconciliation(String graphId, String projectionStatus, String expectedDigest, String actualDigest, boolean contentIntegrityValid, List<Node> missingNodes, List<Node> extraNodes, List<Edge> missingEdges, List<Edge> extraEdges) {}
 }

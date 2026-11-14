@@ -48,6 +48,9 @@ class TopologyRouteControllerTests {
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server.expect(requestTo(URL + "/v1/graphs/g-1")).andExpect(method(HttpMethod.GET))
         .andRespond(withException(new IOException("down")));
+    server.expect(requestTo(URL + "/v1/graphs/g-1/reconciliation"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server.expect(requestTo(URL + "/v1/graphs/g-1/subgraph?root_type=service&root_id=s1&depth=2"))
         .andExpect(method(HttpMethod.GET))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -68,6 +71,7 @@ class TopologyRouteControllerTests {
     mvc.perform(post("/internal/topology/v1/graphs:accept").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(get("/internal/topology/v1/graphs/g-1")).andExpect(status().isBadGateway());
+    mvc.perform(get("/internal/topology/v1/graphs/g-1/reconciliation")).andExpect(status().isOk());
     mvc.perform(get("/internal/topology/v1/graphs/g-1/subgraph")
             .param("root_type", "service").param("root_id", "s1").param("depth", "2"))
         .andExpect(status().isOk());

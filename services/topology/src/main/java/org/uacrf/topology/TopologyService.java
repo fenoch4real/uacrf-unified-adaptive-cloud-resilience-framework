@@ -3,8 +3,6 @@ package org.uacrf.topology;
 import static org.uacrf.topology.TopologyRequests.*;
 import static org.uacrf.topology.TopologyResponses.*;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.util.*;
 import org.springframework.http.HttpStatus;
@@ -20,7 +18,8 @@ class TopologyService {
   private static final String PC = "id,source_type,source_id,relationship_type,target_type,target_id,provenance_kind,source_system,source_revision,verified_at,status,proposer,reviewer,revision";
   private final JdbcTemplate db;
   private final ObjectMapper json;
-  TopologyService(JdbcTemplate db, ObjectMapper json) { this.db=db; this.json=json; }
+  private final GraphProjectionStore projectionStore;
+  TopologyService(JdbcTemplate db, ObjectMapper json, GraphProjectionStore projectionStore) { this.db=db; this.json=json; this.projectionStore=projectionStore; }
 
   @Transactional
   Proposal propose(DelegationPrincipal a, Propose r) {
@@ -90,15 +89,15 @@ class TopologyService {
     for(Proposal p:proposals) { edges.putIfAbsent(key(p),p.id()); grouped.computeIfAbsent(key(p),x->new ArrayList<>()).add(p); }
     TreeSet<NodeKey> nodes=new TreeSet<>();
     for(EdgeKey e:edges.keySet()){nodes.add(new NodeKey(e.st,e.si)); nodes.add(new NodeKey(e.tt,e.ti));}
-    StringBuilder canonical=new StringBuilder();
-    for(NodeKey n:nodes) canonical.append("N").append(part(n.type)).append(part(n.id));
-    for(EdgeKey e:edges.keySet()) canonical.append("E").append(part(e.st)).append(part(e.si)).append(part(e.rel)).append(part(e.tt)).append(part(e.ti));
-    String digest=sha(canonical.toString());
+    List<Node> graphNodes=nodes.stream().map(NodeKey::node).toList();
+    List<Edge> graphEdges=edges.entrySet().stream().map(entry -> { EdgeKey e=entry.getKey(); return new Edge(e.st,e.si,e.rel,e.tt,e.ti,entry.getValue()); }).toList();
+    String digest=GraphDigest.digest(graphNodes,graphEdges);
     boolean same=!latest.isEmpty() && digest.equals(latest.getFirst().get("digest"));
     String graphId=same?(String)latest.getFirst().get("id"):UUID.randomUUID().toString();
     long revision=same?current:current+1;
     if(!same) {
       db.update("INSERT INTO "+S+"graph_revisions (tenant_id,environment_id,id,scope,revision_number,digest,accepted_by) VALUES (?,?,?,?,?,?,?)",a.tenantId(),a.environmentId(),graphId,r.scope(),revision,digest,a.principalId());
+      db.update("INSERT INTO "+S+"graph_projections (tenant_id,environment_id,graph_id,status) VALUES (?,?,?,'PENDING')",a.tenantId(),a.environmentId(),graphId);
       for(NodeKey n:nodes) db.update("INSERT INTO "+S+"graph_nodes VALUES (?,?,?,?,?)",a.tenantId(),a.environmentId(),graphId,n.type,n.id);
       for(var entry:edges.entrySet()) { EdgeKey e=entry.getKey(); db.update("INSERT INTO "+S+"graph_edges VALUES (?,?,?,?,?,?,?,?,?)",a.tenantId(),a.environmentId(),graphId,e.st,e.si,e.rel,e.tt,e.ti,entry.getValue()); }
       event(a,graphId,revision,digest,"uacrf.s06.graph.accepted.v1",Map.of("scope",r.scope(),"status","ACCEPTED"));
@@ -112,11 +111,10 @@ class TopologyService {
     }
     return findGraph(a,graphId);
   }
-  private static String part(String s) { return s.length()+":"+s; }
   private void event(DelegationPrincipal a,String id,long revision,String digest,String type,Map<String,Object> details) {
     Map<String,Object> body=new LinkedHashMap<>(); body.put("owned_resource_id",id); body.put("owned_revision",revision); body.put("owned_digest",digest); body.put("minimal_outcome_metadata",details);
     String payload=json.writeValueAsString(body);
-    db.update("INSERT INTO "+S+"outbox_event (event_id,tenant_id,environment_id,aggregate_type,aggregate_id,aggregate_sequence,event_type,payload,payload_digest) VALUES (?,?,?,'GRAPH',?,?,?,?::jsonb,?)",UUID.randomUUID(),a.tenantId(),a.environmentId(),id,revision,type,payload,sha(payload));
+    db.update("INSERT INTO "+S+"outbox_event (event_id,tenant_id,environment_id,aggregate_type,aggregate_id,aggregate_sequence,event_type,payload,payload_digest) VALUES (?,?,?,'GRAPH',?,?,?,?::jsonb,?)",UUID.randomUUID(),a.tenantId(),a.environmentId(),id,revision,type,payload,GraphDigest.sha256(payload));
   }
   @Transactional(readOnly=true)
   Graph graph(DelegationPrincipal a,String id) { permit(a,"topology.graph.read",false); return findGraph(a,id); }
@@ -130,7 +128,47 @@ class TopologyService {
     return db.query("SELECT source_type,source_id,relationship_type,target_type,target_id,proposal_id FROM "+S+"graph_edges WHERE tenant_id=? AND environment_id=? AND graph_id=? ORDER BY source_type,source_id,relationship_type,target_type,target_id",(rs,n)->new Edge(rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),rs.getString(5),rs.getString(6)),a.tenantId(),a.environmentId(),id);
   }
   @Transactional(readOnly=true)
-  Receipt receipt(DelegationPrincipal a,String id) { permit(a,"topology.graph.read",false); Graph g=findGraph(a,id); return new Receipt(id,g.scope(),g.revisionNumber(),g.digest(),"ACCEPTED","NOT_PROJECTED",false); }
+  Receipt receipt(DelegationPrincipal a,String id) {
+    permit(a,"topology.graph.read",false);
+    Graph g=findGraph(a,id);
+    List<Map<String,Object>> rows=db.queryForList("SELECT status,verified_digest FROM "+S+"graph_projections WHERE tenant_id=? AND environment_id=? AND graph_id=?",a.tenantId(),a.environmentId(),id);
+    if(rows.isEmpty()) throw missing();
+    String projectionStatus=(String)rows.getFirst().get("status"), verified=(String)rows.getFirst().get("verified_digest");
+    return new Receipt(id,g.scope(),g.revisionNumber(),g.digest(),"ACCEPTED",projectionStatus,"PROJECTED".equals(projectionStatus)&&g.digest().equals(verified));
+  }
+
+  @Transactional
+  Reconciliation reconciliation(DelegationPrincipal a,String id) {
+    permit(a,"topology.graph.read",false);
+    Graph expected=findGraph(a,id);
+    List<Map<String,Object>> projections=db.queryForList("SELECT status FROM "+S+"graph_projections WHERE tenant_id=? AND environment_id=? AND graph_id=?",a.tenantId(),a.environmentId(),id);
+    if(projections.isEmpty()) throw missing();
+    String projectionStatus=(String)projections.getFirst().get("status");
+    GraphProjectionStore.GraphData actual=projectionStore.read(a.tenantId(),a.environmentId(),id);
+    Map<EdgeIdentity,Edge> expectedEdges=edgeMap(expected.edges()), actualEdges=edgeMap(actual.edges());
+    Set<Node> expectedNodes=new TreeSet<>(Comparator.comparing(Node::entityType).thenComparing(Node::entityId)); expectedNodes.addAll(expected.nodes());
+    Set<Node> actualNodes=new TreeSet<>(Comparator.comparing(Node::entityType).thenComparing(Node::entityId)); actualNodes.addAll(actual.nodes());
+    List<Node> missingNodes=difference(expectedNodes,actualNodes), extraNodes=difference(actualNodes,expectedNodes);
+    List<Edge> missingEdges=edgesMissing(expectedEdges,actualEdges), extraEdges=edgesMissing(actualEdges,expectedEdges);
+    String actualDigest=GraphDigest.digest(actual.nodes(),actual.edges());
+    boolean drift= !missingNodes.isEmpty() || !extraNodes.isEmpty() || !missingEdges.isEmpty() || !extraEdges.isEmpty()
+        || expected.nodes().size()!=actual.nodes().size() || expected.edges().size()!=actual.edges().size()
+        || !actual.contentIntegrityValid() || !expected.digest().equals(actualDigest);
+    if(drift && "PROJECTED".equals(projectionStatus)) {
+      db.update("UPDATE "+S+"graph_projections SET status='DRIFTED',projected_node_count=?,projected_edge_count=?,verified_digest=?,last_error='Reconciliation detected projected graph differences',updated_at=now() WHERE tenant_id=? AND environment_id=? AND graph_id=? AND status='PROJECTED'",actual.nodes().size(),actual.edges().size(),actualDigest,a.tenantId(),a.environmentId(),id);
+      projectionStatus="DRIFTED";
+    }
+    return new Reconciliation(id,projectionStatus,expected.digest(),actualDigest,actual.contentIntegrityValid(),missingNodes,extraNodes,missingEdges,extraEdges);
+  }
+
+  private record EdgeIdentity(String sourceType,String sourceId,String relationshipType,String targetType,String targetId) {}
+  private static Map<EdgeIdentity,Edge> edgeMap(List<Edge> edges) {
+    Map<EdgeIdentity,Edge> result=new LinkedHashMap<>();
+    for(Edge edge:edges) result.put(new EdgeIdentity(edge.sourceType(),edge.sourceId(),edge.relationshipType(),edge.targetType(),edge.targetId()),edge);
+    return result;
+  }
+  private static <T> List<T> difference(Collection<T> left,Collection<T> right) { List<T> values=new ArrayList<>(left); values.removeAll(right); return List.copyOf(values); }
+  private static List<Edge> edgesMissing(Map<EdgeIdentity,Edge> left,Map<EdgeIdentity,Edge> right) { return left.entrySet().stream().filter(entry->!right.containsKey(entry.getKey())).map(Map.Entry::getValue).toList(); }
   @Transactional(readOnly=true)
   Subgraph subgraph(DelegationPrincipal a,String id,String type,String rootId,int depth) {
     permit(a,"topology.graph.read",false); if(depth<0||depth>5) throw bad("INVALID_DEPTH","depth must be between 0 and 5.");
@@ -155,5 +193,4 @@ class TopologyService {
   private static TopologyException missing() { return new TopologyException(HttpStatus.NOT_FOUND,"NOT_FOUND","The topology record does not exist."); }
   private static TopologyException bad(String code,String message) { return new TopologyException(HttpStatus.BAD_REQUEST,code,message); }
   private static TopologyException conflict(String code,String message) { return new TopologyException(HttpStatus.CONFLICT,code,message); }
-  private static String sha(String s) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8))); } catch(NoSuchAlgorithmException e) { throw new IllegalStateException(e); } }
 }

@@ -31,7 +31,8 @@ class ServiceOwnershipTests(unittest.TestCase):
                 f"<artifactId>{owner['artifact']}</artifactId>"
                 "<dependencies><dependency><groupId>org.uacrf</groupId>"
                 "<artifactId>delegation-auth</artifactId></dependency>"
-                "</dependencies></project>"
+                + ("<dependency><groupId>org.neo4j.driver</groupId><artifactId>neo4j-java-driver</artifactId></dependency>" if owner["module"] == "services/topology" else "")
+                + "</dependencies></project>"
             )
             config = (
                 f"spring.datasource.url=${{{owner['jdbc_env']}:"
@@ -46,6 +47,14 @@ class ServiceOwnershipTests(unittest.TestCase):
                 config += (
                     "uacrf.delegation.private-key-base64="
                     f"${{{owner['delegation_private_env']}}}\n"
+                )
+            if owner["module"] == "services/topology":
+                config += (
+                    "uacrf.topology.neo4j.uri=${TOPOLOGY_NEO4J_URI}\n"
+                    "uacrf.topology.neo4j.user=${TOPOLOGY_NEO4J_USER}\n"
+                    "uacrf.topology.neo4j.password=${TOPOLOGY_NEO4J_PASSWORD}\n"
+                    "uacrf.topology.neo4j.connection-timeout-ms=${TOPOLOGY_NEO4J_CONNECTION_TIMEOUT_MS}\n"
+                    "uacrf.topology.neo4j.max-transaction-retry-ms=${TOPOLOGY_NEO4J_RETRY_TIMEOUT_MS}\n"
                 )
             self._write(service / "src/main/resources/application.properties", config)
             self._write(
@@ -77,6 +86,16 @@ class ServiceOwnershipTests(unittest.TestCase):
                     "/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro",
                 ]
             )
+        sections.extend(
+            [
+                "  neo4j:",
+                "    image: neo4j:5.26.0-community",
+                "    environment:",
+                "      TOPOLOGY_NEO4J_PASSWORD: ${TOPOLOGY_NEO4J_PASSWORD:local}",
+                "    ports:",
+                "      - \"127.0.0.1:55687:7687\"",
+            ]
+        )
         sections.append("volumes:")
         (self.root / "compose.yaml").write_text("\n".join(sections) + "\n")
 
@@ -115,6 +134,25 @@ class ServiceOwnershipTests(unittest.TestCase):
         self.assertTrue(
             any("not restricted for NOSUPERUSER" in error for error in errors)
         )
+
+    def test_non_topology_service_must_not_configure_neo4j(self):
+        catalog = self.root / OWNERS["catalog"]["module"]
+        config_path = catalog / "src/main/resources/application.properties"
+        config_path.write_text(config_path.read_text() + "uacrf.topology.neo4j.uri=bolt://neo4j:7687\n")
+
+        errors = check_service_ownership(self.root)
+
+        self.assertTrue(any("configures the S06-owned Neo4j datastore" in error for error in errors))
+
+    def test_non_topology_service_must_not_import_neo4j_driver(self):
+        api_edge = self.root / "services/api-edge"
+        self._write(api_edge / "pom.xml", "<project xmlns='http://maven.apache.org/POM/4.0.0'><dependencies><dependency><groupId>org.neo4j.driver</groupId><artifactId>neo4j-java-driver</artifactId></dependency></dependencies></project>")
+        self._write(api_edge / "src/main/java/GraphWriter.java", "import org.neo4j.driver.Driver;\n")
+
+        errors = check_service_ownership(self.root)
+
+        self.assertTrue(any("must not write the S06-owned Neo4j datastore" in error for error in errors))
+        self.assertTrue(any("contains a Neo4j writer outside S06" in error for error in errors))
 
     def test_catalog_must_not_receive_delegation_private_key(self):
         catalog = self.root / OWNERS["catalog"]["module"]

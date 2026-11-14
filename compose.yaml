@@ -113,6 +113,22 @@ services:
       timeout: 3s
       retries: 12
 
+  neo4j:
+    image: neo4j:5.26.0-community
+    environment:
+      NEO4J_AUTH: ${TOPOLOGY_NEO4J_USER:-neo4j}/${TOPOLOGY_NEO4J_PASSWORD:?set a topology Neo4j password}
+      TOPOLOGY_NEO4J_USER: ${TOPOLOGY_NEO4J_USER:-neo4j}
+      TOPOLOGY_NEO4J_PASSWORD: ${TOPOLOGY_NEO4J_PASSWORD:?set a topology Neo4j password}
+    ports:
+      - "127.0.0.1:55687:7687"
+    volumes:
+      - topology-neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u \"$${TOPOLOGY_NEO4J_USER}\" -p \"$${TOPOLOGY_NEO4J_PASSWORD}\" 'RETURN 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
     command: ["start-dev", "--import-realm"]
@@ -136,4 +152,5 @@ volumes:
   evidence-data:
   objectives-data:
   topology-data:
+  topology-neo4j-data:
   keycloak-data:

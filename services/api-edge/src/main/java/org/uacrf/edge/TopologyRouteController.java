@@ -70,6 +70,13 @@ class TopologyRouteController {
     return forward(() -> topology.getGraph(authorization, id));
   }
 
+  @GetMapping("/v1/graphs/{id}/reconciliation")
+  ResponseEntity<String> reconciliation(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> topology.reconciliation(authorization, id));
+  }
+
   @GetMapping("/v1/graphs/{id}/subgraph")
   ResponseEntity<String> subgraph(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
