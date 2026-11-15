@@ -29,6 +29,7 @@
     <module>services/topology</module>
     <module>services/assessment</module>
     <module>services/knowledge</module>
+    <module>services/advisory</module>
     <module>web</module>
     <module>sample-data</module>
   </modules>

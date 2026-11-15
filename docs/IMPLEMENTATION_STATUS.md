@@ -466,6 +466,47 @@ retains evidence events and decides qualification.
   receipt binding does not independently establish external requester
   authority or authorize protected inference/recovery use.
 
+## M3 / S09 advisory gateway foundation
+
+- `services/advisory` contains an internal provider-neutral invocation contract
+  and a disabled gateway. This is a library foundation, not a deployable service;
+  no provider adapter, network call, runtime journal, or orchestration is wired.
+  An unknown model outcome is represented separately from a response with usage.
+- A standalone budget value validates schema bounds, distinct role/profile
+  allocations, and aggregate call, token and cost limits. Journal registration
+  now atomically persists and seals those allocations; admission requires the
+  matching role/profile and allows one attempt per role. This does not verify
+  profile identities, required workflow roles, actual provider usage,
+  or enforce model-request token and cost limits.
+- A standalone consistency check compares S07 case and S08 retrieval receipt
+  fields, requiring the same case, workload, purpose and digests, verified
+  binding, current eligibility, and a nonempty bounded source list. It does not
+  fetch or authenticate receipts, verify source bytes, establish requester
+  authority, or gate journal admission; those integrations remain required.
+- An unwired PostgreSQL dispatch-journal primitive commits an intent before
+  returning success, prevents duplicate attempts per assignment, and retains
+  immutable responses or unknown outcomes without usage. It retains up to 1 MiB
+  of exact packet bytes, verifies their SHA-256 on read, and separately retains
+  the supplied context digest. This byte digest is not verification of the
+  delivery protocol or owner receipts. An intent without a result must be
+  reconciled, not automatically dispatched again. A revision- and
+  generation-checked cancellation fence serializes against journal admission;
+  run registration and admission also require an unexpired retained deadline,
+  checked against the database clock after acquiring the run lock. Outcomes
+  retain whether the fence was active, cancelled or expired when recorded;
+  concurrent cancellation is serialized. This snapshot is not a current
+  eligibility decision: later cancellation and other required checks still
+  matter. The journal does not stop a provider call following an already-admitted
+  intent or enforce late-result ineligibility. Authorization, protected packet handling, verified identity,
+  runtime budget enforcement, result delivery, and reconciliation are not implemented.
+  It is not a complete runtime journal.
+- Planned adapters include Azure AI Foundry, OpenAI, Anthropic, Gemini,
+  OpenAI-compatible endpoints, Ollama, and Amazon Bedrock. AgentCore is a
+  separate potential agent-hosting integration, not the Bedrock inference API.
+  Provider-specific capabilities and credentials must be handled explicitly;
+  no live invocation should be enabled before source authorization, bounded
+  budgets, and durable dispatch/reconciliation are implemented.
+
 ## Next implementation step
 
 Public S01 identity reads and writes now pass through EDGE01, while delegation
