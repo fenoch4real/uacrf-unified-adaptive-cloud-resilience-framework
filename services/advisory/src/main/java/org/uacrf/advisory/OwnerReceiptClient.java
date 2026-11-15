@@ -108,7 +108,7 @@ final class OwnerReceiptClient {
       Map<?, ?> item = (Map<?, ?>) items.get(i);
       String excerpt = text(item, "excerpt");
       var result = receipt.results().get(i);
-      if (!validUnicode(excerpt)
+      if (!UnicodeText.isValid(excerpt)
           || excerpt.codePointCount(0, excerpt.length()) != result.endOffset() - result.startOffset()
           || !Sha256.hex(excerpt.getBytes(StandardCharsets.UTF_8)).equals(result.excerptDigest())) {
         throw new IOException("Retrieval excerpt does not match the owner receipt.");
@@ -116,18 +116,6 @@ final class OwnerReceiptClient {
       excerpts.add(excerpt);
     }
     return List.copyOf(excerpts);
-  }
-
-  private static boolean validUnicode(String value) {
-    for (int i = 0; i < value.length(); i++) {
-      char current = value.charAt(i);
-      if (Character.isHighSurrogate(current)) {
-        if (++i == value.length() || !Character.isLowSurrogate(value.charAt(i))) return false;
-      } else if (Character.isLowSurrogate(current)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   private static List<SourceReceiptConsistency.ReceiptResult> results(Map<?, ?> body) throws IOException {

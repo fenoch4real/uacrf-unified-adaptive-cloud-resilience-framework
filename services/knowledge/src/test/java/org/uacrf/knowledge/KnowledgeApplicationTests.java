@@ -77,6 +77,11 @@ class KnowledgeApplicationTests {
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry properties) {
+    // The test-only advisory dependency also contains Flyway migrations.
+    properties.add("spring.flyway.locations", () -> "filesystem:"
+        + java.nio.file.Path.of(URI.create(
+            KnowledgeApplication.class.getProtectionDomain().getCodeSource().getLocation().toString()))
+            .resolve("db/migration"));
     properties.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     properties.add("spring.datasource.username", POSTGRES::getUsername);
     properties.add("spring.datasource.password", POSTGRES::getPassword);

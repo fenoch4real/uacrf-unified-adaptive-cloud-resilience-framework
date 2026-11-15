@@ -132,6 +132,8 @@ class DispatchJournalTests {
     assertTrue(journal.complete(intent.key(), new AdvisoryGateway.Unknown("delivery uncertain")));
     assertEquals(new AdvisoryGateway.Unknown("delivery uncertain"),
         journal.find(intent.key()).orElseThrow().outcome().orElseThrow());
+    assertEquals(DispatchJournal.ReportedTokenStatus.UNAVAILABLE,
+        journal.find(intent.key()).orElseThrow().reportedTokenStatus());
     assertEquals(DispatchJournal.RecordingFence.ACTIVE,
         journal.find(intent.key()).orElseThrow().recordingFence().orElseThrow());
     try (Connection connection = dataSource.getConnection();
@@ -142,6 +144,62 @@ class DispatchJournalTests {
       assertEquals(null, result.getObject(1));
       assertEquals(null, result.getObject(2));
     }
+  }
+
+  @Test
+  void comparesReportedTokensWithSealedAllocationWithoutLosingOutcomes() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var analyst = intent("token-report", "attempt-a", "assignment-a");
+    var reviewer = new DispatchJournal.Intent(new DispatchJournal.Key("token-report", "env", "attempt-b"),
+        "run", "assignment-b", 1, AdvisoryBudget.Role.REVIEWER, "reviewer",
+        analyst.contextDigest(), analyst.packet());
+    assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(journal.begin(analyst));
+    assertTrue(journal.begin(reviewer));
+    assertEquals(DispatchJournal.ReportedTokenStatus.UNAVAILABLE,
+        journal.find(analyst.key()).orElseThrow().reportedTokenStatus());
+    var exact = new AdvisoryGateway.Response("exact", 60, 40);
+    var exceeded = new AdvisoryGateway.Response("over", Integer.MAX_VALUE, Integer.MAX_VALUE);
+    assertTrue(journal.complete(analyst.key(), exact));
+    assertTrue(journal.complete(reviewer.key(), exceeded));
+    var reopened = new DispatchJournal(dataSource);
+    var accepted = reopened.find(analyst.key()).orElseThrow();
+    assertEquals(100, accepted.tokenAllocation());
+    assertEquals(DispatchJournal.ReportedTokenStatus.WITHIN_ALLOCATION, accepted.reportedTokenStatus());
+    assertEquals(exact, accepted.outcome().orElseThrow());
+    var over = reopened.find(reviewer.key()).orElseThrow();
+    assertEquals(200, over.tokenAllocation());
+    assertEquals(DispatchJournal.ReportedTokenStatus.EXCEEDS_ALLOCATION, over.reportedTokenStatus());
+    assertEquals(exceeded, over.outcome().orElseThrow());
+    assertFalse(reopened.complete(reviewer.key(), new AdvisoryGateway.Unknown("replace")));
+  }
+
+  @Test
+  void listsUnresolvedAttemptsForRunWithoutTreatingThemAsRetryable() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var analyst = intent("reconciliation", "attempt-a", "assignment-a");
+    var reviewer = new DispatchJournal.Intent(new DispatchJournal.Key("reconciliation", "env", "attempt-b"),
+        "run", "assignment-b", 1, AdvisoryBudget.Role.REVIEWER, "reviewer",
+        analyst.contextDigest(), analyst.packet());
+    assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(journal.begin(analyst));
+    assertTrue(journal.begin(reviewer));
+    assertTrue(journal.complete(reviewer.key(), new AdvisoryGateway.Unknown("delivery uncertain")));
+    var reopened = new DispatchJournal(dataSource);
+    assertEquals(List.of(
+        new DispatchJournal.Unresolved(analyst.key(), DispatchJournal.UnresolvedState.DISPATCH_INTENT),
+        new DispatchJournal.Unresolved(reviewer.key(), DispatchJournal.UnresolvedState.UNKNOWN)),
+        reopened.unresolved(analyst.runKey(), 1));
+    assertTrue(reopened.unresolved(new DispatchJournal.RunKey("other", "env", "run"), 1).isEmpty());
+    assertTrue(reopened.unresolved(new DispatchJournal.RunKey("reconciliation", "other", "run"), 1).isEmpty());
+    assertTrue(reopened.unresolved(new DispatchJournal.RunKey("reconciliation", "env", "other"), 1).isEmpty());
+    assertTrue(reopened.unresolved(analyst.runKey(), 2).isEmpty());
+    assertThrows(IllegalArgumentException.class, () -> reopened.unresolved(analyst.runKey(), 0));
+    assertTrue(journal.complete(analyst.key(), new AdvisoryGateway.Response("answer", 1, 1)));
+    assertTrue(journal.cancel(analyst.runKey(), 1, 1, "reviewer", "stop"));
+    assertEquals(List.of(new DispatchJournal.Unresolved(reviewer.key(), DispatchJournal.UnresolvedState.UNKNOWN)),
+        reopened.unresolved(analyst.runKey(), 1));
+    assertFalse(reopened.begin(reviewer));
   }
 
   @Test

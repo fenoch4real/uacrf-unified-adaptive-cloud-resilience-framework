@@ -470,8 +470,51 @@ retains evidence events and decides qualification.
 
 - `services/advisory` contains an internal provider-neutral invocation contract
   and a disabled gateway. This is a library foundation, not a deployable service;
-  no provider adapter, network call, runtime journal, or orchestration is wired.
-  An unknown model outcome is represented separately from a response with usage.
+  no provider adapter, runtime journal, or orchestration is wired. An unknown
+  model outcome is represented separately from a response with usage.
+- An unwired OpenAI-compatible chat-completions adapter is restricted to a
+  literal-loopback HTTP test endpoint; it has no runtime wiring. Loopback alone
+  does not prevent a local endpoint from forwarding to a live provider, so only
+  controlled fake endpoints may be used for these tests. The shared simulated
+  transport bypasses configured proxies. It sends
+  a single bounded text request with `max_completion_tokens`, without streaming
+  or tools. It accepts only a complete text response with consistent token usage;
+  errors, refusals, truncation, missing usage, and unsupported responses yield
+  unknown outcomes. Local simulated-endpoint tests cover request mapping, size
+  limits, redirects, failures, and timeouts. This is a narrow protocol slice,
+  not verification of any provider or model, runtime budget enforcement, durable
+  admission, idempotency, or reconciliation. The adapter has no runtime
+  configuration or wiring; the default gateway remains disabled.
+- An unwired Microsoft Foundry v1 chat adapter reuses that protocol handling,
+  sends the deployment name as `model`, and uses a supplied bearer token.
+  When filter results are present it rejects filtered or malformed results,
+  but missing results do not prove filtering occurred. It does not acquire
+  Entra credentials or support the separate Responses API. Its tests use a
+  controlled fake endpoint.
+- An unwired Anthropic Messages adapter uses the same simulated-only transport,
+  with the `2026-10-21` API-version header and a bounded single-message request.
+  It accepts one completed text block and reported token usage; unsupported
+  content, refusal or truncation, nonzero cached-token or server-tool usage, and
+  malformed responses produce unknown outcomes. Tests use only a local fake
+  endpoint.
+- An unwired Gemini `generateContent` adapter uses the same simulated-only
+  transport, sends a bounded text request with its API key in a header, and
+  validates the model path. It accepts a single unblocked text response with
+  consistent usage; reported thinking tokens count toward output usage, while
+  cached or tool-use tokens and unsupported content fail closed. Local fake
+  endpoint tests cover mapping, safety responses, usage and path injection.
+- An unwired Ollama native chat adapter sends an unauthenticated, non-streaming
+  bounded request with thinking disabled and requires a matching model name,
+  completed text and reported usage. It rejects thinking traces, tools, images,
+  cached-token use and incomplete responses. Its tests use only a fake endpoint;
+  a real local Ollama server can itself forward cloud-model requests and must
+  not be used until the dispatch gates are complete.
+- An unwired Bedrock Converse adapter uses a controlled fake loopback endpoint,
+  a restricted model ID in the path, a bounded text request, and consistent
+  reported token usage. It rejects incomplete responses, unsupported content,
+  guardrail traces and nonzero cache usage. It does not sign requests, obtain
+  AWS credentials, configure guardrails or support ARN model identifiers.
+  None of these adapters is qualified against a live provider.
 - A standalone budget value validates schema bounds, distinct role/profile
   allocations, and aggregate call, token and cost limits. Journal registration
   now atomically persists and seals those allocations; admission requires the
@@ -488,7 +531,15 @@ retains evidence events and decides qualification.
   against the receipt, including query, creation time, and ranking scores, then
   verifies each excerpt's Unicode code-point length and UTF-8 SHA-256 digest.
   S08 checks its retained manifest digest; S09 does not recompute that digest.
-  The client tests use only local fake owners. Receipt and
+  The client has also been tested against a real S08 HTTP instance backed by
+  PostgreSQL, including classification and tenant denial, unavailable or changed
+  case verification, and source withdrawal. That test uses test-signed S08
+  delegations and simulated S07 receipts and case verification; it does not
+  exercise live S01 or S07. A separate test uses a real S07 HTTP instance and
+  PostgreSQL with test-signed S07 delegations and simulated S08 responses,
+  checking sealed-case access, tenant and audience isolation, and mismatched
+  case digests. Neither test combines real S01, S07, and S08. The owner
+  services' advisory dependencies are test-only. Receipt and
   content reads are separate, not an atomic authorization or a guarantee of
   future eligibility. An unwired, disabled-unless-enabled S01 delegation client
   can request those narrow S07/S08 capabilities using an injected actor token;
@@ -530,8 +581,11 @@ retains evidence events and decides qualification.
   approval, provenance or current eligibility. An unwired knowledge-source
   verifier checks bounded UTF-8 artifact bytes against an S08 source digest,
   verifies the S08 code-point chunk locator and matches the exact excerpt and
-  its digest. It does not obtain source bytes or verify their authorization,
-  and it does not verify case graph, policy or evidence artifacts. Authorized
+  its digest. A batch check requires matching source bytes for every receipt
+  result and has been tested with a real S08 instance and caller-supplied
+  source bytes; the S07 receipt and case verification are simulated. It does
+  not obtain source bytes or verify their authorization, and it does not verify
+  case graph, policy or evidence artifacts. Authorized
   artifact storage and end-to-end full-source verification remain unimplemented.
 - An unwired PostgreSQL dispatch-journal primitive commits an intent before
   returning success, prevents duplicate attempts per assignment, and retains
@@ -539,7 +593,13 @@ retains evidence events and decides qualification.
   of exact packet bytes, verifies their SHA-256 on read, and separately retains
   the supplied context digest. This byte digest is not verification of the
   delivery protocol or owner receipts. An intent without a result must be
-  reconciled, not automatically dispatched again. A revision- and
+  reconciled, not automatically dispatched again. A bounded, run-scoped
+  snapshot lists retained intents and unknown outcomes for reconciliation;
+  it does not establish provider usage or authorize retries. Journal reads also
+  compare reported input-plus-output tokens against the sealed allocation,
+  retaining over-limit responses and reporting unavailable usage for unknown
+  outcomes. This comparison does not verify provider accounting or cost,
+  enforce a request limit, or determine result eligibility. A revision- and
   generation-checked cancellation fence serializes against journal admission;
   run registration and admission also require an unexpired retained deadline,
   checked against the database clock after acquiring the run lock. Outcomes

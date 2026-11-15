@@ -53,6 +53,7 @@ class AssessmentReceiptVerificationTests {
       .withDatabaseName("uacrf_assessment_receipts").withUsername("assessment_test").withPassword("assessment_test");
 
   @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
+    p.add("spring.flyway.locations", AssessmentTestMigrations::location);
     p.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     p.add("spring.datasource.username", POSTGRES::getUsername);
     p.add("spring.datasource.password", POSTGRES::getPassword);

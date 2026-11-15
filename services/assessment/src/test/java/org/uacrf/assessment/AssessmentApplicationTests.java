@@ -36,6 +36,7 @@ class AssessmentApplicationTests {
       "assessment.incident.read", "assessment.incident.write", "assessment.learning.write");
   @Container private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81").withDatabaseName("uacrf_assessment").withUsername("assessment_test").withPassword("assessment_test");
   @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
+    p.add("spring.flyway.locations", AssessmentTestMigrations::location);
     p.add("spring.datasource.url", POSTGRES::getJdbcUrl); p.add("spring.datasource.username", POSTGRES::getUsername); p.add("spring.datasource.password", POSTGRES::getPassword);
     p.add("uacrf.delegation.public-key-base64", () -> Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded())); p.add("uacrf.delegation.key-id", () -> KEY_ID);
     p.add("uacrf.assessment.models.enabled", () -> "true");

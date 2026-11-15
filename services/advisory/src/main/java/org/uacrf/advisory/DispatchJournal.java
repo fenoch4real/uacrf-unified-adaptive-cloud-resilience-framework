@@ -5,6 +5,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
 
@@ -54,11 +56,62 @@ final class DispatchJournal {
     ACTIVE, CANCELLED, EXPIRED
   }
 
+  enum ReportedTokenStatus {
+    UNAVAILABLE, WITHIN_ALLOCATION, EXCEEDS_ALLOCATION
+  }
+
   record Entry(Intent intent, Optional<AdvisoryGateway.Outcome> outcome,
-               Optional<RecordingFence> recordingFence) {}
+               Optional<RecordingFence> recordingFence, int tokenAllocation) {
+    ReportedTokenStatus reportedTokenStatus() {
+      if (outcome.orElse(null) instanceof AdvisoryGateway.Response response) {
+        return (long) response.inputTokens() + response.outputTokens() > tokenAllocation
+            ? ReportedTokenStatus.EXCEEDS_ALLOCATION : ReportedTokenStatus.WITHIN_ALLOCATION;
+      }
+      return ReportedTokenStatus.UNAVAILABLE;
+    }
+  }
 
   record RunSnapshot(long generation, long revision, Instant deadline, boolean cancelled, String cancelledBy,
                      String cancellationReason) {}
+
+  enum UnresolvedState {
+    DISPATCH_INTENT, UNKNOWN
+  }
+
+  record Unresolved(Key key, UnresolvedState state) {}
+
+  // This snapshot identifies uncertainty; it does not authorize retries or resolve provider usage.
+  List<Unresolved> unresolved(RunKey key, long generation) throws SQLException {
+    java.util.Objects.requireNonNull(key, "key");
+    if (generation < 1) {
+      throw new IllegalArgumentException("Run generation must be positive.");
+    }
+    String sql = """
+        SELECT attempt_id, state FROM uacrf_advisory.dispatch_journal
+        WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND generation = ?
+          AND state IN ('DISPATCH_INTENT', 'UNKNOWN')
+        ORDER BY attempt_id
+        LIMIT 4
+        """;
+    try (Connection connection = committedConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, key.tenantId());
+      statement.setString(2, key.environmentId());
+      statement.setString(3, key.runId());
+      statement.setLong(4, generation);
+      try (ResultSet result = statement.executeQuery()) {
+        List<Unresolved> entries = new ArrayList<>();
+        while (result.next()) {
+          if (entries.size() == 3) {
+            throw new SQLException("Run has more unresolved attempts than supported allocations.");
+          }
+          entries.add(new Unresolved(new Key(key.tenantId(), key.environmentId(), result.getString(1)),
+              UnresolvedState.valueOf(result.getString(2))));
+        }
+        return List.copyOf(entries);
+      }
+    }
+  }
 
   boolean registerRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline) throws SQLException {
     if (generation < 1) {
@@ -289,10 +342,16 @@ final class DispatchJournal {
 
   Optional<Entry> find(Key key) throws SQLException {
     String sql = """
-        SELECT run_id, assignment_id, generation, role, profile_id, context_digest, packet_bytes,
-               packet_bytes_digest, state, response_text, input_tokens, output_tokens, unknown_reason, recording_fence
-        FROM uacrf_advisory.dispatch_journal
-        WHERE tenant_id = ? AND environment_id = ? AND attempt_id = ?
+        SELECT journal.run_id, journal.assignment_id, journal.generation, journal.role, journal.profile_id,
+               journal.context_digest, journal.packet_bytes, journal.packet_bytes_digest, journal.state,
+               journal.response_text, journal.input_tokens, journal.output_tokens, journal.unknown_reason,
+               journal.recording_fence, allocation.tokens
+        FROM uacrf_advisory.dispatch_journal journal
+        JOIN uacrf_advisory.run_allocation allocation
+          ON allocation.tenant_id = journal.tenant_id AND allocation.environment_id = journal.environment_id
+          AND allocation.run_id = journal.run_id AND allocation.generation = journal.generation
+          AND allocation.role = journal.role AND allocation.profile_id = journal.profile_id
+        WHERE journal.tenant_id = ? AND journal.environment_id = ? AND journal.attempt_id = ?
         """;
     try (Connection connection = committedConnection();
          PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -319,7 +378,8 @@ final class DispatchJournal {
         };
         String recordingFence = result.getString(14);
         return Optional.of(new Entry(intent, outcome,
-            recordingFence == null ? Optional.empty() : Optional.of(RecordingFence.valueOf(recordingFence))));
+            recordingFence == null ? Optional.empty() : Optional.of(RecordingFence.valueOf(recordingFence)),
+            result.getInt(15)));
       }
     }
   }

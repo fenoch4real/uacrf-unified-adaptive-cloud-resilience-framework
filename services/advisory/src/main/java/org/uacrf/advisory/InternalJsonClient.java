@@ -90,7 +90,7 @@ final class InternalJsonClient {
   }
 
   private Map<?, ?> send(HttpRequest request) throws IOException, InterruptedException {
-    var pending = http.sendAsync(request, info -> new LimitedBodySubscriber());
+    var pending = http.sendAsync(request, info -> limitedBodySubscriber());
     HttpResponse<byte[]> response;
     try {
       response = pending.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
@@ -115,6 +115,10 @@ final class InternalJsonClient {
     } catch (JacksonException failure) {
       throw new IOException("Internal service response contains invalid JSON.");
     }
+  }
+
+  static HttpResponse.BodySubscriber<byte[]> limitedBodySubscriber() {
+    return new LimitedBodySubscriber();
   }
 
   private static final class LimitedBodySubscriber implements HttpResponse.BodySubscriber<byte[]> {

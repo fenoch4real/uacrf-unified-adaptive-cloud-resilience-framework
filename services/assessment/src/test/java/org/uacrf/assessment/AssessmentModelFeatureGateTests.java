@@ -45,6 +45,7 @@ class AssessmentModelFeatureGateTests {
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry p) {
+    p.add("spring.flyway.locations", AssessmentTestMigrations::location);
     p.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     p.add("spring.datasource.username", POSTGRES::getUsername);
     p.add("spring.datasource.password", POSTGRES::getPassword);

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class KnowledgeSourceVerifierTests {
@@ -70,5 +71,59 @@ class KnowledgeSourceVerifierTests {
     assertThrows(IllegalArgumentException.class,
         () -> KnowledgeSourceVerifier.verify(result(oversized, "x".repeat(1000), 0, 0, 1000),
             "x".repeat(1000), oversized));
+  }
+
+  @Test
+  void verifiesEveryResultAgainstItsCompleteSourceIncludingSharedSources() {
+    var first = artifact("x".repeat(1000) + "tail");
+    var second = artifact("other");
+    var results = List.of(result(first, "x".repeat(1000), 0, 0, 1000),
+        result(first, "tail", 1, 1000, 1004),
+        new SourceReceiptConsistency.ReceiptResult("item-2", "v1", 0, 0, 5, second.digest(),
+            Sha256.hex("other".getBytes(StandardCharsets.UTF_8)), List.of("assessment"),
+            SourceReceiptConsistency.Classification.PUBLIC, 1));
+    var receipts = receipts(results, List.of("x".repeat(1000), "tail", "other"), true);
+    KnowledgeSourceVerifier.verifyAll(expected(), receipts, Map.of(first.digest(), first, second.digest(), second));
+  }
+
+  @Test
+  void rejectsMissingExtraSubstitutedAndMismatchedSourceEvidence() {
+    var first = artifact("first");
+    var second = artifact("second");
+    var results = List.of(result(first, "first", 0, 0, 5),
+        new SourceReceiptConsistency.ReceiptResult("item-2", "v1", 0, 0, 6, second.digest(),
+            Sha256.hex("second".getBytes(StandardCharsets.UTF_8)), List.of("assessment"),
+            SourceReceiptConsistency.Classification.PUBLIC, 1));
+    var receipts = receipts(results, List.of("first", "second"), true);
+    var sources = Map.of(first.digest(), first, second.digest(), second);
+    assertThrows(IllegalArgumentException.class,
+        () -> KnowledgeSourceVerifier.verifyAll(expected(), receipts, Map.of(first.digest(), first)));
+    var extra = artifact("extra");
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(), receipts,
+        Map.of(first.digest(), first, second.digest(), second, extra.digest(), extra)));
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(), receipts,
+        Map.of(first.digest(), second, second.digest(), second)));
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(),
+        receipts(results, List.of("first"), true), sources));
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(),
+        receipts(results, List.of("second", "first"), true), sources));
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(),
+        receipts(results, List.of("first", "second"), false), sources));
+  }
+
+  private static SourceReceiptConsistency.Expected expected() {
+    return new SourceReceiptConsistency.Expected("case-1", "retrieval-1", "b".repeat(64), "assessment",
+        SourceReceiptConsistency.Classification.PUBLIC);
+  }
+
+  private static OwnerReceiptClient.Receipts receipts(
+      List<SourceReceiptConsistency.ReceiptResult> results, List<String> excerpts, boolean eligible) {
+    var source = new SourceReceiptConsistency.CaseReceipt(
+        "case-1", "assessment", "a".repeat(64), "workload-1", List.of("metrics"));
+    var retrieval = new SourceReceiptConsistency.RetrievalReceipt(
+        "retrieval-1", "case-1", "case-1", "VERIFIED", "a".repeat(64), "workload-1", "assessment",
+        SourceReceiptConsistency.Classification.PUBLIC, "b".repeat(64), "query", "2026-01-01T00:00:00Z",
+        results, eligible, eligible ? "ELIGIBLE" : "SOURCE_NOT_ELIGIBLE");
+    return new OwnerReceiptClient.Receipts(source, retrieval, excerpts);
   }
 }

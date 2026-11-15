@@ -4,12 +4,37 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 final class KnowledgeSourceVerifier {
   private static final int MAX_SOURCE_BYTES = 256 * 1024;
   private static final int CHUNK_CODE_POINTS = 1000;
 
   private KnowledgeSourceVerifier() {}
+
+  // Integrity only: caller-supplied bytes and receipts are not proof of authorization or current eligibility.
+  static void verifyAll(SourceReceiptConsistency.Expected expected, OwnerReceiptClient.Receipts receipts,
+                        Map<String, DigestBoundArtifact> sources) {
+    if (receipts == null || sources == null) {
+      throw new IllegalArgumentException("Knowledge receipts and sources are required.");
+    }
+    SourceReceiptConsistency.check(expected, receipts.sourceCase(), receipts.retrieval());
+    var results = receipts.retrieval().results();
+    if (receipts.excerpts().size() != results.size()) {
+      throw new IllegalArgumentException("Every receipt result requires a corresponding excerpt.");
+    }
+    Set<String> required = new HashSet<>();
+    for (int i = 0; i < results.size(); i++) {
+      var result = results.get(i);
+      required.add(result.sourceDigest());
+      verify(result, receipts.excerpts().get(i), sources.get(result.sourceDigest()));
+    }
+    if (!required.equals(sources.keySet())) {
+      throw new IllegalArgumentException("Knowledge sources must match the receipt exactly.");
+    }
+  }
 
   // Integrity only: the artifact and receipt still require owner authorization and current eligibility.
   static void verify(SourceReceiptConsistency.ReceiptResult result, String excerpt, DigestBoundArtifact source) {
