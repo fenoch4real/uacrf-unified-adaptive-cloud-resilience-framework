@@ -764,8 +764,8 @@
     },
     {
       "path": "qa/ARCHITECTURE_CHECKS.json",
-      "bytes": 1296,
-      "sha256": "976ad8f919013cf636ae7ca05c6c1706e01e3f4c04ca2f2b4c8a2d2f5800071b"
+      "bytes": 1703,
+      "sha256": "1377f3dbfd6445052a356257a38231d959ae69bc552b67e0282c665ccb3ef95d"
     },
     {
       "path": "qa/PACKAGE_CHECKS.json",
@@ -824,8 +824,8 @@
     },
     {
       "path": "tools/check_architecture.py",
-      "bytes": 5587,
-      "sha256": "25dec9dd44cf686276394ccc4b1432ffca2b5890bc9867f36033b549b99aa23d"
+      "bytes": 7673,
+      "sha256": "cd02a84456892c7af44962c7e98aca0018fe07983b4f7f677e8a1f4954b79419"
     },
     {
       "path": "tools/render_diagrams.cjs",

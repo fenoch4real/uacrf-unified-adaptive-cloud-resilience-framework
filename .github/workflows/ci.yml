@@ -17,6 +17,8 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      - name: Verify MS01 inventory, contract, and manifest integrity
+        run: python3 -B design/ms01/tools/check_architecture.py
       - name: Verify service ownership boundaries
         run: python3 -B -m unittest tools.test_check_service_ownership
       - name: Check service ownership configuration

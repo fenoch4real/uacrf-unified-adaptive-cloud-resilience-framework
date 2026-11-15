@@ -1,5 +1,5 @@
 from pathlib import Path
-import json,re,xml.etree.ElementTree as ET
+import hashlib,json,re,xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 B=Path(__file__).resolve().parents[1]
 checks=[];failures=[]
@@ -7,18 +7,55 @@ def check(name,condition):
  if condition:checks.append(name)
  else:failures.append(name)
 def load(p):return json.loads((B/p).read_text())
+manifest=load('MANIFEST.json')
+def manifest_matches():
+ # These outputs are regenerated here; their prior hashes are not inputs.
+ generated={'qa/ARCHITECTURE_CHECKS.json','qa/SOURCE_CONTRACT_FINDINGS.json'}
+ entries=manifest['files']
+ paths=[Path(item['path']) for item in entries]
+ if len(paths)!=len({p.as_posix() for p in paths}):return False
+ root=B.resolve()
+ for item,path in zip(entries,paths):
+  if path.is_absolute() or '..' in path.parts:return False
+  if path.as_posix() in generated:continue
+  file=(B/path).resolve()
+  if not file.is_relative_to(root) or not file.is_file():return False
+  data=file.read_bytes()
+  if len(data)!=item['bytes'] or hashlib.sha256(data).hexdigest()!=item['sha256']:return False
+ return True
+check('Package manifest hashes match frozen design artifacts',manifest_matches())
 services={s['service_id'] for s in load('SERVICE_CATALOG.json')['services']}
 api=load('inventories/API_OWNERSHIP.json');tables=load('inventories/DATA_OWNERSHIP.json');req=load('inventories/REQUIREMENT_ALLOCATION.json');original=load('inventories/ORIGINAL_47_DISPOSITION.json');extra=load('TARGET_API_ADDITIONS.json')
 check('Fourteen domains and two edge components',len(services)==16)
 check('Every existing API has one valid owner',len(api)==144 and all(a['target_owner'] in services for a in api))
+check('Every existing API operation is unique',len({a['endpoint'] for a in api})==len(api))
 check('Exactly74 canonical existing operations',sum(a['canonical'] for a in api)==74)
 check('All107 inherited route records allocated',sum(a['runtime_registered'] for a in api)==107)
+registered={}
+for line in (B/'inventories/REGISTERED_ROUTES.tsv').read_text().splitlines():
+ method,path,operation,contract=line.split('\t')
+ registered[method+' '+path]=(operation,contract)
+allocated={a['endpoint']:a for a in api if a['runtime_registered']}
+check('All runtime routes match allocated operations and effective contracts',
+ len(registered)==107 and set(registered)==set(allocated) and
+ all((a['source_operation'],a['effective_wire_contract'])==registered[endpoint]
+     for endpoint,a in allocated.items()))
 check('All153 inherited table records allocated',len(tables)==153 and all(t['target_owner'] in services|{'PER_SERVICE'} for t in tables))
+check('Every source table is unique and has migration provenance',
+ len({t['source_table'] for t in tables})==len(tables) and
+ all(t['source_definitions'] and t['migration_rule'] for t in tables))
 check('Polymorphic analysis case split explicit',any(t['source_table']=='uacrf.analysis_case' and 'UACRF_AGENT_CASE_V1' in t['migration_rule'] for t in tables))
 check('All131 unique formal requirement IDs allocated',len(req)==131 and len({r['requirement_id'] for r in req})==131)
 check('Every formal requirement retains normative source wording',all(r.get('source_row_verbatim') or r.get('source_json_specification_verbatim') for r in req))
 check('Every formal requirement has accountable owner and known target services',all(r['accountable_design_owner'] and set(r['target_services'])<=services for r in req))
+check('Every formal requirement has a primary owner and at least one target',
+ all(r['primary_service'] in services|{'CROSS_CUTTING'} and r['target_services']
+     for r in req))
 check('Original47 identities preserved',len(original)==47 and len({r['endpoint'] for r in original})==47)
+check('Original47 dispositions are numbered and allocated to existing API records',
+ {r['original_number'] for r in original}==set(range(1,48)) and
+ {r['endpoint'] for r in original}<={a['endpoint'] for a in api} and
+ all(r['target_owner'] in services for r in original))
 check('Thirty-nine inherited scenarios remain unexecuted in target',len(load('inventories/ACCEPTANCE_SCENARIOS.json'))==39 and all(x['microservice_execution_status']=='NOT_EXECUTED' for x in load('inventories/ACCEPTANCE_SCENARIOS.json')))
 check('Target additions separately labelled with no duplicate existing route',all(a['status']=='PROPOSED_NOT_IMPLEMENTED' and a['method']+' '+a['path'] not in {x['endpoint'] for x in api} for a in extra))
 check('All target routes have an owner',all(a['owner'] in services for a in extra))

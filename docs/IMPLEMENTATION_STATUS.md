@@ -82,9 +82,10 @@ microservices system.
   Re-enabling returns 503 until fresh trusted-source verification and
   independent grant review are available. The outbox has no downstream
   revocation consumer yet, so already-issued S02 delegations may remain usable
-  until expiry; cross-service owner-gap reporting is also pending. Principal
-  admission, membership creation, and ownership-transfer handlers remain
-  pending.
+  until expiry; cross-service owner-gap reporting is also pending. Trusted-
+  provider principal admission and approval-gated membership creation are
+  implemented in S01 but do not yet have browser workflows. Ownership-transfer
+  handlers remain pending.
 - Keycloak is now available as a loopback-only local Compose service with an
   imported development realm. Its UX01 client emits the S01 audience and fixed
   `local-dev` / `local` scope claims; the `uacrf-s01-context` scope also maps
@@ -169,9 +170,11 @@ microservices system.
   remains authoritative and prevents removal of the final identity
   administrator. A read-only principal directory now displays S01's paginated
   records in the selected context. The directory remains read-only in the UI;
-  no principal-disable control is exposed. General identity admission,
-  membership creation, re-enabling, and ownership-transfer handlers, plus the
-  rest of the customer workflow, remain unimplemented.
+  no principal-admission or principal-disable control is exposed. Trusted
+  principal admission and approval-gated membership creation are implemented
+  at S01 but are not yet available through the browser. Re-enabling,
+  ownership-transfer handlers, and the rest of the customer workflow remain
+  unimplemented.
 - Local delegation configuration now uses RS256; place the private key only in
   S01 and configure the matching public key and key ID in S01 and S02, as
   described in [`.env.example`](../.env.example). Managed key storage and
@@ -204,11 +207,13 @@ microservices system.
 ## Fresh-build delivery tracking
 
 Delivery is measured only by implemented microservices behavior and tests
-executed against this target. The latest full reactor verification passed 101
-tests with zero failures, errors, or skips. The architecture checker validates
-the checked-in MS01 design artifacts; it does not assert runtime acceptance.
-The 107-route, 153-table and 131-requirement counts describe inherited planning
-inventories, not target implementation coverage.
+executed against this target. The latest full reactor verification passed 334
+tests with zero failures, errors, or skips. CI is configured to run the MS01
+architecture checker, which verifies checked-in inventory allocation,
+contract ownership, and package-manifest hashes for frozen design artifacts.
+The checker excludes the two QA files it regenerates and does not assert
+runtime acceptance. The 107-route, 153-table and 131-requirement counts
+describe inherited planning inventories, not target implementation coverage.
 The identity integration suite also verifies that revoking a membership blocks
 subsequent issuance of an S02-scoped delegation for that membership.
 
@@ -226,23 +231,29 @@ provider credentials or making release claims.
 
 ## M0 still open
 
-- Finish reconciling the checked-in route, table, requirement, and event
-  inventories; this confirms coverage of the available artifacts, not
-  exhaustive discovery from the absent legacy source.
-- Resolve the remaining identity mutation release gate. The proposed identity
-  OpenAPI still marks `POST /v1/principals` PROPOSED outside the canonical
-  operation set. The separate proposed principal-status route supports disable
-  only; re-enabling and distributed revocation remain gated by source
-  verification and current-authority propagation.
+- The CI workflow is configured to check the allocations for 144 operations,
+  107 registered routes, 153 tables, 131 requirements, and the original 47
+  operations, including route operation/contract mapping and duplicate/orphan
+  detection. It also checks the design-package manifest's byte counts and
+  SHA-256 hashes, except for the two generated QA outputs. This establishes
+  consistency only for available artifacts; exhaustive discovery from the
+  absent legacy source and live database introspection remain unavailable.
+- Keep the principal-admission and membership browser workflows gated. The
+  trusted-provider principal-admission and approval-gated membership handlers
+  exist at S01, but the proposed identity OpenAPI still marks
+  `POST /v1/principals` outside the canonical operation set. Do not promote
+  that route until source and release-boundary evidence supports the decision.
+  The proposed principal-status route supports disable; re-enabling and
+  distributed revocation remain gated by fresh source verification and
+  current-authority propagation.
 - Threat model and tenant/event compatibility review written
   (`docs/THREAT_MODEL.md`); its open items (key custody, deploy-time signature
   verification, CSRF review, secret scanning, rate limits, event inbox) are
   tracked there.
-- Add inventory/ownership architecture checks. CI now checks S01/S02 database
-  configuration, Compose admin/runtime credential separation, application
-  role restrictions, service-module dependencies, and qualified schema
-  references; broader inventory ownership coverage remains open. Run locally
-  with
+- The complementary service-ownership gate is also configured in CI. It checks
+  S01/S02 database configuration, Compose admin/runtime credential separation,
+  application-role restrictions, service-module dependencies, and qualified
+  schema references. Run locally with
   `python3 -m unittest tools.test_check_service_ownership` and
   `python3 tools/check_service_ownership.py`. The image smoke test now also
   proves each runtime database credential is rejected by the other database;
