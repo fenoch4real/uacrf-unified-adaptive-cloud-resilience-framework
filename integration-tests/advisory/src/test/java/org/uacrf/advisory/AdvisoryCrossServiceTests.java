@@ -169,7 +169,31 @@ class AdvisoryCrossServiceTests {
       String sourceDigest = Sha256.hex(sourceBytes);
       var sources = Map.of(sourceDigest,
           new DigestBoundArtifact("artifact:sha256:" + sourceDigest, sourceDigest, sourceBytes));
-      var snapshot = checker.checkWithSources(requester, TENANT, ENVIRONMENT, expected, sources);
+      var models = artifact("""
+          {"protocol":"UACRF_ADVISORY_MODELS_V1","tenant_id":"%s","environment_id":"%s",
+           "models":[{"model_ref":"model-a","engine":"HTTP_JSON_ADVISORY_V1","timeout_seconds":30,
+           "maximum_output_tokens":30,"maximum_cost_units":5}]}
+          """.formatted(TENANT, ENVIRONMENT));
+      var prompts = artifact("""
+          {"protocol":"UACRF_ADVISORY_PROMPTS_V1","tenant_id":"%s","environment_id":"%s",
+           "prompts":[{"instructions_digest":"%s","text":"instructions"}]}
+          """.formatted(TENANT, ENVIRONMENT, "a".repeat(64)));
+      byte[] requestBytes = JSON.writeValueAsBytes(Map.ofEntries(
+          Map.entry("agent_case_id", caseId),
+          Map.entry("retrieval_manifest_id", expected.retrievalId()),
+          Map.entry("workflow_version", "SINGLE_ANALYST_V1"),
+          Map.entry("model_config_ref", models.reference()), Map.entry("model_config_digest", models.digest()),
+          Map.entry("prompt_ref", prompts.reference()), Map.entry("prompt_digest", prompts.digest()),
+          Map.entry("max_calls", 1), Map.entry("max_tokens", 100), Map.entry("max_cost_units", 5),
+          Map.entry("deadline", "2099-01-01T00:00:00Z"), Map.entry("reason", "Integration test"),
+          Map.entry("allocations", List.of(Map.of("role", "ANALYST", "agent_profile_id", "analyst",
+              "tokens", 100, "cost_units", 5))),
+          Map.entry("proposal_ids", List.of("proposal-1"))));
+      var prepared = new RunPreparationCheck(checker).check(requester, TENANT, ENVIRONMENT,
+          AdvisoryRunRequest.parse(requestBytes), expected, models, prompts, sources);
+      assertEquals("model-a", prepared.models().models().getFirst().reference());
+      assertEquals("instructions", prepared.prompts().prompts().getFirst().text());
+      var snapshot = prepared.sources();
       assertEquals("requester", snapshot.requester().id());
       assertEquals(sealed.get("case_digest").asString(), snapshot.receipts().sourceCase().caseDigest());
       assertEquals("latency", JSON.readTree(snapshot.caseMaterial()).get("metric").asString());
@@ -235,6 +259,12 @@ class AdvisoryCrossServiceTests {
         oidc.stop(0);
       }
     }
+  }
+
+  private static DigestBoundArtifact artifact(String content) {
+    byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+    String digest = Sha256.hex(bytes);
+    return new DigestBoundArtifact("artifact:sha256:" + digest, digest, bytes);
   }
 
   private static PostgreSQLContainer database(String name) {

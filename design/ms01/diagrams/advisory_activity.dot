@@ -1,0 +1,28 @@
+digraph AdvisoryActivity {
+  graph [label="Target advisory activity - planned, not a dispatch authorization", labelloc=t, fontsize=22, fontname="Arial", rankdir=TB, bgcolor="white", pad=0.25, nodesep=0.3];
+  node [shape=box, style="rounded,filled", fillcolor="#e8f2ff", color="#6d89a5", fontname="Arial", fontsize=13, margin="0.14,0.10"];
+  edge [fontname="Arial", fontsize=11, color="#45617d"];
+  start [label="Requester submits bounded run request"];
+  access [label="Check current requester and scoped permissions"];
+  sources [label="Verify S07 case and S08 retrieval eligibility\nand referenced source bytes"];
+  profiles [label="Verify approved S02 profiles and configuration,\nproposal eligibility and workflow role requirements"];
+  limits [label="Check budget, deadline and current policy"];
+  gate [shape=diamond, label="All required\nchecks pass?", fillcolor="#fff3cd"];
+  stop [label="Reject or retain blocked / unknown disposition\nNo provider dispatch", fillcolor="#ffe7e7"];
+  admit [label="Commit run and allocations\nunder the active cancellation fence"];
+  claim [label="Assigned runtime claims exact bounded input"];
+  intent [label="Persist dispatch intent before invocation\nand recheck the active fence"];
+  dispatch [label="Invoke approved provider under enforced limits"];
+  outcome [shape=diamond, label="Outcome\ncertain?", fillcolor="#fff3cd"];
+  reconcile [label="Retain UNKNOWN and reconcile\nNo automatic retry", fillcolor="#ffe7e7"];
+  retain [label="Retain attributable output and dissent"];
+  review [label="Independent human reviews exact output set\nand current source eligibility"];
+  advisory [label="Retain advisory disposition\nNot an operational permit"];
+  start -> access -> sources -> profiles -> limits -> gate;
+  gate -> stop [label="no / unavailable"];
+  gate -> admit [label="yes"];
+  admit -> claim -> intent -> dispatch -> outcome;
+  outcome -> reconcile [label="no"];
+  outcome -> retain [label="yes"];
+  retain -> review -> advisory;
+}

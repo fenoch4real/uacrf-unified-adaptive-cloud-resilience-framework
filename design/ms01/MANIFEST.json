@@ -24,8 +24,8 @@
     },
     {
       "path": "EVENT_CATALOG.json",
-      "bytes": 18504,
-      "sha256": "4539375dc0cafd3cadc2a7699549ffaebd787c68fdf124b02a30a8d0502f0ac5"
+      "bytes": 20680,
+      "sha256": "083f64b2f19eb330075013787365f8336f1037462b8e1d4c16fda16ee0e8b34a"
     },
     {
       "path": "IMPLEMENTATION_PLAN.md",
@@ -39,8 +39,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 3357,
-      "sha256": "d5125f8f6a8180c09399882acaf4b50cc5a37710a5af63b297011904fe45070a"
+      "bytes": 5406,
+      "sha256": "f443372b65a2f6e5fb38ebc5bbb7cd6c02cbe309d46dfe4f3ce750befb5adf51"
     },
     {
       "path": "REVISION_HISTORY.json",
@@ -448,6 +448,36 @@
       "sha256": "efe70e198c681b65eb4ede0a3a1d387e10b763b90f90856b2d81506104438366"
     },
     {
+      "path": "diagrams/advisory_activity.dot",
+      "bytes": 1987,
+      "sha256": "d1fe41bfd5312f0b9938f159d5ec118b598a52f0ab92f5c9f8b0bdb304e1e61f"
+    },
+    {
+      "path": "diagrams/advisory_activity.png",
+      "bytes": 422342,
+      "sha256": "1ba40315218d047c40ab6c6cbb317ef8562a293f4473b8742706f90123145c56"
+    },
+    {
+      "path": "diagrams/advisory_activity.svg",
+      "bytes": 17098,
+      "sha256": "e050aea940765ad6eafb1f4f7bcb4b2be6527b97de068e1d7548e3b0afe1db92"
+    },
+    {
+      "path": "diagrams/advisory_domain_classes.dot",
+      "bytes": 2327,
+      "sha256": "6b3bbbb64bf0915782ebc3a88318531d754a231facf3d08e7d306d88c2a3b4cc"
+    },
+    {
+      "path": "diagrams/advisory_domain_classes.png",
+      "bytes": 174687,
+      "sha256": "599f8ac0243ce18e5714005e9c14e94a50671ae4117ba0975a7876a1c5dbde6a"
+    },
+    {
+      "path": "diagrams/advisory_domain_classes.svg",
+      "bytes": 14325,
+      "sha256": "34e670dfa4ddac873c673114ef55abc8fa6747429feda77d2484001f7829a66f"
+    },
+    {
       "path": "diagrams/advisory_sequence.mmd",
       "bytes": 977,
       "sha256": "9edfe07f61713ce3e7763be12beaa7fedf8e3d0711cc28fc218ada14bd05b851"
@@ -508,6 +538,21 @@
       "sha256": "669e00498956129a3749162e139b7991943712453789e813ddc45b01bb44ef42"
     },
     {
+      "path": "diagrams/deployment_detail.dot",
+      "bytes": 1897,
+      "sha256": "9189a06e0432b3a4c688b93dfe744c385c218c9c489b4f967214615281832047"
+    },
+    {
+      "path": "diagrams/deployment_detail.png",
+      "bytes": 282153,
+      "sha256": "412e366d2f7158bd6bc9961fef6ab040435a2c2f192c3953e458cf6c2b90f81f"
+    },
+    {
+      "path": "diagrams/deployment_detail.svg",
+      "bytes": 15266,
+      "sha256": "dbb0a390898ee4fa9dad6be4a5e9a1b3823395cfc46bfa8781a3f2b201cedea3"
+    },
+    {
       "path": "diagrams/event_delivery.mmd",
       "bytes": 793,
       "sha256": "f063ec6ed490e16f66205d6f830c6cbd59a2725dab68ac88a11afc130092079b"
@@ -553,6 +598,21 @@
       "sha256": "5b565760e615609689b8d9266931cc227fb41423bf40e721f18dcbf74bc6178d"
     },
     {
+      "path": "diagrams/infrastructure_detail.dot",
+      "bytes": 2673,
+      "sha256": "fad5b74c343f018b9ae9717666ec8665d70e62aa45063bc2eb9c088ac9f48b4a"
+    },
+    {
+      "path": "diagrams/infrastructure_detail.png",
+      "bytes": 245745,
+      "sha256": "049cd7df85879881e7f8842d724d2009d6337ffc3d8041b16f22272e9470d802"
+    },
+    {
+      "path": "diagrams/infrastructure_detail.svg",
+      "bytes": 25251,
+      "sha256": "73635a6d93e3b3844afa8119f2882987ba846775aaf8109d68e0c66276e0d11e"
+    },
+    {
       "path": "diagrams/migration.mmd",
       "bytes": 826,
       "sha256": "2f8eeee00386e362100d41d19757d399dff03a77c07e0173fd11c72d7b72377f"
@@ -596,6 +656,21 @@
       "path": "diagrams/onboarding.svg",
       "bytes": 3664,
       "sha256": "b7ccda492b23a227d20c1b4996bbed73120154ecb1c8f37ae20ecb4ded3be76d"
+    },
+    {
+      "path": "diagrams/platform_domain_classes.dot",
+      "bytes": 2994,
+      "sha256": "d34f4bc9515d4b000bcb5a1c9fe62dd7fa168859c75559a08dcb78944b84a42d"
+    },
+    {
+      "path": "diagrams/platform_domain_classes.png",
+      "bytes": 191884,
+      "sha256": "2cad58b5093bd8fff346b759626492e52f790a7d36acb4e34b5ef6828f71e271"
+    },
+    {
+      "path": "diagrams/platform_domain_classes.svg",
+      "bytes": 18893,
+      "sha256": "687c104105c56b8da3f13fbf8b573a33831a7ebff420450af462fd2e4f33efba"
     },
     {
       "path": "diagrams/recovery_validation.mmd",
@@ -689,8 +764,8 @@
     },
     {
       "path": "qa/ARCHITECTURE_CHECKS.json",
-      "bytes": 1307,
-      "sha256": "5ad6fd2686f7199ca1fc2faa0d8ec81ac35079a7dfddd4195f9b1d95bc59f58b"
+      "bytes": 1296,
+      "sha256": "976ad8f919013cf636ae7ca05c6c1706e01e3f4c04ca2f2b4c8a2d2f5800071b"
     },
     {
       "path": "qa/PACKAGE_CHECKS.json",
@@ -739,8 +814,8 @@
     },
     {
       "path": "tools/build_documents.py",
-      "bytes": 12854,
-      "sha256": "017ade818575000ef1be2b6221d7f99eedcb3687669736d3ab6e7cca0ff9a20b"
+      "bytes": 12913,
+      "sha256": "9812c822d7230361cb633f4f2dfd159d212e6b172e9eda45db4ad100d4720562"
     },
     {
       "path": "tools/build_inventory.py",
@@ -749,8 +824,8 @@
     },
     {
       "path": "tools/check_architecture.py",
-      "bytes": 5380,
-      "sha256": "94faa0dc2d996ddefa49f67861d66a54e748674ed292d85afc4c8fe1d6ac6f75"
+      "bytes": 5587,
+      "sha256": "25dec9dd44cf686276394ccc4b1432ffca2b5890bc9867f36033b549b99aa23d"
     },
     {
       "path": "tools/render_diagrams.cjs",

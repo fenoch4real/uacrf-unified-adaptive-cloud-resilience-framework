@@ -1,0 +1,33 @@
+digraph Deployment {
+  graph [label="Target deployment - promotion, isolation and recovery", labelloc=t, fontsize=22, fontname="Arial", rankdir=TB, compound=true, bgcolor="white", pad=0.3, nodesep=0.3];
+  node [shape=box, style="rounded,filled", fillcolor="#f5f9ff", color="#6d89a5", fontname="Arial", fontsize=12];
+  edge [fontname="Arial", fontsize=10, color="#45617d"];
+  build [label="CI: build, test, scan and sign images"];
+  registry [label="Approved artifact and image registry"];
+  dev [label="Development\nseparate credentials and trust root"];
+  stage [label="Staging\nseparate credentials and trust root"];
+  subgraph cluster_prod {
+    label="Production control-plane region - planned"; color="#98b1c8"; fontname="Arial";
+    ingress [label="Ingress / API edge deployment"];
+    experience [label="Experience API deployment"];
+    apis [label="Independently deployed owner APIs\nseparate service identities"];
+    workers [label="Separate collection and advisory worker pools"];
+    data [shape=cylinder, label="Owner databases, Kafka,\nobject storage and S06 graph"];
+    controls [label="Identity, secrets, audit and telemetry"];
+    ingress -> experience -> apis;
+    apis -> data [label="owner-scoped access"];
+    apis -> workers [label="bounded assignments"];
+    controls -> apis [style=dashed];
+    controls -> workers [style=dashed];
+  }
+  subgraph cluster_cell {
+    label="Customer / tenant execution cell - planned"; color="#98b1c8"; fontname="Arial";
+    executor [label="Isolated S11 execution workers"];
+    targets [label="Permitted customer resources"];
+    executor -> targets [label="action-specific permit"];
+  }
+  backup [label="Backups and restore verification\nper owner"];
+  build -> registry -> dev -> stage -> ingress [label="tested image promotion"];
+  apis -> executor [label="bounded plan and permit"];
+  data -> backup [label="retention and restore"];
+}

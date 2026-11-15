@@ -1,0 +1,54 @@
+digraph Infrastructure {
+  graph [label="Target infrastructure - trust and data boundaries", labelloc=t, fontsize=22, fontname="Arial", rankdir=LR, compound=true, bgcolor="white", pad=0.3];
+  node [shape=box, style="rounded,filled", fillcolor="#f5f9ff", color="#6d89a5", fontname="Arial", fontsize=12];
+  edge [fontname="Arial", fontsize=10, color="#45617d"];
+  browser [label="Customer browser"];
+  idp [label="External identity provider"];
+  cloud [label="Customer cloud and monitoring APIs"];
+  model [label="Approved model providers"];
+  subgraph cluster_entry {
+    label="Ingress and experience boundary"; color="#98b1c8"; fontname="Arial";
+    edgeapi [label="EDGE01 API edge"]; ux [label="UX01 experience API"];
+  }
+  subgraph cluster_control {
+    label="Private control-plane service pools"; color="#98b1c8"; fontname="Arial";
+    identity [label="S01 identity and grants"];
+    owners [label="S02-S08 and S10-S14\nowner APIs"];
+    s09 [label="S09 advisory orchestration"];
+    s06 [label="S06 topology"];
+    outbox [label="Owner-local outbox and inbox"];
+  }
+  subgraph cluster_state {
+    label="Private state - separate owner credentials"; color="#98b1c8"; fontname="Arial";
+    pg [shape=cylinder, label="Owner PostgreSQL databases"];
+    neo [shape=cylinder, label="S06 Neo4j projection"];
+    kafka [shape=cylinder, label="Kafka"];
+    objects [shape=cylinder, label="Owner-scoped artifacts"];
+  }
+  subgraph cluster_workers {
+    label="Isolated worker identities and privileges"; color="#98b1c8"; fontname="Arial";
+    collect [label="Read-only collection workers"];
+    advisory [label="Bounded model workers"];
+    execute [label="Tenant-scoped execution cells"];
+  }
+  secrets [label="Secret and workload identity services"];
+  telemetry [label="Restricted telemetry and audit"];
+  browser -> edgeapi -> ux -> owners;
+  edgeapi -> identity;
+  identity -> idp [label="authenticate"];
+  owners -> identity [label="current authority"];
+  s09 -> identity [label="current authority"];
+  owners -> pg [label="own records only"];
+  s09 -> pg [label="own journal"];
+  s06 -> pg [label="accepted graph"];
+  s06 -> neo [label="verify projection"];
+  owners -> objects [label="owner-authorized access"];
+  owners -> outbox -> kafka;
+  kafka -> outbox [label="consumer delivery"];
+  owners -> collect; s09 -> advisory; owners -> execute;
+  collect -> cloud [label="read only"];
+  advisory -> model [label="approved gateway"];
+  execute -> cloud [label="bounded permitted action"];
+  secrets -> collect [style=dashed]; secrets -> advisory [style=dashed]; secrets -> execute [style=dashed];
+  owners -> telemetry [style=dashed]; s09 -> telemetry [style=dashed];
+}

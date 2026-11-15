@@ -25,7 +25,11 @@ check('All target routes have an owner',all(a['owner'] in services for a in extr
 check('All event producers and consumers are known services',all(e['producer'] in services and set(e['consumers'])<=services for e in load('EVENT_CATALOG.json')))
 check('No event claims operational authorization',all(e['authority']=='NOT_AN_EXECUTION_PERMIT' for e in load('EVENT_CATALOG.json')))
 for p in (B/'diagrams').glob('*.svg'):ET.parse(p)
-check('All twelve diagrams have SVG PNG and editable source',len(list((B/'diagrams').glob('*.svg')))==12 and all(p.with_suffix('.mmd').exists() and p.with_suffix('.png').exists() for p in (B/'diagrams').glob('*.svg')))
+diagram_names={'advisory_activity','advisory_domain_classes','platform_domain_classes','infrastructure_detail','deployment_detail'}
+svg_paths=list((B/'diagrams').glob('*.svg'))
+check('Diagrams have SVG PNG and editable source',len(svg_paths)>=17
+ and diagram_names<={p.stem for p in svg_paths}
+ and all((p.with_suffix('.mmd').exists() or p.with_suffix('.dot').exists()) and p.with_suffix('.png').exists() for p in svg_paths))
 broken=[]
 for p in B.glob('*.md'):
  for target in re.findall(r'!?\[[^]]*\]\(([^)]+)\)',p.read_text()):

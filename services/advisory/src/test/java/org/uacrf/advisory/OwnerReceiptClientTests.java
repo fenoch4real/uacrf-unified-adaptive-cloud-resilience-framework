@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -298,6 +299,62 @@ class OwnerReceiptClientTests {
         () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, sources));
     assertEquals(4, requesterAccessCalls.get());
     assertEquals(4, retrievalCalls.get());
+  }
+
+  @Test
+  void checksRequestedConfigurationAndSourcesTogetherWithoutAdmittingRun() throws Exception {
+    var model = configuration("""
+        {"protocol":"UACRF_ADVISORY_MODELS_V1","tenant_id":"tenant-1","environment_id":"env-1",
+         "models":[{"model_ref":"model-a","engine":"HTTP_JSON_ADVISORY_V1","timeout_seconds":30,
+         "maximum_output_tokens":30,"maximum_cost_units":5}]}
+        """);
+    var prompt = configuration("""
+        {"protocol":"UACRF_ADVISORY_PROMPTS_V1","tenant_id":"tenant-1","environment_id":"env-1",
+         "prompts":[{"instructions_digest":"%s","text":"instructions"}]}
+        """.formatted("a".repeat(64)));
+    var request = new AdvisoryRunRequest("case-1", "retrieval-1",
+        AdvisoryRunRequest.WorkflowVersion.SINGLE_ANALYST_V1, model.reference(), model.digest(),
+        prompt.reference(), prompt.digest(),
+        new AdvisoryBudget(1, 100, 5,
+            List.of(new AdvisoryBudget.Allocation(AdvisoryBudget.Role.ANALYST, "analyst", 100, 5))),
+        Instant.parse("2030-01-01T00:00:00Z"), "Run assessment", List.of("proposal"));
+    var bytes = EXCERPT.getBytes(StandardCharsets.UTF_8);
+    var sources = Map.of(EXCERPT_DIGEST, new DigestBoundArtifact(
+        "artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST, bytes));
+    var check = new RunPreparationCheck(new RequesterSourceCheck(true, base, base, base, true));
+
+    var wrongCase = new SourceReceiptConsistency.Expected("case-2", "retrieval-1", MANIFEST_DIGEST, "assessment",
+        SourceReceiptConsistency.Classification.INTERNAL);
+    assertThrows(IllegalArgumentException.class,
+        () -> check.check("requester-token", "tenant-1", "env-1", request, wrongCase, model, prompt, sources));
+    var wrongRetrieval = new SourceReceiptConsistency.Expected("case-1", "retrieval-2", MANIFEST_DIGEST, "assessment",
+        SourceReceiptConsistency.Classification.INTERNAL);
+    assertThrows(IllegalArgumentException.class,
+        () -> check.check("requester-token", "tenant-1", "env-1", request, wrongRetrieval, model, prompt, sources));
+    assertThrows(IllegalArgumentException.class,
+        () -> check.check("requester-token", "tenant-1", "env-1", request, EXPECTED, prompt, prompt, sources));
+    assertThrows(IllegalArgumentException.class,
+        () -> check.check("requester-token", "tenant-2", "env-1", request, EXPECTED, model, prompt, sources));
+    assertEquals(0, requesterAccessCalls.get());
+
+    var result = check.check("requester-token", "tenant-1", "env-1", request, EXPECTED, model, prompt, sources);
+    assertEquals(request, result.request());
+    assertEquals(EXPECTED, result.expected());
+    assertEquals("model-a", result.models().models().getFirst().reference());
+    assertEquals("instructions", result.prompts().prompts().getFirst().text());
+    assertEquals(List.of(EXCERPT), result.sources().receipts().excerpts());
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(2, retrievalCalls.get());
+
+    requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
+    assertThrows(IOException.class,
+        () -> check.check("requester-token", "tenant-1", "env-1", request, EXPECTED, model, prompt, sources));
+  }
+
+  private static DigestBoundArtifact configuration(String text) {
+    byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+    String digest = Sha256.hex(bytes);
+    return new DigestBoundArtifact("artifact:sha256:" + digest, digest, bytes);
   }
 
   @Test

@@ -526,6 +526,24 @@ retains evidence events and decides qualification.
   matching role/profile and allows one attempt per role. This does not verify
   profile identities, required workflow roles, actual provider usage,
   or enforce model-request token and cost limits.
+- An unwired typed run-request parser accepts bounded, strict UTF-8 JSON with
+  the contract's required fields and integer encodings. It checks identifiers,
+  workflow names, reason and proposal bounds, and requires each artifact
+  reference to match its digest. Deadlines require a known offset, seconds,
+  and at most nanosecond precision; unsupported date-time forms fail closed.
+  It snapshots proposal IDs and reuses the
+  budget value. It is not an HTTP endpoint, does not verify artifact access,
+  proposal eligibility, workflow role requirements or deadline freshness,
+  and does not authorize or admit a run.
+- A separate unwired preparation check binds that request's case and retrieval
+  IDs to expected owner receipts, parses caller-supplied model and prompt
+  artifacts against its references, digests and scope, and performs the
+  requester/full-source check. This composition is also exercised against real
+  S01, S07 and S08 with caller-supplied configuration and source bytes. Its
+  successful result is only a point-in-time
+  consistency snapshot: artifact authorization, profile activation, workflow
+  role requirements, proposal eligibility, run admission and provider dispatch
+  remain unimplemented.
 - A standalone consistency check compares S07 case and S08 retrieval receipt
   fields, requiring the same case, workload, purpose and digests, verified
   binding, current eligibility, and a nonempty bounded source list. An unwired,
@@ -646,6 +664,10 @@ retains evidence events and decides qualification.
   and request limits with the supplied version limits. It does not retrieve or
   verify an activated S02 version, prove the prompt text matches its declared
   digest, bind the selected prompt into the request, or authorize dispatch.
+  A batch variant requires exactly one caller-supplied pin and gateway request
+  per allocated profile, rejects duplicate attempt IDs and checks each against
+  its allocation. These are still caller assertions, not owner authorization
+  or a binding to the journaled packet.
   Digest equality does not establish artifact ownership, disclosure permission,
   approval, provenance or current eligibility. An unwired knowledge-source
   verifier checks bounded UTF-8 artifact bytes against an S08 source digest,

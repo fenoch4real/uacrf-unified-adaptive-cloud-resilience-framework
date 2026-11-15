@@ -1,0 +1,48 @@
+digraph PlatformClasses {
+  graph [label="Target platform domain classes - conceptual owner boundaries", labelloc=t, fontsize=22, fontname="Arial", rankdir=LR, bgcolor="white", pad=0.3, nodesep=0.35];
+  node [shape=record, style="filled", fillcolor="#f5f9ff", color="#6d89a5", fontname="Arial", fontsize=12];
+  edge [fontname="Arial", fontsize=10, color="#45617d"];
+  subgraph cluster_s02 {
+    label="S02 - estate catalog"; color="#98b1c8"; fontname="Arial";
+    journey [label="{Journey|customer outcome\l}"];
+    step [label="{JourneyStep|ordered journey step\l}"];
+    workload [label="{Workload|service or agent identity\l}"];
+    journey -> step [label="contains", arrowhead=vee];
+    step -> workload [label="links", arrowhead=vee];
+  }
+  subgraph cluster_inputs {
+    label="S04 / S05 - evidence and objectives"; color="#98b1c8"; fontname="Arial";
+    evidence [label="{QualifiedEvidence|source, observation time\lquality decision\l}"];
+    objective [label="{ApprovedObjective|workload target\leffective revision\l}"];
+  }
+  subgraph cluster_assessment {
+    label="S06 / S07 - topology and assessment"; color="#98b1c8"; fontname="Arial";
+    revision [label="{GraphRevision|accepted graph digest\lprojection verification\l}"];
+    case [label="{AssessmentCase|purpose and workload\lsealed context digest\l}"];
+    recommendation [label="{Recommendation|effect bounds\lprerequisite references\l}"];
+    case -> recommendation [label="retains", arrowhead=vee];
+  }
+  subgraph cluster_advisory {
+    label="S08 / S09 - knowledge and advisory"; color="#98b1c8"; fontname="Arial";
+    retrieval [label="{RetrievalManifest|source versions and locators\lmanifest digest\l}"];
+    run [label="{AdvisoryRun|roles and budget\lhuman review\l}"];
+  }
+  subgraph cluster_execution {
+    label="S10 / S11 / S12 - governance, execution, assurance"; color="#98b1c8"; fontname="Arial";
+    authority [label="{Authorization|scope and expiry\lbound attempt\l}"];
+    attempt [label="{ExecutionAttempt|fence and provider outcome\l}"];
+    validation [label="{Validation|independent probes\lrecovery disposition\l}"];
+  }
+  objective -> workload [label="targets", style=dashed, arrowhead=vee];
+  revision -> workload [label="references", style=dashed, arrowhead=vee];
+  case -> workload [label="references", style=dashed, arrowhead=vee];
+  case -> evidence [label="uses receipts", style=dashed, arrowhead=vee];
+  case -> objective [label="uses revision", style=dashed, arrowhead=vee];
+  case -> revision [label="uses revision", style=dashed, arrowhead=vee];
+  retrieval -> case [label="case binding", style=dashed, arrowhead=vee];
+  run -> case [label="references", style=dashed, arrowhead=vee];
+  run -> retrieval [label="references", style=dashed, arrowhead=vee];
+  authority -> recommendation [label="governs action", style=dashed, arrowhead=vee];
+  attempt -> authority [label="requires", style=dashed, arrowhead=vee];
+  validation -> attempt [label="assesses effect", style=dashed, arrowhead=vee];
+}

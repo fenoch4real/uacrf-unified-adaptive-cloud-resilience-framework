@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ProfileConfigurationCheckTests {
@@ -32,6 +35,41 @@ class ProfileConfigurationCheckTests {
     var selection = ProfileConfigurationCheck.check(pins, models, prompts, request, allocation);
     assertEquals("model-a", selection.model().reference());
     assertEquals("instructions", selection.prompt().text());
+  }
+
+  @Test
+  void checksEveryAllocatedProfileAndCopiesResult() {
+    var reviewer = new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 100, 5);
+    var budget = new AdvisoryBudget(2, 200, 10, List.of(allocation, reviewer));
+    var reviewerRequest = new AdvisoryGateway.Request("attempt-2", "model-a", "context", 30, Duration.ofSeconds(30));
+    var profiles = new HashMap<>(Map.of("profile", pins, "reviewer", pins));
+    var requests = new HashMap<>(Map.of("profile", request, "reviewer", reviewerRequest));
+    var selected = ProfileConfigurationCheck.checkAll(budget, models, prompts, profiles, requests);
+    profiles.clear();
+    requests.clear();
+    assertEquals("instructions", selected.get("reviewer").prompt().text());
+    assertEquals("model-a", selected.get("profile").model().reference());
+    assertThrows(UnsupportedOperationException.class, selected::clear);
+  }
+
+  @Test
+  void rejectsMissingExtraSubstitutedAndDuplicateAttemptProfiles() {
+    var reviewer = new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 100, 5);
+    var budget = new AdvisoryBudget(2, 200, 10, List.of(allocation, reviewer));
+    var reviewerRequest = new AdvisoryGateway.Request("attempt-2", "model-a", "context", 30, Duration.ofSeconds(30));
+    var profiles = Map.of("profile", pins, "reviewer", pins);
+    var requests = Map.of("profile", request, "reviewer", reviewerRequest);
+    assertThrows(IllegalArgumentException.class,
+        () -> ProfileConfigurationCheck.checkAll(budget, models, prompts, Map.of("profile", pins), requests));
+    assertThrows(IllegalArgumentException.class,
+        () -> ProfileConfigurationCheck.checkAll(budget, models, prompts, profiles,
+            Map.of("profile", request, "reviewer", reviewerRequest, "extra", request)));
+    assertThrows(IllegalArgumentException.class,
+        () -> ProfileConfigurationCheck.checkAll(budget, models, prompts,
+            Map.of("profile", pins, "reviewer", pins("model-b", DIGEST, 100, 5, 30)), requests));
+    assertThrows(IllegalArgumentException.class,
+        () -> ProfileConfigurationCheck.checkAll(budget, models, prompts, profiles,
+            Map.of("profile", request, "reviewer", request)));
   }
 
   @Test

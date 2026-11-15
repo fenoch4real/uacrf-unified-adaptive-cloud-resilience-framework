@@ -1,0 +1,37 @@
+digraph AdvisoryClasses {
+  graph [label="Target advisory domain classes - conceptual owner boundaries", labelloc=t, fontsize=22, fontname="Arial", rankdir=LR, bgcolor="white", pad=0.3, nodesep=0.35];
+  node [shape=record, style="filled", fillcolor="#f5f9ff", color="#6d89a5", fontname="Arial", fontsize=12];
+  edge [fontname="Arial", fontsize=11, color="#45617d"];
+  subgraph cluster_s02 {
+    label="S02 - estate catalog"; color="#98b1c8"; fontname="Arial";
+    profile [label="{AgentProfile|profile identity\lowner and runtime principal\l}"];
+    version [label="{AgentProfileVersion|model and prompt pins\lknowledge and runtime contracts\lactivation state\l}"];
+    profile -> version [label="versions", arrowhead=vee];
+  }
+  subgraph cluster_s07 {
+    label="S07 - assessment"; color="#98b1c8"; fontname="Arial";
+    case [label="{SealedCase|case ID and purpose\lworkload and digest\l}"];
+  }
+  subgraph cluster_s08 {
+    label="S08 - knowledge"; color="#98b1c8"; fontname="Arial";
+    item [label="{KnowledgeVersion|classification and purpose\lreview and source digest\l}"];
+    manifest [label="{RetrievalManifest|case binding\lordered source locators\lmanifest digest\l}"];
+    manifest -> item [label="references", style=dashed, arrowhead=vee];
+  }
+  subgraph cluster_s09 {
+    label="S09 - advisory"; color="#98b1c8"; fontname="Arial";
+    run [label="{AdvisoryRun|workflow and deadline\lbudget and generation\l}"];
+    allocation [label="{RoleAllocation|role and profile ID\ltoken and cost limits\l}"];
+    attempt [label="{AssignmentAttempt|assignment and attempt IDs\lpacket digest and dispatch state\l}"];
+    output [label="{AdvisoryOutput|producer and citations\lresponse or unknown outcome\l}"];
+    review [label="{HumanReview|reviewed revision\ldisposition and rationale\l}"];
+    run -> allocation [label="1 to 3", arrowhead=vee];
+    allocation -> attempt [label="bounded attempt", arrowhead=vee];
+    attempt -> output [label="retains outcome", arrowhead=vee];
+    run -> review [label="reviewed by", arrowhead=vee];
+  }
+  run -> case [label="references", style=dashed, arrowhead=vee];
+  run -> manifest [label="references", style=dashed, arrowhead=vee];
+  allocation -> version [label="profile version", style=dashed, arrowhead=vee];
+  manifest -> case [label="bound to", style=dashed, arrowhead=vee];
+}

@@ -39,9 +39,10 @@ The deployment diagram shows the planned deployment and privilege boundaries:
 
 ![UACRF deployment and privilege boundaries](images/deployment.svg)
 
-The [MS01 diagrams](ARCHITECTURE.md) provide
-additional focused views of system context, event delivery, execution,
-recovery validation, and migration.
+The [MS01 diagram index](../design/ms01/README.md#diagram-index) links
+activity, sequence, conceptual class, infrastructure, and deployment views,
+with editable sources. These depict the target architecture, not proof that
+the pictured capabilities are deployed.
 
 ## Product boundaries
 
@@ -75,5 +76,5 @@ accepted by a new service.
 
 This is the target design, not an implemented production architecture. The
 service boundaries, contracts, diagrams, and planned acceptance tests are
-documented in the [MS01 architecture package](../Microservices_Architecture/MS01/README.md).
-Implementation starts with the [M0 and M1 milestones](../Microservices_Architecture/MS01/IMPLEMENTATION_PLAN.md).
+documented in the [MS01 architecture package](../design/ms01/README.md).
+Implementation starts with the [M0 and M1 milestones](../design/ms01/IMPLEMENTATION_PLAN.md).

@@ -19,7 +19,7 @@
     "All target routes have an owner",
     "All event producers and consumers are known services",
     "No event claims operational authorization",
-    "All twelve diagrams have SVG PNG and editable source",
+    "Diagrams have SVG PNG and editable source",
     "All Markdown local links resolve",
     "Reading library links resolve at prepackaging stage"
   ],
