@@ -110,15 +110,24 @@ microservices system.
   Customer-journey list and detail
   views request a short-lived `catalog.journey.read` delegation from S01 and
   pass it server-side through EDGE01's local-only catalog routes to S02;
-  neither token is rendered. Browser tests mock these services, and the smoke
-  topology verifies EDGE01 reaches both S01 and S02, retains each owner's
+  neither token is rendered. Existing web tests exercise these views with
+  mocked service clients, and the smoke topology verifies EDGE01 reaches both
+  S01 and S02, retains each owner's
   unauthenticated response, and does not expose S01's internal delegation
-  route. A   disposable browser test has verified the Keycloak OIDC code flow with PKCE
-  and separate browser-facing issuer/internal back-channel endpoints, then
-  context selection and current-access evaluation through UX01, EDGE01, and
-  S01. The response contained only the bootstrap account's seven intended
-  identity-management capabilities; catalog write access remains denied. The
-  checked-in membership-create contract requires S01 to verify an
+  route. A repeatable Playwright suite under [`e2e/`](../e2e/) now exercises
+  the Keycloak OIDC authorization-code flow with PKCE and separate
+  browser-facing issuer/internal back-channel endpoints, then context
+  selection and current-access evaluation through UX01, EDGE01, and S01. Its
+  isolated Compose runner creates disposable PostgreSQL and Keycloak services,
+  generates credentials and signing keys outside the repository, and removes
+  only its uniquely named containers, network, and volume. All five browser
+  tests pass across three files: administrator and approver access with
+  reloads, invalid-password rejection for both users, unauthenticated-route
+  redirection, and local-session logout. S01 returned only the administrator's
+  seven intended identity-management capabilities or the approver's two
+  separately seeded capabilities; catalog write access remains denied. The
+  current-access flow still does not exercise catalog writes. The checked-in
+  membership-create contract requires S01 to verify an
   `authorization_ref` for an independent grant decision. S01 now implements
   that verifier (see "Independent grant authority" below). Do not seed catalog
   memberships or bypass the gate; the authenticated OIDC-to-catalog flow stays
@@ -181,7 +190,7 @@ microservices system.
   Testcontainers HTTP integration tests for S01 and S02. Compose configuration
   validates, and the pinned Keycloak image successfully imported the realm in
   a temporary smoke test. The persistent Compose services have not been
-  started. The latest full verification passed 101 tests with zero failures,
+  started. The latest full verification passed 334 tests with zero failures,
   errors, or skips.
 - Java 25 and Docker are available in the development environment. The root
   Maven wrapper pins Maven 3.10.0 and verifies its download; the Docker builder

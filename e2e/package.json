@@ -1,0 +1,12 @@
+{
+  "name": "uacrf-browser-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:live": "bash ./run-live.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1"
+  }
+}

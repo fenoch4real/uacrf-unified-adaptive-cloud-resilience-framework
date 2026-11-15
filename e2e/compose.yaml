@@ -1,0 +1,116 @@
+services:
+  identity-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: uacrf_identity
+      POSTGRES_USER: ${IDENTITY_DB_ADMIN_USER:?}
+      POSTGRES_PASSWORD: ${IDENTITY_DB_ADMIN_PASSWORD:?}
+      APP_DB_USER: ${IDENTITY_DB_USER:?}
+      APP_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
+    volumes:
+      - identity-data:/var/lib/postgresql
+      - ../config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?}
+      KC_HOSTNAME: http://localhost:8180
+      KEYCLOAK_LOCAL_ADMIN_PASSWORD: ${KEYCLOAK_LOCAL_ADMIN_PASSWORD:?}
+      KEYCLOAK_DIRECTORY_CLIENT_SECRET: ${KEYCLOAK_DIRECTORY_CLIENT_SECRET:?}
+      KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET: ${KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET:?}
+      KEYCLOAK_S07_EVALUATOR_CLIENT_SECRET: ${KEYCLOAK_S07_EVALUATOR_CLIENT_SECRET:?}
+      KEYCLOAK_S08_RETRIEVER_CLIENT_SECRET: ${KEYCLOAK_S08_RETRIEVER_CLIENT_SECRET:?}
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      - ../config/keycloak/uacrf-realm.json:/opt/keycloak/data/import/uacrf-realm.json:ro
+
+  identity:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: identity
+    environment:
+      IDENTITY_JDBC_URL: jdbc:postgresql://identity-db:5432/uacrf_identity
+      IDENTITY_DB_USER: ${IDENTITY_DB_USER:?}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/uacrf
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/certs
+      UACRF_DELEGATION_PRIVATE_KEY_BASE64: ${UACRF_DELEGATION_PRIVATE_KEY_BASE64:?}
+      UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?}
+      UACRF_DELEGATION_KEY_ID: uacrf-e2e-key
+      IDENTITY_BOOTSTRAP_ENABLED: "true"
+      IDENTITY_BOOTSTRAP_PROVIDER_ID: keycloak-local
+      IDENTITY_BOOTSTRAP_PROVIDER_NAME: Local Keycloak
+      IDENTITY_BOOTSTRAP_ISSUER: http://localhost:8180/realms/uacrf
+      IDENTITY_BOOTSTRAP_TENANT_ID: local-dev
+      IDENTITY_BOOTSTRAP_TENANT_NAME: Local Development
+      IDENTITY_BOOTSTRAP_ENVIRONMENT_ID: local
+      IDENTITY_BOOTSTRAP_ENVIRONMENT_NAME: Local
+      IDENTITY_BOOTSTRAP_PRINCIPAL_ID: local-admin
+      IDENTITY_BOOTSTRAP_SUBJECT: 00000000-0000-4000-8000-000000000001
+      IDENTITY_BOOTSTRAP_DISPLAY_NAME: Local Administrator
+      IDENTITY_BOOTSTRAP_ADMIN_EXPIRES_AT: ${IDENTITY_BOOTSTRAP_ADMIN_EXPIRES_AT:?}
+      IDENTITY_BOOTSTRAP_REASON: isolated-browser-e2e-fixture
+      IDENTITY_BOOTSTRAP_APPROVER_PRINCIPAL_ID: local-approver
+      IDENTITY_BOOTSTRAP_APPROVER_SUBJECT: 00000000-0000-4000-8000-000000000002
+      IDENTITY_BOOTSTRAP_APPROVER_DISPLAY_NAME: Local Approver
+    depends_on:
+      identity-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8082:8082"
+
+  api-edge:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api-edge
+    environment:
+      UACRF_EDGE_IDENTITY_BASE_URL: http://identity:8082
+    depends_on:
+      - identity
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  experience-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: experience-api
+    environment:
+      UACRF_EXPERIENCE_IDENTITY_BASE_URL: http://api-edge:8080
+      UACRF_EXPERIENCE_INTERNAL_IDENTITY_BASE_URL: http://identity:8082
+    depends_on:
+      - api-edge
+    ports:
+      - "127.0.0.1:8081:8081"
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: web
+    environment:
+      UACRF_OIDC_ISSUER_URI: http://localhost:8180/realms/uacrf
+      UACRF_OIDC_AUTHORIZATION_URI: http://localhost:8180/realms/uacrf/protocol/openid-connect/auth
+      UACRF_OIDC_TOKEN_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/token
+      UACRF_OIDC_JWK_SET_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/certs
+      UACRF_OIDC_USERINFO_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/userinfo
+      UACRF_EXPERIENCE_BASE_URL: http://experience-api:8081
+      UACRF_SESSION_COOKIE_SECURE: "false"
+    depends_on:
+      - experience-api
+    ports:
+      - "127.0.0.1:8084:8084"
+
+volumes:
+  identity-data:
