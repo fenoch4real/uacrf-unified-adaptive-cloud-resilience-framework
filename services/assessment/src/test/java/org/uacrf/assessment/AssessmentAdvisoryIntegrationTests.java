@@ -84,8 +84,36 @@ class AssessmentAdvisoryIntegrationTests {
     URI assessment = URI.create("http://127.0.0.1:" + port);
     AtomicInteger receiptCalls = new AtomicInteger();
     AtomicInteger contentCalls = new AtomicInteger();
+    AtomicInteger accessCalls = new AtomicInteger();
+    AtomicInteger delegationCalls = new AtomicInteger();
     AtomicReference<String> caseDigest = new AtomicReference<>();
     HttpServer knowledge = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    knowledge.createContext("/v1/me/access", exchange -> {
+      accessCalls.incrementAndGet();
+      boolean valid = "GET".equals(exchange.getRequestMethod())
+          && "Bearer requester-token".equals(exchange.getRequestHeaders().getFirst("Authorization"))
+          && "tenant_id=tenant-advisory&environment_id=env-1".equals(exchange.getRequestURI().getQuery());
+      respond(exchange, valid ? 200 : 403, valid ? """
+          {"principal_id":"requester","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
+           "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
+           "knowledge.classification.internal.read"]}
+          """ : "{}");
+    });
+    knowledge.createContext("/internal/v1/delegations", exchange -> {
+      delegationCalls.incrementAndGet();
+      JsonNode request = json.readTree(exchange.getRequestBody());
+      String audience = request.path("audience").asString();
+      boolean valid = "POST".equals(exchange.getRequestMethod())
+          && "Bearer requester-token".equals(exchange.getRequestHeaders().getFirst("Authorization"))
+          && "tenant-advisory".equals(request.path("tenant_id").asString())
+          && "env-1".equals(request.path("environment_id").asString())
+          && (("S07".equals(audience) && request.path("capability_ids").toString().equals("[\"assessment.case.read\"]"))
+              || ("S08".equals(audience) && request.path("capability_ids").toString().equals(
+                  "[\"knowledge.retrieval.read\",\"knowledge.classification.internal.read\"]")));
+      String delegated = "S07".equals(audience) ? reader : "knowledge-delegation";
+      respond(exchange, valid ? 200 : 403, valid
+          ? "{\"access_token\":\"" + delegated + "\",\"token_type\":\"Bearer\",\"expires_in\":30}" : "{}");
+    });
     knowledge.createContext("/internal/v1/retrievals/retrieval-1:receipt", exchange -> {
       receiptCalls.incrementAndGet();
       JsonNode request = json.readTree(exchange.getRequestBody());
@@ -115,15 +143,33 @@ class AssessmentAdvisoryIntegrationTests {
       HttpResponse<String> sealed = post("/v1/cases/" + caseId + ":seal", writer, "{\"expected_revision\":1}");
       assertEquals(200, sealed.statusCode(), sealed.body());
       caseDigest.set(json.readTree(sealed.body()).get("case_digest").asString());
+      String material = AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, caseDigest.get(), reader);
+      assertEquals("latency", json.readTree(material).get("metric").asString());
+      assertThrows(IOException.class,
+          () -> AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, "0".repeat(64), reader));
       assertEquals(List.of(EXCERPT), AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, reader));
-      assertEquals(1, receiptCalls.get());
+      assertEquals(2, receiptCalls.get());
       assertEquals(1, contentCalls.get());
+
+      String checkedMaterial = AdvisoryAssessmentProbe.checkRequesterSources(
+          knowledgeBase, assessment, knowledgeBase, caseId, MANIFEST);
+      assertEquals(material, checkedMaterial);
+      assertEquals(2, accessCalls.get());
+      assertEquals(3, delegationCalls.get());
+      assertEquals(4, receiptCalls.get());
+      assertEquals(2, contentCalls.get());
 
       assertEquals("Internal service request failed with HTTP 403.",
           assertThrows(IOException.class,
               () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, writer))
               .getMessage());
+      assertEquals("Internal service request failed with HTTP 403.",
+          assertThrows(IOException.class,
+              () -> AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, caseDigest.get(), writer))
+              .getMessage());
       String foreignReader = token("requester", "tenant-other", List.of("assessment.case.read"));
+      assertThrows(IOException.class,
+          () -> AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, caseDigest.get(), foreignReader));
       assertEquals("Internal service request failed with HTTP 404.",
           assertThrows(IOException.class,
               () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, foreignReader))
@@ -131,18 +177,22 @@ class AssessmentAdvisoryIntegrationTests {
       String wrongAudience = token("requester", "tenant-advisory", List.of("assessment.case.read"), "S08");
       assertEquals("Internal service request failed with HTTP 401.",
           assertThrows(IOException.class,
+              () -> AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, caseDigest.get(), wrongAudience))
+              .getMessage());
+      assertEquals("Internal service request failed with HTTP 401.",
+          assertThrows(IOException.class,
               () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, wrongAudience))
               .getMessage());
-      assertEquals(1, receiptCalls.get());
-      assertEquals(1, contentCalls.get());
+      assertEquals(4, receiptCalls.get());
+      assertEquals(2, contentCalls.get());
 
       caseDigest.set((caseDigest.get().startsWith("0") ? "1" : "0") + caseDigest.get().substring(1));
       assertEquals("Owner receipt consistency check failed.",
           assertThrows(IOException.class,
               () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, reader))
               .getMessage());
-      assertEquals(2, receiptCalls.get());
-      assertEquals(1, contentCalls.get());
+      assertEquals(5, receiptCalls.get());
+      assertEquals(2, contentCalls.get());
     } finally {
       knowledge.stop(0);
     }

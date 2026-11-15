@@ -66,6 +66,17 @@ class AssessmentService {
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "A receipt requires a sealed case.");
     return new Receipt(id, item.purpose(), item.caseDigest(), item.workloadId(), item.requiredSourceKinds());
   }
+  @Transactional(readOnly=true)
+  CaseMaterial material(DelegationPrincipal actor, String id) {
+    permit(actor, "assessment.case.read", false);
+    Case item = findCase(actor, id, false);
+    if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "Material requires a sealed case.");
+    String canonicalText = write(content(item));
+    if (!hash(canonicalText).equals(item.caseDigest())) {
+      throw conflict("CASE_DIGEST_MISMATCH", "Sealed case material does not match its digest.");
+    }
+    return new CaseMaterial(id, item.caseDigest(), canonicalText);
+  }
   @Transactional
   Evaluation evaluate(DelegationPrincipal actor, String id, Evaluate request) {
     permit(actor, "assessment.evaluation.run", true);

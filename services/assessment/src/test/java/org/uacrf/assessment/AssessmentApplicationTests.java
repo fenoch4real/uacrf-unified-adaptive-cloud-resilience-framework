@@ -50,6 +50,7 @@ class AssessmentApplicationTests {
     String token = token("t-seal", "*", ALL);
     JsonNode first = create(token, "[\"b\",\"a\"]", "LTE");
     String id = first.get("id").asString();
+    assertEquals(409, post("/internal/v1/cases/"+id+":material", token, "{}").statusCode());
     assertEquals(409, post("/v1/cases/"+id+":seal", token, "{\"expected_revision\":7}").statusCode());
     JsonNode sealed = body(post("/v1/cases/"+id+":seal", token, "{\"expected_revision\":1}"),200);
     JsonNode second = create(token, "[\"a\",\"b\"]", "LTE");
@@ -61,6 +62,19 @@ class AssessmentApplicationTests {
     JsonNode receipt = body(post("/internal/v1/cases/"+id+":receipt",token,"{}"),200);
     assertThat(receipt.toString()).contains("assessment", "required_source_kinds");
     assertEquals("w1", receipt.get("workload_id").asString());
+    JsonNode material = body(post("/internal/v1/cases/"+id+":material",token,"{}"),200);
+    assertEquals(receipt.get("case_digest").asString(), material.get("case_digest").asString());
+    assertEquals(id, material.get("case_id").asString());
+  }
+  @Test void caseMaterialFailsClosedWhenStoredDigestDoesNotMatch() throws Exception {
+    String token = token("t-material-corrupt", "*", ALL);
+    String id = create(token, "[\"a\"]", "LTE").get("id").asString();
+    jdbc.update("UPDATE uacrf_assessment.analysis_case SET state='SEALED', revision=2, case_digest=? "
+        + "WHERE tenant_id=? AND id=?", "0".repeat(64), "t-material-corrupt", id);
+    var response = post("/internal/v1/cases/"+id+":material", token, "{}");
+    assertEquals(409, response.statusCode());
+    assertEquals("CASE_DIGEST_MISMATCH", json.readTree(response.body()).get("code").asString());
+    assertThat(response.body()).doesNotContain("canonical_text");
   }
   @Test void inclusiveBoundariesAndEvidenceRules() throws Exception {
     String token = token("t-rules", "*", ALL); String id = sealed(token, "[\"a\",\"b\"]", "LTE");
@@ -114,7 +128,10 @@ class AssessmentApplicationTests {
     String token = token("t-auth","*",ALL); String id = sealed(token,"[\"a\"]","LTE");
     String other = token("t-other","*",ALL); assertEquals(404,get("/v1/cases/"+id,other).statusCode());
     assertEquals(404,post("/internal/v1/cases/"+id+":receipt",other,"{}").statusCode());
+    assertEquals(404,post("/internal/v1/cases/"+id+":material",other,"{}").statusCode());
     assertEquals(403,post("/internal/v1/cases/"+id+":receipt",
+        token("t-auth","*",List.of("assessment.case.write")),"{}").statusCode());
+    assertEquals(403,post("/internal/v1/cases/"+id+":material",
         token("t-auth","*",List.of("assessment.case.write")),"{}").statusCode());
     assertEquals(403,get("/v1/cases/"+id,token("t-auth","*",List.of("assessment.case.write"))).statusCode());
     assertEquals(403,post("/v1/cases",token("t-auth","service-1",ALL),caseJson("[\"a\"]","LTE")).statusCode());

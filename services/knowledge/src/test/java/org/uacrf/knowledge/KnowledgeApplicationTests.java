@@ -159,6 +159,47 @@ class KnowledgeApplicationTests {
   }
 
   @Test
+  void expiredReviewExcludesNewRetrievalsAndConcealsRetainedContentAndReceipts() throws Exception {
+    String tenant = "t-expired-source";
+    String writer = bearer("proposer", tenant, WRITER);
+    String reviewer = bearer("reviewer", tenant, REVIEWER);
+    Instant deadline = Instant.now().plusSeconds(8);
+    String expiring =
+        stage("expiring", "v1", "expiring unique guidance")
+            .replaceFirst("\"review_deadline\":\"[^\"]+\"",
+                "\"review_deadline\":\"" + deadline + "\"");
+    stageRequestAndApprove("expiring", expiring, writer, reviewer);
+
+    var verifier = new CaseReceiptVerifier() {
+      @Override public boolean enabled() { return true; }
+      @Override public Verification verify(String caseId, String purpose, String tenantId, String environmentId) {
+        return Verification.verified(new CaseReceipt(caseId, purpose, "ab".repeat(32),
+            "workload-a", List.of("telemetry")));
+      }
+    };
+    var service = new KnowledgeService(jdbc, objectMapper, verifier);
+    var actor = retrievalPrincipal(tenant, RETRIEVER);
+    var request = new RunRetrieval("case-1", "incident", Classification.INTERNAL, "unique", 10, null);
+    Retrieval retained = service.run(actor, request);
+    assertThat(retained.results()).hasSize(1);
+    var receiptRequest = new ReceiptRequest("case-1", "incident", Classification.INTERNAL,
+        retained.manifestDigest());
+    assertThat(service.receipt(actor, retained.retrievalId(), receiptRequest).eligible()).isTrue();
+    assertThat(service.getRetrieval(actor, retained.retrievalId()).results().getFirst().excerpt())
+        .isEqualTo("expiring unique guidance");
+
+    long remainingMillis = java.time.Duration.between(Instant.now(), deadline).toMillis();
+    if (remainingMillis > 0) Thread.sleep(remainingMillis + 50);
+
+    assertThat(service.run(actor, request).results()).isEmpty();
+    assertThat(service.getRetrieval(actor, retained.retrievalId()).results())
+        .allMatch(result -> result.excerpt() == null);
+    RetrievalReceipt expired = service.receipt(actor, retained.retrievalId(), receiptRequest);
+    assertThat(expired.eligible()).isFalse();
+    assertThat(expired.reason()).isEqualTo("SOURCE_NOT_ELIGIBLE");
+  }
+
+  @Test
   void retrievalFiltersByPurposeClassificationAndExplicitWorkloadTargets() throws Exception {
     String writer = bearer("proposer", "t-filter", WRITER);
     String reviewer = bearer("reviewer", "t-filter", REVIEWER);

@@ -299,17 +299,33 @@ class IdentityApplicationTests {
         }
         assertEquals("advisory-test-human", RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
         assertEquals(3, owners.caseCalls());
-        assertEquals(1, owners.receiptCalls());
+        assertEquals(1, owners.caseMaterialCalls());
+        assertEquals(2, owners.receiptCalls());
         assertEquals(1, owners.contentCalls());
-        assertEquals(200, post("/v1/memberships/" + membershipId + ":revoke" + context, admin,
-            "{\"expected_revision\":1,\"reason\":\"End advisory access\"}", "advisory-grant-revoke").statusCode());
+        var revokedDuringContent = new java.util.concurrent.atomic.AtomicInteger();
+        owners.onContent(() -> {
+          try {
+            revokedDuringContent.set(post("/v1/memberships/" + membershipId + ":revoke" + context, admin,
+                "{\"expected_revision\":1,\"reason\":\"End advisory access\"}", "advisory-grant-revoke")
+                .statusCode());
+          } catch (java.io.IOException failure) {
+            throw new java.io.UncheckedIOException(failure);
+          } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Revocation was interrupted.", failure);
+          }
+        });
+        assertThrows(java.io.IOException.class,
+            () -> RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
+        assertEquals(200, revokedDuringContent.get());
         assertThat(get(path, actor).body()).doesNotContain("\"advisory.run.create\"");
         assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.check(identity, actorToken, "PUBLIC"));
         assertThrows(java.io.IOException.class,
             () -> RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
-        assertEquals(3, owners.caseCalls());
-        assertEquals(1, owners.receiptCalls());
-        assertEquals(1, owners.contentCalls());
+        assertEquals(4, owners.caseCalls());
+        assertEquals(2, owners.caseMaterialCalls());
+        assertEquals(4, owners.receiptCalls());
+        assertEquals(2, owners.contentCalls());
       }
       UUID retrievalGrant = jdbc.queryForObject(
           "SELECT id FROM uacrf_identity.membership WHERE principal_id = 'advisory-test-human' "
@@ -1455,12 +1471,13 @@ class IdentityApplicationTests {
   }
 
   private HttpResponse<String> post(String path, String authorization, String body)
-      throws Exception {
+      throws java.io.IOException, InterruptedException {
     return post(path, authorization, body, null);
   }
 
   private HttpResponse<String> post(
-      String path, String authorization, String body, String idempotencyKey) throws Exception {
+      String path, String authorization, String body, String idempotencyKey)
+      throws java.io.IOException, InterruptedException {
     HttpRequest.Builder request =
         HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
             .header("Authorization", authorization)

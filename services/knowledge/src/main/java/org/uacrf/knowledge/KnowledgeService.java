@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
 import tools.jackson.core.JacksonException;
@@ -309,7 +310,8 @@ class KnowledgeService {
             actor.environmentId());
     List<RankedChunk> ranked = new ArrayList<>();
     for (VersionRow version : versions) {
-      if (!version.allowedPurposes().contains(request.purpose())
+      if (!version.reviewDeadline().isAfter(Instant.now())
+          || !version.allowedPurposes().contains(request.purpose())
           || classificationRank(version.classification()) > classificationRank(request.maxClassification())
           || (!version.targetWorkloadIds().isEmpty()
               && (trustedCase == null || !version.targetWorkloadIds().contains(trustedCase.workloadId())))) {
@@ -407,13 +409,13 @@ class KnowledgeService {
     return loadRetrieval(actor, retrievalId, false);
   }
 
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
   Retrieval getRetrieval(DelegationPrincipal actor, String retrievalId) {
     requireCapability(actor, "knowledge.retrieval.read");
     return loadRetrieval(actor, retrievalId, true);
   }
 
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
   RetrievalReceipt receipt(DelegationPrincipal actor, String retrievalId, ReceiptRequest request) {
     requireCapability(actor, "knowledge.retrieval.read");
     StoredRetrieval retrieval = loadStoredRetrieval(actor, retrievalId);
@@ -426,6 +428,25 @@ class KnowledgeService {
         || !retrieval.maxClassification().equals(request.classification())
         || !retrieval.manifestDigest().equals(request.manifestDigest())) {
       throw conflict("MANIFEST_MISMATCH", "The receipt request does not match the retained retrieval manifest.");
+    }
+    String reason = "CASE_NOT_BOUND";
+    boolean eligible = false;
+    if ("VERIFIED".equals(retrieval.caseBinding())) {
+      if (!caseReceiptVerifier.enabled()
+          || retrieval.caseDigest() == null
+          || retrieval.workloadId() == null
+          || !liveCaseMatches(actor, retrieval)) {
+        reason = "CASE_UNVERIFIED";
+      } else {
+        storedResults = getStoredResults(actor, retrievalId);
+        requireValidManifest(retrieval, storedResults);
+        if (!allSourcesEligible(actor, retrieval, storedResults)) {
+          reason = "SOURCE_NOT_ELIGIBLE";
+        } else {
+          eligible = true;
+          reason = "ELIGIBLE";
+        }
+      }
     }
     List<ReceiptResult> results =
         storedResults.stream()
@@ -443,21 +464,6 @@ class KnowledgeService {
                         result.classification(),
                         result.score()))
             .toList();
-    String reason = "CASE_NOT_BOUND";
-    boolean eligible = false;
-    if ("VERIFIED".equals(retrieval.caseBinding())) {
-      if (!caseReceiptVerifier.enabled()
-          || retrieval.caseDigest() == null
-          || retrieval.workloadId() == null
-          || !liveCaseMatches(actor, retrieval)) {
-        reason = "CASE_UNVERIFIED";
-      } else if (!allSourcesEligible(actor, retrieval, storedResults)) {
-        reason = "SOURCE_NOT_ELIGIBLE";
-      } else {
-        eligible = true;
-        reason = "ELIGIBLE";
-      }
-    }
     return new RetrievalReceipt(
         retrievalId,
         request.caseId(),
@@ -483,6 +489,10 @@ class KnowledgeService {
         "NOT_VERIFIED".equals(stored.caseBinding())
             || !recheckCase
             || (caseReceiptVerifier.enabled() && liveCaseMatches(actor, stored));
+    if (bound && recheckCase && "VERIFIED".equals(stored.caseBinding())) {
+      storedResults = getStoredResults(actor, retrievalId);
+      requireValidManifest(stored, storedResults);
+    }
     List<RetrievalResult> results = new ArrayList<>();
     for (StoredResult result : storedResults) {
       String excerpt =
@@ -547,6 +557,7 @@ class KnowledgeService {
         "SELECT r.item_id, r.version, r.chunk_index, r.start_offset, r.end_offset, r.source_digest, "
             + "r.excerpt_digest, r.allowed_purposes, r.classification, r.score, r.excerpt, "
             + "v.content AS source_content, v.state AS source_state, i.withdrawn AS item_withdrawn, "
+            + "v.review_deadline AS source_review_deadline, "
             + "v.source_digest AS current_source_digest, v.classification AS source_classification, "
             + "v.allowed_purposes AS source_allowed_purposes, "
             + "v.target_workload_ids AS source_target_workload_ids "
@@ -643,6 +654,7 @@ class KnowledgeService {
       DelegationPrincipal actor, StoredRetrieval retrieval, StoredResult result) {
     if (!"APPROVED".equals(result.sourceState())
         || result.itemWithdrawn()
+        || !result.sourceReviewDeadline().isAfter(Instant.now())
         || !result.allowedPurposes().contains(retrieval.purpose())
         || !result.sourceAllowedPurposes().contains(retrieval.purpose())
         || (!result.sourceTargetWorkloadIds().isEmpty()
@@ -808,6 +820,7 @@ class KnowledgeService {
         rs.getString("source_content"),
         rs.getString("source_state"),
         rs.getBoolean("item_withdrawn"),
+        rs.getTimestamp("source_review_deadline").toInstant(),
         rs.getString("current_source_digest").trim(),
         Classification.valueOf(rs.getString("source_classification")),
         strings(rs.getArray("source_allowed_purposes")),
@@ -1095,6 +1108,7 @@ class KnowledgeService {
       String sourceContent,
       String sourceState,
       boolean itemWithdrawn,
+      Instant sourceReviewDeadline,
       String currentSourceDigest,
       Classification sourceClassification,
       List<String> sourceAllowedPurposes,

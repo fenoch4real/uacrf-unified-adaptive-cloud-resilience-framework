@@ -12,6 +12,7 @@ final class AssessmentResponses {
       GraphRef graphRef, List<String> requiredSourceKinds, String state, long revision, String caseDigest) {}
   record Receipt(
       String caseId, String purpose, String caseDigest, String workloadId, List<String> requiredSourceKinds) {}
+  record CaseMaterial(String caseId, String caseDigest, String canonicalText) {}
   record Evidence(Measurement measurement, String disposition) {}
   record ObjectiveReceipt(String workloadId, String setDigest, String objectiveId, long revision, String digest) {}
   record GraphReceipt(String graphId, long revision, String digest) {}

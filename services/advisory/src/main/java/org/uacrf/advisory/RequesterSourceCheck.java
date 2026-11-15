@@ -16,7 +16,8 @@ final class RequesterSourceCheck {
   private final boolean allowLoopbackHttp;
   private final RequesterAccessClient access;
 
-  record Snapshot(RequesterAccessClient.Principal requester, OwnerReceiptClient.Receipts receipts) {}
+  record Snapshot(RequesterAccessClient.Principal requester, OwnerReceiptClient.Receipts receipts,
+                  String caseMaterial) {}
 
   RequesterSourceCheck(boolean enabled, URI identityBase, URI assessmentBase, URI knowledgeBase,
                        boolean allowLoopbackHttp) {
@@ -46,6 +47,14 @@ final class RequesterSourceCheck {
       return s01.delegation(tenant, environment, audience, capabilities);
     };
     var owners = new OwnerReceiptClient(true, assessmentBase, knowledgeBase, allowLoopbackHttp, delegations);
-    return new Snapshot(requester, owners.fetch(tenantId, environmentId, expected));
+    var caseReceipt = owners.fetchCase(tenantId, environmentId, expected);
+    var caseMaterial = new CaseMaterialClient(true, assessmentBase, allowLoopbackHttp, delegations)
+        .fetch(tenantId, environmentId, expected, caseReceipt);
+    var receipts = owners.fetchRetrieval(tenantId, environmentId, expected, caseReceipt);
+    var refreshed = access.check(requesterToken, tenantId, environmentId, expected.classification());
+    if (!requester.id().equals(refreshed.id())) {
+      throw new IOException("Requester identity changed during source checking.");
+    }
+    return new Snapshot(refreshed, receipts, caseMaterial);
   }
 }

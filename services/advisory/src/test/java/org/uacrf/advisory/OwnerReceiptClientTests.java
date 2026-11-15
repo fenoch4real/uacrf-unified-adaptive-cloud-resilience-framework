@@ -13,6 +13,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -21,9 +22,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 class OwnerReceiptClientTests {
-  private static final String CASE_DIGEST = "a".repeat(64);
+  private static final String CASE_MATERIAL =
+      "{\"workload_id\":\"workload-1\",\"purpose\":\"assessment\",\"required_source_kinds\":[\"metrics\"]}";
+  private static final String CASE_DIGEST = Sha256.hex(CASE_MATERIAL.getBytes(StandardCharsets.UTF_8));
   private static final String MANIFEST_DIGEST = "b".repeat(64);
   private static final String EXCERPT = "metrics😀ab";
   private static final String EXCERPT_DIGEST =
@@ -35,6 +39,8 @@ class OwnerReceiptClientTests {
       {"case_id":"case-1","purpose":"assessment","case_digest":"%s",
        "workload_id":"workload-1","required_source_kinds":["metrics"]}
       """.formatted(CASE_DIGEST);
+  private static final String CASE_MATERIAL_BODY = JsonMapper.builder().build().writeValueAsString(
+      Map.of("case_id", "case-1", "case_digest", CASE_DIGEST, "canonical_text", CASE_MATERIAL));
   private static final String REQUESTER_ACCESS = """
       {"principal_id":"human-1","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
        "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
@@ -59,19 +65,24 @@ class OwnerReceiptClientTests {
   private HttpServer server;
   private URI base;
   private final AtomicReference<Reply> caseReply = new AtomicReference<>(new Reply(200, CASE_BODY));
+  private final AtomicReference<Reply> caseMaterialReply = new AtomicReference<>(new Reply(200, CASE_MATERIAL_BODY));
   private final AtomicReference<Reply> retrievalReply = new AtomicReference<>(new Reply(200, RETRIEVAL_BODY));
   private final AtomicReference<Reply> contentReply = new AtomicReference<>(new Reply(200, CONTENT_BODY));
+  private final AtomicReference<Reply> retrievalReplyAfterContent = new AtomicReference<>();
   private final AtomicReference<String> caseAuthorization = new AtomicReference<>();
   private final AtomicReference<String> retrievalAuthorization = new AtomicReference<>();
   private final AtomicReference<String> retrievalRequest = new AtomicReference<>();
   private final AtomicReference<String> contentAuthorization = new AtomicReference<>();
   private final AtomicInteger caseCalls = new AtomicInteger();
+  private final AtomicInteger caseMaterialCalls = new AtomicInteger();
   private final AtomicInteger retrievalCalls = new AtomicInteger();
   private final AtomicInteger contentCalls = new AtomicInteger();
   private final AtomicInteger identityCalls = new AtomicInteger();
   private final AtomicInteger actorTokenCalls = new AtomicInteger();
   private final AtomicInteger requesterAccessCalls = new AtomicInteger();
   private final AtomicReference<Reply> requesterReply = new AtomicReference<>(new Reply(200, REQUESTER_ACCESS));
+  private final AtomicReference<Reply> requesterReplyAfterContent = new AtomicReference<>();
+  private final AtomicReference<Reply> requesterReplyAfterCaseMaterial = new AtomicReference<>();
   private final AtomicReference<Reply> knowledgeDelegationFailure = new AtomicReference<>();
   private final List<String> identityAuthorizations = new CopyOnWriteArrayList<>();
   private final List<String> identityRequests = new CopyOnWriteArrayList<>();
@@ -101,6 +112,16 @@ class OwnerReceiptClientTests {
       }
       respond(exchange, caseReply.get());
     });
+    server.createContext("/internal/v1/cases/case-1:material", exchange -> {
+      caseMaterialCalls.incrementAndGet();
+      if (!"POST".equals(exchange.getRequestMethod())
+          || !"Bearer test-token-S07".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+        respond(exchange, new Reply(403, "{}"));
+        return;
+      }
+      if (requesterReplyAfterCaseMaterial.get() != null) requesterReply.set(requesterReplyAfterCaseMaterial.get());
+      respond(exchange, caseMaterialReply.get());
+    });
     server.createContext("/internal/v1/retrievals/retrieval-1:receipt", exchange -> {
       retrievalCalls.incrementAndGet();
       retrievalAuthorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
@@ -114,6 +135,8 @@ class OwnerReceiptClientTests {
         respond(exchange, new Reply(405, "{}"));
         return;
       }
+      if (requesterReplyAfterContent.get() != null) requesterReply.set(requesterReplyAfterContent.get());
+      if (retrievalReplyAfterContent.get() != null) retrievalReply.set(retrievalReplyAfterContent.get());
       respond(exchange, contentReply.get());
     });
     server.createContext("/internal/v1/delegations", exchange -> {
@@ -192,7 +215,7 @@ class OwnerReceiptClientTests {
     assertTrue(retrievalRequest.get().contains("\"manifest_digest\":\"" + MANIFEST_DIGEST + "\""));
     assertTrue(retrievalRequest.get().contains("\"classification\":\"INTERNAL\""));
     assertEquals(1, caseCalls.get());
-    assertEquals(1, retrievalCalls.get());
+    assertEquals(2, retrievalCalls.get());
     assertEquals(1, contentCalls.get());
   }
 
@@ -216,11 +239,16 @@ class OwnerReceiptClientTests {
     var snapshot = verifier.check("requester-token", "tenant-1", "env-1", EXPECTED);
     assertEquals("human-1", snapshot.requester().id());
     assertEquals(List.of(EXCERPT), snapshot.receipts().excerpts());
+    assertEquals(CASE_MATERIAL, snapshot.caseMaterial());
     assertThrows(UnsupportedOperationException.class, () -> snapshot.requester().capabilities().clear());
     assertEquals("Bearer requester-token", requesterAuthorization.get());
-    assertEquals(List.of("Bearer requester-token", "Bearer requester-token"), identityAuthorizations);
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(List.of("Bearer requester-token", "Bearer requester-token", "Bearer requester-token"),
+        identityAuthorizations);
     assertTrue(identityRequests.get(0).contains("\"assessment.case.read\""));
-    assertTrue(identityRequests.get(1).contains("\"knowledge.classification.internal.read\""));
+    assertTrue(identityRequests.get(1).contains("\"assessment.case.read\""));
+    assertTrue(identityRequests.get(2).contains("\"knowledge.classification.internal.read\""));
+    assertEquals(1, caseMaterialCalls.get());
     assertEquals("Bearer test-token-S07", caseAuthorization.get());
     assertEquals("Bearer test-token-S08", retrievalAuthorization.get());
     assertEquals(0, actorTokenCalls.get());
@@ -233,8 +261,8 @@ class OwnerReceiptClientTests {
     var verifier = new RequesterSourceCheck(true, base, base, base, true);
     assertEquals(List.of(EXCERPT), verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)
         .receipts().excerpts());
-    assertTrue(identityRequests.get(1).contains("\"knowledge.classification.restricted.read\""));
-    assertFalse(identityRequests.get(1).contains("\"knowledge.classification.internal.read\""));
+    assertTrue(identityRequests.get(2).contains("\"knowledge.classification.restricted.read\""));
+    assertFalse(identityRequests.get(2).contains("\"knowledge.classification.internal.read\""));
   }
 
   @Test
@@ -247,7 +275,7 @@ class OwnerReceiptClientTests {
     contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
         "\"max_classification\":\"PUBLIC\"")));
     verifier.check("requester-token", "tenant-1", "env-1", publicExpected);
-    assertFalse(identityRequests.get(1).contains("knowledge.classification."));
+    assertFalse(identityRequests.get(2).contains("knowledge.classification."));
 
     requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace(
         "knowledge.classification.internal.read", "knowledge.classification.restricted.read")));
@@ -258,7 +286,7 @@ class OwnerReceiptClientTests {
     contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
         "\"max_classification\":\"RESTRICTED\"")));
     verifier.check("requester-token", "tenant-1", "env-1", restrictedExpected);
-    assertTrue(identityRequests.get(3).contains("\"knowledge.classification.restricted.read\""));
+    assertTrue(identityRequests.get(5).contains("\"knowledge.classification.restricted.read\""));
   }
 
   @Test
@@ -267,10 +295,68 @@ class OwnerReceiptClientTests {
     verifier.check("requester-token", "tenant-1", "env-1", EXPECTED);
     requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
     assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
-    assertEquals(2, requesterAccessCalls.get());
-    assertEquals(2, identityCalls.get());
+    assertEquals(3, requesterAccessCalls.get());
+    assertEquals(3, identityCalls.get());
     assertEquals(1, caseCalls.get());
-    assertEquals(1, retrievalCalls.get());
+    assertEquals(2, retrievalCalls.get());
+  }
+
+  @Test
+  void requesterCheckRejectsUnavailableOrSubstitutedCaseMaterialBeforeKnowledgeReads() {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    for (Reply failure : List.of(new Reply(503, "{}"),
+        new Reply(200, CASE_MATERIAL_BODY.replace("workload-1", "changed-workload")))) {
+      caseMaterialReply.set(failure);
+      assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    }
+    assertEquals(2, caseMaterialCalls.get());
+    assertEquals(0, retrievalCalls.get());
+    assertEquals(0, contentCalls.get());
+    assertEquals(2, requesterAccessCalls.get());
+  }
+
+  @Test
+  void rejectsChangedWithdrawnOrUnavailableRetrievalAfterContentRead() {
+    var client = client(true);
+    for (Reply afterContent : List.of(
+        new Reply(200, RETRIEVAL_BODY.replace("\"eligible\":true", "\"eligible\":false")
+            .replace("\"reason\":\"ELIGIBLE\"", "\"reason\":\"SOURCE_NOT_ELIGIBLE\"")),
+        new Reply(200, RETRIEVAL_BODY.replace("\"query\":\"metrics\"", "\"query\":\"changed\"")),
+        new Reply(503, "{}"))) {
+      retrievalReply.set(new Reply(200, RETRIEVAL_BODY));
+      retrievalReplyAfterContent.set(afterContent);
+      assertThrows(IOException.class, () -> client.fetch("tenant-1", "env-1", EXPECTED));
+    }
+    assertEquals(6, retrievalCalls.get());
+    assertEquals(3, contentCalls.get());
+  }
+
+  @Test
+  void rejectsRevocationOrIdentityChangeDuringSourceReads() {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(1, contentCalls.get());
+
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS));
+    requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("human-1", "other-human")));
+    assertEquals("Requester identity changed during source checking.",
+        assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED))
+            .getMessage());
+    assertEquals(4, requesterAccessCalls.get());
+    assertEquals(2, contentCalls.get());
+  }
+
+  @Test
+  void refreshRejectsRequesterRevokedDuringCaseMaterialRead() {
+    requesterReplyAfterCaseMaterial.set(
+        new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(1, caseMaterialCalls.get());
+    assertEquals(2, retrievalCalls.get());
+    assertEquals(2, requesterAccessCalls.get());
   }
 
   @Test

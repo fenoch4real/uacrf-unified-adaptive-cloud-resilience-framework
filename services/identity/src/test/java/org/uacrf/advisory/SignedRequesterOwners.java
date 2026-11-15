@@ -10,6 +10,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -19,12 +20,16 @@ import tools.jackson.databind.json.JsonMapper;
 
 public final class SignedRequesterOwners implements AutoCloseable {
   private static final String CASE_PATH = "/internal/v1/cases/case-1:receipt";
+  private static final String CASE_MATERIAL_PATH = "/internal/v1/cases/case-1:material";
   private static final String RECEIPT_PATH = "/internal/v1/retrievals/retrieval-1:receipt";
   private static final String CONTENT_PATH = "/v1/retrievals/retrieval-1";
   private static final String CASE_BODY = """
       {"case_id":"case-1","purpose":"assessment","case_digest":"%s",
        "workload_id":"workload-1","required_source_kinds":["metrics"]}
       """.formatted(RequesterIdentityProbe.CASE_DIGEST);
+  private static final String CASE_MATERIAL_BODY = JsonMapper.builder().build().writeValueAsString(Map.of(
+      "case_id", "case-1", "case_digest", RequesterIdentityProbe.CASE_DIGEST,
+      "canonical_text", RequesterIdentityProbe.CASE_MATERIAL));
   private static final String RESULT = """
       {"item_id":"item-1","version":"v1","chunk_index":0,"start_offset":0,"end_offset":7,
        "source_digest":"%s","excerpt_digest":"%s","allowed_purposes":["assessment"],
@@ -48,8 +53,10 @@ public final class SignedRequesterOwners implements AutoCloseable {
   private final NimbusJwtDecoder decoder;
   private final String keyId;
   private final AtomicInteger caseCalls = new AtomicInteger();
+  private final AtomicInteger caseMaterialCalls = new AtomicInteger();
   private final AtomicInteger receiptCalls = new AtomicInteger();
   private final AtomicInteger contentCalls = new AtomicInteger();
+  private final AtomicReference<Runnable> contentHook = new AtomicReference<>(() -> {});
 
   public SignedRequesterOwners(RSAPublicKey publicKey, String keyId) throws IOException {
     this.keyId = keyId;
@@ -58,6 +65,10 @@ public final class SignedRequesterOwners implements AutoCloseable {
     server.createContext(CASE_PATH, exchange -> {
       caseCalls.incrementAndGet();
       handle(exchange, CASE_PATH, "POST", "S07", List.of("assessment.case.read"), CASE_BODY);
+    });
+    server.createContext(CASE_MATERIAL_PATH, exchange -> {
+      caseMaterialCalls.incrementAndGet();
+      handle(exchange, CASE_MATERIAL_PATH, "POST", "S07", List.of("assessment.case.read"), CASE_MATERIAL_BODY);
     });
     server.createContext(RECEIPT_PATH, exchange -> {
       receiptCalls.incrementAndGet();
@@ -77,8 +88,10 @@ public final class SignedRequesterOwners implements AutoCloseable {
   }
 
   public int caseCalls() { return caseCalls.get(); }
+  public int caseMaterialCalls() { return caseMaterialCalls.get(); }
   public int receiptCalls() { return receiptCalls.get(); }
   public int contentCalls() { return contentCalls.get(); }
+  public void onContent(Runnable hook) { contentHook.set(java.util.Objects.requireNonNull(hook)); }
 
   private void handle(HttpExchange exchange, String path, String method, String audience,
                       List<String> capabilities, String body) throws IOException {
@@ -102,6 +115,7 @@ public final class SignedRequesterOwners implements AutoCloseable {
         return;
       }
     }
+    if (CONTENT_PATH.equals(path)) contentHook.get().run();
     reply(exchange, 200, body);
   }
 

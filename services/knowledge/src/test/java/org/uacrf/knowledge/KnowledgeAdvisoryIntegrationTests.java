@@ -19,6 +19,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,7 @@ class KnowledgeAdvisoryIntegrationTests {
   private static final KeyPair KEY_PAIR = generateKeyPair();
   private static final AtomicBoolean CASE_AVAILABLE = new AtomicBoolean(true);
   private static final AtomicReference<String> LIVE_CASE_DIGEST = new AtomicReference<>(CASE_DIGEST);
+  private static final AtomicReference<Runnable> CASE_CHECK_HOOK = new AtomicReference<>();
   private static final String POSTGRES_IMAGE =
       "postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81";
 
@@ -85,6 +87,7 @@ class KnowledgeAdvisoryIntegrationTests {
   void startAssessmentFixture() throws IOException {
     CASE_AVAILABLE.set(true);
     LIVE_CASE_DIGEST.set(CASE_DIGEST);
+    CASE_CHECK_HOOK.set(null);
     assessment = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     assessment.createContext("/internal/v1/cases/case-1:receipt", exchange -> {
       int status = "POST".equals(exchange.getRequestMethod())
@@ -104,6 +107,7 @@ class KnowledgeAdvisoryIntegrationTests {
 
   @AfterEach
   void stopAssessmentFixture() {
+    CASE_CHECK_HOOK.set(null);
     assessment.stop(0);
   }
 
@@ -160,12 +164,109 @@ class KnowledgeAdvisoryIntegrationTests {
     LIVE_CASE_DIGEST.set(CASE_DIGEST);
     assertEquals(List.of(CONTENT), AdvisoryKnowledgeProbe.fetch(owner, knowledge, id, digest, reader));
     String withdrawer = token("withdrawer", "tenant-advisory", List.of("knowledge.item.withdraw"));
-    assertEquals(200, post("/v1/knowledge-items/guidance:withdraw", withdrawer,
-        "{\"expected_revision\":2,\"reason\":\"Source withdrawn\"}").statusCode());
+    AtomicInteger withdrawalStatus = new AtomicInteger();
+    HttpServer proxy = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    proxy.createContext("/", exchange -> {
+      URI target = knowledge.resolve(exchange.getRequestURI().toString());
+      var request = HttpRequest.newBuilder(target)
+          .header("Authorization", exchange.getRequestHeaders().getFirst("Authorization"));
+      if ("POST".equals(exchange.getRequestMethod())) {
+        request.header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofByteArray(exchange.getRequestBody().readAllBytes()));
+      } else {
+        request.GET();
+      }
+      try {
+        var forwarded = http.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
+        if ("GET".equals(exchange.getRequestMethod()) && forwarded.statusCode() == 200) {
+          withdrawalStatus.set(post("/v1/knowledge-items/guidance:withdraw", withdrawer,
+              "{\"expected_revision\":2,\"reason\":\"Source withdrawn\"}").statusCode());
+        }
+        exchange.sendResponseHeaders(forwarded.statusCode(), forwarded.body().length);
+        try (var output = exchange.getResponseBody()) {
+          output.write(forwarded.body());
+        }
+      } catch (InterruptedException failure) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Test proxy was interrupted.", failure);
+      }
+    });
+    proxy.start();
+    try {
+      URI proxyBase = URI.create("http://127.0.0.1:" + proxy.getAddress().getPort());
+      assertEquals("Retrieval receipt changed during content checking.",
+          assertThrows(IOException.class, () -> AdvisoryKnowledgeProbe.fetch(owner, proxyBase, id, digest, reader))
+              .getMessage());
+      assertEquals(200, withdrawalStatus.get());
+    } finally {
+      proxy.stop(0);
+    }
     assertIneligible(id, digest, reader, "SOURCE_NOT_ELIGIBLE");
     assertEquals("Owner receipt consistency check failed.",
         assertThrows(IOException.class, () -> AdvisoryKnowledgeProbe.fetch(owner, knowledge, id, digest, reader))
             .getMessage());
+  }
+
+  @Test
+  void withdrawalDuringCaseVerificationIsVisibleToContentAndReceiptReads() throws Exception {
+    String tenant = "tenant-advisory";
+    String writer = token("writer", tenant,
+        List.of("knowledge.item.write", "knowledge.classification.internal.read"));
+    String reviewer = token("reviewer", tenant,
+        List.of("knowledge.item.review", "knowledge.classification.internal.read"));
+    String runner = token("requester", tenant,
+        List.of("knowledge.retrieval.run", "knowledge.classification.internal.read"));
+    String reader = token("requester", tenant,
+        List.of("knowledge.retrieval.read", "knowledge.classification.internal.read"));
+    String withdrawer = token("withdrawer", tenant, List.of("knowledge.item.withdraw"));
+    for (String item : List.of("content-race", "receipt-race")) {
+      var stage = Map.of("item_id", item, "version", "v1", "title", item,
+          "content", item + " unique guidance", "classification", "INTERNAL",
+          "allowed_purposes", List.of("incident"), "target_workload_ids", List.of(),
+          "review_deadline", Instant.now().plusSeconds(300).toString(), "reason", "review");
+      assertEquals(201, post("/v1/knowledge-items", writer, json.writeValueAsString(stage)).statusCode());
+      assertEquals(200, post("/v1/knowledge-items/" + item + ":review", reviewer,
+          "{\"decision\":\"APPROVE\",\"expected_revision\":1,\"reason\":\"Approved\"}").statusCode());
+    }
+
+    var contentRun = post("/v1/retrievals", runner,
+        "{\"case_id\":\"case-1\",\"purpose\":\"incident\",\"max_classification\":\"INTERNAL\","
+            + "\"query\":\"content\",\"max_results\":10}");
+    var receiptRun = post("/v1/retrievals", runner,
+        "{\"case_id\":\"case-1\",\"purpose\":\"incident\",\"max_classification\":\"INTERNAL\","
+            + "\"query\":\"receipt\",\"max_results\":10}");
+    assertEquals(201, contentRun.statusCode(), contentRun.body());
+    assertEquals(201, receiptRun.statusCode(), receiptRun.body());
+    JsonNode content = json.readTree(contentRun.body());
+    JsonNode receipt = json.readTree(receiptRun.body());
+    assertEquals(1, content.get("results").size());
+    assertEquals(1, receipt.get("results").size());
+    AtomicInteger withdrawalStatus = new AtomicInteger();
+    CASE_CHECK_HOOK.set(() -> withdrawDuringCaseCheck("content-race", withdrawer, withdrawalStatus));
+    var read = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+            + "/v1/retrievals/" + content.get("retrieval_id").asText()))
+        .header("Authorization", "Bearer " + reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, withdrawalStatus.get());
+    assertEquals(200, read.statusCode(), read.body());
+    assertEquals(true, json.readTree(read.body()).get("results").get(0).get("excerpt").isNull());
+
+    withdrawalStatus.set(0);
+    CASE_CHECK_HOOK.set(() -> withdrawDuringCaseCheck("receipt-race", withdrawer, withdrawalStatus));
+    assertIneligible(receipt.get("retrieval_id").asText(), receipt.get("manifest_digest").asText(),
+        reader, "SOURCE_NOT_ELIGIBLE");
+    assertEquals(200, withdrawalStatus.get());
+  }
+
+  private void withdrawDuringCaseCheck(String item, String token, AtomicInteger status) {
+    try {
+      status.set(post("/v1/knowledge-items/" + item + ":withdraw", token,
+          "{\"expected_revision\":2,\"reason\":\"Source withdrawn\"}").statusCode());
+    } catch (IOException failure) {
+      throw new java.io.UncheckedIOException(failure);
+    } catch (InterruptedException failure) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("Withdrawal interrupted.", failure);
+    }
   }
 
   private void assertIneligible(String id, String digest, String token, String reason)
@@ -211,6 +312,8 @@ class KnowledgeAdvisoryIntegrationTests {
       return new CaseReceiptVerifier() {
         @Override public boolean enabled() { return true; }
         @Override public Verification verify(String caseId, String purpose, String tenantId, String environmentId) {
+          Runnable hook = CASE_CHECK_HOOK.getAndSet(null);
+          if (hook != null) hook.run();
           if (!CASE_AVAILABLE.get() || !"case-1".equals(caseId) || !"incident".equals(purpose)
               || !"tenant-advisory".equals(tenantId) || !"env-1".equals(environmentId)) {
             return Verification.failed("CASE_UNVERIFIED");

@@ -438,7 +438,9 @@ retains evidence events and decides qualification.
   authorize access.
   `GET /v1/retrievals/{id}` rechecks the retained source and excerpt digests
   and only returns excerpt text while its source version remains APPROVED,
-  unwithdrawn, and purpose/classification eligible for the current reader.
+  unwithdrawn, before its review deadline, and purpose/classification eligible
+  for the current reader. Expired reviews are also excluded from new searches
+  and cause S09 eligibility receipts to fail closed.
   Withdrawal blocks new
   retrievals immediately and conceals prior excerpts while retaining
   manifest metadata. Database triggers prevent body, lifecycle, and manifest
@@ -457,7 +459,10 @@ retains evidence events and decides qualification.
   bind the S07 case digest and workload ID, can include targeted material only
   for that trusted workload, and become S09-eligible only after the internal
   receipt rechecks the case and every current source/version/excerpt. Mismatches
-  and owner outages fail closed. The caller-supplied case identifier is not
+  and owner outages fail closed. Content and eligible receipt reads reload source
+  state after the S07 case check, so a withdrawal committed during that check is
+  observed. These remain point-in-time checks; a later withdrawal can still race
+  with disclosure. The caller-supplied case identifier is not
   treated as proof. `uacrf.s08.knowledge.review.changed.v1`
   and `uacrf.s08.retrieval.retained.v1` are written transactionally; publishing
   is not implemented.
@@ -538,10 +543,13 @@ retains evidence events and decides qualification.
   exercise live S01 or S07. A separate test uses a real S07 HTTP instance and
   PostgreSQL with test-signed S07 delegations and simulated S08 responses,
   checking sealed-case access, tenant and audience isolation, and mismatched
-  case digests. Neither test combines real S01, S07, and S08. The owner
-  services' advisory dependencies are test-only. Receipt and
-  content reads are separate, not an atomic authorization or a guarantee of
-  future eligibility. An unwired, disabled-unless-enabled S01 delegation client
+  case digests. These individual tests do not combine real S01, S07, and S08. The owner
+  services' advisory dependencies are test-only. The client now refreshes the
+  S08 receipt after reading excerpts and rejects changed, ineligible or
+  unavailable results. This refresh has been tested with a real S08 instance
+  and a withdrawal after its content response. These separate reads are not
+  an atomic authorization or a guarantee of future eligibility. An unwired,
+  disabled-unless-enabled S01 delegation client
   can request those narrow S07/S08 capabilities using an injected actor token;
   it does not cache tokens. It has been exercised against a local fake S01 and
   against a real S01 test instance for requester delegations.
@@ -562,21 +570,67 @@ retains evidence events and decides qualification.
   behavior is tested against a real S01 instance using the advisory requester
   client, including current-grant checks and revocation. S01's tests use a
   test-only advisory dependency; the runtime artifact remains separate.
-  An unwired requester-source check combines that snapshot with S07 and S08
-  receipt and excerpt reads using fresh S01 delegations obtained with the same
-  requester token, rather than a service actor. It requests a restricted
+  An unwired requester-source check combines that snapshot with S07 case
+  receipt and material and S08 receipt and excerpt reads using fresh S01
+  delegations obtained with the same requester token, rather than a service
+  actor. It validates case material before fetching the retrieval, then
+  refreshes S08 eligibility after the excerpts. After those reads it checks
+  requester grants again and rejects a changed principal; this narrows but does
+  not eliminate revocation races. It requests a restricted
   classification delegation for an internal retrieval when that is the
   requester's applicable grant. The combined flow has also been tested against
   a real S01 instance and simulated owners that validate its signed requester
-  delegations. It does not prove full case disclosure, authorize
-  artifact access, or guarantee continuing requester authority or source
+  delegations. The same combined check is also tested against real S07 with
+  simulated S01 and S08. It does not authorize access to referenced artifacts
+  or guarantee continuing requester authority or source
   eligibility. It does not authorize journal admission or provider dispatch.
-  Real end-to-end S01/owner integration, operation authorization at the run
-  boundary and journal admission gating remain unimplemented.
+  The post-read requester refresh has also been tested against real S01 with
+  revocation during a simulated owner content read.
+  An opt-in integration test now runs S01, S07, and S08 as separate local
+  processes with separate PostgreSQL databases. It exercises real S01
+  delegations, S08's S07 case verification, the requester-source check,
+  and caller-supplied full knowledge bytes. A controlled local proxy triggers
+  grant revocation or source withdrawal after S08 returns content but before
+  the requester receives it; the final S01 or S08 refresh rejects each case.
+  These checks do not eliminate later races. The
+  OIDC issuer and tokens are test fixtures and identity participants and
+  memberships are seeded directly; it does not test their admission or grant
+  approval. Run it with
+  `./mvnw -Padvisory-cross-service-tests -pl services/identity,services/assessment,services/knowledge,integration-tests/advisory -am clean verify`.
+  Operation authorization at the run boundary and journal admission gating
+  remain unimplemented.
+- S07 now provides an internal, `assessment.case.read`-protected material
+  endpoint for sealed cases. It reconstructs the canonical JSON and rejects a
+  digest mismatch before returning it. A separate, disabled-unless-enabled S09
+  client verifies the UTF-8 SHA-256 digest and case, purpose, workload and
+  source-kind consistency with an S07 receipt. Tests exercise it against a
+  real S07 instance with test-signed delegations, including tenant isolation.
+  S07 reconstructs rather than retaining the original serialized bytes, so a
+  serialization change may make existing material unavailable; the mismatch
+  fails closed. The client is used by the unwired requester-source check, but
+  not by packet construction or admission, and does not verify referenced
+  graph, objective or evidence material or guarantee continuing authorization.
 - A standalone content-addressed artifact value checks that an
   `artifact:sha256:` reference, declared digest and retained bytes agree, and
-  copies the bytes defensively. This can support the model-configuration and
-  prompt references in the run contract; it is not wired to those inputs.
+  copies the bytes defensively. An unwired model-configuration parser binds
+  requested reference and digest to bounded UTF-8 JSON, checks tenant and
+  environment, and validates model entries against the V1 contract. It rejects
+  blank or duplicate model references to avoid ambiguity. The parser does not
+  load artifacts, authorize models, or enable dispatch. A separate unwired
+  request check matches a configured model and checks requested output, timeout
+  and declared maximum cost against configuration and allocation limits. It
+  does not estimate input tokens, verify prices, enforce provider cost or bind
+  the request to a journal intent. An unwired
+  prompt parser performs the same artifact, scope, UTF-8 and JSON checks and
+  validates the V1 entry shape. It rejects blank text and duplicate instruction
+  digests. The contract does not define how `instructions_digest` is calculated
+  from prompt text, so that relationship is not verified; neither parser
+  establishes approval, provenance or authorization.
+  A separate unwired consistency check matches caller-supplied profile version
+  model and instruction pins to those configurations and compares allocation
+  and request limits with the supplied version limits. It does not retrieve or
+  verify an activated S02 version, prove the prompt text matches its declared
+  digest, bind the selected prompt into the request, or authorize dispatch.
   Digest equality does not establish artifact ownership, disclosure permission,
   approval, provenance or current eligibility. An unwired knowledge-source
   verifier checks bounded UTF-8 artifact bytes against an S08 source digest,

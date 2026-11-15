@@ -37,6 +37,13 @@ final class OwnerReceiptClient {
 
   Receipts fetch(String tenantId, String environmentId, SourceReceiptConsistency.Expected expected)
       throws IOException, InterruptedException {
+    var sourceCase = fetchCase(tenantId, environmentId, expected);
+    return fetchRetrieval(tenantId, environmentId, expected, sourceCase);
+  }
+
+  SourceReceiptConsistency.CaseReceipt fetchCase(
+      String tenantId, String environmentId, SourceReceiptConsistency.Expected expected)
+      throws IOException, InterruptedException {
     if (!enabled) {
       throw new IllegalStateException("Owner receipt fetching is disabled.");
     }
@@ -54,32 +61,52 @@ final class OwnerReceiptClient {
     } catch (IllegalArgumentException failure) {
       throw new IOException("Assessment receipt consistency check failed.", failure);
     }
+    return sourceCase;
+  }
 
+  Receipts fetchRetrieval(String tenantId, String environmentId, SourceReceiptConsistency.Expected expected,
+                          SourceReceiptConsistency.CaseReceipt sourceCase) throws IOException, InterruptedException {
+    if (!enabled) {
+      throw new IllegalStateException("Owner receipt fetching is disabled.");
+    }
+    InternalJsonClient.requireId(tenantId);
+    InternalJsonClient.requireId(environmentId);
+    SourceReceiptConsistency.checkCase(expected, sourceCase);
     List<String> capabilities = switch (expected.classification()) {
       case PUBLIC -> List.of("knowledge.retrieval.read");
       case INTERNAL -> List.of("knowledge.retrieval.read", "knowledge.classification.internal.read");
       case RESTRICTED -> List.of("knowledge.retrieval.read", "knowledge.classification.restricted.read");
     };
     String knowledgeToken = token(tenantId, environmentId, "S08", capabilities);
-    Map<?, ?> retrievalBody = http.post(
-        knowledgeBase.resolve("/internal/v1/retrievals/" + expected.retrievalId() + ":receipt"),
-        knowledgeToken,
-        Map.of("case_id", expected.caseId(), "purpose", expected.purpose(),
-            "classification", expected.classification().name(), "manifest_digest", expected.manifestDigest()));
-    var retrieval = new SourceReceiptConsistency.RetrievalReceipt(
-        text(retrievalBody, "retrieval_id"), text(retrievalBody, "requested_case_id"),
-        text(retrievalBody, "case_id"), text(retrievalBody, "case_binding"), text(retrievalBody, "case_digest"),
-        text(retrievalBody, "workload_id"), text(retrievalBody, "purpose"),
-        classification(retrievalBody), text(retrievalBody, "manifest_digest"),
-        text(retrievalBody, "query"), text(retrievalBody, "created_at"),
-        results(retrievalBody), bool(retrievalBody, "eligible"), text(retrievalBody, "reason"));
+    var retrieval = retrievalReceipt(expected, knowledgeToken);
     try {
       SourceReceiptConsistency.check(expected, sourceCase, retrieval);
     } catch (IllegalArgumentException failure) {
       throw new IOException("Owner receipt consistency check failed.", failure);
     }
     Map<?, ?> content = http.get(knowledgeBase.resolve("/v1/retrievals/" + expected.retrievalId()), knowledgeToken);
-    return new Receipts(sourceCase, retrieval, excerpts(content, retrieval));
+    List<String> excerpts = excerpts(content, retrieval);
+    var refreshed = retrievalReceipt(expected, knowledgeToken);
+    if (!retrieval.equals(refreshed)) {
+      throw new IOException("Retrieval receipt changed during content checking.");
+    }
+    return new Receipts(sourceCase, refreshed, excerpts);
+  }
+
+  private SourceReceiptConsistency.RetrievalReceipt retrievalReceipt(
+      SourceReceiptConsistency.Expected expected, String knowledgeToken) throws IOException, InterruptedException {
+    Map<?, ?> retrievalBody = http.post(
+        knowledgeBase.resolve("/internal/v1/retrievals/" + expected.retrievalId() + ":receipt"),
+        knowledgeToken,
+        Map.of("case_id", expected.caseId(), "purpose", expected.purpose(),
+            "classification", expected.classification().name(), "manifest_digest", expected.manifestDigest()));
+    return new SourceReceiptConsistency.RetrievalReceipt(
+        text(retrievalBody, "retrieval_id"), text(retrievalBody, "requested_case_id"),
+        text(retrievalBody, "case_id"), text(retrievalBody, "case_binding"), text(retrievalBody, "case_digest"),
+        text(retrievalBody, "workload_id"), text(retrievalBody, "purpose"),
+        classification(retrievalBody), text(retrievalBody, "manifest_digest"),
+        text(retrievalBody, "query"), text(retrievalBody, "created_at"),
+        results(retrievalBody), bool(retrievalBody, "eligible"), text(retrievalBody, "reason"));
   }
 
   private String token(String tenantId, String environmentId, String audience, List<String> capabilities)

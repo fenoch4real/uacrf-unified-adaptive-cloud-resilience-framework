@@ -6,7 +6,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public final class RequesterIdentityProbe {
-  static final String CASE_DIGEST = "a".repeat(64);
+  static final String CASE_MATERIAL =
+      "{\"workload_id\":\"workload-1\",\"purpose\":\"assessment\",\"required_source_kinds\":[\"metrics\"]}";
+  static final String CASE_DIGEST = Sha256.hex(CASE_MATERIAL.getBytes(StandardCharsets.UTF_8));
   static final String MANIFEST_DIGEST = "b".repeat(64);
   static final String SOURCE_DIGEST = "c".repeat(64);
   static final String EXCERPT = "metrics";
@@ -34,8 +36,9 @@ public final class RequesterIdentityProbe {
         SourceReceiptConsistency.Classification.INTERNAL);
     var client = new RequesterSourceCheck(true, identity, owners, owners, true);
     var snapshot = client.check(token, "tenant-test", "environment-test", expected);
-    if (!snapshot.receipts().excerpts().equals(List.of(EXCERPT))) {
-      throw new IllegalStateException("The requester source check returned unexpected excerpts.");
+    if (!snapshot.receipts().excerpts().equals(List.of(EXCERPT))
+        || !CASE_MATERIAL.equals(snapshot.caseMaterial())) {
+      throw new IllegalStateException("The requester source check returned unexpected material.");
     }
     return snapshot.requester().id();
   }

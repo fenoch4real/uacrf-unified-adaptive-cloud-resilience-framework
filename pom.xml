@@ -34,6 +34,15 @@
     <module>sample-data</module>
   </modules>
 
+  <profiles>
+    <profile>
+      <id>advisory-cross-service-tests</id>
+      <modules>
+        <module>integration-tests/advisory</module>
+      </modules>
+    </profile>
+  </profiles>
+
   <properties>
     <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
