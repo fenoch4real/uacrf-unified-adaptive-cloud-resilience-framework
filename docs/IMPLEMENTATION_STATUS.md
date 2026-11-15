@@ -480,9 +480,41 @@ retains evidence events and decides qualification.
   or enforce model-request token and cost limits.
 - A standalone consistency check compares S07 case and S08 retrieval receipt
   fields, requiring the same case, workload, purpose and digests, verified
-  binding, current eligibility, and a nonempty bounded source list. It does not
-  fetch or authenticate receipts, verify source bytes, establish requester
-  authority, or gate journal admission; those integrations remain required.
+  binding, current eligibility, and a nonempty bounded source list. An unwired,
+  disabled-unless-enabled owner client can fetch the receipts using separate
+  injected S07/S08 delegations, with bounded responses, timeouts, no redirects,
+  and HTTPS (or explicitly enabled literal-loopback HTTP). It also fetches the
+  S08 retrieval excerpts and checks the response metadata and ordered results
+  against the receipt, including query, creation time, and ranking scores, then
+  verifies each excerpt's Unicode code-point length and UTF-8 SHA-256 digest.
+  S08 checks its retained manifest digest; S09 does not recompute that digest.
+  The client tests use only local fake owners. Receipt and
+  content reads are separate, not an atomic authorization or a guarantee of
+  future eligibility. An unwired, disabled-unless-enabled S01 delegation client
+  can request those narrow S07/S08 capabilities using an injected actor token;
+  it does not cache tokens and has only been exercised against a local fake S01.
+  An unwired, separately disabled client-credentials token provider can obtain
+  a service actor token using a configured OAuth endpoint and client secret,
+  with the same HTTPS/loopback, timeout, response-size, strict JSON and
+  no-redirect protections. The provider does not cache tokens; its tests use
+  a fake identity provider. Neither client establishes the requester's
+  authority or validates that the service principal has been admitted.
+  A separate unwired, disabled-unless-enabled requester
+  check asks S01 for current global grants using the requester's own token and
+  requires case/retrieval read plus the appropriate classification capability.
+  It does not cache access and cannot itself authorize an advisory operation,
+  prove access to specific source objects, or guarantee authority remains
+  current after the response. The S01 response contract and revocation refresh
+  have been tested separately; the advisory client uses a fake S01.
+  Real end-to-end S01/owner integration, advisory operation authorization,
+  full-source-byte verification and journal admission gating remain unimplemented.
+- A standalone content-addressed artifact value checks that an
+  `artifact:sha256:` reference, declared digest and retained bytes agree, and
+  copies the bytes defensively. This can support the model-configuration and
+  prompt references in the run contract; it is not wired to those inputs.
+  Digest equality does not establish artifact ownership, disclosure permission,
+  approval, provenance or current eligibility. Authorized artifact storage
+  and delivery remain unimplemented.
 - An unwired PostgreSQL dispatch-journal primitive commits an intent before
   returning success, prevents duplicate attempts per assignment, and retains
   immutable responses or unknown outcomes without usage. It retains up to 1 MiB

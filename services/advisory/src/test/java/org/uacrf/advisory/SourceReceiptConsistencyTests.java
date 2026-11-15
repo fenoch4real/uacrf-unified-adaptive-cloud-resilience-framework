@@ -25,14 +25,15 @@ class SourceReceiptConsistencyTests {
   private static SourceReceiptConsistency.ReceiptResult result(
       String digest, List<String> purposes, SourceReceiptConsistency.Classification classification) {
     return new SourceReceiptConsistency.ReceiptResult(
-        "item-1", "v1", 0, 0, 10, digest, "d".repeat(64), purposes, classification);
+        "item-1", "v1", 0, 0, 10, digest, "d".repeat(64), purposes, classification, 1);
   }
 
   private static SourceReceiptConsistency.RetrievalReceipt retrieval(
       String caseId, String binding, String caseDigest, String workload, String manifest,
       boolean eligible, String reason, List<SourceReceiptConsistency.ReceiptResult> results) {
     return new SourceReceiptConsistency.RetrievalReceipt("retrieval-1", "case-1", caseId, binding,
-        caseDigest, workload, "assessment", INTERNAL, manifest, results, eligible, reason);
+        caseDigest, workload, "assessment", INTERNAL, manifest, "metrics", "2026-01-01T00:00:00Z",
+        results, eligible, reason);
   }
 
   private static SourceReceiptConsistency.RetrievalReceipt goodRetrieval(
@@ -70,7 +71,8 @@ class SourceReceiptConsistencyTests {
     assertThrows(IllegalArgumentException.class,
         () -> SourceReceiptConsistency.check(EXPECTED, sourceCase("bad", "workload one"), goodRetrieval(results)));
     var wrongRequest = new SourceReceiptConsistency.RetrievalReceipt("retrieval-1", "other", "case-1", "VERIFIED",
-        CASE_DIGEST, "workload one", "assessment", INTERNAL, MANIFEST_DIGEST, results, true, "ELIGIBLE");
+        CASE_DIGEST, "workload one", "assessment", INTERNAL, MANIFEST_DIGEST, "metrics",
+        "2026-01-01T00:00:00Z", results, true, "ELIGIBLE");
     assertThrows(IllegalArgumentException.class,
         () -> SourceReceiptConsistency.check(EXPECTED, source, wrongRequest));
     var wrongClassification = new SourceReceiptConsistency.Expected(
@@ -98,7 +100,7 @@ class SourceReceiptConsistencyTests {
           () -> SourceReceiptConsistency.check(EXPECTED, source, goodRetrieval(results)));
     }
     var invalidOffsets = new SourceReceiptConsistency.ReceiptResult("item-1", "v1", 0, 3, 3,
-        "c".repeat(64), "d".repeat(64), List.of("assessment"), PUBLIC);
+        "c".repeat(64), "d".repeat(64), List.of("assessment"), PUBLIC, 1);
     assertThrows(IllegalArgumentException.class,
         () -> SourceReceiptConsistency.check(EXPECTED, source, goodRetrieval(List.of(invalidOffsets))));
   }

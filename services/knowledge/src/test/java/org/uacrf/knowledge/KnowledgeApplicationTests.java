@@ -40,6 +40,7 @@ import org.uacrf.security.DelegationTokenIssuer;
 import org.uacrf.knowledge.KnowledgeRequests.Classification;
 import org.uacrf.knowledge.KnowledgeRequests.ReceiptRequest;
 import org.uacrf.knowledge.KnowledgeRequests.RunRetrieval;
+import org.uacrf.knowledge.KnowledgeResponses.ReceiptResult;
 import org.uacrf.knowledge.KnowledgeResponses.Retrieval;
 import org.uacrf.knowledge.KnowledgeResponses.RetrievalReceipt;
 import org.uacrf.knowledge.KnowledgeResponses.RetrievalResult;
@@ -526,6 +527,11 @@ class KnowledgeApplicationTests {
       assertEquals("ELIGIBLE", eligible.reason());
       assertEquals(caseDigest, eligible.caseDigest());
       assertEquals("workload-a", eligible.workloadId());
+      Retrieval currentContent = service.getRetrieval(actor, retrievalId);
+      assertEquals(eligible.query(), currentContent.query());
+      assertEquals(eligible.createdAt(), currentContent.createdAt());
+      assertThat(eligible.results()).extracting(ReceiptResult::score)
+          .containsExactlyElementsOf(currentContent.results().stream().map(RetrievalResult::score).toList());
       assertEquals(1, tokenCalls.get());
       assertEquals(1, delegationCalls.get());
       assertThat(delegationRequest.get())

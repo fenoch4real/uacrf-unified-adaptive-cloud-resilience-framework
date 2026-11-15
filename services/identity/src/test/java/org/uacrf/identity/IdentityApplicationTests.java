@@ -182,6 +182,33 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void currentGlobalAccessReflectsSourceGrantRevocation() throws Exception {
+    UUID grant = UUID.randomUUID();
+    try {
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+              + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', "
+              + "'admin-test', 'assessment.case.read', '*', '2099-12-31T23:59:59Z', 1)",
+          grant);
+      String path = "/v1/me/access?tenant_id=tenant-test&environment_id=environment-test";
+      String actor = tokenWithoutContext("keycloak-subject-1");
+      HttpResponse<String> access = get(path, actor);
+      assertEquals(200, access.statusCode());
+      assertThat(access.body()).contains(
+          "\"principal_id\":\"admin-test\"", "\"kind\":\"HUMAN\"", "\"service_id\":null",
+          "\"scope\":\"GLOBAL_GRANTS_ONLY\"", "\"assessment.case.read\"");
+
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", grant);
+      HttpResponse<String> revoked = get(path, actor);
+      assertEquals(200, revoked.statusCode());
+      assertThat(revoked.body()).doesNotContain("\"assessment.case.read\"");
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE id = ?", grant);
+    }
+  }
+
+  @Test
   void returnsOnlyCurrentScopedAccessAndEligibleOwnerCandidates() throws Exception {
     seedScopedMemberships();
     HttpResponse<String> access =

@@ -25,7 +25,7 @@ final class SourceReceiptConsistency {
 
   record ReceiptResult(String itemId, String version, int chunkIndex, int startOffset, int endOffset,
                        String sourceDigest, String excerptDigest, List<String> allowedPurposes,
-                       Classification classification) {
+                       Classification classification, int score) {
     ReceiptResult {
       allowedPurposes = copyOrNull(allowedPurposes);
     }
@@ -33,7 +33,8 @@ final class SourceReceiptConsistency {
 
   record RetrievalReceipt(String retrievalId, String requestedCaseId, String caseId, String caseBinding,
                           String caseDigest, String workloadId, String purpose, Classification classification,
-                          String manifestDigest, List<ReceiptResult> results, boolean eligible, String reason) {
+                          String manifestDigest, String query, String createdAt,
+                          List<ReceiptResult> results, boolean eligible, String reason) {
     RetrievalReceipt {
       results = copyOrNull(results);
     }
@@ -41,17 +42,9 @@ final class SourceReceiptConsistency {
 
   // Consistency does not authenticate receipts or establish current requester authority.
   static void check(Expected expected, CaseReceipt sourceCase, RetrievalReceipt retrieval) {
-    if (expected == null || sourceCase == null || retrieval == null
-        || !id(expected.caseId(), 200) || !id(expected.retrievalId(), 200)
-        || !digest(expected.manifestDigest()) || !text(expected.purpose(), 200)
-        || expected.classification() == null) {
+    checkCase(expected, sourceCase);
+    if (retrieval == null) {
       throw new IllegalArgumentException("Invalid expected advisory sources or missing receipts.");
-    }
-    if (!expected.caseId().equals(sourceCase.caseId())
-        || !expected.purpose().equals(sourceCase.purpose())
-        || !digest(sourceCase.caseDigest()) || !text(sourceCase.workloadId(), 200)
-        || !validTexts(sourceCase.requiredSourceKinds(), 100)) {
-      throw new IllegalArgumentException("Assessment receipt does not match the expected case.");
     }
     if (!expected.retrievalId().equals(retrieval.retrievalId())
         || !expected.caseId().equals(retrieval.requestedCaseId())
@@ -62,6 +55,7 @@ final class SourceReceiptConsistency {
         || !expected.purpose().equals(retrieval.purpose())
         || expected.classification() != retrieval.classification()
         || !expected.manifestDigest().equals(retrieval.manifestDigest())
+        || !text(retrieval.query(), 2000) || !validInstant(retrieval.createdAt())
         || !retrieval.eligible() || !"ELIGIBLE".equals(retrieval.reason())) {
       throw new IllegalArgumentException("Retrieval receipt does not match the expected case and manifest.");
     }
@@ -79,9 +73,28 @@ final class SourceReceiptConsistency {
           || !result.allowedPurposes().contains(expected.purpose())
           || result.classification() == null
           || result.classification().ordinal() > expected.classification().ordinal()
+          || result.score() < 1
           || !chunks.add(new ChunkKey(result.itemId(), result.version(), result.chunkIndex()))) {
         throw new IllegalArgumentException("Retrieval receipt contains invalid or ineligible source metadata.");
       }
+    }
+  }
+
+  static void checkCase(Expected expected, CaseReceipt sourceCase) {
+    validateExpected(expected);
+    if (sourceCase == null || !expected.caseId().equals(sourceCase.caseId())
+        || !expected.purpose().equals(sourceCase.purpose())
+        || !digest(sourceCase.caseDigest()) || !text(sourceCase.workloadId(), 200)
+        || !validTexts(sourceCase.requiredSourceKinds(), 100)) {
+      throw new IllegalArgumentException("Assessment receipt does not match the expected case.");
+    }
+  }
+
+  static void validateExpected(Expected expected) {
+    if (expected == null || !id(expected.caseId(), 200) || !id(expected.retrievalId(), 200)
+        || !digest(expected.manifestDigest()) || !text(expected.purpose(), 200)
+        || expected.classification() == null) {
+      throw new IllegalArgumentException("Invalid expected advisory sources.");
     }
   }
 
@@ -109,6 +122,15 @@ final class SourceReceiptConsistency {
 
   private static boolean digest(String value) {
     return value != null && value.matches("[0-9a-f]{64}");
+  }
+
+  private static boolean validInstant(String value) {
+    if (value == null || value.length() > 40) return false;
+    try {
+      return java.time.Instant.parse(value).toString().equals(value);
+    } catch (java.time.format.DateTimeParseException failure) {
+      return false;
+    }
   }
 
   private static <T> List<T> copyOrNull(List<T> values) {
