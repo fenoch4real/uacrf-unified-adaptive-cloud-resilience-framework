@@ -17,10 +17,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class RequesterSourceAccessClientTests {
+class RequesterAccessClientTests {
   private static final String PUBLIC_ACCESS = """
       {"principal_id":"human-1","display_name":"User","kind":"HUMAN","service_id":null,
-       "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["assessment.case.read","knowledge.retrieval.read"]}
+       "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read"]}
       """;
   private HttpServer server;
   private URI base;
@@ -52,8 +52,8 @@ class RequesterSourceAccessClientTests {
     server.stop(0);
   }
 
-  private RequesterSourceAccessClient client(boolean enabled) {
-    return new RequesterSourceAccessClient(enabled, base, true);
+  private RequesterAccessClient client(boolean enabled) {
+    return new RequesterAccessClient(enabled, base, true);
   }
 
   @Test
@@ -80,6 +80,15 @@ class RequesterSourceAccessClientTests {
     body.set(PUBLIC_ACCESS.replace("\"assessment.case.read\",", ""));
     assertThrows(IOException.class, () -> client.check("requester-token", "tenant-1", "env-1", PUBLIC));
     assertEquals(6, calls.get());
+  }
+
+  @Test
+  void rejectsMissingRunGrantAndNonHumanRequesters() {
+    var client = client(true);
+    body.set(PUBLIC_ACCESS.replace("\"advisory.run.create\",", ""));
+    assertThrows(IOException.class, () -> client.check("requester-token", "tenant-1", "env-1", PUBLIC));
+    body.set(PUBLIC_ACCESS.replace("\"kind\":\"HUMAN\"", "\"kind\":\"SYSTEM\""));
+    assertThrows(IOException.class, () -> client.check("requester-token", "tenant-1", "env-1", PUBLIC));
   }
 
   @Test

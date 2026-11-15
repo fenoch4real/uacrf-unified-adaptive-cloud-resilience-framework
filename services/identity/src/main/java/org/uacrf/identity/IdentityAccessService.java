@@ -73,6 +73,7 @@ class IdentityAccessService {
           "knowledge.item.withdraw",
           "knowledge.classification.internal.read",
           "knowledge.classification.restricted.read",
+          "advisory.run.create",
           "owner.eligible",
           "runtime.principal.use");
   private static final Duration GRANT_DECISION_TTL = Duration.ofMinutes(15);
@@ -117,6 +118,9 @@ class IdentityAccessService {
     }
     if (requestedCapabilities.contains("knowledge.item.review") && !"HUMAN".equals(actor.kind())) {
       throw denied("Knowledge review delegations are only available to human principals.");
+    }
+    if (requestedCapabilities.contains("advisory.run.create") && !"HUMAN".equals(actor.kind())) {
+      throw denied("Advisory run creation is only available to human principals.");
     }
     for (String capability : requestedCapabilities) {
       if (!hasCapability(actor, capability, request.serviceId())) {
@@ -1146,6 +1150,9 @@ class IdentityAccessService {
     if ("owner.eligible".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "owner.eligible is environment-local and uses scope *.");
     }
+    if ("advisory.run.create".equals(capability) && !"*".equals(serviceScope)) {
+      throw unprocessable("INVALID_SCOPE", "advisory.run.create requires global scope.");
+    }
     Instant now = Instant.now();
     if (!expiresAt.isAfter(now) || expiresAt.isAfter(now.plus(MAX_GRANT_LIFETIME))) {
       throw unprocessable("EXPIRY_OUT_OF_BOUNDS", "expires_at must be in the future and bounded.");
@@ -1168,7 +1175,7 @@ class IdentityAccessService {
         switch (capability) {
           case "owner.eligible" -> "HUMAN".equals(kind);
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
-          case "knowledge.item.review" -> "HUMAN".equals(kind);
+          case "knowledge.item.review", "advisory.run.create" -> "HUMAN".equals(kind);
           default -> "HUMAN".equals(kind) || "SYSTEM".equals(kind);
         };
     if (!allowed) {

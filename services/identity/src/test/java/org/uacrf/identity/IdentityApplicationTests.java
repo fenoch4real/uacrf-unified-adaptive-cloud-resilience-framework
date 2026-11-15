@@ -2,6 +2,7 @@ package org.uacrf.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import java.net.URI;
@@ -47,6 +48,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.uacrf.advisory.RequesterIdentityProbe;
+import org.uacrf.advisory.SignedRequesterOwners;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -73,6 +76,11 @@ class IdentityApplicationTests {
 
   @DynamicPropertySource
   static void databaseProperties(DynamicPropertyRegistry properties) {
+    // The test-only advisory dependency also contains Flyway migrations.
+    properties.add("spring.flyway.locations", () -> "filesystem:"
+        + java.nio.file.Path.of(URI.create(
+            IdentityApplication.class.getProtectionDomain().getCodeSource().getLocation().toString()))
+            .resolve("db/migration"));
     properties.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     properties.add("spring.datasource.username", POSTGRES::getUsername);
     properties.add("spring.datasource.password", POSTGRES::getPassword);
@@ -205,6 +213,125 @@ class IdentityApplicationTests {
       assertThat(revoked.body()).doesNotContain("\"assessment.case.read\"");
     } finally {
       jdbc.update("DELETE FROM uacrf_identity.membership WHERE id = ?", grant);
+    }
+  }
+
+  @Test
+  void advisoryRunGrantRequiresIndependentApprovalHumanAndGlobalScope() throws Exception {
+    String context = "?tenant_id=tenant-test&environment_id=environment-test";
+    String expiresAt = Instant.now().plusSeconds(30L * 86400)
+        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+    String membershipId = "00000000-0000-4000-8000-000000000221";
+    String decisionId = "advisory-test-decision";
+    try {
+      seedGrantParticipant("advisory-test-human", "assessment.case.read", "knowledge.retrieval.read",
+          "knowledge.classification.restricted.read");
+      jdbc.update(
+          "INSERT INTO uacrf_identity.principal "
+              + "(id, issuer_uri, subject, display_name, kind, enabled, token_valid_after, revision) "
+              + "VALUES ('advisory-test-system', ?, 'advisory-test-system-subject', "
+              + "'Advisory test system', 'SYSTEM', true, now() - interval '1 minute', 1), "
+              + "('advisory-test-agent', ?, 'advisory-test-agent-subject', "
+              + "'Advisory test agent', 'AGENT', true, now() - interval '1 minute', 1)",
+          ISSUER, ISSUER);
+      String approver = token("keycloak-subject-approver");
+      String admin = token("keycloak-subject-1");
+      String actor = token("advisory-test-human-subject");
+      String actorToken = actor.substring("Bearer ".length());
+      URI identity = URI.create("http://127.0.0.1:" + port);
+      String path = "/v1/me/access" + context;
+      assertThat(get(path, actor).body()).doesNotContain("\"advisory.run.create\"");
+      assertThat(get(path, admin).body()).doesNotContain("\"advisory.run.create\"");
+      assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.check(identity, actorToken, "PUBLIC"));
+
+      String scoped = decisionBody("advisory-test-scoped", "advisory-test-human",
+          "advisory.run.create", expiresAt).replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"");
+      assertEquals(422, post("/v1/grant-decisions" + context, approver, scoped).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("advisory-test-system-decision", "advisory-test-system",
+              "advisory.run.create", expiresAt)).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("advisory-test-agent-decision", "advisory-test-agent",
+              "advisory.run.create", expiresAt)).statusCode());
+      assertEquals(403, post("/v1/grant-decisions" + context, approver,
+          decisionBody("advisory-test-self", "bootstrap-approver",
+              "advisory.run.create", expiresAt)).statusCode());
+      String create = membershipBody(membershipId, "advisory-test-human",
+          "advisory.run.create", expiresAt, decisionId);
+      assertEquals(403, post("/v1/memberships" + context, admin, create, "advisory-grant-forged").statusCode());
+      assertEquals(201, post("/v1/grant-decisions" + context, approver,
+          decisionBody(decisionId, "advisory-test-human", "advisory.run.create", expiresAt)).statusCode());
+      assertEquals(403, post("/v1/memberships" + context, approver, create, "advisory-grant-approver").statusCode());
+      assertEquals(201, post("/v1/memberships" + context, admin, create, "advisory-grant-create").statusCode());
+      assertThat(get(path, actor).body()).contains("\"advisory.run.create\"");
+      for (String classification : List.of("PUBLIC", "INTERNAL", "RESTRICTED")) {
+        assertEquals("advisory-test-human", RequesterIdentityProbe.check(identity, actorToken, classification));
+      }
+      String delegation = RequesterIdentityProbe.delegate(identity, actorToken, "S08",
+          List.of("knowledge.retrieval.read", "knowledge.classification.restricted.read"));
+      NimbusJwtDecoder delegationDecoder =
+          NimbusJwtDecoder.withPublicKey((RSAPublicKey) DELEGATION_KEY_PAIR.getPublic())
+              .signatureAlgorithm(SignatureAlgorithm.RS256).build();
+      Jwt delegated = delegationDecoder.decode(delegation);
+      assertThat(delegated.getIssuer().toString()).isEqualTo("https://uacrf.local/s01");
+      assertThat(delegated.getHeaders().get("kid")).isEqualTo(DELEGATION_KEY_ID);
+      assertThat(delegated.getAudience()).containsExactly("S08");
+      assertThat(delegated.getSubject()).isEqualTo("advisory-test-human");
+      assertThat(delegated.getClaimAsString("tenant_id")).isEqualTo("tenant-test");
+      assertThat(delegated.getClaimAsString("environment_id")).isEqualTo("environment-test");
+      assertThat(delegated.getClaimAsString("service_scope")).isEqualTo("*");
+      assertThat(delegated.getClaimAsStringList("capabilities"))
+          .containsExactly("knowledge.retrieval.read", "knowledge.classification.restricted.read");
+      Jwt caseDelegation = delegationDecoder.decode(RequesterIdentityProbe.delegate(
+          identity, actorToken, "S07", List.of("assessment.case.read")));
+      assertThat(caseDelegation.getAudience()).containsExactly("S07");
+      assertThat(caseDelegation.getSubject()).isEqualTo("advisory-test-human");
+      assertThat(caseDelegation.getClaimAsStringList("capabilities")).containsExactly("assessment.case.read");
+      assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.delegate(identity, actorToken, "S08",
+          List.of("knowledge.retrieval.read", "knowledge.classification.internal.read")));
+      try (var owners = new SignedRequesterOwners((RSAPublicKey) DELEGATION_KEY_PAIR.getPublic(), DELEGATION_KEY_ID)) {
+        URI caseReceipt = owners.base().resolve("/internal/v1/cases/case-1:receipt");
+        for (String invalidAuthorization : List.of("Bearer " + delegation, actor)) {
+          HttpRequest invalidRequest = HttpRequest.newBuilder(caseReceipt)
+              .header("Authorization", invalidAuthorization)
+              .POST(HttpRequest.BodyPublishers.ofString("{}")).build();
+          assertEquals(403, http.send(invalidRequest, HttpResponse.BodyHandlers.ofString()).statusCode());
+        }
+        assertEquals("advisory-test-human", RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
+        assertEquals(3, owners.caseCalls());
+        assertEquals(1, owners.receiptCalls());
+        assertEquals(1, owners.contentCalls());
+        assertEquals(200, post("/v1/memberships/" + membershipId + ":revoke" + context, admin,
+            "{\"expected_revision\":1,\"reason\":\"End advisory access\"}", "advisory-grant-revoke").statusCode());
+        assertThat(get(path, actor).body()).doesNotContain("\"advisory.run.create\"");
+        assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.check(identity, actorToken, "PUBLIC"));
+        assertThrows(java.io.IOException.class,
+            () -> RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
+        assertEquals(3, owners.caseCalls());
+        assertEquals(1, owners.receiptCalls());
+        assertEquals(1, owners.contentCalls());
+      }
+      UUID retrievalGrant = jdbc.queryForObject(
+          "SELECT id FROM uacrf_identity.membership WHERE principal_id = 'advisory-test-human' "
+              + "AND capability = 'knowledge.retrieval.read'", UUID.class);
+      assertEquals(200, post("/v1/memberships/" + retrievalGrant + ":revoke" + context, admin,
+          "{\"expected_revision\":1,\"reason\":\"End retrieval access\"}", "advisory-grant-source-revoke").statusCode());
+      assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.check(identity, actorToken, "PUBLIC"));
+      assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.delegate(identity, actorToken, "S08",
+          List.of("knowledge.retrieval.read", "knowledge.classification.restricted.read")));
+    } finally {
+      jdbc.update("UPDATE uacrf_identity.grant_decision SET consumed_at = NULL, consumed_membership_id = NULL "
+          + "WHERE id = ?", decisionId);
+      jdbc.update("DELETE FROM uacrf_identity.audit_event WHERE principal_id = 'advisory-test-human'");
+      jdbc.update("DELETE FROM uacrf_identity.outbox_event WHERE aggregate_id IN "
+          + "(SELECT id::text FROM uacrf_identity.membership WHERE principal_id = 'advisory-test-human')");
+      jdbc.update("DELETE FROM uacrf_identity.idempotency_record WHERE idempotency_key IN "
+          + "('advisory-grant-forged', 'advisory-grant-approver', 'advisory-grant-create', "
+          + "'advisory-grant-source-revoke', 'advisory-grant-revoke')");
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id = 'advisory-test-human'");
+      jdbc.update("DELETE FROM uacrf_identity.grant_decision WHERE id = ?", decisionId);
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id IN "
+          + "('advisory-test-human', 'advisory-test-system', 'advisory-test-agent')");
     }
   }
 

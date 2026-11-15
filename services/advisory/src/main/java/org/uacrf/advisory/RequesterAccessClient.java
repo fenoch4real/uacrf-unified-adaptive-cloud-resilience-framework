@@ -9,23 +9,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-final class RequesterSourceAccessClient {
+final class RequesterAccessClient {
   private final boolean enabled;
   private final URI identityBase;
   private final InternalJsonClient http = new InternalJsonClient();
 
-  record Principal(String id, String kind) {}
+  record Principal(String id, String kind, Set<String> capabilities) {
+    Principal {
+      capabilities = Set.copyOf(capabilities);
+    }
+  }
 
-  RequesterSourceAccessClient(boolean enabled, URI identityBase, boolean allowLoopbackHttp) {
+  RequesterAccessClient(boolean enabled, URI identityBase, boolean allowLoopbackHttp) {
     this.enabled = enabled;
     this.identityBase = InternalJsonClient.validateBase(identityBase, allowLoopbackHttp);
   }
 
-  // These source capabilities alone do not authorize an advisory operation.
+  // This is a prerequisite snapshot, not an admission or source-disclosure decision.
   Principal check(String actorToken, String tenantId, String environmentId,
                   SourceReceiptConsistency.Classification classification) throws IOException, InterruptedException {
     if (!enabled) {
-      throw new IllegalStateException("Requester source access checking is disabled.");
+      throw new IllegalStateException("Requester access checking is disabled.");
     }
     InternalJsonClient.requireId(tenantId);
     InternalJsonClient.requireId(environmentId);
@@ -35,7 +39,7 @@ final class RequesterSourceAccessClient {
     Map<?, ?> body = http.get(uri, actorToken);
     if (!(body.get("principal_id") instanceof String principalId)
         || !(body.get("kind") instanceof String kind)
-        || !("HUMAN".equals(kind) || "SYSTEM".equals(kind))
+        || !"HUMAN".equals(kind)
         || !"GLOBAL_GRANTS_ONLY".equals(body.get("scope"))
         || !body.containsKey("service_id") || body.get("service_id") != null
         || !(body.get("capability_ids") instanceof List<?> values)) {
@@ -53,16 +57,17 @@ final class RequesterSourceAccessClient {
         throw new IOException("S01 returned invalid requester access.");
       }
     }
-    if (!capabilities.contains("assessment.case.read")
+    if (!capabilities.contains("advisory.run.create")
+        || !capabilities.contains("assessment.case.read")
         || !capabilities.contains("knowledge.retrieval.read")
         || (classification == SourceReceiptConsistency.Classification.INTERNAL
             && !capabilities.contains("knowledge.classification.internal.read")
             && !capabilities.contains("knowledge.classification.restricted.read"))
         || (classification == SourceReceiptConsistency.Classification.RESTRICTED
             && !capabilities.contains("knowledge.classification.restricted.read"))) {
-      throw new IOException("Requester lacks required source access capabilities.");
+      throw new IOException("Requester lacks required advisory or source access capabilities.");
     }
-    return new Principal(principalId, kind);
+    return new Principal(principalId, kind, capabilities);
   }
 
   private static String encode(String value) {

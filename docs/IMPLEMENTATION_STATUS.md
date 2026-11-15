@@ -492,29 +492,47 @@ retains evidence events and decides qualification.
   content reads are separate, not an atomic authorization or a guarantee of
   future eligibility. An unwired, disabled-unless-enabled S01 delegation client
   can request those narrow S07/S08 capabilities using an injected actor token;
-  it does not cache tokens and has only been exercised against a local fake S01.
+  it does not cache tokens. It has been exercised against a local fake S01 and
+  against a real S01 test instance for requester delegations.
   An unwired, separately disabled client-credentials token provider can obtain
   a service actor token using a configured OAuth endpoint and client secret,
   with the same HTTPS/loopback, timeout, response-size, strict JSON and
   no-redirect protections. The provider does not cache tokens; its tests use
   a fake identity provider. Neither client establishes the requester's
   authority or validates that the service principal has been admitted.
-  A separate unwired, disabled-unless-enabled requester
-  check asks S01 for current global grants using the requester's own token and
-  requires case/retrieval read plus the appropriate classification capability.
-  It does not cache access and cannot itself authorize an advisory operation,
-  prove access to specific source objects, or guarantee authority remains
-  current after the response. The S01 response contract and revocation refresh
-  have been tested separately; the advisory client uses a fake S01.
-  Real end-to-end S01/owner integration, advisory operation authorization,
-  full-source-byte verification and journal admission gating remain unimplemented.
+  A separate unwired, disabled-unless-enabled requester check asks S01 for
+  current global grants using the requester's own token. It requires a human
+  principal with `advisory.run.create`, case/retrieval read and the appropriate
+  classification capability. S01 permits the new run-creation grant only for
+  humans and global scope, through the existing independent grant process; no
+  grant is assigned automatically. The check does not cache access and cannot
+  itself admit a run, prove access to specific source objects, or guarantee
+  authority remains current after the response. S01's grant and revocation
+  behavior is tested against a real S01 instance using the advisory requester
+  client, including current-grant checks and revocation. S01's tests use a
+  test-only advisory dependency; the runtime artifact remains separate.
+  An unwired requester-source check combines that snapshot with S07 and S08
+  receipt and excerpt reads using fresh S01 delegations obtained with the same
+  requester token, rather than a service actor. It requests a restricted
+  classification delegation for an internal retrieval when that is the
+  requester's applicable grant. The combined flow has also been tested against
+  a real S01 instance and simulated owners that validate its signed requester
+  delegations. It does not prove full case disclosure, authorize
+  artifact access, or guarantee continuing requester authority or source
+  eligibility. It does not authorize journal admission or provider dispatch.
+  Real end-to-end S01/owner integration, operation authorization at the run
+  boundary and journal admission gating remain unimplemented.
 - A standalone content-addressed artifact value checks that an
   `artifact:sha256:` reference, declared digest and retained bytes agree, and
   copies the bytes defensively. This can support the model-configuration and
   prompt references in the run contract; it is not wired to those inputs.
   Digest equality does not establish artifact ownership, disclosure permission,
-  approval, provenance or current eligibility. Authorized artifact storage
-  and delivery remain unimplemented.
+  approval, provenance or current eligibility. An unwired knowledge-source
+  verifier checks bounded UTF-8 artifact bytes against an S08 source digest,
+  verifies the S08 code-point chunk locator and matches the exact excerpt and
+  its digest. It does not obtain source bytes or verify their authorization,
+  and it does not verify case graph, policy or evidence artifacts. Authorized
+  artifact storage and end-to-end full-source verification remain unimplemented.
 - An unwired PostgreSQL dispatch-journal primitive commits an intent before
   returning success, prevents duplicate attempts per assignment, and retains
   immutable responses or unknown outcomes without usage. It retains up to 1 MiB

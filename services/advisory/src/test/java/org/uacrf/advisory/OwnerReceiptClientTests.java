@@ -13,6 +13,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,6 +35,11 @@ class OwnerReceiptClientTests {
       {"case_id":"case-1","purpose":"assessment","case_digest":"%s",
        "workload_id":"workload-1","required_source_kinds":["metrics"]}
       """.formatted(CASE_DIGEST);
+  private static final String REQUESTER_ACCESS = """
+      {"principal_id":"human-1","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
+       "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
+       "knowledge.classification.internal.read"]}
+      """;
   private static final String RETRIEVAL_BODY = """
       {"retrieval_id":"retrieval-1","requested_case_id":"case-1","case_id":"case-1",
        "case_binding":"VERIFIED","case_digest":"%s","workload_id":"workload-1","purpose":"assessment",
@@ -64,6 +70,12 @@ class OwnerReceiptClientTests {
   private final AtomicInteger contentCalls = new AtomicInteger();
   private final AtomicInteger identityCalls = new AtomicInteger();
   private final AtomicInteger actorTokenCalls = new AtomicInteger();
+  private final AtomicInteger requesterAccessCalls = new AtomicInteger();
+  private final AtomicReference<Reply> requesterReply = new AtomicReference<>(new Reply(200, REQUESTER_ACCESS));
+  private final AtomicReference<Reply> knowledgeDelegationFailure = new AtomicReference<>();
+  private final List<String> identityAuthorizations = new CopyOnWriteArrayList<>();
+  private final List<String> identityRequests = new CopyOnWriteArrayList<>();
+  private final AtomicReference<String> requesterAuthorization = new AtomicReference<>();
   private final AtomicReference<CountDownLatch> blockedBody = new AtomicReference<>();
   private final List<String> tokenRequests = new ArrayList<>();
 
@@ -107,14 +119,26 @@ class OwnerReceiptClientTests {
     server.createContext("/internal/v1/delegations", exchange -> {
       identityCalls.incrementAndGet();
       String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-      if (!"Bearer actor-token".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+      identityAuthorizations.add(authorization);
+      identityRequests.add(request);
+      if (!"Bearer actor-token".equals(authorization) && !"Bearer requester-token".equals(authorization)) {
         respond(exchange, new Reply(403, "{}"));
+        return;
+      }
+      if (request.contains("\"S08\"") && knowledgeDelegationFailure.get() != null) {
+        respond(exchange, knowledgeDelegationFailure.get());
         return;
       }
       String token = request.contains("\"S07\"") ? "test-token-S07" : "test-token-S08";
       respond(exchange, new Reply(200, """
           {"access_token":"%s","token_type":"Bearer","expires_in":30}
           """.formatted(token)));
+    });
+    server.createContext("/v1/me/access", exchange -> {
+      requesterAccessCalls.incrementAndGet();
+      requesterAuthorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+      respond(exchange, requesterReply.get());
     });
     server.createContext("/oauth/token", exchange -> {
       actorTokenCalls.incrementAndGet();
@@ -184,6 +208,100 @@ class OwnerReceiptClientTests {
     assertEquals("Bearer test-token-S07", caseAuthorization.get());
     assertEquals("Bearer test-token-S08", retrievalAuthorization.get());
     assertEquals("Bearer test-token-S08", contentAuthorization.get());
+  }
+
+  @Test
+  void checksRequesterAccessThenUsesThatSameRequesterForBothOwners() throws Exception {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    var snapshot = verifier.check("requester-token", "tenant-1", "env-1", EXPECTED);
+    assertEquals("human-1", snapshot.requester().id());
+    assertEquals(List.of(EXCERPT), snapshot.receipts().excerpts());
+    assertThrows(UnsupportedOperationException.class, () -> snapshot.requester().capabilities().clear());
+    assertEquals("Bearer requester-token", requesterAuthorization.get());
+    assertEquals(List.of("Bearer requester-token", "Bearer requester-token"), identityAuthorizations);
+    assertTrue(identityRequests.get(0).contains("\"assessment.case.read\""));
+    assertTrue(identityRequests.get(1).contains("\"knowledge.classification.internal.read\""));
+    assertEquals("Bearer test-token-S07", caseAuthorization.get());
+    assertEquals("Bearer test-token-S08", retrievalAuthorization.get());
+    assertEquals(0, actorTokenCalls.get());
+  }
+
+  @Test
+  void acceptsRestrictedGrantForInternalSourceByRequestingThatGrantFromS01() throws Exception {
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace(
+        "knowledge.classification.internal.read", "knowledge.classification.restricted.read")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    assertEquals(List.of(EXCERPT), verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)
+        .receipts().excerpts());
+    assertTrue(identityRequests.get(1).contains("\"knowledge.classification.restricted.read\""));
+    assertFalse(identityRequests.get(1).contains("\"knowledge.classification.internal.read\""));
+  }
+
+  @Test
+  void checksPublicAndRestrictedSourcesWithOnlyTheirRequiredDelegations() throws Exception {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    var publicExpected = new SourceReceiptConsistency.Expected(
+        "case-1", "retrieval-1", MANIFEST_DIGEST, "assessment", SourceReceiptConsistency.Classification.PUBLIC);
+    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"classification\":\"INTERNAL\"",
+        "\"classification\":\"PUBLIC\"")));
+    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
+        "\"max_classification\":\"PUBLIC\"")));
+    verifier.check("requester-token", "tenant-1", "env-1", publicExpected);
+    assertFalse(identityRequests.get(1).contains("knowledge.classification."));
+
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace(
+        "knowledge.classification.internal.read", "knowledge.classification.restricted.read")));
+    var restrictedExpected = new SourceReceiptConsistency.Expected(
+        "case-1", "retrieval-1", MANIFEST_DIGEST, "assessment", SourceReceiptConsistency.Classification.RESTRICTED);
+    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"classification\":\"INTERNAL\"",
+        "\"classification\":\"RESTRICTED\"")));
+    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
+        "\"max_classification\":\"RESTRICTED\"")));
+    verifier.check("requester-token", "tenant-1", "env-1", restrictedExpected);
+    assertTrue(identityRequests.get(3).contains("\"knowledge.classification.restricted.read\""));
+  }
+
+  @Test
+  void requesterGrantIsRecheckedForEveryCall() throws Exception {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    verifier.check("requester-token", "tenant-1", "env-1", EXPECTED);
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(2, identityCalls.get());
+    assertEquals(1, caseCalls.get());
+    assertEquals(1, retrievalCalls.get());
+  }
+
+  @Test
+  void requesterCheckFailsClosedOnDisabledMissingOrRevokedAccess() {
+    var disabled = new RequesterSourceCheck(false, base, base, base, true);
+    assertThrows(IllegalStateException.class, () -> disabled.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(0, requesterAccessCalls.get());
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(0, identityCalls.get());
+    assertEquals(0, caseCalls.get());
+
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS));
+    knowledgeDelegationFailure.set(new Reply(403, "{}"));
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(1, caseCalls.get());
+    assertEquals(0, retrievalCalls.get());
+    assertEquals(0, contentCalls.get());
+    assertEquals(0, actorTokenCalls.get());
+  }
+
+  @Test
+  void requesterCheckStopsWhenOwnerRefusesTheDelegation() {
+    caseReply.set(new Reply(403, "{}"));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    assertEquals(1, identityCalls.get());
+    assertEquals(1, caseCalls.get());
+    assertEquals(0, retrievalCalls.get());
+    assertEquals(0, contentCalls.get());
   }
 
   @Test
