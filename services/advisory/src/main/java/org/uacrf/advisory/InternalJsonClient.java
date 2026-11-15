@@ -25,6 +25,8 @@ import tools.jackson.databind.json.JsonMapper;
 final class InternalJsonClient {
   private static final Duration TIMEOUT = Duration.ofSeconds(2);
   private static final int MAX_RESPONSE_BYTES = 512 * 1024;
+  private final long startedNanos = System.nanoTime();
+  private final long budgetNanos;
   private final HttpClient http = HttpClient.newBuilder()
       .connectTimeout(TIMEOUT).followRedirects(HttpClient.Redirect.NEVER).build();
   private final ObjectMapper json = JsonMapper.builder()
@@ -32,8 +34,19 @@ final class InternalJsonClient {
       .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
       .build();
 
+  InternalJsonClient() {
+    budgetNanos = 0;
+  }
+
+  InternalJsonClient(Duration budget) {
+    if (budget == null || budget.isZero() || budget.isNegative() || budget.compareTo(Duration.ofMinutes(1)) > 0) {
+      throw new IllegalArgumentException("Invalid internal request budget.");
+    }
+    budgetNanos = budget.toNanos();
+  }
+
   Map<?, ?> post(URI uri, String token, Map<String, ?> request) throws IOException, InterruptedException {
-    HttpRequest httpRequest = HttpRequest.newBuilder(uri).timeout(TIMEOUT)
+    HttpRequest httpRequest = HttpRequest.newBuilder(uri).timeout(requestTimeout())
         .header("Authorization", "Bearer " + requireToken(token))
         .header("Content-Type", "application/json")
         .POST(HttpRequest.BodyPublishers.ofByteArray(json.writeValueAsBytes(request))).build();
@@ -41,7 +54,7 @@ final class InternalJsonClient {
   }
 
   Map<?, ?> get(URI uri, String token) throws IOException, InterruptedException {
-    return send(HttpRequest.newBuilder(uri).timeout(TIMEOUT)
+    return send(HttpRequest.newBuilder(uri).timeout(requestTimeout())
         .header("Authorization", "Bearer " + requireToken(token)).GET().build());
   }
 
@@ -50,7 +63,7 @@ final class InternalJsonClient {
         .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
             + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
         .collect(Collectors.joining("&"));
-    return send(HttpRequest.newBuilder(uri).timeout(TIMEOUT)
+    return send(HttpRequest.newBuilder(uri).timeout(requestTimeout())
         .header("Content-Type", "application/x-www-form-urlencoded")
         .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build());
   }
@@ -90,10 +103,11 @@ final class InternalJsonClient {
   }
 
   private Map<?, ?> send(HttpRequest request) throws IOException, InterruptedException {
+    Duration timeout = requestTimeout();
     var pending = http.sendAsync(request, info -> limitedBodySubscriber());
     HttpResponse<byte[]> response;
     try {
-      response = pending.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+      response = pending.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
     } catch (TimeoutException failure) {
       pending.cancel(true);
       throw new IOException("Internal service request timed out.", failure);
@@ -111,10 +125,24 @@ final class InternalJsonClient {
       if (!(value instanceof Map<?, ?> body)) {
         throw new IOException("Internal service response is not a JSON object.");
       }
+      requestTimeout();
       return body;
     } catch (JacksonException failure) {
       throw new IOException("Internal service response contains invalid JSON.");
     }
+  }
+
+  private Duration requestTimeout() throws IOException {
+    if (budgetNanos == 0) return TIMEOUT;
+    long remaining = budgetNanos - (System.nanoTime() - startedNanos);
+    if (remaining <= 0) {
+      throw new IOException("Internal service request budget expired.");
+    }
+    return Duration.ofNanos(Math.min(TIMEOUT.toNanos(), remaining));
+  }
+
+  void requireBudget() throws IOException {
+    requestTimeout();
   }
 
   static HttpResponse.BodySubscriber<byte[]> limitedBodySubscriber() {

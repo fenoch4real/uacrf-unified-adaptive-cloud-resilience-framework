@@ -11,7 +11,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -28,10 +30,10 @@ class OwnerReceiptClientTests {
   private static final String CASE_MATERIAL =
       "{\"workload_id\":\"workload-1\",\"purpose\":\"assessment\",\"required_source_kinds\":[\"metrics\"]}";
   private static final String CASE_DIGEST = Sha256.hex(CASE_MATERIAL.getBytes(StandardCharsets.UTF_8));
-  private static final String MANIFEST_DIGEST = "b".repeat(64);
   private static final String EXCERPT = "metrics😀ab";
   private static final String EXCERPT_DIGEST =
       new InputPacket(EXCERPT.getBytes(StandardCharsets.UTF_8)).bytesDigest();
+  private static final String MANIFEST_DIGEST = manifestDigest("INTERNAL", EXCERPT_DIGEST);
   private static final SourceReceiptConsistency.Expected EXPECTED =
       new SourceReceiptConsistency.Expected("case-1", "retrieval-1", MANIFEST_DIGEST, "assessment",
           SourceReceiptConsistency.Classification.INTERNAL);
@@ -53,7 +55,7 @@ class OwnerReceiptClientTests {
        "eligible":true,"reason":"ELIGIBLE",
        "results":[{"item_id":"item-1","version":"v1","chunk_index":0,"start_offset":0,"end_offset":10,
        "source_digest":"%s","excerpt_digest":"%s","allowed_purposes":["assessment"],"classification":"PUBLIC","score":1}]}
-      """.formatted(CASE_DIGEST, MANIFEST_DIGEST, "c".repeat(64), EXCERPT_DIGEST);
+      """.formatted(CASE_DIGEST, MANIFEST_DIGEST, EXCERPT_DIGEST, EXCERPT_DIGEST);
   private static final String CONTENT_BODY = """
       {"retrieval_id":"retrieval-1","case_id":"case-1","case_binding":"VERIFIED",
        "case_digest":"%s","workload_id":"workload-1","purpose":"assessment",
@@ -61,7 +63,7 @@ class OwnerReceiptClientTests {
        "results":[{"item_id":"item-1","version":"v1","chunk_index":0,"start_offset":0,"end_offset":10,
        "source_digest":"%s","excerpt_digest":"%s","allowed_purposes":["assessment"],"classification":"PUBLIC",
        "score":1,"excerpt":"%s"}]}
-      """.formatted(CASE_DIGEST, MANIFEST_DIGEST, "c".repeat(64), EXCERPT_DIGEST, EXCERPT);
+      """.formatted(CASE_DIGEST, MANIFEST_DIGEST, EXCERPT_DIGEST, EXCERPT_DIGEST, EXCERPT);
   private HttpServer server;
   private URI base;
   private final AtomicReference<Reply> caseReply = new AtomicReference<>(new Reply(200, CASE_BODY));
@@ -80,6 +82,7 @@ class OwnerReceiptClientTests {
   private final AtomicInteger identityCalls = new AtomicInteger();
   private final AtomicInteger actorTokenCalls = new AtomicInteger();
   private final AtomicInteger requesterAccessCalls = new AtomicInteger();
+  private final AtomicInteger responseDelayMillis = new AtomicInteger();
   private final AtomicReference<Reply> requesterReply = new AtomicReference<>(new Reply(200, REQUESTER_ACCESS));
   private final AtomicReference<Reply> requesterReplyAfterContent = new AtomicReference<>();
   private final AtomicReference<Reply> requesterReplyAfterCaseMaterial = new AtomicReference<>();
@@ -186,7 +189,13 @@ class OwnerReceiptClientTests {
     });
   }
 
-  private static void respond(HttpExchange exchange, Reply reply) throws IOException {
+  private void respond(HttpExchange exchange, Reply reply) throws IOException {
+    try {
+      Thread.sleep(responseDelayMillis.get());
+    } catch (InterruptedException failure) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Fixture response interrupted.", failure);
+    }
     byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().set("Content-Type", "application/json");
     if (reply.status() == 302) {
@@ -196,6 +205,25 @@ class OwnerReceiptClientTests {
     try (var output = exchange.getResponseBody()) {
       output.write(bytes);
     }
+  }
+
+  private static String manifestDigest(String classification, String excerptDigest) {
+    String manifest = """
+        {"retrieval_id":"retrieval-1","case_id":"case-1","case_binding":"VERIFIED","case_digest":"%s",\
+        "purpose":"assessment","max_classification":"%s","query":"metrics","workload_id":"workload-1",\
+        "created_at":"2026-01-01T00:00:00Z","results":[{"item_id":"item-1","version":"v1",\
+        "chunk_index":0,"start_offset":0,"end_offset":10,"source_digest":"%s","excerpt_digest":"%s",\
+        "allowed_purposes":["assessment"],"classification":"PUBLIC","score":1}]}"""
+        .formatted(CASE_DIGEST, classification, EXCERPT_DIGEST, excerptDigest);
+    return Sha256.hex(manifest.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private void setClassification(String classification) {
+    String digest = manifestDigest(classification, EXCERPT_DIGEST);
+    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"classification\":\"INTERNAL\"",
+        "\"classification\":\"" + classification + "\"").replace(MANIFEST_DIGEST, digest)));
+    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
+        "\"max_classification\":\"" + classification + "\"").replace(MANIFEST_DIGEST, digest)));
   }
 
   @Test
@@ -255,6 +283,58 @@ class OwnerReceiptClientTests {
   }
 
   @Test
+  void checksCallerSuppliedSourceBeforeRefreshingOwnerAndRequester() throws Exception {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    byte[] bytes = EXCERPT.getBytes(StandardCharsets.UTF_8);
+    var artifact = new DigestBoundArtifact("artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST, bytes);
+    var sources = Map.of(EXCERPT_DIGEST, artifact);
+    assertEquals(List.of(EXCERPT),
+        verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, sources).receipts().excerpts());
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(2, retrievalCalls.get());
+
+    requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
+    assertThrows(IOException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, sources));
+    assertEquals(4, requesterAccessCalls.get());
+    assertEquals(4, retrievalCalls.get());
+  }
+
+  @Test
+  void rejectsAbsentOrSubstitutedCallerSources() {
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    assertThrows(IllegalArgumentException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, Map.of()));
+    Map<String, DigestBoundArtifact> tooMany = new HashMap<>();
+    for (int i = 0; i < 11; i++) {
+      byte[] bytes = ("source-" + i).getBytes(StandardCharsets.UTF_8);
+      String digest = Sha256.hex(bytes);
+      tooMany.put(digest, new DigestBoundArtifact("artifact:sha256:" + digest, digest, bytes));
+    }
+    assertThrows(IllegalArgumentException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, tooMany));
+    byte[] other = "other".getBytes(StandardCharsets.UTF_8);
+    String digest = Sha256.hex(other);
+    var artifact = new DigestBoundArtifact("artifact:sha256:" + digest, digest, other);
+    assertThrows(IllegalArgumentException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED,
+            Map.of(EXCERPT_DIGEST, artifact)));
+    assertEquals(0, requesterAccessCalls.get());
+    assertThrows(IllegalArgumentException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED,
+            Map.of(digest, artifact)));
+    assertEquals(1, requesterAccessCalls.get());
+    assertEquals(1, retrievalCalls.get());
+    var required = new DigestBoundArtifact("artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST,
+        EXCERPT.getBytes(StandardCharsets.UTF_8));
+    assertThrows(IllegalArgumentException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED,
+            Map.of(EXCERPT_DIGEST, required, digest, artifact)));
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(2, retrievalCalls.get());
+  }
+
+  @Test
   void acceptsRestrictedGrantForInternalSourceByRequestingThatGrantFromS01() throws Exception {
     requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace(
         "knowledge.classification.internal.read", "knowledge.classification.restricted.read")));
@@ -269,22 +349,18 @@ class OwnerReceiptClientTests {
   void checksPublicAndRestrictedSourcesWithOnlyTheirRequiredDelegations() throws Exception {
     var verifier = new RequesterSourceCheck(true, base, base, base, true);
     var publicExpected = new SourceReceiptConsistency.Expected(
-        "case-1", "retrieval-1", MANIFEST_DIGEST, "assessment", SourceReceiptConsistency.Classification.PUBLIC);
-    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"classification\":\"INTERNAL\"",
-        "\"classification\":\"PUBLIC\"")));
-    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
-        "\"max_classification\":\"PUBLIC\"")));
+        "case-1", "retrieval-1", manifestDigest("PUBLIC", EXCERPT_DIGEST), "assessment",
+        SourceReceiptConsistency.Classification.PUBLIC);
+    setClassification("PUBLIC");
     verifier.check("requester-token", "tenant-1", "env-1", publicExpected);
     assertFalse(identityRequests.get(2).contains("knowledge.classification."));
 
     requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace(
         "knowledge.classification.internal.read", "knowledge.classification.restricted.read")));
     var restrictedExpected = new SourceReceiptConsistency.Expected(
-        "case-1", "retrieval-1", MANIFEST_DIGEST, "assessment", SourceReceiptConsistency.Classification.RESTRICTED);
-    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"classification\":\"INTERNAL\"",
-        "\"classification\":\"RESTRICTED\"")));
-    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
-        "\"max_classification\":\"RESTRICTED\"")));
+        "case-1", "retrieval-1", manifestDigest("RESTRICTED", EXCERPT_DIGEST), "assessment",
+        SourceReceiptConsistency.Classification.RESTRICTED);
+    setClassification("RESTRICTED");
     verifier.check("requester-token", "tenant-1", "env-1", restrictedExpected);
     assertTrue(identityRequests.get(5).contains("\"knowledge.classification.restricted.read\""));
   }
@@ -299,6 +375,20 @@ class OwnerReceiptClientTests {
     assertEquals(3, identityCalls.get());
     assertEquals(1, caseCalls.get());
     assertEquals(2, retrievalCalls.get());
+  }
+
+  @Test
+  void requesterCheckHasOneDeadlineAcrossIndividuallyResponsiveOwners() {
+    responseDelayMillis.set(800);
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    long started = System.nanoTime();
+    assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
+    long elapsed = System.nanoTime() - started;
+    assertTrue(elapsed >= TimeUnit.SECONDS.toNanos(4));
+    assertTrue(elapsed < TimeUnit.SECONDS.toNanos(8));
+    assertEquals(1, requesterAccessCalls.get());
+    assertEquals(0, contentCalls.get());
+    assertTrue(identityCalls.get() >= 2);
   }
 
   @Test
@@ -454,6 +544,7 @@ class OwnerReceiptClientTests {
   void rejectsInvalidManifestMetadataBeforeFetchingContent() {
     for (String invalid : List.of(
         RETRIEVAL_BODY.replace("\"query\":\"metrics\"", "\"query\":\"\""),
+        RETRIEVAL_BODY.replace("\"query\":\"metrics\"", "\"query\":\"different\""),
         RETRIEVAL_BODY.replace("\"created_at\":\"2026-01-01T00:00:00Z\"", "\"created_at\":\"invalid\""),
         RETRIEVAL_BODY.replace("\"score\":1", "\"score\":0"),
         RETRIEVAL_BODY.replace("\"score\":1", "\"score\":1.5"))) {
@@ -467,10 +558,17 @@ class OwnerReceiptClientTests {
   void rejectsMalformedUnicodeEvenWhenUtf8ReplacementWouldMatch() {
     String replacementDigest =
         new InputPacket("metrics\ud800ab".getBytes(StandardCharsets.UTF_8)).bytesDigest();
-    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace(EXCERPT_DIGEST, replacementDigest)));
-    contentReply.set(new Reply(200, CONTENT_BODY.replace(EXCERPT_DIGEST, replacementDigest)
-        .replace(EXCERPT, "metrics\\ud800ab")));
-    assertThrows(IOException.class, () -> client(true).fetch("tenant-1", "env-1", EXPECTED));
+    String alteredManifest = manifestDigest("INTERNAL", replacementDigest);
+    var expected = new SourceReceiptConsistency.Expected("case-1", "retrieval-1", alteredManifest,
+        "assessment", SourceReceiptConsistency.Classification.INTERNAL);
+    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"excerpt_digest\":\"" + EXCERPT_DIGEST + "\"",
+        "\"excerpt_digest\":\"" + replacementDigest + "\"")
+        .replace(MANIFEST_DIGEST, alteredManifest)));
+    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"excerpt_digest\":\"" + EXCERPT_DIGEST + "\"",
+        "\"excerpt_digest\":\"" + replacementDigest + "\"")
+        .replace(MANIFEST_DIGEST, alteredManifest).replace(EXCERPT, "metrics\\ud800ab")));
+    assertThrows(IOException.class, () -> client(true).fetch("tenant-1", "env-1", expected));
+    assertEquals(1, contentCalls.get());
   }
 
   @Test
@@ -498,13 +596,28 @@ class OwnerReceiptClientTests {
   }
 
   @Test
+  void sharedBudgetBoundsBodyReadsAndPreventsRequestsAfterExpiry() {
+    var release = new CountDownLatch(1);
+    blockedBody.set(release);
+    var http = new InternalJsonClient(Duration.ofMillis(500));
+    try {
+      assertThrows(IOException.class,
+          () -> http.post(base.resolve("/internal/v1/cases/case-1:receipt"), "test-token", Map.of()));
+      assertEquals(1, caseCalls.get());
+      assertThrows(IOException.class,
+          () -> http.post(base.resolve("/internal/v1/cases/case-1:receipt"), "test-token", Map.of()));
+      assertEquals(1, caseCalls.get());
+    } finally {
+      release.countDown();
+    }
+  }
+
+  @Test
   void restrictsDelegationsToRequestedClassificationAndRejectsBadTokens() throws Exception {
-    retrievalReply.set(new Reply(200, RETRIEVAL_BODY.replace("\"classification\":\"INTERNAL\"",
-        "\"classification\":\"RESTRICTED\"")));
-    contentReply.set(new Reply(200, CONTENT_BODY.replace("\"max_classification\":\"INTERNAL\"",
-        "\"max_classification\":\"RESTRICTED\"")));
+    setClassification("RESTRICTED");
     var restricted = new SourceReceiptConsistency.Expected(
-        "case-1", "retrieval-1", MANIFEST_DIGEST, "assessment", SourceReceiptConsistency.Classification.RESTRICTED);
+        "case-1", "retrieval-1", manifestDigest("RESTRICTED", EXCERPT_DIGEST), "assessment",
+        SourceReceiptConsistency.Classification.RESTRICTED);
     client(true).fetch("tenant-1", "env-1", restricted);
     assertEquals("tenant-1/env-1/S08/knowledge.retrieval.read,knowledge.classification.restricted.read",
         tokenRequests.get(1));

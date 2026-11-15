@@ -83,7 +83,7 @@ class KnowledgeSourceVerifierTests {
             Sha256.hex("other".getBytes(StandardCharsets.UTF_8)), List.of("assessment"),
             SourceReceiptConsistency.Classification.PUBLIC, 1));
     var receipts = receipts(results, List.of("x".repeat(1000), "tail", "other"), true);
-    KnowledgeSourceVerifier.verifyAll(expected(), receipts, Map.of(first.digest(), first, second.digest(), second));
+    KnowledgeSourceVerifier.verifyAll(expected(receipts), receipts, Map.of(first.digest(), first, second.digest(), second));
   }
 
   @Test
@@ -97,22 +97,37 @@ class KnowledgeSourceVerifierTests {
     var receipts = receipts(results, List.of("first", "second"), true);
     var sources = Map.of(first.digest(), first, second.digest(), second);
     assertThrows(IllegalArgumentException.class,
-        () -> KnowledgeSourceVerifier.verifyAll(expected(), receipts, Map.of(first.digest(), first)));
+        () -> KnowledgeSourceVerifier.verifyAll(expected(receipts), receipts, Map.of(first.digest(), first)));
     var extra = artifact("extra");
-    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(), receipts,
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(receipts), receipts,
         Map.of(first.digest(), first, second.digest(), second, extra.digest(), extra)));
-    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(), receipts,
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(receipts), receipts,
         Map.of(first.digest(), second, second.digest(), second)));
-    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(),
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(receipts),
         receipts(results, List.of("first"), true), sources));
-    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(),
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(receipts),
         receipts(results, List.of("second", "first"), true), sources));
-    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(),
+    assertThrows(IllegalArgumentException.class, () -> KnowledgeSourceVerifier.verifyAll(expected(receipts),
         receipts(results, List.of("first", "second"), false), sources));
   }
 
-  private static SourceReceiptConsistency.Expected expected() {
-    return new SourceReceiptConsistency.Expected("case-1", "retrieval-1", "b".repeat(64), "assessment",
+  @Test
+  void rejectsTamperedManifestEvenWhenSourceAndExcerptStillMatch() {
+    var source = artifact("first");
+    var receipts = receipts(List.of(result(source, "first", 0, 0, 5)), List.of("first"), true);
+    var original = receipts.retrieval();
+    var changed = new SourceReceiptConsistency.RetrievalReceipt(
+        original.retrievalId(), original.requestedCaseId(), original.caseId(), original.caseBinding(),
+        original.caseDigest(), original.workloadId(), original.purpose(), original.classification(),
+        original.manifestDigest(), "changed query", original.createdAt(), original.results(),
+        original.eligible(), original.reason());
+    var tampered = new OwnerReceiptClient.Receipts(receipts.sourceCase(), changed, receipts.excerpts());
+    assertThrows(IllegalArgumentException.class,
+        () -> KnowledgeSourceVerifier.verifyAll(expected(receipts), tampered, Map.of(source.digest(), source)));
+  }
+
+  private static SourceReceiptConsistency.Expected expected(OwnerReceiptClient.Receipts receipts) {
+    return new SourceReceiptConsistency.Expected("case-1", "retrieval-1", receipts.retrieval().manifestDigest(), "assessment",
         SourceReceiptConsistency.Classification.PUBLIC);
   }
 
@@ -120,9 +135,20 @@ class KnowledgeSourceVerifierTests {
       List<SourceReceiptConsistency.ReceiptResult> results, List<String> excerpts, boolean eligible) {
     var source = new SourceReceiptConsistency.CaseReceipt(
         "case-1", "assessment", "a".repeat(64), "workload-1", List.of("metrics"));
+    var entries = results.stream().map(result -> """
+        {"item_id":"%s","version":"%s","chunk_index":%d,"start_offset":%d,"end_offset":%d,\
+        "source_digest":"%s","excerpt_digest":"%s","allowed_purposes":["assessment"],\
+        "classification":"PUBLIC","score":%d}""".formatted(result.itemId(), result.version(), result.chunkIndex(),
+            result.startOffset(), result.endOffset(), result.sourceDigest(), result.excerptDigest(), result.score()))
+        .toList();
+    String manifest = """
+        {"retrieval_id":"retrieval-1","case_id":"case-1","case_binding":"VERIFIED","case_digest":"%s",\
+        "purpose":"assessment","max_classification":"PUBLIC","query":"query","workload_id":"workload-1",\
+        "created_at":"2026-01-01T00:00:00Z","results":[%s]}""".formatted("a".repeat(64), String.join(",", entries));
+    String digest = Sha256.hex(manifest.getBytes(StandardCharsets.UTF_8));
     var retrieval = new SourceReceiptConsistency.RetrievalReceipt(
         "retrieval-1", "case-1", "case-1", "VERIFIED", "a".repeat(64), "workload-1", "assessment",
-        SourceReceiptConsistency.Classification.PUBLIC, "b".repeat(64), "query", "2026-01-01T00:00:00Z",
+        SourceReceiptConsistency.Classification.PUBLIC, digest, "query", "2026-01-01T00:00:00Z",
         results, eligible, eligible ? "ELIGIBLE" : "SOURCE_NOT_ELIGIBLE");
     return new OwnerReceiptClient.Receipts(source, retrieval, excerpts);
   }

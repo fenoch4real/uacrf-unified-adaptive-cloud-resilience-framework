@@ -9,10 +9,16 @@ public final class RequesterIdentityProbe {
   static final String CASE_MATERIAL =
       "{\"workload_id\":\"workload-1\",\"purpose\":\"assessment\",\"required_source_kinds\":[\"metrics\"]}";
   static final String CASE_DIGEST = Sha256.hex(CASE_MATERIAL.getBytes(StandardCharsets.UTF_8));
-  static final String MANIFEST_DIGEST = "b".repeat(64);
   static final String SOURCE_DIGEST = "c".repeat(64);
   static final String EXCERPT = "metrics";
   static final String EXCERPT_DIGEST = Sha256.hex(EXCERPT.getBytes(StandardCharsets.UTF_8));
+  static final String MANIFEST_DIGEST = Sha256.hex(("""
+      {"retrieval_id":"retrieval-1","case_id":"case-1","case_binding":"VERIFIED","case_digest":"%s",\
+      "purpose":"assessment","max_classification":"INTERNAL","query":"metrics","workload_id":"workload-1",\
+      "created_at":"2026-01-01T00:00:00Z","results":[{"item_id":"item-1","version":"v1",\
+      "chunk_index":0,"start_offset":0,"end_offset":7,"source_digest":"%s","excerpt_digest":"%s",\
+      "allowed_purposes":["assessment"],"classification":"PUBLIC","score":1}]}"""
+      .formatted(CASE_DIGEST, SOURCE_DIGEST, EXCERPT_DIGEST)).getBytes(StandardCharsets.UTF_8));
 
   private RequesterIdentityProbe() {}
 

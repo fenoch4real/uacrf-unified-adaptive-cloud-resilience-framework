@@ -20,7 +20,7 @@ final class KnowledgeSourceVerifier {
     if (receipts == null || sources == null) {
       throw new IllegalArgumentException("Knowledge receipts and sources are required.");
     }
-    SourceReceiptConsistency.check(expected, receipts.sourceCase(), receipts.retrieval());
+    KnowledgeManifestVerifier.verify(expected, receipts.sourceCase(), receipts.retrieval());
     var results = receipts.retrieval().results();
     if (receipts.excerpts().size() != results.size()) {
       throw new IllegalArgumentException("Every receipt result requires a corresponding excerpt.");

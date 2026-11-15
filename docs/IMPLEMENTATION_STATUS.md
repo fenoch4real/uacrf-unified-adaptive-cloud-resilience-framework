@@ -535,7 +535,13 @@ retains evidence events and decides qualification.
   S08 retrieval excerpts and checks the response metadata and ordered results
   against the receipt, including query, creation time, and ranking scores, then
   verifies each excerpt's Unicode code-point length and UTF-8 SHA-256 digest.
-  S08 checks its retained manifest digest; S09 does not recompute that digest.
+  S08 checks its retained manifest digest. S09's unwired owner client and
+  full-source verifier independently reconstruct S08's current ordered Jackson
+  representation and check that digest; the owner client rejects a mismatch
+  before requesting excerpts. Tests exercise it against real S08 responses,
+  including Unicode and escaped query text. This is not RFC 8785, and a
+  serializer change can make verification fail until the existing digest
+  format is explicitly versioned.
   The client has also been tested against a real S08 HTTP instance backed by
   PostgreSQL, including classification and tenant denial, unavailable or changed
   case verification, and source withdrawal. That test uses test-signed S08
@@ -586,6 +592,15 @@ retains evidence events and decides qualification.
   eligibility. It does not authorize journal admission or provider dispatch.
   The post-read requester refresh has also been tested against real S01 with
   revocation during a simulated owner content read.
+  An optional variant validates caller-supplied full knowledge bytes against
+  every excerpt and the manifest before the final S08 eligibility and S01
+  requester refreshes. It has been exercised against real S01, S07 and S08,
+  including altered bytes, withdrawal and grant revocation. Supplied bytes are
+  not proof of artifact ownership or disclosure authorization.
+  The combined check shares a five-second monotonic preparation budget across
+  requester access, delegation and owner HTTP calls, in addition to the
+  two-second per-call bound. Timeout fails closed; it is not a run deadline or
+  a guarantee that a remote owner stopped processing the cancelled request.
   An opt-in integration test now runs S01, S07, and S08 as separate local
   processes with separate PostgreSQL databases. It exercises real S01
   delegations, S08's S07 case verification, the requester-source check,

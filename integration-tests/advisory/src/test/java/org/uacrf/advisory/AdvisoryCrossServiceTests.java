@@ -165,15 +165,26 @@ class AdvisoryCrossServiceTests {
       var expected = new SourceReceiptConsistency.Expected(caseId, retrieval.get("retrieval_id").asString(),
           retrieval.get("manifest_digest").asString(), "assessment", SourceReceiptConsistency.Classification.INTERNAL);
       var checker = new RequesterSourceCheck(true, identity, assessment, knowledge, true);
-      var snapshot = checker.check(requester, TENANT, ENVIRONMENT, expected);
+      byte[] sourceBytes = CONTENT.getBytes(StandardCharsets.UTF_8);
+      String sourceDigest = Sha256.hex(sourceBytes);
+      var sources = Map.of(sourceDigest,
+          new DigestBoundArtifact("artifact:sha256:" + sourceDigest, sourceDigest, sourceBytes));
+      var snapshot = checker.checkWithSources(requester, TENANT, ENVIRONMENT, expected, sources);
       assertEquals("requester", snapshot.requester().id());
       assertEquals(sealed.get("case_digest").asString(), snapshot.receipts().sourceCase().caseDigest());
       assertEquals("latency", JSON.readTree(snapshot.caseMaterial()).get("metric").asString());
       assertEquals(List.of(CONTENT), snapshot.receipts().excerpts());
-      byte[] sourceBytes = CONTENT.getBytes(StandardCharsets.UTF_8);
-      String sourceDigest = Sha256.hex(sourceBytes);
-      KnowledgeSourceVerifier.verifyAll(expected, snapshot.receipts(),
-          Map.of(sourceDigest, new DigestBoundArtifact("artifact:sha256:" + sourceDigest, sourceDigest, sourceBytes)));
+      byte[] changedBytes = (CONTENT + " altered").getBytes(StandardCharsets.UTF_8);
+      String changedDigest = Sha256.hex(changedBytes);
+      var changedSources = Map.of(changedDigest,
+          new DigestBoundArtifact("artifact:sha256:" + changedDigest, changedDigest, changedBytes));
+      assertThrows(IllegalArgumentException.class,
+          () -> checker.checkWithSources(requester, TENANT, ENVIRONMENT, expected, Map.of()));
+      assertThrows(IllegalArgumentException.class,
+          () -> checker.checkWithSources(requester, TENANT, ENVIRONMENT, expected, changedSources));
+      assertThrows(IllegalArgumentException.class,
+          () -> checker.checkWithSources(requester, TENANT, ENVIRONMENT, expected,
+              Map.of(sourceDigest, sources.get(sourceDigest), changedDigest, changedSources.get(changedDigest))));
 
       String admin = oidcToken(oidcKey, "admin-subject");
       AtomicReference<HttpResponse<String>> revocation = new AtomicReference<>();
@@ -184,7 +195,7 @@ class AdvisoryCrossServiceTests {
         var intercepted = new RequesterSourceCheck(true, identity, assessment, proxy.base(), true);
         assertEquals("Requester lacks required advisory or source access capabilities.",
             assertThrows(IOException.class,
-                () -> intercepted.check(requester, TENANT, ENVIRONMENT, expected)).getMessage());
+                () -> intercepted.checkWithSources(requester, TENANT, ENVIRONMENT, expected, sources)).getMessage());
         assertEquals(1, proxy.contentReads());
         assertNull(proxy.failure());
         assertNotNull(revocation.get());
@@ -201,7 +212,8 @@ class AdvisoryCrossServiceTests {
         var intercepted = new RequesterSourceCheck(true, identity, assessment, proxy.base(), true);
         assertEquals("Retrieval receipt changed during content checking.",
             assertThrows(IOException.class,
-                () -> intercepted.check(secondRequester, TENANT, ENVIRONMENT, expected)).getMessage());
+                () -> intercepted.checkWithSources(secondRequester, TENANT, ENVIRONMENT, expected, sources))
+                .getMessage());
         assertEquals(1, proxy.contentReads());
         assertNull(proxy.failure());
         assertNotNull(withdrawal.get());

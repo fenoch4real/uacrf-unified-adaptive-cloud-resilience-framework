@@ -12,7 +12,7 @@ final class OwnerReceiptClient {
   private final URI assessmentBase;
   private final URI knowledgeBase;
   private final DelegationProvider delegations;
-  private final InternalJsonClient http = new InternalJsonClient();
+  private final InternalJsonClient http;
 
   interface DelegationProvider {
     String delegation(String tenantId, String environmentId, String audience, List<String> capabilities)
@@ -29,10 +29,16 @@ final class OwnerReceiptClient {
 
   OwnerReceiptClient(boolean enabled, URI assessmentBase, URI knowledgeBase,
                      boolean allowLoopbackHttp, DelegationProvider delegations) {
+    this(enabled, assessmentBase, knowledgeBase, allowLoopbackHttp, delegations, new InternalJsonClient());
+  }
+
+  OwnerReceiptClient(boolean enabled, URI assessmentBase, URI knowledgeBase,
+                     boolean allowLoopbackHttp, DelegationProvider delegations, InternalJsonClient http) {
     this.enabled = enabled;
     this.assessmentBase = InternalJsonClient.validateBase(assessmentBase, allowLoopbackHttp);
     this.knowledgeBase = InternalJsonClient.validateBase(knowledgeBase, allowLoopbackHttp);
     this.delegations = java.util.Objects.requireNonNull(delegations, "delegations");
+    this.http = java.util.Objects.requireNonNull(http, "http");
   }
 
   Receipts fetch(String tenantId, String environmentId, SourceReceiptConsistency.Expected expected)
@@ -66,6 +72,12 @@ final class OwnerReceiptClient {
 
   Receipts fetchRetrieval(String tenantId, String environmentId, SourceReceiptConsistency.Expected expected,
                           SourceReceiptConsistency.CaseReceipt sourceCase) throws IOException, InterruptedException {
+    return fetchRetrieval(tenantId, environmentId, expected, sourceCase, null);
+  }
+
+  Receipts fetchRetrieval(String tenantId, String environmentId, SourceReceiptConsistency.Expected expected,
+                          SourceReceiptConsistency.CaseReceipt sourceCase, Map<String, DigestBoundArtifact> sources)
+      throws IOException, InterruptedException {
     if (!enabled) {
       throw new IllegalStateException("Owner receipt fetching is disabled.");
     }
@@ -80,12 +92,15 @@ final class OwnerReceiptClient {
     String knowledgeToken = token(tenantId, environmentId, "S08", capabilities);
     var retrieval = retrievalReceipt(expected, knowledgeToken);
     try {
-      SourceReceiptConsistency.check(expected, sourceCase, retrieval);
+      KnowledgeManifestVerifier.verify(expected, sourceCase, retrieval);
     } catch (IllegalArgumentException failure) {
       throw new IOException("Owner receipt consistency check failed.", failure);
     }
     Map<?, ?> content = http.get(knowledgeBase.resolve("/v1/retrievals/" + expected.retrievalId()), knowledgeToken);
     List<String> excerpts = excerpts(content, retrieval);
+    if (sources != null) {
+      KnowledgeSourceVerifier.verifyAll(expected, new Receipts(sourceCase, retrieval, excerpts), sources);
+    }
     var refreshed = retrievalReceipt(expected, knowledgeToken);
     if (!retrieval.equals(refreshed)) {
       throw new IOException("Retrieval receipt changed during content checking.");

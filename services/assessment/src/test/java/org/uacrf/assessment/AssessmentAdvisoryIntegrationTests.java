@@ -43,7 +43,6 @@ import tools.jackson.databind.ObjectMapper;
 class AssessmentAdvisoryIntegrationTests {
   private static final String KEY_ID = "advisory-assessment-test";
   private static final KeyPair KEY_PAIR = generateKeyPair();
-  private static final String MANIFEST = "bc".repeat(32);
   private static final String EXCERPT = "metrics guidance";
   private static final String EXCERPT_DIGEST = digest(EXCERPT);
 
@@ -87,6 +86,7 @@ class AssessmentAdvisoryIntegrationTests {
     AtomicInteger accessCalls = new AtomicInteger();
     AtomicInteger delegationCalls = new AtomicInteger();
     AtomicReference<String> caseDigest = new AtomicReference<>();
+    AtomicReference<String> manifest = new AtomicReference<>("bc".repeat(32));
     HttpServer knowledge = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     knowledge.createContext("/v1/me/access", exchange -> {
       accessCalls.incrementAndGet();
@@ -122,37 +122,39 @@ class AssessmentAdvisoryIntegrationTests {
           && caseId.equals(request.path("case_id").asString())
           && "assessment".equals(request.path("purpose").asString())
           && "INTERNAL".equals(request.path("classification").asString())
-          && MANIFEST.equals(request.path("manifest_digest").asString());
-      respond(exchange, valid ? 200 : 403, valid ? retrieval(caseId, caseDigest.get(), false) : "{}");
+          && manifest.get().equals(request.path("manifest_digest").asString());
+      respond(exchange, valid ? 200 : 403, valid ? retrieval(caseId, caseDigest.get(), manifest.get(), false) : "{}");
     });
     knowledge.createContext("/v1/retrievals/retrieval-1", exchange -> {
       contentCalls.incrementAndGet();
       boolean valid = "GET".equals(exchange.getRequestMethod())
           && "Bearer knowledge-delegation".equals(exchange.getRequestHeaders().getFirst("Authorization"));
-      respond(exchange, valid ? 200 : 403, valid ? retrieval(caseId, caseDigest.get(), true) : "{}");
+      respond(exchange, valid ? 200 : 403, valid ? retrieval(caseId, caseDigest.get(), manifest.get(), true) : "{}");
     });
     knowledge.start();
     try {
       URI knowledgeBase = URI.create("http://127.0.0.1:" + knowledge.getAddress().getPort());
       assertEquals("Internal service request failed with HTTP 409.",
           assertThrows(IOException.class,
-              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, reader))
+              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), reader))
               .getMessage());
       assertEquals(0, receiptCalls.get());
 
       HttpResponse<String> sealed = post("/v1/cases/" + caseId + ":seal", writer, "{\"expected_revision\":1}");
       assertEquals(200, sealed.statusCode(), sealed.body());
       caseDigest.set(json.readTree(sealed.body()).get("case_digest").asString());
+      manifest.set(manifestDigest(caseId, caseDigest.get()));
       String material = AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, caseDigest.get(), reader);
       assertEquals("latency", json.readTree(material).get("metric").asString());
       assertThrows(IOException.class,
           () -> AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, "0".repeat(64), reader));
-      assertEquals(List.of(EXCERPT), AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, reader));
+      assertEquals(List.of(EXCERPT),
+          AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), reader));
       assertEquals(2, receiptCalls.get());
       assertEquals(1, contentCalls.get());
 
       String checkedMaterial = AdvisoryAssessmentProbe.checkRequesterSources(
-          knowledgeBase, assessment, knowledgeBase, caseId, MANIFEST);
+          knowledgeBase, assessment, knowledgeBase, caseId, manifest.get());
       assertEquals(material, checkedMaterial);
       assertEquals(2, accessCalls.get());
       assertEquals(3, delegationCalls.get());
@@ -161,7 +163,7 @@ class AssessmentAdvisoryIntegrationTests {
 
       assertEquals("Internal service request failed with HTTP 403.",
           assertThrows(IOException.class,
-              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, writer))
+              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), writer))
               .getMessage());
       assertEquals("Internal service request failed with HTTP 403.",
           assertThrows(IOException.class,
@@ -172,7 +174,7 @@ class AssessmentAdvisoryIntegrationTests {
           () -> AdvisoryAssessmentProbe.fetchCaseMaterial(assessment, caseId, caseDigest.get(), foreignReader));
       assertEquals("Internal service request failed with HTTP 404.",
           assertThrows(IOException.class,
-              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, foreignReader))
+              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), foreignReader))
               .getMessage());
       String wrongAudience = token("requester", "tenant-advisory", List.of("assessment.case.read"), "S08");
       assertEquals("Internal service request failed with HTTP 401.",
@@ -181,7 +183,7 @@ class AssessmentAdvisoryIntegrationTests {
               .getMessage());
       assertEquals("Internal service request failed with HTTP 401.",
           assertThrows(IOException.class,
-              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, wrongAudience))
+              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), wrongAudience))
               .getMessage());
       assertEquals(4, receiptCalls.get());
       assertEquals(2, contentCalls.get());
@@ -189,7 +191,7 @@ class AssessmentAdvisoryIntegrationTests {
       caseDigest.set((caseDigest.get().startsWith("0") ? "1" : "0") + caseDigest.get().substring(1));
       assertEquals("Owner receipt consistency check failed.",
           assertThrows(IOException.class,
-              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, MANIFEST, reader))
+              () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), reader))
               .getMessage());
       assertEquals(5, receiptCalls.get());
       assertEquals(2, contentCalls.get());
@@ -198,7 +200,7 @@ class AssessmentAdvisoryIntegrationTests {
     }
   }
 
-  private static String retrieval(String caseId, String caseDigest, boolean content) {
+  private static String retrieval(String caseId, String caseDigest, String manifest, boolean content) {
     String result = """
         {"item_id":"item-1","version":"v1","chunk_index":0,"start_offset":0,"end_offset":%d,
          "source_digest":"%s","excerpt_digest":"%s","allowed_purposes":["assessment"],
@@ -211,7 +213,18 @@ class AssessmentAdvisoryIntegrationTests {
          "purpose":"assessment","classification":"INTERNAL","max_classification":"INTERNAL",
          "manifest_digest":"%s","query":"metrics","created_at":"2026-01-01T00:00:00Z",
          "eligible":true,"reason":"ELIGIBLE","results":[%s]}
-        """.formatted(caseId, caseId, caseDigest, MANIFEST, result);
+        """.formatted(caseId, caseId, caseDigest, manifest, result);
+  }
+
+  private static String manifestDigest(String caseId, String caseDigest) {
+    return digest("""
+        {"retrieval_id":"retrieval-1","case_id":"%s","case_binding":"VERIFIED","case_digest":"%s",\
+        "purpose":"assessment","max_classification":"INTERNAL","query":"metrics","workload_id":"workload-1",\
+        "created_at":"2026-01-01T00:00:00Z","results":[{"item_id":"item-1","version":"v1",\
+        "chunk_index":0,"start_offset":0,"end_offset":%d,"source_digest":"%s","excerpt_digest":"%s",\
+        "allowed_purposes":["assessment"],"classification":"INTERNAL","score":1}]}"""
+        .formatted(caseId, caseDigest, EXCERPT.codePointCount(0, EXCERPT.length()),
+            "cd".repeat(32), EXCERPT_DIGEST));
   }
 
   private static void respond(HttpExchange exchange, int status, String body) throws IOException {

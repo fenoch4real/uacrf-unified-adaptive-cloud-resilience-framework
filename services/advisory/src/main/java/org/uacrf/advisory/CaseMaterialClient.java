@@ -19,13 +19,19 @@ final class CaseMaterialClient {
   private final boolean enabled;
   private final URI assessmentBase;
   private final OwnerReceiptClient.DelegationProvider delegations;
-  private final InternalJsonClient http = new InternalJsonClient();
+  private final InternalJsonClient http;
 
   CaseMaterialClient(boolean enabled, URI assessmentBase, boolean allowLoopbackHttp,
                      OwnerReceiptClient.DelegationProvider delegations) {
+    this(enabled, assessmentBase, allowLoopbackHttp, delegations, new InternalJsonClient());
+  }
+
+  CaseMaterialClient(boolean enabled, URI assessmentBase, boolean allowLoopbackHttp,
+                     OwnerReceiptClient.DelegationProvider delegations, InternalJsonClient http) {
     this.enabled = enabled;
     this.assessmentBase = InternalJsonClient.validateBase(assessmentBase, allowLoopbackHttp);
     this.delegations = java.util.Objects.requireNonNull(delegations, "delegations");
+    this.http = java.util.Objects.requireNonNull(http, "http");
   }
 
   // Integrity and receipt consistency only; this does not authorize later use or dispatch.

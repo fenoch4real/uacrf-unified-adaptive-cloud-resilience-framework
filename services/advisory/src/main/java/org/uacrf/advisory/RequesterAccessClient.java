@@ -12,7 +12,7 @@ import java.util.Set;
 final class RequesterAccessClient {
   private final boolean enabled;
   private final URI identityBase;
-  private final InternalJsonClient http = new InternalJsonClient();
+  private final InternalJsonClient http;
 
   record Principal(String id, String kind, Set<String> capabilities) {
     Principal {
@@ -21,8 +21,13 @@ final class RequesterAccessClient {
   }
 
   RequesterAccessClient(boolean enabled, URI identityBase, boolean allowLoopbackHttp) {
+    this(enabled, identityBase, allowLoopbackHttp, new InternalJsonClient());
+  }
+
+  RequesterAccessClient(boolean enabled, URI identityBase, boolean allowLoopbackHttp, InternalJsonClient http) {
     this.enabled = enabled;
     this.identityBase = InternalJsonClient.validateBase(identityBase, allowLoopbackHttp);
+    this.http = java.util.Objects.requireNonNull(http, "http");
   }
 
   // This is a prerequisite snapshot, not an admission or source-disclosure decision.

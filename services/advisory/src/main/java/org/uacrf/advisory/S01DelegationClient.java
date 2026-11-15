@@ -10,7 +10,7 @@ final class S01DelegationClient implements OwnerReceiptClient.DelegationProvider
   private final boolean enabled;
   private final URI identityBase;
   private final ActorTokenProvider actorTokens;
-  private final InternalJsonClient http = new InternalJsonClient();
+  private final InternalJsonClient http;
 
   interface ActorTokenProvider {
     String token() throws IOException, InterruptedException;
@@ -18,9 +18,15 @@ final class S01DelegationClient implements OwnerReceiptClient.DelegationProvider
 
   S01DelegationClient(boolean enabled, URI identityBase, boolean allowLoopbackHttp,
                       ActorTokenProvider actorTokens) {
+    this(enabled, identityBase, allowLoopbackHttp, actorTokens, new InternalJsonClient());
+  }
+
+  S01DelegationClient(boolean enabled, URI identityBase, boolean allowLoopbackHttp,
+                      ActorTokenProvider actorTokens, InternalJsonClient http) {
     this.enabled = enabled;
     this.identityBase = InternalJsonClient.validateBase(identityBase, allowLoopbackHttp);
     this.actorTokens = Objects.requireNonNull(actorTokens, "actorTokens");
+    this.http = Objects.requireNonNull(http, "http");
   }
 
   @Override

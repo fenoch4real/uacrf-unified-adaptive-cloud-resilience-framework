@@ -130,7 +130,7 @@ class KnowledgeAdvisoryIntegrationTests {
         "{\"decision\":\"APPROVE\",\"expected_revision\":1,\"reason\":\"Approved\"}").statusCode());
     var response = post("/v1/retrievals", runner,
         "{\"case_id\":\"case-1\",\"purpose\":\"incident\",\"max_classification\":\"INTERNAL\","
-            + "\"query\":\"metrics\",\"max_results\":10}");
+            + "\"query\":\"metrics \\\"😀\\\" \\\\\",\"max_results\":10}");
     assertEquals(201, response.statusCode(), response.body());
     JsonNode retrieval = json.readTree(response.body());
     String id = retrieval.get("retrieval_id").asText();
