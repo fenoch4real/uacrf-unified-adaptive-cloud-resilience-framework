@@ -15,11 +15,17 @@ import java.time.Clock;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -188,6 +194,101 @@ class EvidenceApplicationTests {
   }
 
   @Test
+  void conflictingEvidenceReplayBlocksQualificationAndMeasurementReceipts() throws Exception {
+    String submit = bearer("submitter", "tenant-evidence-conflict", SUBMITTER);
+    String reviewer = bearer("reviewer", "tenant-evidence-conflict", REVIEWER);
+    String payload = "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\"}";
+    String escaped = json.writeValueAsString(payload);
+    String original = evidence("e-conflict", "PROVIDER", "conflict-source", 1,
+        escaped.substring(1, escaped.length() - 1), sha(payload))
+        .replace("2026-01-01T00:00:00Z", "2026-01-01T00:00:00.123456789Z");
+    String receipt = "/internal/v1/qualifications/e-conflict:receipt";
+    String measurement = "/internal/v1/qualifications/e-conflict:measurement";
+    assertThat(post("/internal/v1/observations", submit, original).body()).contains("ACCEPTED");
+    assertEquals(200, post("/v1/evidence/e-conflict/reviews", reviewer,
+        "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
+    assertThat(post(receipt, reviewer, receiptBody(sha(payload))).body()).contains("\"usable_as_evidence\":true");
+    assertThat(post(measurement, reviewer, measurementRequest("latency", "2999-01-01T00:00:00Z")).body())
+        .contains("\"usable_as_evidence\":true");
+    assertThat(post("/internal/v1/observations", submit, original).body()).contains("DUPLICATE");
+
+    String changedTime = original.replace("2026-01-01T00:00:00.123456789Z", "2026-01-02T00:00:00Z");
+    String changedKind = original.replace("measurement.latency", "measurement.other");
+    assertThat(post("/internal/v1/observations", submit, changedTime).body()).contains("REPLAY_CONFLICT");
+    assertThat(post("/internal/v1/observations", submit, changedKind).body()).contains("REPLAY_CONFLICT");
+    assertThat(post(receipt, reviewer, receiptBody(sha(payload))).body())
+        .contains("\"usable_as_evidence\":false", "conflict");
+    assertThat(post(measurement, reviewer, measurementRequest("latency", "2999-01-01T00:00:00Z")).body())
+        .contains("\"usable_as_evidence\":false", "conflict");
+    assertThat(post("/internal/v1/observations", submit, original).body()).contains("DUPLICATE");
+    assertThat(post(receipt, reviewer, receiptBody(sha(payload))).body()).contains("\"usable_as_evidence\":false");
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_evidence.quarantined_evidence WHERE tenant_id = 'tenant-evidence-conflict' "
+            + "AND evidence_id = 'e-conflict' AND source_class = 'PROVIDER' "
+            + "AND kind = 'measurement.other' AND observed_at = '2026-01-01T00:00:00.123457Z'::timestamptz "
+            + "AND submitted_by = 'https://uacrf.local/s01|submitter'", Integer.class));
+    String otherSubmit = bearer("submitter", "tenant-evidence-other", SUBMITTER);
+    String otherReviewer = bearer("reviewer", "tenant-evidence-other", REVIEWER);
+    assertThat(post("/internal/v1/observations", otherSubmit, original).body()).contains("ACCEPTED");
+    assertEquals(200, post("/v1/evidence/e-conflict/reviews", otherReviewer,
+        "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
+    assertThat(post(receipt, otherReviewer, receiptBody(sha(payload))).body()).contains("\"usable_as_evidence\":true");
+    assertThat(post(measurement, otherReviewer, measurementRequest("latency", "2999-01-01T00:00:00Z")).body())
+        .contains("\"usable_as_evidence\":true");
+  }
+
+  @Test
+  void conflictingSourceSequenceBlocksPreviouslyQualifiedEvidence() throws Exception {
+    String submit = bearer("submitter", "tenant-sequence-conflict", SUBMITTER);
+    String reviewer = bearer("reviewer", "tenant-sequence-conflict", REVIEWER);
+    String original = evidence("sequence-original", "PROVIDER", "sequence-source", 2, "payload", null);
+    assertThat(post("/internal/v1/observations", submit, original).body()).contains("ACCEPTED");
+    assertEquals(200, post("/v1/evidence/sequence-original/reviews", reviewer,
+        "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
+    String receipt = "/internal/v1/qualifications/sequence-original:receipt";
+    assertThat(post("/internal/v1/observations", submit,
+        evidence("older", "PROVIDER", "sequence-source", 1, "old", null)).body()).contains("STALE_SEQUENCE");
+    assertThat(post("/internal/v1/observations", submit,
+        evidence("bad-digest", "PROVIDER", "sequence-source", 2, "bad", "0".repeat(64))).body())
+        .contains("DIGEST_MISMATCH");
+    assertThat(post(receipt, reviewer, receiptBody(sha("payload"))).body()).contains("\"usable_as_evidence\":true");
+    assertThat(post("/internal/v1/observations", submit,
+        evidence("different-id", "PROVIDER", "sequence-source", 2, "different", null)).body())
+        .contains("STALE_SEQUENCE");
+    assertThat(post(receipt, reviewer, receiptBody(sha("payload"))).body())
+        .contains("\"usable_as_evidence\":false", "conflict");
+  }
+
+  @Test
+  void evidenceSerializesConflictingIdsAcrossSources() throws Exception {
+    String submit = bearer("submitter", "tenant-evidence-race", SUBMITTER);
+    String first = evidence("same-evidence-id", "PROVIDER", "source-one", 1, "payload", null);
+    String second = first.replace("source-one", "source-two");
+    CountDownLatch start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var firstResult = executor.submit(() -> {
+        start.await();
+        return post("/internal/v1/observations", submit, first);
+      });
+      var secondResult = executor.submit(() -> {
+        start.await();
+        return post("/internal/v1/observations", submit, second);
+      });
+      start.countDown();
+      HttpResponse<String> a = firstResult.get(15, TimeUnit.SECONDS);
+      HttpResponse<String> b = secondResult.get(15, TimeUnit.SECONDS);
+      assertEquals(202, a.statusCode());
+      assertEquals(202, b.statusCode());
+      assertThat(List.of(json.readTree(a.body()).get("status").asString(),
+              json.readTree(b.body()).get("status").asString()))
+          .containsExactlyInAnyOrder("ACCEPTED", "QUARANTINED");
+      assertThat(a.body() + b.body()).contains("REPLAY_CONFLICT");
+    }
+    assertThat(post("/internal/v1/qualifications/same-evidence-id:receipt", submit,
+        receiptBody(sha("payload"))).body()).contains("\"usable_as_evidence\":false", "conflict");
+  }
+
+  @Test
   void inboxChecksDigestDuplicatesAndAggregateSequence() throws Exception {
     String submit = bearer("submitter", "tenant-i", SUBMITTER);
     assertThat(post("/internal/v1/inbox/events", submit, event("ev1", 2, "x", null)).body()).contains("RECEIVED");
@@ -196,6 +297,152 @@ class EvidenceApplicationTests {
     assertThat(post("/internal/v1/inbox/events", submit, event("ev2", 1, "z", null)).body()).contains("SEQUENCE_REGRESSION");
     assertThat(post("/internal/v1/inbox/events", submit, event("ev3", 3, "z", "0".repeat(64))).body()).contains("DIGEST_MISMATCH");
     assertThat(post("/internal/v1/inbox/events", submit, event("ev4", 3, "w", null)).body()).contains("RECEIVED");
+  }
+
+  @Test
+  void inboxQuarantinesReplayWithChangedEnvelopeEvenWhenPayloadMatches() throws Exception {
+    String submit = bearer("submitter", "tenant-envelope", SUBMITTER);
+    String original = event("envelope-1", 1, "same-payload", null);
+    assertThat(post("/internal/v1/inbox/events", submit, original).body()).contains("RECEIVED");
+    assertThat(post("/internal/v1/inbox/events", submit, original).body()).contains("DUPLICATE");
+
+    for (String changed :
+        List.of(
+            original.replace("\"source_service\":\"S03\"", "\"source_service\":\"S05\""),
+            original.replace("connections.observation.accepted", "connections.observation.changed"),
+            original.replace("\"aggregate_id\":\"obs-1\"", "\"aggregate_id\":\"obs-2\""),
+            original.replace("\"aggregate_sequence\":1", "\"aggregate_sequence\":2"))) {
+      HttpResponse<String> response = post("/internal/v1/inbox/events", submit, changed);
+      assertEquals(202, response.statusCode());
+      assertThat(response.body()).contains("QUARANTINED", "EVENT_CONFLICT");
+    }
+    assertThat(post("/internal/v1/inbox/events", submit, original).body()).contains("DUPLICATE");
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.inbox_event WHERE tenant_id = 'tenant-envelope'", Integer.class));
+    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event WHERE tenant_id = 'tenant-envelope' AND reason = 'EVENT_CONFLICT'", Integer.class));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event WHERE tenant_id = 'tenant-envelope' AND event_type = 'connections.observation.changed'", Integer.class));
+    String otherTenant = bearer("submitter", "tenant-envelope-other", SUBMITTER);
+    assertThat(post("/internal/v1/inbox/events", otherTenant, original).body()).contains("RECEIVED");
+  }
+
+  @Test
+  void inboxSerializesConcurrentConflictingEventIdsAcrossAggregates() throws Exception {
+    String submit = bearer("submitter", "tenant-inbox-race", SUBMITTER);
+    String first = event("same-id", 1, "same-payload", null);
+    String second = first.replace("\"aggregate_id\":\"obs-1\"", "\"aggregate_id\":\"obs-2\"");
+    CountDownLatch start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      var firstResult = executor.submit(() -> {
+        start.await();
+        return post("/internal/v1/inbox/events", submit, first);
+      });
+      var secondResult = executor.submit(() -> {
+        start.await();
+        return post("/internal/v1/inbox/events", submit, second);
+      });
+      start.countDown();
+      HttpResponse<String> a = firstResult.get(15, TimeUnit.SECONDS);
+      HttpResponse<String> b = secondResult.get(15, TimeUnit.SECONDS);
+      assertEquals(202, a.statusCode());
+      assertEquals(202, b.statusCode());
+      assertThat(List.of(json.readTree(a.body()).get("status").asString(),
+              json.readTree(b.body()).get("status").asString()))
+          .containsExactlyInAnyOrder("RECEIVED", "QUARANTINED");
+      assertThat(a.body() + b.body()).contains("EVENT_CONFLICT");
+    }
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.inbox_event WHERE tenant_id = 'tenant-inbox-race'", Integer.class));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event WHERE tenant_id = 'tenant-inbox-race' AND reason = 'EVENT_CONFLICT'", Integer.class));
+  }
+
+  @Test
+  void inboxIntegrityViewFlagsConflictingIdsAndSequencesWithoutFlaggingUnrelatedEvents()
+      throws Exception {
+    String submit = bearer("submitter", "tenant-integrity", SUBMITTER);
+    String first = event("integrity-1", 5, "payload-1", null);
+    String second =
+        event("integrity-2", 1, "payload-2", null)
+            .replace("\"aggregate_id\":\"obs-1\"", "\"aggregate_id\":\"obs-2\"");
+    assertThat(post("/internal/v1/inbox/events", submit, first).body()).contains("RECEIVED");
+    assertThat(post("/internal/v1/inbox/events", submit, second).body()).contains("RECEIVED");
+    assertThat(post("/internal/v1/inbox/events", submit, event("stale", 4, "old", null)).body())
+        .contains("SEQUENCE_REGRESSION");
+    assertThat(post("/internal/v1/inbox/events", submit, event("bad-digest", 5, "bad", "0".repeat(64))).body())
+        .contains("DIGEST_MISMATCH");
+    assertEquals("NO_KNOWN_CONFLICT", inboxIntegrity("tenant-integrity", "integrity-1"));
+
+    String changed = first.replace("connections.observation.accepted", "connections.observation.changed");
+    assertThat(post("/internal/v1/inbox/events", submit, changed).body()).contains("EVENT_CONFLICT");
+    assertEquals("CONFLICT", inboxIntegrity("tenant-integrity", "integrity-1"));
+    assertEquals("NO_KNOWN_CONFLICT", inboxIntegrity("tenant-integrity", "integrity-2"));
+
+    String sameSequence = second.replace("\"event_id\":\"integrity-2\"", "\"event_id\":\"other-id\"");
+    assertThat(post("/internal/v1/inbox/events", submit, sameSequence).body()).contains("SEQUENCE_REGRESSION");
+    assertEquals("CONFLICT", inboxIntegrity("tenant-integrity", "integrity-2"));
+
+    String otherTenant = bearer("submitter", "tenant-integrity-other", SUBMITTER);
+    assertThat(post("/internal/v1/inbox/events", otherTenant, first).body()).contains("RECEIVED");
+    assertEquals("NO_KNOWN_CONFLICT", inboxIntegrity("tenant-integrity-other", "integrity-1"));
+  }
+
+  @Test
+  void inboxMigrationPreservesLegacyQuarantineWithoutInventingEventType() {
+    String database = "evidence_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+    jdbc.execute("CREATE DATABASE " + database);
+    try {
+      String url = POSTGRES.getJdbcUrl().replace("/uacrf_evidence?", "/" + database + "?");
+      var source = new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword());
+      Flyway.configure().dataSource(source).target("1").load().migrate();
+      var oldDb = new JdbcTemplate(source);
+      oldDb.update(
+          "INSERT INTO uacrf_evidence.inbox_event "
+              + "(tenant_id, environment_id, event_id, source_service, event_type, aggregate_id, "
+              + "aggregate_sequence, payload, payload_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "tenant-legacy", "env-1", "legacy", "S03", "connections.observation.accepted",
+          "obs-1", 1, "original-payload", sha("original-payload"));
+      oldDb.update(
+          "INSERT INTO uacrf_evidence.quarantined_inbox_event "
+              + "(quarantine_id, tenant_id, environment_id, event_id, source_service, aggregate_id, "
+              + "aggregate_sequence, reason, payload, claimed_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          UUID.randomUUID(), "tenant-legacy", "env-1", "legacy", "S03", "obs-1", 1,
+          "EVENT_CONFLICT", "old-payload", sha("old-payload"));
+      oldDb.update(
+          "INSERT INTO uacrf_evidence.quarantined_evidence "
+              + "(quarantine_id, tenant_id, environment_id, evidence_id, source_ref, sequence, "
+              + "reason, payload, claimed_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          UUID.randomUUID(), "tenant-legacy", "env-1", "old-evidence", "old-source", 1,
+          "REPLAY_CONFLICT", "old-payload", sha("old-payload"));
+      Flyway.configure().dataSource(source).load().migrate();
+      assertEquals(
+          1,
+          oldDb.queryForObject(
+              "SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event "
+                  + "WHERE event_id = 'legacy' AND payload = 'old-payload' AND event_type IS NULL",
+              Integer.class));
+      assertEquals(
+          "CONFLICT",
+          oldDb.queryForObject(
+              "SELECT integrity_status FROM uacrf_evidence.inbox_event_integrity "
+                  + "WHERE tenant_id = 'tenant-legacy' AND event_id = 'legacy'",
+              String.class));
+      assertEquals(
+          1,
+          oldDb.queryForObject(
+              "SELECT count(*) FROM uacrf_evidence.quarantined_evidence "
+                  + "WHERE evidence_id = 'old-evidence' AND payload = 'old-payload' "
+                  + "AND reason = 'REPLAY_CONFLICT' AND source_class IS NULL "
+                  + "AND observed_at IS NULL AND kind IS NULL AND submitted_by IS NULL",
+              Integer.class));
+    } finally {
+      jdbc.execute("DROP DATABASE " + database);
+    }
+  }
+
+  private String inboxIntegrity(String tenant, String eventId) {
+    return jdbc.queryForObject(
+        "SELECT integrity_status FROM uacrf_evidence.inbox_event_integrity "
+            + "WHERE tenant_id = ? AND environment_id = 'env-1' AND event_id = ?",
+        String.class,
+        tenant,
+        eventId);
   }
 
   @Test

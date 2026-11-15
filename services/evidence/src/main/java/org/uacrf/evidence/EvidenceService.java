@@ -33,6 +33,12 @@ class EvidenceService {
   private static final String COLUMNS =
       "id, source_class, source_ref, sequence, observed_at, kind, payload_digest, submitted_by, "
           + "qualification_state, revision, reviewed_by, review_reason";
+  private static final String HAS_EVIDENCE_CONFLICT =
+      "EXISTS (SELECT 1 FROM " + SCHEMA + "quarantined_evidence q "
+          + "WHERE q.tenant_id = e.tenant_id AND q.environment_id = e.environment_id "
+          + "AND ((q.reason = 'REPLAY_CONFLICT' AND q.evidence_id = e.id) OR "
+          + "(q.reason IN ('REPLAY_CONFLICT', 'STALE_SEQUENCE') "
+          + "AND q.source_ref = e.source_ref AND q.sequence = e.sequence)))";
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
@@ -46,6 +52,9 @@ class EvidenceService {
   SubmitResult submit(DelegationPrincipal actor, SubmitEvidence request) {
     requireCapability(actor, "evidence.event.write");
     requireGlobalScope(actor);
+    jdbc.queryForList(
+        "SELECT pg_advisory_xact_lock(hashtext('evidence.observation.id'), hashtext(?))",
+        actor.tenantId() + "|" + actor.environmentId() + "|" + request.id());
     jdbc.update(
         "INSERT INTO " + SCHEMA + "source_cursor (tenant_id, environment_id, source_ref, last_sequence) "
             + "VALUES (?, ?, ?, 0) ON CONFLICT DO NOTHING",
@@ -66,8 +75,10 @@ class EvidenceService {
     }
     List<Map<String, Object>> existing =
         jdbc.queryForList(
-            "SELECT payload_digest, source_ref, sequence, source_class, qualification_state FROM "
+            "SELECT payload_digest, payload, source_ref, sequence, source_class, kind, qualification_state, "
+                + "observed_at = ? AS observed_at_matches FROM "
                 + SCHEMA + "evidence_event WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+            Timestamp.from(request.observedAt()),
             actor.tenantId(),
             actor.environmentId(),
             request.id());
@@ -75,8 +86,11 @@ class EvidenceService {
       Map<String, Object> row = existing.getFirst();
       boolean same =
           request.payloadDigest().equals(row.get("payload_digest"))
+              && request.payload().equals(row.get("payload"))
               && request.sourceRef().equals(row.get("source_ref"))
               && request.sourceClass().name().equals(row.get("source_class"))
+              && request.kind().equals(row.get("kind"))
+              && Boolean.TRUE.equals(row.get("observed_at_matches"))
               && request.sequence() == ((Number) row.get("sequence")).longValue();
       return same
           ? new SubmitResult(request.id(), "DUPLICATE", "Already accepted.", (String) row.get("qualification_state"))
@@ -126,8 +140,9 @@ class EvidenceService {
   private SubmitResult quarantine(DelegationPrincipal actor, SubmitEvidence request, String reason) {
     jdbc.update(
         "INSERT INTO " + SCHEMA + "quarantined_evidence (quarantine_id, tenant_id, environment_id, "
-            + "evidence_id, source_ref, sequence, reason, payload, claimed_digest) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "evidence_id, source_ref, sequence, reason, payload, claimed_digest, "
+            + "source_class, observed_at, kind, submitted_by) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         UUID.randomUUID(),
         actor.tenantId(),
         actor.environmentId(),
@@ -136,7 +151,11 @@ class EvidenceService {
         request.sequence(),
         reason,
         request.payload(),
-        request.payloadDigest());
+        request.payloadDigest(),
+        request.sourceClass().name(),
+        Timestamp.from(request.observedAt()),
+        request.kind(),
+        actor.principalId());
     return new SubmitResult(request.id(), "QUARANTINED", reason, null);
   }
 
@@ -223,8 +242,9 @@ class EvidenceService {
     requireCapability(actor, "evidence.event.read");
     List<Map<String, Object>> rows =
         jdbc.queryForList(
-            "SELECT qualification_state, payload_digest, revision, reviewed_at FROM " + SCHEMA
-                + "evidence_event WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+            "SELECT qualification_state, payload_digest, revision, reviewed_at, "
+                + HAS_EVIDENCE_CONFLICT + " AS has_conflict FROM " + SCHEMA
+                + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ?",
             actor.tenantId(),
             actor.environmentId(),
             id);
@@ -236,10 +256,12 @@ class EvidenceService {
     boolean digestMatches = request.expectedDigest().equals(row.get("payload_digest").toString());
     Timestamp reviewedAt = (Timestamp) row.get("reviewed_at");
     boolean withinCutoff = reviewedAt != null && !reviewedAt.toInstant().isAfter(request.cutoff());
-    boolean usable = "QUALIFIED".equals(state) && digestMatches && withinCutoff;
+    boolean conflict = Boolean.TRUE.equals(row.get("has_conflict"));
+    boolean usable = "QUALIFIED".equals(state) && digestMatches && withinCutoff && !conflict;
     String reason =
         usable
             ? "Qualified by independent review before the cutoff."
+            : conflict ? "Evidence has a retained source conflict."
             : switch (state) {
               case "SAMPLE_ONLY" -> "Sample data is never accepted evidence.";
               case "UNVERIFIED" -> "Evidence has not been independently reviewed.";
@@ -262,8 +284,9 @@ class EvidenceService {
   MeasurementReceipt measurement(DelegationPrincipal actor, String id, MeasurementRequest request) {
     requireCapability(actor, "evidence.event.read");
     List<Map<String, Object>> rows = jdbc.queryForList(
-        "SELECT payload, payload_digest, kind, observed_at, qualification_state, revision, reviewed_at FROM "
-            + SCHEMA + "evidence_event WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+        "SELECT payload, payload_digest, kind, observed_at, qualification_state, revision, reviewed_at, "
+            + HAS_EVIDENCE_CONFLICT + " AS has_conflict FROM "
+            + SCHEMA + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ?",
         actor.tenantId(), actor.environmentId(), id);
     if (rows.isEmpty()) throw notFound();
     Map<String, Object> row = rows.getFirst();
@@ -272,7 +295,8 @@ class EvidenceService {
     String state = (String) row.get("qualification_state");
     Timestamp reviewedAt = (Timestamp) row.get("reviewed_at");
     ParsedMeasurement parsed = parseMeasurement(payload);
-    String reason = !"QUALIFIED".equals(state) ? "Evidence is not qualified."
+    String reason = Boolean.TRUE.equals(row.get("has_conflict")) ? "Evidence has a retained source conflict."
+        : !"QUALIFIED".equals(state) ? "Evidence is not qualified."
         : reviewedAt == null || reviewedAt.toInstant().isAfter(request.cutoff()) ? "Qualification happened after the cutoff."
         : !sha256(payload).equals(digest) ? "Stored payload digest does not match."
         : parsed == null ? "Payload is not a valid measurement."
@@ -317,22 +341,33 @@ class EvidenceService {
   InboxResult receiveEvent(DelegationPrincipal actor, InboxEvent event) {
     requireCapability(actor, "evidence.inbox.write");
     requireGlobalScope(actor);
+    // Event IDs are scoped independently of aggregates, so serialize both identities.
+    jdbc.queryForList(
+        "SELECT pg_advisory_xact_lock(hashtext('evidence.inbox.event'), hashtext(?))",
+        actor.tenantId() + "|" + actor.environmentId() + "|" + event.eventId());
     jdbc.queryForList(
         "SELECT pg_advisory_xact_lock(hashtext(?))",
         actor.tenantId() + "|" + actor.environmentId() + "|" + event.sourceService() + "|" + event.aggregateId());
     if (!sha256(event.payload()).equals(event.payloadDigest())) {
       return quarantineEvent(actor, event, "DIGEST_MISMATCH");
     }
-    List<String> seen =
-        jdbc.queryForList(
-            "SELECT payload_digest FROM " + SCHEMA + "inbox_event WHERE tenant_id = ? "
+    List<Boolean> seen =
+        jdbc.query(
+            "SELECT source_service, event_type, aggregate_id, aggregate_sequence, payload, payload_digest FROM "
+                + SCHEMA + "inbox_event WHERE tenant_id = ? "
                 + "AND environment_id = ? AND event_id = ?",
-            String.class,
+            (row, index) ->
+                event.sourceService().equals(row.getString("source_service"))
+                    && event.eventType().equals(row.getString("event_type"))
+                    && event.aggregateId().equals(row.getString("aggregate_id"))
+                    && event.aggregateSequence() == row.getLong("aggregate_sequence")
+                    && event.payload().equals(row.getString("payload"))
+                    && event.payloadDigest().equals(row.getString("payload_digest").trim()),
             actor.tenantId(),
             actor.environmentId(),
             event.eventId());
     if (!seen.isEmpty()) {
-      return event.payloadDigest().equals(seen.getFirst().trim())
+      return seen.getFirst()
           ? new InboxResult(event.eventId(), "DUPLICATE", "Already received.")
           : quarantineEvent(actor, event, "EVENT_CONFLICT");
     }
@@ -367,13 +402,14 @@ class EvidenceService {
   private InboxResult quarantineEvent(DelegationPrincipal actor, InboxEvent event, String reason) {
     jdbc.update(
         "INSERT INTO " + SCHEMA + "quarantined_inbox_event (quarantine_id, tenant_id, environment_id, "
-            + "event_id, source_service, aggregate_id, aggregate_sequence, reason, payload, claimed_digest) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "event_id, source_service, event_type, aggregate_id, aggregate_sequence, reason, payload, claimed_digest) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         UUID.randomUUID(),
         actor.tenantId(),
         actor.environmentId(),
         event.eventId(),
         event.sourceService(),
+        event.eventType(),
         event.aggregateId(),
         event.aggregateSequence(),
         reason,

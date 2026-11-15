@@ -35,9 +35,9 @@ short-lived, audience-restricted delegation; S01 to Keycloak admin API
 | T9 | Stolen or leaked delegation key | Private key only in S01; S02 holds public key and key id | Config and docs | Partial: rotation and storage in a secret manager open |
 | T10 | Compromised dependency or image | SBOMs, Trivy HIGH/CRITICAL gate, pinned images and actions, keyless signing on release | CI, `release.yml` | Partial: release workflow not yet run; no deploy-time verification |
 | T11 | Replay or duplicate command | `Idempotency-Key` with request digest and stored receipt | S01/S02 tests | Implemented |
-| T12 | Duplicate, delayed or conflicting event | Transactional outbox in S01/S02 | Outbox tables and tests | Producer side only; inbox, sequence checks and quarantine open until the first consumer |
-| T13 | Session theft or CSRF in the web app | HttpOnly SameSite=Lax session; PKCE; secure flag setting | Web tests | Partial: CSRF token review and HTTPS-only enforcement open |
-| T14 | Secret leakage in logs, events or source | Secrets from environment; `.env` ignored; events carry no credentials; offline Trivy filesystem scan of the checked-out source reports locations and rules, not secret values | Local Trivy 0.76.0 scan found zero and rejected a generated private-key canary; CI gate configured | Source scan configured; GitHub run and runtime log/event leakage tests remain open |
+| T12 | Duplicate, delayed or conflicting event | Transactional outboxes; S04 inbox checks digest, complete retained envelope and per-aggregate sequence, with conflict quarantine | S04 PostgreSQL HTTP tests include concurrent conflicting event IDs | Partial: S04 inbox retention is not a domain projection; broker delivery, crash recovery and other consumers remain open |
+| T13 | Session theft or CSRF in the web app | HttpOnly SameSite=Lax session; PKCE; secure flag setting | Web tests; live browser fixture checks missing/invalid CSRF tokens on context selection and logout | Partial: other routes, cross-origin behavior and HTTPS-only enforcement remain open |
+| T14 | Secret leakage in logs, events or source | Secrets from environment; `.env` ignored; events carry no credentials; offline Trivy filesystem scan of the checked-out source reports locations and rules, not secret values | Local Trivy 0.76.0 scan found zero and rejected a generated private-key canary; CI scan step passed on `08ebd73` | Runtime log/event leakage tests remain open |
 | T15 | Ambiguous external action result | Unknown outcomes reconciled by status query before retry | Design only | Open until M5 (see FIRST_RECOVERY_ACTION.md) |
 | T16 | Stale graph/policy driving an action | Bind decisions to exact revisions with current authoritative checks | Design only | Open until M4/M5 |
 | T17 | Denial of service on edge or services | Edge traffic-limit policy | None | Open |
@@ -54,11 +54,24 @@ review.
 - Every S01/S02 aggregate carries tenant and environment; there is no
   cross-tenant read path. New services must add the same scope columns and a
   denial test before exposing data.
-- Current outbox events (`identity.*`, catalog) carry event id, tenant,
+- Current S01/S02 outbox events (`identity.*`, catalog) carry event id, tenant,
   environment, aggregate and sequence (unique per aggregate) but no explicit
   schema version or payload digest column. Before the first consumer, add both,
-  plus an inbox table and a visible quarantine path; those are M2 entry
-  criteria, not retrofits.
+  plus an inbox table and a visible quarantine path before their first
+  consumer. S04 already has a separate S03-facing inbox and retained quarantine;
+  it does not establish consumer compatibility for S01/S02 events.
+- S04 retains conflicting deliveries separately. Its owner-local integrity view
+  identifies accepted events with retained ID or sequence conflicts; it cannot
+  recover conflicts previously misclassified as duplicates, establish
+  aggregate-wide eligibility or prevent a later conflict. No consumer uses it
+  yet. A future consumer must block ambiguous context; this view alone does not
+  provide that gate.
+- S04 observation qualification and measurement receipts now fail closed on
+  retained ID or source-sequence conflicts without rewriting the historical
+  qualification decision. This is a point-in-time database check: conflicts
+  misclassified and not retained before the fix remain undetectable, and a
+  conflict can arrive after a receipt is issued. Later decisions require their
+  own freshness and reconciliation safeguards.
 - Event meaning changes (including enum security meaning) require a new
   version and a consumer compatibility test, as already stated in the policies.
 

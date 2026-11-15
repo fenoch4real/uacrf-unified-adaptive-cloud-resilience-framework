@@ -6,6 +6,13 @@
 
 ## Follow-up browser run
 
+The latest `npm --prefix e2e run test:live` run on 2026-11-15 passed
+**9 tests** with exit code 0. It additionally checks that context selection and
+logout reject missing and invalid CSRF tokens, that rejection does not select a
+context or end the session, and that valid forms still work. This covers two
+routes over local HTTP, not every mutation or cross-origin/HTTPS behavior.
+The disposable stack was removed.
+
 On 2026-11-15, `npm --prefix e2e run test:live` passed **8 tests** with exit
 code 0 against a fresh isolated stack. New tests verify that administrator
 and approver can read the principal directory without admission or disable
@@ -18,7 +25,7 @@ containers, network and database volume.
 
 The preceding follow-up passed **6 tests** with exit code 0, including the
 denied creation case. The original run and its integration baseline are retained
-below; the full Maven reactor was not rerun for either follow-up.
+below; the full Maven reactor was not rerun for the follow-ups.
 
 ## Summary
 

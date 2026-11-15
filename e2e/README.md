@@ -26,6 +26,9 @@ read-only principal-directory access for both roles, access after a browser
 reload, invalid-password rejection, protected-route redirection, and
 local-session logout. They also verify that an administrator without
 catalog-write authority cannot open the owner selector or submit a
-journey-creation request. They use the isolated first-admin bootstrap fixture;
-they do not grant catalog-write capabilities, run S02, or test production
-identity-provider configuration.
+journey-creation request. Missing and invalid CSRF tokens are rejected for
+context selection and logout without changing the selected context or session;
+valid browser forms still work. These are HTTP rejection checks, not a complete
+cross-origin or HTTPS review. The suite uses the isolated first-admin bootstrap
+fixture; it does not grant catalog-write capabilities, run S02, or test
+production identity-provider configuration.

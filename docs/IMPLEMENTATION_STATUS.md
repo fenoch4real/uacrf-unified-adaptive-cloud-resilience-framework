@@ -121,12 +121,16 @@ microservices system.
   selection and current-access evaluation through UX01, EDGE01, and S01. Its
   isolated Compose runner creates disposable PostgreSQL and Keycloak services,
   generates credentials and signing keys outside the repository, and removes
-  only its uniquely named containers, network, and volume. All eight browser
+  only its uniquely named containers, network, and volume. All nine browser
   tests pass across three files: administrator and approver access with
   reloads and read-only principal directory views, invalid-password rejection
   for both users, unauthenticated-route redirection, local-session logout, and
   denial of journey owner selection and a direct creation submission without
-  catalog-write authority. S01 returned only the administrator's seven
+  catalog-write authority. The latest run also verifies missing and invalid
+  CSRF tokens cannot select a context or end the session, while valid context
+  selection and logout still succeed. This covers two routes over local HTTP,
+  not a complete cross-origin or HTTPS review. S01 returned only the
+  administrator's seven
   intended identity-management capabilities or the approver's two separately
   seeded capabilities; catalog write access remains denied. S02 is not running
   in this browser fixture, so the denied creation test is not a catalog-side
@@ -227,8 +231,10 @@ The checker excludes the two QA files it regenerates and does not assert
 runtime acceptance. CI is configured to run an offline Trivy filesystem secret
 scan before the Maven build; the identical local command found no secrets. The
 scan rejects a generated private-key canary locally and reports finding
-locations and rules without printing secret values. The GitHub Actions result
-is pending. The 107-route, 153-table and 131-requirement counts describe
+locations and rules without printing secret values. The GitHub Actions build
+for commit `08ebd73` passed, including the secret scan and Docker-context
+checks; it does not cover subsequent uncommitted changes. The 107-route,
+153-table and 131-requirement counts describe
 inherited planning inventories, not target implementation coverage.
 The identity integration suite also verifies that revoking a membership blocks
 subsequent issuance of an S02-scoped delegation for that membership.
@@ -377,6 +383,10 @@ retains evidence events and decides qualification.
 
 - `POST /internal/v1/observations` retains typed source bytes. Digest mismatch,
   replay conflict and stale per-source sequence are quarantined, never dropped.
+  Exact replays must match source, class, sequence, kind, timestamp at PostgreSQL
+  precision, payload and digest. Transaction-scoped ID and source locks serialize
+  concurrent submissions. Migration V4 retains source class, timestamp, kind and
+  submitter for new quarantine rows; historical metadata remains unknown.
 - Sample data (`SAMPLE_LOCAL`) is always `SAMPLE_ONLY` and can never be qualified;
   the database also enforces this and the independent-reviewer rule by CHECK.
 - Provider evidence starts `UNVERIFIED`; `POST /v1/evidence/{id}/reviews` needs
@@ -387,8 +397,34 @@ retains evidence events and decides qualification.
 - `POST /internal/v1/qualifications/{id}:measurement` internally attests parsed
   measurement fields from the qualified, digest-checked owner payload at the cutoff;
   it does not return the raw payload.
+- Both receipt types fail closed with a conflict reason when a retained replay
+  conflicts with the accepted ID, or a retained replay or stale sequence conflicts
+  with its source and sequence. Unrelated stale sequences and digest mismatches
+  alone do not invalidate it. The original qualification state is preserved.
+  These checks use the same database statement snapshot as the receipt: previously
+  misclassified and unretained conflicts cannot be recovered, and a conflicting
+  submission may arrive after a receipt has been issued. Consumers still need
+  safeguards for decisions made later.
+  PostgreSQL integration tests cover concurrency, timestamp precision, tenant
+  isolation, unaffected submissions and migration of legacy quarantines.
 - `POST /internal/v1/inbox/events` is the consumer-side inbox (digest, duplicate,
-  per-aggregate sequence checks, quarantine). The S03 publisher below delivers to it.
+  per-aggregate sequence checks, quarantine). A duplicate must match the retained
+  source service, event type, aggregate, sequence, payload and digest; reusing an
+  ID with changed metadata is quarantined. Transaction-scoped locks serialize
+  concurrent deliveries for both event ID and aggregate. New quarantine rows
+  retain the event type; rows predating migration V2 have an unknown (`NULL`)
+  type rather than a fabricated value. PostgreSQL-backed HTTP tests cover
+  changed envelopes, simultaneous conflicting IDs and a V1-to-V2 upgrade with
+  existing quarantine data. Migration V3 adds a local `inbox_event_integrity`
+  view that identifies accepted events with retained conflicting IDs or
+  aggregate sequences, including old quarantine rows. It does not expose a
+  service API, establish aggregate-wide eligibility, or detect conflicts that
+  were previously misclassified and never retained. `NO_KNOWN_CONFLICT` is a
+  point-in-time observation, not proof of future consistency. The S03 publisher
+  below delivers to the inbox; retaining an event is not a downstream domain
+  effect or broker crash-recovery acceptance. No consumer uses this view yet;
+  future consumers must block ambiguous context and address conflicts arriving
+  after a check before making decisions.
 - S01 registers `evidence.event.read|write`, `evidence.inbox.write` and
   `evidence.qualification.review`.
 - Wired into Dockerfile, compose, CI, release, ownership check and image smoke test.
