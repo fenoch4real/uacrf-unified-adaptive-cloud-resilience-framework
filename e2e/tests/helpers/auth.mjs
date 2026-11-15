@@ -47,3 +47,23 @@ export async function expectCurrentAccess(page, displayName, capabilities) {
     .allTextContents();
   expect(actualCapabilities.sort()).toEqual([...capabilities].sort());
 }
+
+export async function expectPrincipalDirectory(page) {
+  const response = await page.goto('/principals');
+  expect(response.status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'Principal directory' })).toBeVisible();
+  const table = page.getByRole('table', {
+    name: 'Principals visible in the selected context',
+  });
+  for (const [id, displayName] of [
+    ['local-admin', 'Local Administrator'],
+    ['local-approver', 'Local Approver'],
+  ]) {
+    const row = table.getByRole('row').filter({ has: page.getByRole('rowheader', { name: id }) });
+    await expect(row.getByRole('cell', { name: displayName, exact: true })).toBeVisible();
+    await expect(row.getByRole('cell', { name: 'HUMAN', exact: true })).toBeVisible();
+    await expect(row.getByRole('cell', { name: 'Enabled', exact: true })).toBeVisible();
+    await expect(row.getByRole('cell', { name: 'No', exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: /admit|create|disable/i })).toHaveCount(0);
+}

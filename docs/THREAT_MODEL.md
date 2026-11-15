@@ -37,10 +37,17 @@ short-lived, audience-restricted delegation; S01 to Keycloak admin API
 | T11 | Replay or duplicate command | `Idempotency-Key` with request digest and stored receipt | S01/S02 tests | Implemented |
 | T12 | Duplicate, delayed or conflicting event | Transactional outbox in S01/S02 | Outbox tables and tests | Producer side only; inbox, sequence checks and quarantine open until the first consumer |
 | T13 | Session theft or CSRF in the web app | HttpOnly SameSite=Lax session; PKCE; secure flag setting | Web tests | Partial: CSRF token review and HTTPS-only enforcement open |
-| T14 | Secret leakage in logs, events or source | Secrets from environment; `.env` ignored; events carry no credentials | Review, CI | Partial: no automated secret scanning in CI |
+| T14 | Secret leakage in logs, events or source | Secrets from environment; `.env` ignored; events carry no credentials; offline Trivy filesystem scan of the checked-out source reports locations and rules, not secret values | Local Trivy 0.76.0 scan found zero and rejected a generated private-key canary; CI gate configured | Source scan configured; GitHub run and runtime log/event leakage tests remain open |
 | T15 | Ambiguous external action result | Unknown outcomes reconciled by status query before retry | Design only | Open until M5 (see FIRST_RECOVERY_ACTION.md) |
 | T16 | Stale graph/policy driving an action | Bind decisions to exact revisions with current authoritative checks | Design only | Open until M4/M5 |
 | T17 | Denial of service on edge or services | Edge traffic-limit policy | None | Open |
+
+Private documents under `private-docs/` are excluded from the Docker build
+context; a Docker regression test checks both private-file exclusion and normal
+file inclusion. Git ignore alone did not prevent inclusion in earlier Docker
+builds. Existing builder caches may contain those files if present during a
+prior build, so shared or remote builder access and retention still need
+review.
 
 ## Tenant and event compatibility review
 
@@ -58,5 +65,5 @@ short-lived, audience-restricted delegation; S01 to Keycloak admin API
 ## Required before an externally reachable deployment
 
 T9 key custody and rotation, T10 signature verification at deploy, T13 CSRF and
-HTTPS enforcement, T14 secret scanning, T17 rate limits, and a production
-identity provider replacing the local realm.
+HTTPS enforcement, T14 runtime log/event leakage tests, T17 rate limits, and a
+production identity provider replacing the local realm.

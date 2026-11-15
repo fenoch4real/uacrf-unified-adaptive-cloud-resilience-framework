@@ -121,19 +121,26 @@ microservices system.
   selection and current-access evaluation through UX01, EDGE01, and S01. Its
   isolated Compose runner creates disposable PostgreSQL and Keycloak services,
   generates credentials and signing keys outside the repository, and removes
-  only its uniquely named containers, network, and volume. All five browser
+  only its uniquely named containers, network, and volume. All eight browser
   tests pass across three files: administrator and approver access with
-  reloads, invalid-password rejection for both users, unauthenticated-route
-  redirection, and local-session logout. S01 returned only the administrator's
-  seven intended identity-management capabilities or the approver's two
-  separately seeded capabilities; catalog write access remains denied. The
-  current-access flow still does not exercise catalog writes. The checked-in
+  reloads and read-only principal directory views, invalid-password rejection
+  for both users, unauthenticated-route redirection, local-session logout, and
+  denial of journey owner selection and a direct creation submission without
+  catalog-write authority. S01 returned only the administrator's seven
+  intended identity-management capabilities or the approver's two separately
+  seeded capabilities; catalog write access remains denied. S02 is not running
+  in this browser fixture, so the denied creation test is not a catalog-side
+  persistence check. The checked-in
   membership-create contract requires S01 to verify an
   `authorization_ref` for an independent grant decision. S01 now implements
   that verifier (see "Independent grant authority" below). Do not seed catalog
-  memberships or bypass the gate; the authenticated OIDC-to-catalog flow stays
-  pending until a second human approver is admitted. The
-  browser also supports draft-journey registration: S01 supplies
+  memberships or bypass the gate. The initial approver exists, but an
+  authorized browser journey is still blocked: the initial administrator
+  cannot grant catalog authority to themselves, and `identity.owner.select`
+  is not delegable to another catalog user. The user chose to keep that policy
+  unchanged; a separate authorization decision is needed to resolve this
+  path. The browser also supports draft-journey
+  registration: S01 supplies
   paged eligible human owners, the selected owner is revalidated before a
   write delegation is requested, and S02 receives a stable
   `cmd_<owner>_<uuid>` identifier with an idempotency key. The local bootstrap
@@ -199,9 +206,14 @@ microservices system.
   Maven wrapper pins Maven 3.10.0 and verifies its download; the Docker builder
   image also replaces Maven's vulnerable bundled Guava with checksum-verified
   33.7.2. Maven's local dependency cache is removed from the final builder
-  image. The CI Trivy gate scans vulnerabilities only, blocking HIGH and
+  image. The image Trivy gate scans vulnerabilities only, blocking HIGH and
   CRITICAL findings in all five runtime images and the builder image; this has
   passed locally but has not yet run in GitHub Actions.
+  The root Docker build context now excludes `private-docs/`. A real Docker
+  regression test verifies that private files cannot be copied while ordinary
+  source files remain available. Existing builder caches from before this
+  exclusion may contain those files if they were present during a build;
+  review shared or remote builder access and retention separately.
   Maven is not installed globally. Node.js v26.13.1 is available locally.
 
 ## Fresh-build delivery tracking
@@ -212,8 +224,12 @@ tests with zero failures, errors, or skips. CI is configured to run the MS01
 architecture checker, which verifies checked-in inventory allocation,
 contract ownership, and package-manifest hashes for frozen design artifacts.
 The checker excludes the two QA files it regenerates and does not assert
-runtime acceptance. The 107-route, 153-table and 131-requirement counts
-describe inherited planning inventories, not target implementation coverage.
+runtime acceptance. CI is configured to run an offline Trivy filesystem secret
+scan before the Maven build; the identical local command found no secrets. The
+scan rejects a generated private-key canary locally and reports finding
+locations and rules without printing secret values. The GitHub Actions result
+is pending. The 107-route, 153-table and 131-requirement counts describe
+inherited planning inventories, not target implementation coverage.
 The identity integration suite also verifies that revoking a membership blocks
 subsequent issuance of an S02-scoped delegation for that membership.
 
@@ -248,8 +264,8 @@ provider credentials or making release claims.
   current-authority propagation.
 - Threat model and tenant/event compatibility review written
   (`docs/THREAT_MODEL.md`); its open items (key custody, deploy-time signature
-  verification, CSRF review, secret scanning, rate limits, event inbox) are
-  tracked there.
+  verification, CSRF review, runtime log/event leakage tests, rate limits, and
+  event inbox) are tracked there.
 - The complementary service-ownership gate is also configured in CI. It checks
   S01/S02 database configuration, Compose admin/runtime credential separation,
   application-role restrictions, service-module dependencies, and qualified
@@ -796,5 +812,9 @@ revocation prevents new S02 delegation issuance. A scripted live run over real K
 (bootstrap approver, directory admission, independent grant decision, single-use
 decision, delegated catalog write, revocation blocking delegation). It exposed
 and fixed a Spring wiring failure in `KeycloakTrustedDirectory` that unit tests
-could not see. Next, exercise the UX01/web browser leg live. Preserve one-owner-per-domain and no-cross-database-access
-boundaries.
+could not see. The browser suite additionally verifies denial of journey
+creation without catalog-write authority and read-only principal-directory
+access for the administrator and approver. The authorized catalog browser
+workflow remains blocked by the owner-selection grant policy and must not
+bypass the independent grant or gated identity workflows. Preserve
+one-owner-per-domain and no-cross-database-access boundaries.

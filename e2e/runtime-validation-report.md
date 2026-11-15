@@ -4,6 +4,22 @@
 
 **Target**: UACRF repository
 
+## Follow-up browser run
+
+On 2026-11-15, `npm --prefix e2e run test:live` passed **8 tests** with exit
+code 0 against a fresh isolated stack. New tests verify that administrator
+and approver can read the principal directory without admission or disable
+controls. Another confirms that an administrator without catalog-write
+authority receives an S01 owner-selection denial both when opening the journey
+form and when submitting a CSRF-valid request directly. No S02 service is
+present in this fixture, so this is not evidence of an authorized catalog
+write or a catalog-side persistence check. The runner removed its disposable
+containers, network and database volume.
+
+The preceding follow-up passed **6 tests** with exit code 0, including the
+denied creation case. The original run and its integration baseline are retained
+below; the full Maven reactor was not rerun for either follow-up.
+
 ## Summary
 
 | Step | Status | Exit Code | Details |
@@ -41,8 +57,10 @@ retained and run through the Maven reactor.
 
 - The browser suite uses the local imported Keycloak realm and isolated
   first-admin bootstrap, not a production identity provider.
-- Catalog-write authorization remains intentionally untested and denied in
-  this fixture pending the independent grant-approval workflow.
+- Authorized catalog writes remain untested. In the initial setup, the
+  administrator cannot grant catalog authority to themselves, and
+  `identity.owner.select` is not delegable to another catalog user. The user
+  chose to keep this authorization policy unchanged.
 
 ## Issues found
 

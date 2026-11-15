@@ -19,6 +19,33 @@ jobs:
           cache: maven
       - name: Verify MS01 inventory, contract, and manifest integrity
         run: python3 -B design/ms01/tools/check_architecture.py
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.0
+      - name: Scan source tree for secrets
+        run: |
+          report="${RUNNER_TEMP}/trivy-secret-report.json"
+          if trivy fs \
+            --scanners secret \
+            --offline-scan \
+            --skip-version-check \
+            --no-progress \
+            --exit-code 1 \
+            --format json \
+            --output "$report" \
+            .; then
+            echo "Source secret scan passed."
+          else
+            echo "Source secret scan failed; finding locations and rules follow, when available." >&2
+            if [ -f "$report" ]; then
+              jq -r '.Results[]? | .Target as $target | .Secrets[]? |
+                "\($target):\(.StartLine) [\(.Severity)] \(.RuleID)"' "$report" >&2
+            fi
+            exit 1
+          fi
+      - name: Verify private documents are excluded from Docker builds
+        run: python3 -B -m unittest tools.test_docker_context
       - name: Verify service ownership boundaries
         run: python3 -B -m unittest tools.test_check_service_ownership
       - name: Check service ownership configuration

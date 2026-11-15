@@ -22,7 +22,10 @@ in the repository. The runner removes its uniquely named containers, network,
 and database volume on exit.
 
 The Playwright tests cover administrator and approver capability separation,
-access after a browser reload, invalid-password rejection, protected-route
-redirection, and local-session logout. They use the isolated first-admin
-bootstrap fixture; they do not grant catalog-write capabilities or test
-production identity-provider configuration.
+read-only principal-directory access for both roles, access after a browser
+reload, invalid-password rejection, protected-route redirection, and
+local-session logout. They also verify that an administrator without
+catalog-write authority cannot open the owner selector or submit a
+journey-creation request. They use the isolated first-admin bootstrap fixture;
+they do not grant catalog-write capabilities, run S02, or test production
+identity-provider configuration.
