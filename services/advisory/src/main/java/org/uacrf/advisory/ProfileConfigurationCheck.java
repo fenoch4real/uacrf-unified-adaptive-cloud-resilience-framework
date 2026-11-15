@@ -10,10 +10,12 @@ import java.util.Set;
 final class ProfileConfigurationCheck {
   private ProfileConfigurationCheck() {}
 
-  record VersionPins(String modelReference, String instructionsDigest,
+  record VersionPins(String versionId, String versionDigest, String modelReference, String instructionsDigest,
                      int maxTokens, int maxCostUnits, int maxDurationSeconds) {
     VersionPins {
-      if (modelReference == null || modelReference.isBlank() || !UnicodeText.isValid(modelReference)
+      if (versionId == null || !versionId.matches("[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}")
+          || versionDigest == null || !versionDigest.matches("[a-f0-9]{64}")
+          || modelReference == null || modelReference.isBlank() || !UnicodeText.isValid(modelReference)
           || instructionsDigest == null || !instructionsDigest.matches("[a-f0-9]{64}")
           || maxTokens < 0 || maxCostUnits < 0 || maxDurationSeconds < 1) {
         throw new IllegalArgumentException("Invalid profile version pins.");
@@ -23,10 +25,19 @@ final class ProfileConfigurationCheck {
 
   record Selection(ModelConfiguration.Model model, PromptConfiguration.Prompt prompt) {}
 
-  // Caller-supplied profiles and requests are not verified owner records or dispatch authority.
+  record RequestLimits(String attemptId, int maxOutputTokens, Duration timeout) {
+    RequestLimits {
+      if (attemptId == null || !attemptId.matches("[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}")
+          || maxOutputTokens < 1 || timeout == null || timeout.isZero() || timeout.isNegative()) {
+        throw new IllegalArgumentException("Invalid gateway request limits.");
+      }
+    }
+  }
+
+  // This checks consistency only; RunPreparationCheck binds version pins to S02 receipts first.
   static Map<String, Selection> checkAll(AdvisoryBudget budget, ModelConfiguration models,
                                          PromptConfiguration prompts, Map<String, VersionPins> profiles,
-                                         Map<String, AdvisoryGateway.Request> requests) {
+                                         Map<String, RequestLimits> requests) {
     Objects.requireNonNull(budget, "budget");
     var profileSnapshot = snapshot(profiles);
     var requestSnapshot = snapshot(requests);
@@ -50,7 +61,26 @@ final class ProfileConfigurationCheck {
     return Map.copyOf(selections);
   }
 
-  private static <T> Map<String, T> snapshot(Map<String, T> values) {
+  static Selection check(VersionPins pins, ModelConfiguration models, PromptConfiguration prompts,
+                         RequestLimits request, AdvisoryBudget.Allocation allocation) {
+    Objects.requireNonNull(pins, "pins");
+    Objects.requireNonNull(models, "models");
+    Objects.requireNonNull(prompts, "prompts");
+    Objects.requireNonNull(request, "request");
+    Objects.requireNonNull(allocation, "allocation");
+    if (allocation.tokens() > pins.maxTokens() || allocation.costUnits() > pins.maxCostUnits()
+        || request.timeout().compareTo(Duration.ofSeconds(pins.maxDurationSeconds())) > 0) {
+      throw new IllegalArgumentException("Request or allocation does not match the profile version pins.");
+    }
+    var model = models.validateLimits(pins.modelReference(), request.maxOutputTokens(), request.timeout(), allocation);
+    var prompt = prompts.prompts().stream()
+        .filter(candidate -> candidate.declaredInstructionsDigest().equals(pins.instructionsDigest()))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Profile instructions are not in the prompt configuration."));
+    return new Selection(model, prompt);
+  }
+
+  static <T> Map<String, T> snapshot(Map<String, T> values) {
     if (values == null || values.isEmpty() || values.size() > 3) {
       throw new IllegalArgumentException("One to three profile entries are required.");
     }

@@ -148,7 +148,13 @@ microservices system.
   runtime-principal ID against the narrowed delegation before recording the
   workload. The local bootstrap still does not grant catalog write
   capabilities by default, so these operations remain denied unless they are
-  independently authorized.
+  independently authorized. S02 now also retains immutable workload-version
+  manifests, activates them behind a workload revision fence, atomically
+  supersedes the prior active version, and exposes only the current active
+  version through a `catalog.agent.read`-protected internal receipt. The
+  activation check requires an actor different from the version author, but
+  the current delegation principal does not establish that the actor is human
+  or provide a separate review record.
   The selected-context membership page reads S01's active membership pages and
   submits revision-checked, idempotent revocations with an audit reason; S01
   remains authoritative and prevents removal of the final identity
@@ -523,27 +529,54 @@ retains evidence events and decides qualification.
 - A standalone budget value validates schema bounds, distinct role/profile
   allocations, and aggregate call, token and cost limits. Journal registration
   now atomically persists and seals those allocations; admission requires the
-  matching role/profile and allows one attempt per role. This does not verify
-  profile identities, required workflow roles, actual provider usage,
-  or enforce model-request token and cost limits.
+  matching role/profile, allows one attempt per role, constrains requested
+  output ceilings against the allocation and run token budget, and accounts
+  reported usage and outstanding output reservations. New admission stops after
+  an unknown outcome. It does not verify profile identities, reserve input
+  tokens for in-flight calls, verify provider accounting, enforce provider-cost
+  usage, or authorize the requester at the run boundary.
 - An unwired typed run-request parser accepts bounded, strict UTF-8 JSON with
   the contract's required fields and integer encodings. It checks identifiers,
   workflow names, reason and proposal bounds, and requires each artifact
   reference to match its digest. Deadlines require a known offset, seconds,
   and at most nanosecond precision; unsupported date-time forms fail closed.
   It snapshots proposal IDs and reuses the
-  budget value. It is not an HTTP endpoint, does not verify artifact access,
-  proposal eligibility, workflow role requirements or deadline freshness,
-  and does not authorize or admit a run.
+  budget value. It requires the exact role set for each workflow version:
+  analyst only, analyst plus reviewer, or analyst plus reviewer plus critic.
+  It is not an HTTP endpoint, does not verify artifact access, proposal
+  eligibility or deadline freshness, and does not authorize or admit a run.
 - A separate unwired preparation check binds that request's case and retrieval
   IDs to expected owner receipts, parses caller-supplied model and prompt
   artifacts against its references, digests and scope, and performs the
   requester/full-source check. This composition is also exercised against real
   S01, S07 and S08 with caller-supplied configuration and source bytes. Its
   successful result is only a point-in-time
-  consistency snapshot: artifact authorization, profile activation, workflow
-  role requirements, proposal eligibility, run admission and provider dispatch
+  consistency snapshot: artifact authorization, independent human review of
+  profile activation, proposal eligibility, run admission and provider dispatch
   remain unimplemented.
+  A profile-aware variant requires exactly one profile pin and gateway request
+  per allocation, obtains the current active-version receipt from S02, and
+  binds profile/version identity, manifest digest, model and instruction pins,
+  and request limits to that receipt before the final S08 and S01 refreshes.
+  It retains immutable copies of the checked requests and selections. The
+  cross-service test exercises this composition with real S01, S02, S07 and
+  S08 services; this remains a point-in-time check, not an atomic authorization
+  decision. Preparation now constructs a distinct,
+  bounded JSON input packet per role from the verified sealed case material,
+  selected prompt text, and receipt-verified excerpts. It generates each
+  gateway request from the checked model and limits rather than forwarding
+  caller-supplied free-form context. The prepared snapshot can derive journal
+  intents only when caller-supplied run, generation and assignment identifiers
+  match its tenant/environment and allocation profiles; each intent uses the
+  generated attempt ID and exact packet bytes, with context digest equal to the
+  packet-byte digest. This rejects mismatched gateway attempts, models, limits
+  or contexts, but only derives intents: it does not persist or admit them.
+  Future profile changes, run-boundary authorization, complete graph/evidence
+  inputs, and current eligibility beyond point-in-time owner checks remain
+  unestablished; provider dispatch remains disabled. Preparation rejects a
+  deadline that has already expired and checks again after owner reads and
+  packet construction so a request that expires during preparation is not
+  returned as ready.
 - A standalone consistency check compares S07 case and S08 retrieval receipt
   fields, requiring the same case, workload, purpose and digests, verified
   binding, current eligibility, and a nonempty bounded source list. An unwired,
@@ -629,9 +662,14 @@ retains evidence events and decides qualification.
   OIDC issuer and tokens are test fixtures and identity participants and
   memberships are seeded directly; it does not test their admission or grant
   approval. Run it with
-  `./mvnw -Padvisory-cross-service-tests -pl services/identity,services/assessment,services/knowledge,integration-tests/advisory -am clean verify`.
-  Operation authorization at the run boundary and journal admission gating
-  remain unimplemented.
+  `./mvnw -Padvisory-cross-service-tests -pl services/identity,services/estate-catalog,services/assessment,services/knowledge,integration-tests/advisory -am clean verify`.
+  Operation authorization at the run boundary, runtime identity verification,
+  proposal eligibility and provider dispatch remain unimplemented. S02 version
+  digests cover the ordered Jackson serialization of the typed manifest, not a
+  separately versioned canonical JSON format; registration retains the
+  `object_ref` but does not retrieve or verify the referenced artifact bytes.
+  Journal admission is a separate fail-closed primitive, not an authorization
+  decision.
 - S07 now provides an internal, `assessment.case.read`-protected material
   endpoint for sealed cases. It reconstructs the canonical JSON and rejects a
   digest mismatch before returning it. A separate, disabled-unless-enabled S09
@@ -640,9 +678,10 @@ retains evidence events and decides qualification.
   real S07 instance with test-signed delegations, including tenant isolation.
   S07 reconstructs rather than retaining the original serialized bytes, so a
   serialization change may make existing material unavailable; the mismatch
-  fails closed. The client is used by the unwired requester-source check, but
-  not by packet construction or admission, and does not verify referenced
-  graph, objective or evidence material or guarantee continuing authorization.
+  fails closed. The client is used by the unwired requester-source check, whose
+  resulting case material is included in prepared packets. It does not authorize
+  journal admission, verify referenced graph, objective or evidence material,
+  or guarantee continuing authorization.
 - A standalone content-addressed artifact value checks that an
   `artifact:sha256:` reference, declared digest and retained bytes agree, and
   copies the bytes defensively. An unwired model-configuration parser binds
@@ -661,13 +700,16 @@ retains evidence events and decides qualification.
   establishes approval, provenance or authorization.
   A separate unwired consistency check matches caller-supplied profile version
   model and instruction pins to those configurations and compares allocation
-  and request limits with the supplied version limits. It does not retrieve or
-  verify an activated S02 version, prove the prompt text matches its declared
-  digest, bind the selected prompt into the request, or authorize dispatch.
+  and request limits with supplied version limits. By itself it does not
+  retrieve an activated S02 version, prove the prompt text matches its declared
+  digest, or authorize dispatch. The profile-aware preparation variant binds
+  these pins to S02's active receipt, but neither path proves prompt provenance
+  or authorizes dispatch.
   A batch variant requires exactly one caller-supplied pin and gateway request
   per allocated profile, rejects duplicate attempt IDs and checks each against
-  its allocation. These are still caller assertions, not owner authorization
-  or a binding to the journaled packet.
+  its allocation. These remain caller assertions, not owner authorization;
+  only the internally consistent prepared snapshot can derive an intent
+  carrying its checked request and exact packet.
   Digest equality does not establish artifact ownership, disclosure permission,
   approval, provenance or current eligibility. An unwired knowledge-source
   verifier checks bounded UTF-8 artifact bytes against an S08 source digest,
@@ -681,25 +723,40 @@ retains evidence events and decides qualification.
 - An unwired PostgreSQL dispatch-journal primitive commits an intent before
   returning success, prevents duplicate attempts per assignment, and retains
   immutable responses or unknown outcomes without usage. It retains up to 1 MiB
-  of exact packet bytes, verifies their SHA-256 on read, and separately retains
-  the supplied context digest. This byte digest is not verification of the
-  delivery protocol or owner receipts. An intent without a result must be
-  reconciled, not automatically dispatched again. A bounded, run-scoped
-  snapshot lists retained intents and unknown outcomes for reconciliation;
-  it does not establish provider usage or authorize retries. Journal reads also
+  of exact packet bytes, verifies their SHA-256 on read, and requires the
+  context digest to equal the packet-byte digest for new intents. The additive
+  intent also retains the checked model, output limit and timeout so a journal
+  read can reconstruct the exact gateway request. The additive constraints are
+  not validated against legacy rows; old entries without request identity fail
+  closed on reconstruction. These digests do not verify the delivery protocol
+  or owner receipts. Admission also requires the requested output-token ceiling
+  to fit the sealed allocation and the request timeout to finish before the
+  run deadline at the database admission timestamp. It also accounts reported
+  response tokens and reserved output ceilings against the run token budget,
+  and blocks new intents once an attempt has an unknown outcome. This does not
+  reserve future input usage or stop already-admitted calls. An intent without
+  a result must be reconciled, not automatically dispatched again. A bounded,
+  run-scoped snapshot lists retained intents and unknown outcomes for
+  reconciliation. A separate snapshot sums known provider-reported token
+  counts against the run budget and exposes unknown and unresolved counts;
+  usage is unavailable unless known counts already exceed the budget. This is
+  diagnostic only: it does not establish actual provider usage or authorize
+  retries. Journal reads also
   compare reported input-plus-output tokens against the sealed allocation,
   retaining over-limit responses and reporting unavailable usage for unknown
-  outcomes. This comparison does not verify provider accounting or cost,
-  enforce a request limit, or determine result eligibility. A revision- and
-  generation-checked cancellation fence serializes against journal admission;
+  outcomes. The journal does not enforce aggregate input-token or provider-cost
+  use, verify provider accounting, or determine result eligibility. A
+  revision- and generation-checked cancellation fence serializes against journal
+  admission;
   run registration and admission also require an unexpired retained deadline,
   checked against the database clock after acquiring the run lock. Outcomes
   retain whether the fence was active, cancelled or expired when recorded;
   concurrent cancellation is serialized. This snapshot is not a current
   eligibility decision: later cancellation and other required checks still
   matter. The journal does not stop a provider call following an already-admitted
-  intent or enforce late-result ineligibility. Authorization, protected packet handling, verified identity,
-  runtime budget enforcement, result delivery, and reconciliation are not implemented.
+  intent or enforce late-result ineligibility. Authorization, protected packet
+  handling, verified identity, runtime budget enforcement, result delivery, and
+  reconciliation are not implemented.
   It is not a complete runtime journal.
 - Planned adapters include Azure AI Foundry, OpenAI, Anthropic, Gemini,
   OpenAI-compatible endpoints, Ollama, and Amazon Bedrock. AgentCore is a

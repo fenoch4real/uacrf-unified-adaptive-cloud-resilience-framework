@@ -56,6 +56,31 @@ class CatalogController {
     return catalog.registerAgent(DelegationPrincipal.from(jwt), request, idempotencyKey);
   }
 
+  @PostMapping("/v1/agent-workloads/{id}/versions")
+  @ResponseStatus(HttpStatus.CREATED)
+  Receipt registerAgentVersion(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody RegisterAgentVersion request,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    return catalog.registerAgentVersion(DelegationPrincipal.from(jwt), id, request, idempotencyKey);
+  }
+
+  @PostMapping("/v1/agent-workloads/{id}:activate")
+  Receipt activateAgentVersion(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody ActivateAgentVersion request,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    return catalog.activateAgentVersion(DelegationPrincipal.from(jwt), id, request, idempotencyKey);
+  }
+
+  @GetMapping("/internal/v1/workload-versions/{id}")
+  WorkloadVersionReceipt getActiveWorkloadVersion(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return catalog.getActiveWorkloadVersion(DelegationPrincipal.from(jwt), id);
+  }
+
   @GetMapping("/v1/agent-workloads")
   Page<Agent> listAgents(
       @AuthenticationPrincipal Jwt jwt,

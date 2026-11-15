@@ -10,6 +10,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -113,6 +115,158 @@ class CatalogService {
                 request.ownerId(),
                 request.runtimePrincipalId(),
                 request.purpose().trim()));
+  }
+
+  @Transactional
+  Receipt registerAgentVersion(
+      DelegationPrincipal actor,
+      String workloadId,
+      RegisterAgentVersion request,
+      String idempotencyKey) {
+    requireCapability(actor, "catalog.agent.write");
+    List<Map<String, Object>> profiles =
+        jdbc.queryForList(
+            "SELECT service_id, owner_id FROM "
+                + SCHEMA
+                + "agent_workload WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId);
+    if (profiles.isEmpty()) {
+      throw notFound("The agent workload is absent or not visible.");
+    }
+    Map<String, Object> profile = profiles.getFirst();
+    requireServiceScope(actor, (String) profile.get("service_id"));
+    requireOwner(actor, (String) profile.get("owner_id"));
+    if (request.manifest().tools() != null
+        && request
+            .manifest()
+            .tools()
+            .stream()
+            .anyMatch(
+                tool ->
+                    tool.effects() != null
+                        && new HashSet<>(tool.effects()).size() != tool.effects().size())) {
+      throw invalid("Workload tool effects must be unique.");
+    }
+    if (!sha256(serialize(request.manifest())).equals(request.digest())) {
+      throw invalid("The workload version digest does not match its manifest.");
+    }
+    return executeOnce(
+        actor,
+        "POST /v1/agent-workloads/" + workloadId + "/versions",
+        idempotencyKey,
+        request,
+        request.id(),
+        "AGENT_WORKLOAD_VERSION",
+        null,
+        () ->
+            jdbc.update(
+                "INSERT INTO "
+                    + SCHEMA
+                    + "agent_workload_version (tenant_id, environment_id, workload_id, id, "
+                    + "version_number, digest, object_ref, manifest, created_by, state, revision) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, 'REGISTERED', 1)",
+                actor.tenantId(),
+                actor.environmentId(),
+                workloadId,
+                request.id(),
+                request.versionNumber(),
+                request.digest(),
+                request.objectRef(),
+                serialize(request.manifest()),
+                actor.principalId()),
+        1,
+        "REGISTERED",
+        false,
+        Map.of());
+  }
+
+  @Transactional
+  Receipt activateAgentVersion(
+      DelegationPrincipal actor,
+      String workloadId,
+      ActivateAgentVersion request,
+      String idempotencyKey) {
+    requireCapability(actor, "catalog.agent.write");
+    if (request.expectedRevision() == Long.MAX_VALUE) {
+      throw invalid("The expected workload revision cannot be incremented.");
+    }
+    List<String> digests =
+        jdbc.query(
+            "SELECT digest FROM "
+                + SCHEMA
+                + "agent_workload_version WHERE tenant_id = ? AND environment_id = ? "
+                + "AND workload_id = ? AND id = ?",
+            (result, row) -> result.getString("digest"),
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId,
+            request.versionId());
+    if (digests.isEmpty()) {
+      throw notFound("The agent workload version is absent or not visible.");
+    }
+    long nextRevision = request.expectedRevision() + 1;
+    Map<String, Object> eventMetadata =
+        Map.of(
+            "owned_resource_id", workloadId,
+            "owned_revision", nextRevision,
+            "owned_digest", digests.getFirst(),
+            "minimal_outcome_metadata",
+                Map.of("version_id", request.versionId(), "state", "ACTIVE"));
+    return executeOnce(
+        actor,
+        "POST /v1/agent-workloads/" + workloadId + ":activate",
+        idempotencyKey,
+        request,
+        workloadId,
+        "AGENT_WORKLOAD",
+        "uacrf.s02.workload.version.activated.v1",
+        () -> {
+          activateAgentVersionInTransaction(actor, workloadId, request);
+          return 1;
+        },
+        nextRevision,
+        "ACTIVATED",
+        true,
+        eventMetadata);
+  }
+
+  @Transactional(readOnly = true)
+  WorkloadVersionReceipt getActiveWorkloadVersion(DelegationPrincipal actor, String versionId) {
+    requireCapability(actor, "catalog.agent.read");
+    List<Map<String, Object>> versions =
+        jdbc.queryForList(
+            "SELECT version.workload_id, version.id, version.version_number, version.digest, "
+                + "version.object_ref, version.manifest::text AS manifest, profile.service_id "
+                + "FROM "
+                + SCHEMA
+                + "agent_workload_version version JOIN "
+                + SCHEMA
+                + "agent_workload profile ON profile.tenant_id = version.tenant_id "
+                + "AND profile.environment_id = version.environment_id "
+                + "AND profile.id = version.workload_id AND profile.active_version_id = version.id "
+                + "WHERE version.tenant_id = ? AND version.environment_id = ? AND version.id = ? "
+                + "AND version.state = 'ACTIVE'",
+            actor.tenantId(),
+            actor.environmentId(),
+            versionId);
+    if (versions.isEmpty()) {
+      throw notFound("The active agent workload version is absent or not visible.");
+    }
+    Map<String, Object> version = versions.getFirst();
+    requireServiceScope(actor, (String) version.get("service_id"));
+    WorkloadVersionManifest manifest = deserializeWorkloadManifest(version.get("manifest").toString());
+    if (!sha256(serialize(manifest)).equals(version.get("digest").toString().trim())) {
+      throw new IllegalStateException("The retained workload version manifest digest is invalid.");
+    }
+    return new WorkloadVersionReceipt(
+        version.get("workload_id").toString(),
+        version.get("id").toString(),
+        ((Number) version.get("version_number")).longValue(),
+        version.get("digest").toString().trim(),
+        version.get("object_ref").toString(),
+        manifest);
   }
 
   @Transactional
@@ -356,6 +510,24 @@ class CatalogService {
       String aggregateType,
       String eventType,
       SqlWrite write) {
+    return executeOnce(
+        actor, operation, key, request, aggregateId, aggregateType, eventType, write,
+        1, "CREATED", true, Map.of());
+  }
+
+  private Receipt executeOnce(
+      DelegationPrincipal actor,
+      String operation,
+      String key,
+      Object request,
+      String aggregateId,
+      String aggregateType,
+      String eventType,
+      SqlWrite write,
+      long revision,
+      String result,
+      boolean publishEvent,
+      Map<String, Object> eventMetadata) {
     validateIdempotencyKey(key);
     String requestJson = serialize(request);
     String digest = sha256(requestJson);
@@ -399,7 +571,7 @@ class CatalogService {
     } catch (DuplicateKeyException error) {
       throw conflict("CATALOG_ID_CONFLICT", "A catalog record with this ID already exists.");
     }
-    Receipt receipt = new Receipt(aggregateId, 1, aggregateType, "CREATED", "NONE");
+    Receipt receipt = new Receipt(aggregateId, revision, aggregateType, result, "NONE");
     String responseJson = serialize(receipt);
     jdbc.update(
         "UPDATE "
@@ -412,25 +584,116 @@ class CatalogService {
         actor.principalId(),
         operation,
         key);
-    jdbc.update(
-        "INSERT INTO "
-            + SCHEMA
-            + "outbox_event (event_id, tenant_id, environment_id, aggregate_type, aggregate_id, "
-            + "aggregate_sequence, event_type, payload) VALUES (?, ?, ?, ?, ?, 1, ?, ?::jsonb)",
-        UUID.randomUUID(),
-        actor.tenantId(),
-        actor.environmentId(),
-        aggregateType,
-        aggregateId,
-        eventType,
-        serialize(
-            Map.of(
-                "actor_id", actor.principalId(),
-                "event_type", eventType,
-                "aggregate_id", aggregateId,
-                "revision", 1,
-                "record", request)));
+    if (publishEvent) {
+      Map<String, Object> payload = new LinkedHashMap<>();
+      payload.put("actor_id", actor.principalId());
+      payload.put("event_type", eventType);
+      payload.put("aggregate_id", aggregateId);
+      payload.put("revision", revision);
+      payload.put("record", request);
+      payload.putAll(eventMetadata);
+      jdbc.update(
+          "INSERT INTO "
+              + SCHEMA
+              + "outbox_event (event_id, tenant_id, environment_id, aggregate_type, aggregate_id, "
+              + "aggregate_sequence, event_type, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb)",
+          UUID.randomUUID(),
+          actor.tenantId(),
+          actor.environmentId(),
+          aggregateType,
+          aggregateId,
+          revision,
+          eventType,
+          serialize(payload));
+    }
     return receipt;
+  }
+
+  private void activateAgentVersionInTransaction(
+      DelegationPrincipal actor, String workloadId, ActivateAgentVersion request) {
+    List<Map<String, Object>> profiles =
+        jdbc.queryForList(
+            "SELECT service_id, revision, active_version_id FROM "
+                + SCHEMA
+                + "agent_workload WHERE tenant_id = ? AND environment_id = ? AND id = ? FOR UPDATE",
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId);
+    if (profiles.isEmpty()) {
+      throw notFound("The agent workload is absent or not visible.");
+    }
+    Map<String, Object> profile = profiles.getFirst();
+    requireServiceScope(actor, (String) profile.get("service_id"));
+    if (((Number) profile.get("revision")).longValue() != request.expectedRevision()) {
+      throw conflict("REVISION_MISMATCH", "The agent workload revision has changed.");
+    }
+
+    List<Map<String, Object>> versions =
+        jdbc.queryForList(
+            "SELECT state, created_by FROM "
+                + SCHEMA
+                + "agent_workload_version WHERE tenant_id = ? AND environment_id = ? "
+                + "AND workload_id = ? AND id = ? FOR UPDATE",
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId,
+            request.versionId());
+    if (versions.isEmpty()) {
+      throw notFound("The agent workload version is absent or not visible.");
+    }
+    Map<String, Object> version = versions.getFirst();
+    if ("REGISTERED".equals(version.get("state"))
+        && actor.principalId().equals(version.get("created_by"))) {
+      throw conflict(
+          "VERSION_AUTHOR_NOT_INDEPENDENT",
+          "A workload version must be activated by an actor other than its author.");
+    }
+    if (!"REGISTERED".equals(version.get("state"))) {
+      throw conflict("VERSION_NOT_REGISTERED", "Only a registered workload version can be activated.");
+    }
+
+    String activeVersionId = (String) profile.get("active_version_id");
+    if (activeVersionId != null
+        && jdbc.update(
+                "UPDATE "
+                    + SCHEMA
+                    + "agent_workload_version SET state = 'SUPERSEDED', revision = revision + 1 "
+                    + "WHERE tenant_id = ? AND environment_id = ? AND workload_id = ? "
+                    + "AND id = ? AND state = 'ACTIVE'",
+                actor.tenantId(),
+                actor.environmentId(),
+                workloadId,
+                activeVersionId)
+            != 1) {
+      throw conflict("ACTIVE_VERSION_CHANGED", "The active workload version changed.");
+    }
+    if (jdbc.update(
+            "UPDATE "
+                + SCHEMA
+                + "agent_workload_version SET state = 'ACTIVE', revision = revision + 1, "
+                + "activated_by = ?, activated_at = now() WHERE tenant_id = ? "
+                + "AND environment_id = ? AND workload_id = ? AND id = ? AND state = 'REGISTERED'",
+            actor.principalId(),
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId,
+            request.versionId())
+        != 1) {
+      throw conflict("VERSION_NOT_REGISTERED", "Only a registered workload version can be activated.");
+    }
+    if (jdbc.update(
+            "UPDATE "
+                + SCHEMA
+                + "agent_workload SET active_version_id = ?, revision = revision + 1 "
+                + "WHERE tenant_id = ? AND environment_id = ? AND id = ? AND revision = ?",
+            request.versionId(),
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId,
+            request.expectedRevision())
+        != 1) {
+      throw conflict("REVISION_MISMATCH", "The agent workload revision has changed.");
+    }
   }
 
   private void requireCapability(DelegationPrincipal actor, String capability) {
@@ -520,6 +783,14 @@ class CatalogService {
       return objectMapper.writeValueAsString(value);
     } catch (JacksonException error) {
       throw new IllegalStateException("Could not serialize the catalog record.", error);
+    }
+  }
+
+  private WorkloadVersionManifest deserializeWorkloadManifest(String value) {
+    try {
+      return objectMapper.readValue(value, WorkloadVersionManifest.class);
+    } catch (JacksonException error) {
+      throw new IllegalStateException("The retained workload version manifest is invalid.", error);
     }
   }
 

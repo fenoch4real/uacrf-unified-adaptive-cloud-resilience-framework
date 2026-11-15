@@ -58,6 +58,7 @@ class AdvisoryCrossServiceTests {
   private final List<Process> processes = new ArrayList<>();
 
   @Container private static final PostgreSQLContainer IDENTITY = database("identity");
+  @Container private static final PostgreSQLContainer CATALOG = database("catalog");
   @Container private static final PostgreSQLContainer ASSESSMENT = database("assessment");
   @Container private static final PostgreSQLContainer KNOWLEDGE = database("knowledge");
   @TempDir Path temp;
@@ -116,6 +117,13 @@ class AdvisoryCrossServiceTests {
           Map.entry("IDENTITY_BOOTSTRAP_ADMIN_EXPIRES_AT", "2099-12-31T23:59:59Z"),
           Map.entry("IDENTITY_BOOTSTRAP_REASON", "Integration test")));
       UUID advisoryMembership = seedIdentity();
+      URI catalog = start("estate-catalog", Map.of(
+          "CATALOG_JDBC_URL", CATALOG.getJdbcUrl(),
+          "CATALOG_DB_USER", CATALOG.getUsername(),
+          "CATALOG_DB_PASSWORD", CATALOG.getPassword(),
+          "UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKey,
+          "UACRF_DELEGATION_KEY_ID", KEY_ID));
+      String versionDigest = seedActiveProfileVersion();
       URI assessment = start("assessment", Map.of(
           "ASSESSMENT_JDBC_URL", ASSESSMENT.getJdbcUrl(), "ASSESSMENT_DB_USER", ASSESSMENT.getUsername(),
           "ASSESSMENT_DB_PASSWORD", ASSESSMENT.getPassword(), "UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKey,
@@ -164,7 +172,7 @@ class AdvisoryCrossServiceTests {
               "max_classification", "INTERNAL", "query", "metrics", "max_results", 10)), 201);
       var expected = new SourceReceiptConsistency.Expected(caseId, retrieval.get("retrieval_id").asString(),
           retrieval.get("manifest_digest").asString(), "assessment", SourceReceiptConsistency.Classification.INTERNAL);
-      var checker = new RequesterSourceCheck(true, identity, assessment, knowledge, true);
+      var checker = new RequesterSourceCheck(true, identity, assessment, knowledge, catalog, true);
       byte[] sourceBytes = CONTENT.getBytes(StandardCharsets.UTF_8);
       String sourceDigest = Sha256.hex(sourceBytes);
       var sources = Map.of(sourceDigest,
@@ -189,8 +197,25 @@ class AdvisoryCrossServiceTests {
           Map.entry("allocations", List.of(Map.of("role", "ANALYST", "agent_profile_id", "analyst",
               "tokens", 100, "cost_units", 5))),
           Map.entry("proposal_ids", List.of("proposal-1"))));
-      var prepared = new RunPreparationCheck(checker).check(requester, TENANT, ENVIRONMENT,
-          AdvisoryRunRequest.parse(requestBytes), expected, models, prompts, sources);
+      var profiles = Map.of("analyst",
+          new ProfileConfigurationCheck.VersionPins(
+              "version-1", versionDigest, "model-a", "a".repeat(64), 100, 5, 30));
+      var gatewayRequests = Map.of("analyst",
+          new ProfileConfigurationCheck.RequestLimits("attempt-1", 30, Duration.ofSeconds(30)));
+      var profilePrepared = new RunPreparationCheck(checker).checkWithProfiles(requester, TENANT, ENVIRONMENT,
+          AdvisoryRunRequest.parse(requestBytes), expected, models, prompts, sources, profiles, gatewayRequests);
+      assertEquals(profiles, profilePrepared.profiles());
+      assertEquals("instructions", profilePrepared.selections().get("analyst").prompt().text());
+      assertEquals(gatewayRequests, profilePrepared.limits());
+      assertEquals(profilePrepared.packets().get("analyst").bytesDigest(),
+          Sha256.hex(profilePrepared.gatewayRequests().get("analyst").context().getBytes(StandardCharsets.UTF_8)));
+      var journalIntent = profilePrepared.journalIntents(
+          new DispatchJournal.RunKey(TENANT, ENVIRONMENT, "run-1"), 1, Map.of("analyst", "assignment-1")).getFirst();
+      assertEquals("attempt-1", journalIntent.key().attemptId());
+      assertEquals("run-1", journalIntent.runId());
+      assertEquals("assignment-1", journalIntent.assignmentId());
+      assertEquals(profilePrepared.packets().get("analyst").bytesDigest(), journalIntent.contextDigest());
+      var prepared = profilePrepared.preparation();
       assertEquals("model-a", prepared.models().models().getFirst().reference());
       assertEquals("instructions", prepared.prompts().prompts().getFirst().text());
       var snapshot = prepared.sources();
@@ -327,7 +352,7 @@ class AdvisoryCrossServiceTests {
         for (var entry : Map.of(
             "requester", List.of("advisory.run.create", "assessment.case.read", "assessment.case.write",
                 "knowledge.retrieval.read", "knowledge.retrieval.run", "knowledge.item.write",
-                "knowledge.item.withdraw", "knowledge.classification.internal.read"),
+                "knowledge.item.withdraw", "knowledge.classification.internal.read", "catalog.agent.read"),
             "requester-2", List.of("advisory.run.create", "assessment.case.read",
                 "knowledge.retrieval.read", "knowledge.classification.internal.read"),
             "reviewer", List.of("knowledge.item.review", "knowledge.classification.internal.read"),
@@ -343,6 +368,59 @@ class AdvisoryCrossServiceTests {
       }
     }
     return advisory;
+  }
+
+  private String seedActiveProfileVersion() throws Exception {
+    String manifest = """
+        {"instructions_digest":"%s","model_ref":"model-a","knowledge_refs":[],"tools":[],
+         "memory_namespace":"memory","evaluation_suite_ref":"eval","recovery_rules_ref":"recovery",
+         "runtime_build":"runtime","data_policy_ref":"policy","handoff_ref":"handoff",
+         "limits":{"steps":10,"tokens":100,"cost_units":5,"duration_seconds":30}}
+        """
+        .formatted("a".repeat(64))
+        .replaceAll("\\s+", "");
+    String digest = Sha256.hex(JSON.writeValueAsBytes(JSON.readValue(manifest, Object.class)));
+    try (var connection =
+        DriverManager.getConnection(CATALOG.getJdbcUrl(), CATALOG.getUsername(), CATALOG.getPassword())) {
+      try (var profile =
+          connection.prepareStatement(
+              "INSERT INTO uacrf_catalog.agent_workload "
+                  + "(tenant_id,environment_id,id,service_id,name,kind,owner_id,runtime_principal_id,"
+                  + "purpose,revision) VALUES (?,?,?,NULL,?,'SINGLE_AGENT',?,?,?,1)")) {
+        profile.setString(1, TENANT);
+        profile.setString(2, ENVIRONMENT);
+        profile.setString(3, "analyst");
+        profile.setString(4, "Analyst profile");
+        profile.setString(5, "owner-1");
+        profile.setString(6, "runtime-1");
+        profile.setString(7, "Advisory integration fixture");
+        profile.executeUpdate();
+      }
+      try (var version =
+          connection.prepareStatement(
+              "INSERT INTO uacrf_catalog.agent_workload_version "
+                  + "(tenant_id,environment_id,workload_id,id,version_number,digest,object_ref,manifest,"
+                  + "created_by,state,revision,activated_by,activated_at) "
+                  + "VALUES (?,?,?,?,1,?,?,?::jsonb,'requester','ACTIVE',2,'reviewer',now())")) {
+        version.setString(1, TENANT);
+        version.setString(2, ENVIRONMENT);
+        version.setString(3, "analyst");
+        version.setString(4, "version-1");
+        version.setString(5, digest);
+        version.setString(6, "artifact:sha256:" + digest);
+        version.setString(7, manifest);
+        version.executeUpdate();
+      }
+      try (var activate =
+          connection.prepareStatement(
+              "UPDATE uacrf_catalog.agent_workload SET active_version_id='version-1',revision=2 "
+                  + "WHERE tenant_id=? AND environment_id=? AND id='analyst'")) {
+        activate.setString(1, TENANT);
+        activate.setString(2, ENVIRONMENT);
+        activate.executeUpdate();
+      }
+    }
+    return digest;
   }
 
   private static String delegate(URI identity, String requester, String audience, List<String> capabilities)

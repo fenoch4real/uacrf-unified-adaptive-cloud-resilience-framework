@@ -26,12 +26,20 @@ final class ModelConfiguration {
   // This checks declared limits only; it does not estimate input tokens or enforce provider cost.
   Model validateRequest(AdvisoryGateway.Request request, AdvisoryBudget.Allocation allocation) {
     java.util.Objects.requireNonNull(request, "request");
+    return validateLimits(request.model(), request.maxOutputTokens(), request.timeout(), allocation);
+  }
+
+  Model validateLimits(String reference, int maxOutputTokens, Duration timeout,
+                       AdvisoryBudget.Allocation allocation) {
+    java.util.Objects.requireNonNull(reference, "reference");
+    java.util.Objects.requireNonNull(timeout, "timeout");
     java.util.Objects.requireNonNull(allocation, "allocation");
-    Model model = models.stream().filter(candidate -> candidate.reference().equals(request.model()))
+    Model model = models.stream().filter(candidate -> candidate.reference().equals(reference))
         .findFirst().orElseThrow(() -> new IllegalArgumentException("Model is not in the configuration."));
-    if (request.maxOutputTokens() > model.maxOutputTokens()
-        || request.maxOutputTokens() > allocation.tokens()
-        || request.timeout().compareTo(Duration.ofSeconds(model.timeoutSeconds())) > 0
+    if (maxOutputTokens < 1 || maxOutputTokens > model.maxOutputTokens()
+        || maxOutputTokens > allocation.tokens()
+        || timeout.isZero() || timeout.isNegative()
+        || timeout.compareTo(Duration.ofSeconds(model.timeoutSeconds())) > 0
         || model.maxCostUnits() > allocation.costUnits()) {
       throw new IllegalArgumentException("Model request exceeds the declared configuration or allocation.");
     }

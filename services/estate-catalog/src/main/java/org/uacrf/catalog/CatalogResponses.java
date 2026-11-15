@@ -28,6 +28,14 @@ final class CatalogResponses {
       String purpose,
       long revision) {}
 
+  record WorkloadVersionReceipt(
+      String profileId,
+      String id,
+      long versionNumber,
+      String digest,
+      String objectRef,
+      CatalogRequests.WorkloadVersionManifest manifest) {}
+
   record Step(
       String id,
       int position,

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 
 final class CatalogRequests {
   private CatalogRequests() {}
@@ -28,6 +29,48 @@ final class CatalogRequests {
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")
           String runtimePrincipalId,
       @NotBlank @Size(max = 2048) String purpose) {}
+
+  record RegisterAgentVersion(
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String id,
+      @Min(1) long versionNumber,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String digest,
+      @NotBlank @Size(max = 4096) String objectRef,
+      @NotNull @Valid WorkloadVersionManifest manifest) {}
+
+  record ActivateAgentVersion(
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String versionId,
+      @Min(1) long expectedRevision) {}
+
+  record WorkloadVersionManifest(
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String instructionsDigest,
+      @NotBlank @Size(max = 4096) String modelRef,
+      @NotNull @Size(max = 100) java.util.List<@NotBlank @Size(max = 4096) String> knowledgeRefs,
+      @NotNull @Size(max = 100) java.util.List<@NotNull @Valid WorkloadTool> tools,
+      @NotBlank @Size(max = 2048) String memoryNamespace,
+      @NotBlank @Size(max = 4096) String evaluationSuiteRef,
+      @NotBlank @Size(max = 4096) String recoveryRulesRef,
+      @NotBlank @Size(max = 2048) String runtimeBuild,
+      @NotBlank @Size(max = 4096) String dataPolicyRef,
+      @NotBlank @Size(max = 4096) String handoffRef,
+      @NotNull @Valid WorkloadLimits limits) {}
+
+  record WorkloadTool(
+      @NotBlank @Size(max = 4096) String toolRef,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String schemaDigest,
+      @NotNull @Size(min = 1) java.util.List<@NotNull ToolEffect> effects,
+      @Min(1) @Max(3_600_000) int timeoutMs) {}
+
+  record WorkloadLimits(
+      @Min(1) int steps,
+      @Min(0) int tokens,
+      @Min(0) int costUnits,
+      @Min(1) int durationSeconds) {}
+
+  enum ToolEffect {
+    READ,
+    WRITE,
+    EXECUTE
+  }
 
   record RegisterJourney(
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String id,

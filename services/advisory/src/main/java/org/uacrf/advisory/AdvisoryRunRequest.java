@@ -103,6 +103,7 @@ record AdvisoryRunRequest(String agentCaseId, String retrievalManifestId, Workfl
         || !matchesReference(promptReference, promptDigest)) {
       throw new IllegalArgumentException("Invalid advisory run configuration.");
     }
+    requireWorkflowRoles(workflowVersion, budget);
     if (reason == null || reason.isBlank() || !UnicodeText.isValid(reason)
         || reason.codePointCount(0, reason.length()) > 2000) {
       throw new IllegalArgumentException("Invalid advisory run reason.");
@@ -123,6 +124,22 @@ record AdvisoryRunRequest(String agentCaseId, String retrievalManifestId, Workfl
       throw new IllegalArgumentException("One to ten proposal IDs are required.");
     }
     proposalIds = List.copyOf(snapshot);
+  }
+
+  private static void requireWorkflowRoles(WorkflowVersion workflowVersion, AdvisoryBudget budget) {
+    Set<AdvisoryBudget.Role> required = switch (workflowVersion) {
+      case SINGLE_ANALYST_V1 -> Set.of(AdvisoryBudget.Role.ANALYST);
+      case INDEPENDENT_REVIEW_V1 -> Set.of(AdvisoryBudget.Role.ANALYST, AdvisoryBudget.Role.REVIEWER);
+      case ADVERSARIAL_REVIEW_V1 ->
+          Set.of(AdvisoryBudget.Role.ANALYST, AdvisoryBudget.Role.REVIEWER, AdvisoryBudget.Role.CRITIC);
+    };
+    Set<AdvisoryBudget.Role> supplied = new HashSet<>();
+    for (AdvisoryBudget.Allocation allocation : budget.allocations()) {
+      supplied.add(allocation.role());
+    }
+    if (!required.equals(supplied)) {
+      throw new IllegalArgumentException("Allocations do not match the workflow's required roles.");
+    }
   }
 
   private static boolean matchesReference(String reference, String digest) {

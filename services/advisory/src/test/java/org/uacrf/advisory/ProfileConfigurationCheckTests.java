@@ -28,6 +28,8 @@ class ProfileConfigurationCheckTests {
       new AdvisoryBudget.Allocation(AdvisoryBudget.Role.ANALYST, "profile", 100, 5);
   private final AdvisoryGateway.Request request =
       new AdvisoryGateway.Request("attempt", "model-a", "context", 30, Duration.ofSeconds(30));
+  private final ProfileConfigurationCheck.RequestLimits limits =
+      new ProfileConfigurationCheck.RequestLimits("attempt", 30, Duration.ofSeconds(30));
   private final ProfileConfigurationCheck.VersionPins pins = pins("model-a", DIGEST, 100, 5, 30);
 
   @Test
@@ -41,9 +43,9 @@ class ProfileConfigurationCheckTests {
   void checksEveryAllocatedProfileAndCopiesResult() {
     var reviewer = new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 100, 5);
     var budget = new AdvisoryBudget(2, 200, 10, List.of(allocation, reviewer));
-    var reviewerRequest = new AdvisoryGateway.Request("attempt-2", "model-a", "context", 30, Duration.ofSeconds(30));
     var profiles = new HashMap<>(Map.of("profile", pins, "reviewer", pins));
-    var requests = new HashMap<>(Map.of("profile", request, "reviewer", reviewerRequest));
+    var requests = new HashMap<>(Map.of("profile", limits, "reviewer",
+        new ProfileConfigurationCheck.RequestLimits("attempt-2", 30, Duration.ofSeconds(30))));
     var selected = ProfileConfigurationCheck.checkAll(budget, models, prompts, profiles, requests);
     profiles.clear();
     requests.clear();
@@ -56,20 +58,21 @@ class ProfileConfigurationCheckTests {
   void rejectsMissingExtraSubstitutedAndDuplicateAttemptProfiles() {
     var reviewer = new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 100, 5);
     var budget = new AdvisoryBudget(2, 200, 10, List.of(allocation, reviewer));
-    var reviewerRequest = new AdvisoryGateway.Request("attempt-2", "model-a", "context", 30, Duration.ofSeconds(30));
     var profiles = Map.of("profile", pins, "reviewer", pins);
-    var requests = Map.of("profile", request, "reviewer", reviewerRequest);
+    var requests = Map.of("profile", limits, "reviewer",
+        new ProfileConfigurationCheck.RequestLimits("attempt-2", 30, Duration.ofSeconds(30)));
     assertThrows(IllegalArgumentException.class,
         () -> ProfileConfigurationCheck.checkAll(budget, models, prompts, Map.of("profile", pins), requests));
     assertThrows(IllegalArgumentException.class,
         () -> ProfileConfigurationCheck.checkAll(budget, models, prompts, profiles,
-            Map.of("profile", request, "reviewer", reviewerRequest, "extra", request)));
+            Map.of("profile", limits, "reviewer", limits, "extra", limits)));
     assertThrows(IllegalArgumentException.class,
         () -> ProfileConfigurationCheck.checkAll(budget, models, prompts,
-            Map.of("profile", pins, "reviewer", pins("model-b", DIGEST, 100, 5, 30)), requests));
+            Map.of("profile", pins, "reviewer", pins("missing-model", DIGEST, 100, 5, 30)), requests));
     assertThrows(IllegalArgumentException.class,
         () -> ProfileConfigurationCheck.checkAll(budget, models, prompts, profiles,
-            Map.of("profile", request, "reviewer", request)));
+            Map.of("profile", limits, "reviewer",
+                new ProfileConfigurationCheck.RequestLimits("attempt", 30, Duration.ofSeconds(30)))));
   }
 
   @Test
@@ -120,7 +123,8 @@ class ProfileConfigurationCheckTests {
 
   private static ProfileConfigurationCheck.VersionPins pins(
       String model, String digest, int tokens, int cost, int duration) {
-    return new ProfileConfigurationCheck.VersionPins(model, digest, tokens, cost, duration);
+    return new ProfileConfigurationCheck.VersionPins(
+        "version-1", "c".repeat(64), model, digest, tokens, cost, duration);
   }
 
   private static DigestBoundArtifact artifact(String content) {

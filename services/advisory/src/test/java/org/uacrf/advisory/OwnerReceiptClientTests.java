@@ -1,5 +1,6 @@
 package org.uacrf.advisory;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -11,8 +12,11 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,8 +51,22 @@ class OwnerReceiptClientTests {
   private static final String REQUESTER_ACCESS = """
       {"principal_id":"human-1","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
        "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
-       "knowledge.classification.internal.read"]}
+       "knowledge.classification.internal.read","catalog.agent.read"]}
       """;
+  private static final String WORKLOAD_VERSION_MANIFEST =
+      "{\"instructions_digest\":\"" + "a".repeat(64)
+          + "\",\"model_ref\":\"model-a\",\"knowledge_refs\":[],"
+          + "\"tools\":[],\"memory_namespace\":\"memory\",\"evaluation_suite_ref\":\"eval\","
+          + "\"recovery_rules_ref\":\"recovery\",\"runtime_build\":\"runtime\","
+          + "\"data_policy_ref\":\"policy\",\"handoff_ref\":\"handoff\","
+          + "\"limits\":{\"steps\":10,\"tokens\":100,\"cost_units\":5,\"duration_seconds\":30}}";
+  private static final String WORKLOAD_VERSION_DIGEST = workloadVersionDigest();
+  private static final String ACTIVE_VERSION_BODY =
+      """
+      {"profile_id":"analyst","id":"version-1","version_number":1,"digest":"%s",
+       "object_ref":"artifact:sha256:version","manifest":%s}
+      """
+          .formatted(WORKLOAD_VERSION_DIGEST, WORKLOAD_VERSION_MANIFEST);
   private static final String RETRIEVAL_BODY = """
       {"retrieval_id":"retrieval-1","requested_case_id":"case-1","case_id":"case-1",
        "case_binding":"VERIFIED","case_digest":"%s","workload_id":"workload-1","purpose":"assessment",
@@ -87,6 +105,8 @@ class OwnerReceiptClientTests {
   private final AtomicReference<Reply> requesterReply = new AtomicReference<>(new Reply(200, REQUESTER_ACCESS));
   private final AtomicReference<Reply> requesterReplyAfterContent = new AtomicReference<>();
   private final AtomicReference<Reply> requesterReplyAfterCaseMaterial = new AtomicReference<>();
+  private final AtomicReference<Reply> activeVersionReply =
+      new AtomicReference<>(new Reply(200, ACTIVE_VERSION_BODY));
   private final AtomicReference<Reply> knowledgeDelegationFailure = new AtomicReference<>();
   private final List<String> identityAuthorizations = new CopyOnWriteArrayList<>();
   private final List<String> identityRequests = new CopyOnWriteArrayList<>();
@@ -157,10 +177,21 @@ class OwnerReceiptClientTests {
         respond(exchange, knowledgeDelegationFailure.get());
         return;
       }
-      String token = request.contains("\"S07\"") ? "test-token-S07" : "test-token-S08";
+      String token =
+          request.contains("\"S07\"")
+              ? "test-token-S07"
+              : request.contains("\"S02\"") ? "test-token-S02" : "test-token-S08";
       respond(exchange, new Reply(200, """
           {"access_token":"%s","token_type":"Bearer","expires_in":30}
           """.formatted(token)));
+    });
+    server.createContext("/internal/v1/workload-versions/version-1", exchange -> {
+      if (!"GET".equals(exchange.getRequestMethod())
+          || !"Bearer test-token-S02".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+        respond(exchange, new Reply(403, "{}"));
+        return;
+      }
+      respond(exchange, activeVersionReply.get());
     });
     server.createContext("/v1/me/access", exchange -> {
       requesterAccessCalls.incrementAndGet();
@@ -321,7 +352,14 @@ class OwnerReceiptClientTests {
     var bytes = EXCERPT.getBytes(StandardCharsets.UTF_8);
     var sources = Map.of(EXCERPT_DIGEST, new DigestBoundArtifact(
         "artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST, bytes));
-    var check = new RunPreparationCheck(new RequesterSourceCheck(true, base, base, base, true));
+    var check =
+        new RunPreparationCheck(
+            new RequesterSourceCheck(true, base, base, base, base, true));
+    var pastDeadline = new RunPreparationCheck(new RequesterSourceCheck(true, base, base, base, true),
+        Clock.fixed(Instant.parse("2031-01-01T00:00:00Z"), ZoneOffset.UTC));
+    assertThrows(IllegalArgumentException.class,
+        () -> pastDeadline.check("requester-token", "tenant-1", "env-1", request, EXPECTED, model, prompt, sources));
+    assertEquals(0, requesterAccessCalls.get());
 
     var wrongCase = new SourceReceiptConsistency.Expected("case-2", "retrieval-1", MANIFEST_DIGEST, "assessment",
         SourceReceiptConsistency.Classification.INTERNAL);
@@ -346,15 +384,155 @@ class OwnerReceiptClientTests {
     assertEquals(2, requesterAccessCalls.get());
     assertEquals(2, retrievalCalls.get());
 
+    var pin = profilePins("model-a", "a".repeat(64));
+    var limits = new ProfileConfigurationCheck.RequestLimits("attempt-1", 30, Duration.ofSeconds(30));
+    var profiles = new HashMap<>(Map.of("analyst", pin));
+    var requests = new HashMap<>(Map.of("analyst", limits));
+    assertThrows(IllegalArgumentException.class,
+        () -> check.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
+            EXPECTED, model, prompt, sources, Map.of("other", pin), requests));
+    var wrongModel = profilePins("model-b", "a".repeat(64));
+    assertThrows(IllegalArgumentException.class,
+        () -> check.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
+            EXPECTED, model, prompt, sources, Map.of("analyst", wrongModel), requests));
+    assertEquals(2, requesterAccessCalls.get());
+    var complete = check.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
+        EXPECTED, model, prompt, sources, profiles, requests);
+    profiles.clear();
+    requests.clear();
+    assertEquals(pin, complete.profiles().get("analyst"));
+    assertEquals(limits, complete.limits().get("analyst"));
+    assertEquals("instructions", complete.selections().get("analyst").prompt().text());
+    assertThrows(UnsupportedOperationException.class, () -> complete.gatewayRequests().clear());
+    var gateway = complete.gatewayRequests().get("analyst");
+    assertEquals("model-a", gateway.model());
+    assertEquals(limits.attemptId(), gateway.attemptId());
+    assertEquals(complete.packets().get("analyst").bytesDigest(),
+        Sha256.hex(gateway.context().getBytes(StandardCharsets.UTF_8)));
+    var packet = StrictBoundedJson.readObject(gateway.context().getBytes(StandardCharsets.UTF_8), "Test packet");
+    assertEquals("UACRF_ADVISORY_INPUT_V1", packet.get("protocol"));
+    assertEquals("instructions", packet.get("instructions"));
+    assertEquals(CASE_MATERIAL, packet.get("case_material"));
+    assertEquals(EXCERPT, ((Map<?, ?>) ((List<?>) packet.get("sources")).getFirst()).get("excerpt"));
+    assertThrows(UnsupportedOperationException.class, () -> complete.packets().clear());
+    var runKey = new DispatchJournal.RunKey("tenant-1", "env-1", "run-1");
+    var journalIntent = complete.journalIntents(runKey, 1, Map.of("analyst", "assignment-1")).getFirst();
+    assertEquals(new DispatchJournal.Key("tenant-1", "env-1", limits.attemptId()), journalIntent.key());
+    assertEquals("run-1", journalIntent.runId());
+    assertEquals("assignment-1", journalIntent.assignmentId());
+    assertEquals(complete.packets().get("analyst").bytesDigest(), journalIntent.contextDigest());
+    assertArrayEquals(complete.packets().get("analyst").bytes(), journalIntent.packet().bytes());
+    var substitutedAttempt = new AdvisoryGateway.Request("different-attempt", gateway.model(), gateway.context(),
+        gateway.maxOutputTokens(), gateway.timeout());
+    var substitutedSnapshot = new RunPreparationCheck.ProfileSnapshot(complete.preparation(), complete.profiles(),
+        complete.limits(), complete.packets(), Map.of("analyst", substitutedAttempt), complete.selections());
+    assertThrows(IllegalArgumentException.class,
+        () -> substitutedSnapshot.journalIntents(runKey, 1, Map.of("analyst", "assignment-1")));
+    var changedPacket = new InputPacket("substituted packet".getBytes(StandardCharsets.UTF_8));
+    var substitutedPacketSnapshot = new RunPreparationCheck.ProfileSnapshot(complete.preparation(),
+        complete.profiles(), complete.limits(), Map.of("analyst", changedPacket),
+        complete.gatewayRequests(), complete.selections());
+    assertThrows(IllegalArgumentException.class,
+        () -> substitutedPacketSnapshot.journalIntents(runKey, 1, Map.of("analyst", "assignment-1")));
+    assertThrows(IllegalArgumentException.class,
+        () -> complete.journalIntents(new DispatchJournal.RunKey("other-tenant", "env-1", "run-1"), 1,
+            Map.of("analyst", "assignment-1")));
+    assertEquals(4, requesterAccessCalls.get());
+    assertEquals(4, retrievalCalls.get());
+
+    var clockReads = new AtomicInteger();
+    Clock expiringDuringCheck = new Clock() {
+      @Override
+      public ZoneId getZone() {
+        return ZoneOffset.UTC;
+      }
+
+      @Test
+      void rejectsProfileReceiptWithManifestDigestMismatch() throws Exception {
+        activeVersionReply.set(
+            new Reply(200, ACTIVE_VERSION_BODY.replace("\"model-a\"", "\"model-b\"")));
+        var reader =
+            new AgentProfileVersionClient(
+                base,
+                true,
+                (tenant, environment, audience, capabilities) -> "test-token-S02",
+                new InternalJsonClient(Duration.ofSeconds(5)));
+        assertThrows(
+            IOException.class,
+            () ->
+                reader.fetchActive(
+                    "tenant-1",
+                    "env-1",
+                    Map.of("analyst", profilePins("model-a", "a".repeat(64)))));
+      }
+
+      @Test
+      void profilePreparationRequiresCurrentCatalogReadBeforeOwnerReads() {
+        requesterReply.set(
+            new Reply(200, REQUESTER_ACCESS.replace(",\"catalog.agent.read\"", "")));
+        var verifier = new RequesterSourceCheck(true, base, base, base, base, true);
+        var source =
+            new DigestBoundArtifact(
+                "artifact:sha256:" + EXCERPT_DIGEST,
+                EXCERPT_DIGEST,
+                EXCERPT.getBytes(StandardCharsets.UTF_8));
+        assertThrows(
+            IOException.class,
+            () ->
+                verifier.checkWithProfiles(
+                    "requester-token",
+                    "tenant-1",
+                    "env-1",
+                    EXPECTED,
+                    Map.of(EXCERPT_DIGEST, source),
+                    Map.of("analyst", profilePins("model-a", "a".repeat(64)))));
+        assertEquals(1, requesterAccessCalls.get());
+        assertEquals(0, identityCalls.get());
+        assertEquals(0, caseCalls.get());
+      }
+
+      @Override
+      public Clock withZone(ZoneId zone) {
+        return this;
+      }
+
+      @Override
+      public Instant instant() {
+        return clockReads.incrementAndGet() < 3
+            ? Instant.parse("2029-01-01T00:00:00Z") : Instant.parse("2031-01-01T00:00:00Z");
+      }
+    };
+    var expiringCheck =
+        new RunPreparationCheck(
+            new RequesterSourceCheck(true, base, base, base, base, true), expiringDuringCheck);
+    assertThrows(IllegalArgumentException.class,
+        () -> expiringCheck.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
+            EXPECTED, model, prompt, sources, Map.of("analyst", pin), Map.of("analyst", limits)));
+    assertEquals(6, requesterAccessCalls.get());
+    assertEquals(6, retrievalCalls.get());
+
     requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
     assertThrows(IOException.class,
-        () -> check.check("requester-token", "tenant-1", "env-1", request, EXPECTED, model, prompt, sources));
+        () -> check.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
+            EXPECTED, model, prompt, sources, Map.of("analyst", pin), Map.of("analyst", limits)));
   }
 
   private static DigestBoundArtifact configuration(String text) {
     byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     String digest = Sha256.hex(bytes);
     return new DigestBoundArtifact("artifact:sha256:" + digest, digest, bytes);
+  }
+
+  private static ProfileConfigurationCheck.VersionPins profilePins(
+      String model, String instructionsDigest) {
+    return new ProfileConfigurationCheck.VersionPins(
+        "version-1", WORKLOAD_VERSION_DIGEST, model, instructionsDigest, 100, 5, 30);
+  }
+
+  private static String workloadVersionDigest() {
+    var json = JsonMapper.builder().build();
+    Object manifest = json.readValue(WORKLOAD_VERSION_MANIFEST, Object.class);
+    return Sha256.hex(json.writeValueAsBytes(manifest));
   }
 
   @Test

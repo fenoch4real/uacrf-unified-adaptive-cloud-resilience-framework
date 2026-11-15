@@ -1,6 +1,8 @@
 package org.uacrf.catalog;
 
+import static org.uacrf.catalog.CatalogRequests.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.net.URI;
@@ -9,17 +11,21 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import tools.jackson.databind.ObjectMapper;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -59,6 +65,7 @@ class EstateCatalogApplicationTests {
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private ObjectMapper objectMapper;
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
@@ -313,6 +320,7 @@ class EstateCatalogApplicationTests {
                       .formatted(serviceId, serviceId))
               .statusCode());
     }
+
     assertEquals(
         201,
         post(
@@ -381,6 +389,202 @@ class EstateCatalogApplicationTests {
                 {"id":"link-scoped-denied","capability_kind":"SERVICE","capability_id":"svc-scope-a","criticality":"REQUIRED"}
                 """)
             .statusCode());
+  }
+
+  @Test
+  void retainsImmutableWorkloadVersionsAndRequiresIndependentActivation() throws Exception {
+    String tenant = "tenant-versioning";
+    String environment = "environment-a";
+    String authorBearer =
+        bearer(
+            actorAs(
+                "version-author",
+                tenant,
+                environment,
+                List.of("catalog.agent.write", "catalog.agent.read"),
+                List.of("owner-1"),
+                List.of("runtime-1")));
+    String reviewerBearer =
+        bearer(
+            actorAs(
+                "version-reviewer",
+                tenant,
+                environment,
+                List.of("catalog.agent.write", "catalog.agent.read"),
+                List.of(),
+                List.of()));
+
+    assertEquals(
+        201,
+        post(
+                "/v1/agent-workloads",
+                authorBearer,
+                "versioned-agent-create",
+                """
+                {"id":"profile-versioned","name":"Versioned agent","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Version lifecycle test"}
+                """)
+            .statusCode());
+
+    var firstManifest = workloadManifest("model-v1");
+    var firstVersion =
+        new RegisterAgentVersion(
+            "version-1", 1, manifestDigest(firstManifest), "artifact:sha256:first", firstManifest);
+    String firstVersionBody = objectMapper.writeValueAsString(firstVersion);
+    assertEquals(
+        400,
+        post(
+                "/v1/agent-workloads/profile-versioned/versions",
+                authorBearer,
+                "version-invalid-digest",
+                firstVersionBody.replace(firstVersion.digest(), "0".repeat(64)))
+            .statusCode());
+    var duplicateEffectsManifest =
+        new WorkloadVersionManifest(
+            firstManifest.instructionsDigest(),
+            firstManifest.modelRef(),
+            firstManifest.knowledgeRefs(),
+            List.of(
+                new WorkloadTool(
+                    "tool-ref",
+                    "b".repeat(64),
+                    List.of(ToolEffect.READ, ToolEffect.READ),
+                    1_000)),
+            firstManifest.memoryNamespace(),
+            firstManifest.evaluationSuiteRef(),
+            firstManifest.recoveryRulesRef(),
+            firstManifest.runtimeBuild(),
+            firstManifest.dataPolicyRef(),
+            firstManifest.handoffRef(),
+            firstManifest.limits());
+    var duplicateEffects =
+        new RegisterAgentVersion(
+            "duplicate-effects",
+            1,
+            manifestDigest(duplicateEffectsManifest),
+            "artifact:sha256:duplicate",
+            duplicateEffectsManifest);
+    assertEquals(
+        400,
+        post(
+                "/v1/agent-workloads/profile-versioned/versions",
+                authorBearer,
+                "version-duplicate-effects",
+                objectMapper.writeValueAsString(duplicateEffects))
+            .statusCode());
+    assertEquals(
+        201,
+        post(
+                "/v1/agent-workloads/profile-versioned/versions",
+                authorBearer,
+                "version-register-1",
+                firstVersionBody)
+            .statusCode());
+
+    HttpResponse<String> authorActivation =
+        post(
+            "/v1/agent-workloads/profile-versioned:activate",
+            authorBearer,
+            "version-activate-by-author",
+            """
+            {"version_id":"version-1","expected_revision":1}
+            """);
+    assertEquals(409, authorActivation.statusCode());
+    assertThat(authorActivation.body()).contains("\"code\":\"VERSION_AUTHOR_NOT_INDEPENDENT\"");
+
+    HttpResponse<String> activated =
+        post(
+            "/v1/agent-workloads/profile-versioned:activate",
+            reviewerBearer,
+            "version-activate-1",
+            """
+            {"version_id":"version-1","expected_revision":1}
+            """);
+    assertEquals(200, activated.statusCode());
+    assertThat(activated.body()).contains("\"revision\":2", "\"result\":\"ACTIVATED\"");
+
+    HttpResponse<String> current =
+        get("/internal/v1/workload-versions/version-1", reviewerBearer);
+    assertEquals(200, current.statusCode());
+    assertThat(current.body())
+        .contains(
+            "\"profile_id\":\"profile-versioned\"",
+            "\"id\":\"version-1\"",
+            "\"digest\":\"" + firstVersion.digest() + "\"",
+            "\"model_ref\":\"model-v1\"");
+
+    var secondManifest = workloadManifest("model-v2");
+    var secondVersion =
+        new RegisterAgentVersion(
+            "version-2", 2, manifestDigest(secondManifest), "artifact:sha256:second", secondManifest);
+    assertEquals(
+        201,
+        post(
+                "/v1/agent-workloads/profile-versioned/versions",
+                authorBearer,
+                "version-register-2",
+                objectMapper.writeValueAsString(secondVersion))
+            .statusCode());
+    assertEquals(
+        409,
+        post(
+                "/v1/agent-workloads/profile-versioned:activate",
+                reviewerBearer,
+                "version-stale-activate",
+                """
+                {"version_id":"version-2","expected_revision":1}
+                """)
+            .statusCode());
+    assertEquals(
+        200,
+        post(
+                "/v1/agent-workloads/profile-versioned:activate",
+                reviewerBearer,
+                "version-activate-2",
+                """
+                {"version_id":"version-2","expected_revision":2}
+                """)
+            .statusCode());
+    assertEquals(404, get("/internal/v1/workload-versions/version-1", reviewerBearer).statusCode());
+    assertThat(get("/internal/v1/workload-versions/version-2", reviewerBearer).body())
+        .contains("\"id\":\"version-2\"", "\"model_ref\":\"model-v2\"");
+    assertEquals(
+        403,
+        get(
+                "/internal/v1/workload-versions/version-2",
+                bearer(
+                    actorAs(
+                        "profile-reader-denied",
+                        tenant,
+                        environment,
+                        List.of(),
+                        List.of(),
+                        List.of())))
+            .statusCode());
+    assertThrows(
+        DataAccessException.class,
+        () ->
+            jdbc.update(
+                "UPDATE uacrf_catalog.agent_workload_version SET object_ref = 'substituted' "
+                    + "WHERE tenant_id = ? AND environment_id = ? AND workload_id = ? AND id = ?",
+                tenant,
+                environment,
+                "profile-versioned",
+                "version-2"));
+    assertThrows(
+        DataAccessException.class,
+        () ->
+            jdbc.update(
+                "DELETE FROM uacrf_catalog.agent_workload_version "
+                    + "WHERE tenant_id = ? AND environment_id = ? AND workload_id = ? AND id = ?",
+                tenant,
+                environment,
+                "profile-versioned",
+                "version-2"));
+    assertEquals(
+        3,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_catalog.outbox_event WHERE aggregate_id = 'profile-versioned'",
+            Integer.class));
   }
 
   @Test
@@ -546,6 +750,31 @@ class EstateCatalogApplicationTests {
             .issue(principal, "S02");
   }
 
+  private String manifestDigest(WorkloadVersionManifest manifest) throws Exception {
+    return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
+        objectMapper.writeValueAsBytes(manifest)));
+  }
+
+  private static WorkloadVersionManifest workloadManifest(String modelRef) {
+    return new WorkloadVersionManifest(
+        "a".repeat(64),
+        modelRef,
+        List.of("knowledge-ref"),
+        List.of(
+            new WorkloadTool(
+                "tool-ref",
+                "b".repeat(64),
+                List.of(ToolEffect.READ),
+                1_000)),
+        "memory-namespace",
+        "evaluation-suite",
+        "recovery-rules",
+        "runtime-build",
+        "data-policy",
+        "handoff-contract",
+        new WorkloadLimits(10, 100, 50, 60));
+  }
+
   private static KeyPair generateDelegationKeyPair() {
     try {
       KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -579,6 +808,25 @@ class EstateCatalogApplicationTests {
         serviceScope,
         "https://idp.example.test",
         "user-1",
+        capabilities,
+        owners,
+        runtimePrincipals);
+  }
+
+  private static DelegationPrincipal actorAs(
+      String subject,
+      String tenant,
+      String environment,
+      List<String> capabilities,
+      List<String> owners,
+      List<String> runtimePrincipals) {
+    return new DelegationPrincipal(
+        "https://uacrf.local/s01|" + subject,
+        tenant,
+        environment,
+        "*",
+        "https://idp.example.test",
+        subject,
         capabilities,
         owners,
         runtimePrincipals);

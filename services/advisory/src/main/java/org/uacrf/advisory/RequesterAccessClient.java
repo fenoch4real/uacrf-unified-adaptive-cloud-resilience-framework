@@ -33,6 +33,12 @@ final class RequesterAccessClient {
   // This is a prerequisite snapshot, not an admission or source-disclosure decision.
   Principal check(String actorToken, String tenantId, String environmentId,
                   SourceReceiptConsistency.Classification classification) throws IOException, InterruptedException {
+    return check(actorToken, tenantId, environmentId, classification, false);
+  }
+
+  Principal check(String actorToken, String tenantId, String environmentId,
+                  SourceReceiptConsistency.Classification classification, boolean requireProfileRead)
+      throws IOException, InterruptedException {
     if (!enabled) {
       throw new IllegalStateException("Requester access checking is disabled.");
     }
@@ -65,6 +71,7 @@ final class RequesterAccessClient {
     if (!capabilities.contains("advisory.run.create")
         || !capabilities.contains("assessment.case.read")
         || !capabilities.contains("knowledge.retrieval.read")
+        || (requireProfileRead && !capabilities.contains("catalog.agent.read"))
         || (classification == SourceReceiptConsistency.Classification.INTERNAL
             && !capabilities.contains("knowledge.classification.internal.read")
             && !capabilities.contains("knowledge.classification.restricted.read"))

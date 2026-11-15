@@ -54,7 +54,8 @@ final class S01DelegationClient implements OwnerReceiptClient.DelegationProvider
   }
 
   private static boolean allowed(String audience, List<String> capabilities) {
-    return ("S07".equals(audience) && List.of("assessment.case.read").equals(capabilities))
+    return ("S02".equals(audience) && List.of("catalog.agent.read").equals(capabilities))
+        || ("S07".equals(audience) && List.of("assessment.case.read").equals(capabilities))
         || ("S08".equals(audience) && (List.of("knowledge.retrieval.read").equals(capabilities)
             || List.of("knowledge.retrieval.read", "knowledge.classification.internal.read").equals(capabilities)
             || List.of("knowledge.retrieval.read", "knowledge.classification.restricted.read").equals(capabilities)));

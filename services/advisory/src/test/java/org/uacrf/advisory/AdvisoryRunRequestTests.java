@@ -77,6 +77,30 @@ class AdvisoryRunRequestTests {
   }
 
   @Test
+  void enforcesTheExactRoleSetForEachWorkflowVersion() {
+    var independentBudget = new AdvisoryBudget(2, 200, 10, List.of(
+        new AdvisoryBudget.Allocation(AdvisoryBudget.Role.ANALYST, "analyst", 100, 5),
+        new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 100, 5)));
+    var adversarialBudget = new AdvisoryBudget(3, 300, 15, List.of(
+        new AdvisoryBudget.Allocation(AdvisoryBudget.Role.ANALYST, "analyst", 100, 5),
+        new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 100, 5),
+        new AdvisoryBudget.Allocation(AdvisoryBudget.Role.CRITIC, "critic", 100, 5)));
+
+    request(AdvisoryRunRequest.WorkflowVersion.SINGLE_ANALYST_V1, BUDGET);
+    request(AdvisoryRunRequest.WorkflowVersion.INDEPENDENT_REVIEW_V1, independentBudget);
+    request(AdvisoryRunRequest.WorkflowVersion.ADVERSARIAL_REVIEW_V1, adversarialBudget);
+
+    assertThrows(IllegalArgumentException.class,
+        () -> request(AdvisoryRunRequest.WorkflowVersion.SINGLE_ANALYST_V1, independentBudget));
+    assertThrows(IllegalArgumentException.class,
+        () -> request(AdvisoryRunRequest.WorkflowVersion.INDEPENDENT_REVIEW_V1, BUDGET));
+    assertThrows(IllegalArgumentException.class,
+        () -> request(AdvisoryRunRequest.WorkflowVersion.INDEPENDENT_REVIEW_V1, adversarialBudget));
+    assertThrows(IllegalArgumentException.class,
+        () -> request(AdvisoryRunRequest.WorkflowVersion.ADVERSARIAL_REVIEW_V1, independentBudget));
+  }
+
+  @Test
   void rejectsInvalidScopeReferencesAndRequiredFields() {
     assertThrows(IllegalArgumentException.class,
         () -> request("bad case", "retrieval-1", AdvisoryRunRequest.WorkflowVersion.SINGLE_ANALYST_V1,
@@ -109,8 +133,13 @@ class AdvisoryRunRequestTests {
               REFERENCE, DIGEST, REFERENCE, DIGEST, Instant.EPOCH, "reason", proposals));
     }
     var ten = java.util.stream.IntStream.range(0, 10).mapToObj(i -> "p" + i).toList();
-    assertEquals(ten, request("case-1", "retrieval-1", AdvisoryRunRequest.WorkflowVersion.ADVERSARIAL_REVIEW_V1,
+    assertEquals(ten, request("case-1", "retrieval-1", AdvisoryRunRequest.WorkflowVersion.SINGLE_ANALYST_V1,
         REFERENCE, DIGEST, REFERENCE, DIGEST, Instant.EPOCH, "reason", ten).proposalIds());
+  }
+
+  private static AdvisoryRunRequest request(AdvisoryRunRequest.WorkflowVersion workflow, AdvisoryBudget budget) {
+    return new AdvisoryRunRequest("case-1", "retrieval-1", workflow, REFERENCE, DIGEST,
+        REFERENCE, DIGEST, budget, Instant.EPOCH, "reason", List.of("proposal"));
   }
 
   private static AdvisoryRunRequest request(String caseId, String retrievalId,

@@ -1,11 +1,17 @@
 package org.uacrf.advisory;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -34,16 +40,21 @@ final class DispatchJournal {
   }
 
   record Intent(Key key, String runId, String assignmentId, long generation,
-                AdvisoryBudget.Role role, String profileId, String contextDigest, InputPacket packet) {
+                AdvisoryBudget.Role role, String profileId, AdvisoryGateway.Request request,
+                String contextDigest, InputPacket packet) {
     Intent {
       java.util.Objects.requireNonNull(key, "key");
       java.util.Objects.requireNonNull(packet, "packet");
       java.util.Objects.requireNonNull(role, "role");
+      java.util.Objects.requireNonNull(request, "request");
       requireId(runId);
       requireId(assignmentId);
       requireId(profileId);
-      if (generation < 1 || contextDigest == null || !contextDigest.matches("[0-9a-f]{64}")) {
-        throw new IllegalArgumentException("Invalid dispatch generation or context digest.");
+      if (generation < 1 || !key.attemptId().equals(request.attemptId())
+          || contextDigest == null || !contextDigest.equals(packet.bytesDigest())
+          || !UnicodeText.isValid(request.context())
+          || !Arrays.equals(packet.bytes(), request.context().getBytes(StandardCharsets.UTF_8))) {
+        throw new IllegalArgumentException("Dispatch request, context digest, and packet bytes must match.");
       }
     }
 
@@ -59,6 +70,13 @@ final class DispatchJournal {
   enum ReportedTokenStatus {
     UNAVAILABLE, WITHIN_ALLOCATION, EXCEEDS_ALLOCATION
   }
+
+  enum RunUsageStatus {
+    UNAVAILABLE, WITHIN_BUDGET, EXCEEDS_BUDGET
+  }
+
+  record RunUsage(long generation, long reportedTokens, int maxTokens, long responses,
+                  long unknownOutcomes, long unresolvedIntents, RunUsageStatus status) {}
 
   record Entry(Intent intent, Optional<AdvisoryGateway.Outcome> outcome,
                Optional<RecordingFence> recordingFence, int tokenAllocation) {
@@ -79,6 +97,52 @@ final class DispatchJournal {
   }
 
   record Unresolved(Key key, UnresolvedState state) {}
+
+  // Reported usage is diagnostic only; unknown outcomes do not count as zero or authorize retries.
+  Optional<RunUsage> runUsage(RunKey key, long generation) throws SQLException {
+    java.util.Objects.requireNonNull(key, "key");
+    if (generation < 1) {
+      throw new IllegalArgumentException("Run generation must be positive.");
+    }
+    String sql = """
+        SELECT fence.state, fence.max_tokens,
+               count(journal.attempt_id) FILTER (WHERE journal.state = 'RESPONSE'),
+               coalesce(sum(journal.input_tokens::bigint + journal.output_tokens::bigint)
+                 FILTER (WHERE journal.state = 'RESPONSE'), 0),
+               count(journal.attempt_id) FILTER (WHERE journal.state = 'UNKNOWN'),
+               count(journal.attempt_id) FILTER (WHERE journal.state = 'DISPATCH_INTENT')
+        FROM uacrf_advisory.run_fence fence
+        LEFT JOIN uacrf_advisory.dispatch_journal journal
+          ON journal.tenant_id = fence.tenant_id AND journal.environment_id = fence.environment_id
+          AND journal.run_id = fence.run_id AND journal.generation = fence.generation
+        WHERE fence.tenant_id = ? AND fence.environment_id = ? AND fence.run_id = ? AND fence.generation = ?
+        GROUP BY fence.state, fence.max_tokens
+        """;
+    try (Connection connection = committedConnection();
+         PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, key.tenantId());
+      statement.setString(2, key.environmentId());
+      statement.setString(3, key.runId());
+      statement.setLong(4, generation);
+      try (ResultSet result = statement.executeQuery()) {
+        if (!result.next()) {
+          return Optional.empty();
+        }
+        if ("DRAFT".equals(result.getString(1))) {
+          throw new SQLException("Unactivated run fence cannot be used.");
+        }
+        long reportedTokens = result.getLong(4);
+        int maxTokens = result.getInt(2);
+        long unknownOutcomes = result.getLong(5);
+        long unresolvedIntents = result.getLong(6);
+        RunUsageStatus status = reportedTokens > maxTokens ? RunUsageStatus.EXCEEDS_BUDGET
+            : unknownOutcomes > 0 || unresolvedIntents > 0 ? RunUsageStatus.UNAVAILABLE
+            : RunUsageStatus.WITHIN_BUDGET;
+        return Optional.of(new RunUsage(generation, reportedTokens, maxTokens, result.getLong(3),
+            unknownOutcomes, unresolvedIntents, status));
+      }
+    }
+  }
 
   // This snapshot identifies uncertainty; it does not authorize retries or resolve provider usage.
   List<Unresolved> unresolved(RunKey key, long generation) throws SQLException {
@@ -241,25 +305,47 @@ final class DispatchJournal {
 
   // A false result or an exception must never be treated as permission to dispatch.
   boolean begin(Intent intent) throws SQLException {
-    // Materialization acquires the run lock before evaluating the deadline.
+    // Materialization acquires the run lock before evaluating the remaining run deadline.
     String sql = """
         WITH locked AS MATERIALIZED (
-          SELECT tenant_id, environment_id, run_id, generation, state, deadline_epoch_second, deadline_nano
+          SELECT tenant_id, environment_id, run_id, generation, state, max_tokens,
+                 deadline_epoch_second, deadline_nano
           FROM uacrf_advisory.run_fence
           WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND generation = ?
           FOR UPDATE
+        ), observed AS MATERIALIZED (
+          SELECT locked.*, clock_timestamp() AS admitted_at FROM locked
         )
         INSERT INTO uacrf_advisory.dispatch_journal
-          (tenant_id, environment_id, run_id, assignment_id, attempt_id, generation, role, profile_id, context_digest,
-           packet_bytes, packet_bytes_digest, state)
-        SELECT ?, ?, ?, ?, ?, ?, allocation.role, allocation.profile_id, ?, ?, ?, 'DISPATCH_INTENT'
-        FROM locked fence
+          (tenant_id, environment_id, run_id, assignment_id, attempt_id, generation, role, profile_id, model_ref,
+           max_output_tokens, timeout_seconds, timeout_nanos, context_digest, packet_bytes, packet_bytes_digest, state)
+        SELECT ?, ?, ?, ?, ?, ?, allocation.role, allocation.profile_id, ?, ?, ?, ?, ?, ?, ?, 'DISPATCH_INTENT'
+        FROM observed fence
         JOIN uacrf_advisory.run_allocation allocation
           ON allocation.tenant_id = fence.tenant_id AND allocation.environment_id = fence.environment_id
           AND allocation.run_id = fence.run_id AND allocation.generation = fence.generation
         WHERE fence.state = 'ACTIVE'
-          AND extract(epoch FROM clock_timestamp()) * 1000000000
+          AND extract(epoch FROM fence.admitted_at) * 1000000000
             < fence.deadline_epoch_second::numeric * 1000000000 + fence.deadline_nano
+          AND extract(epoch FROM fence.admitted_at) * 1000000000
+            + ?::numeric * 1000000000 + ?::numeric
+            < fence.deadline_epoch_second::numeric * 1000000000 + fence.deadline_nano
+          AND allocation.tokens >= ?
+          AND NOT EXISTS (
+            SELECT 1 FROM uacrf_advisory.dispatch_journal unknown
+            WHERE unknown.tenant_id = fence.tenant_id AND unknown.environment_id = fence.environment_id
+              AND unknown.run_id = fence.run_id AND unknown.generation = fence.generation
+              AND unknown.state = 'UNKNOWN'
+          )
+          AND (
+            SELECT coalesce(sum(CASE journal.state
+              WHEN 'RESPONSE' THEN journal.input_tokens::numeric + journal.output_tokens::numeric
+              WHEN 'DISPATCH_INTENT' THEN journal.max_output_tokens::numeric
+              ELSE 0::numeric END), 0)
+            FROM uacrf_advisory.dispatch_journal journal
+            WHERE journal.tenant_id = fence.tenant_id AND journal.environment_id = fence.environment_id
+              AND journal.run_id = fence.run_id AND journal.generation = fence.generation
+          ) + ?::numeric <= fence.max_tokens::numeric
           AND allocation.role = ? AND allocation.profile_id = ?
         ON CONFLICT DO NOTHING
         """;
@@ -275,11 +361,19 @@ final class DispatchJournal {
       statement.setString(8, intent.assignmentId());
       statement.setString(9, intent.key().attemptId());
       statement.setLong(10, intent.generation());
-      statement.setString(11, intent.contextDigest());
-      statement.setBytes(12, intent.packet().bytes());
-      statement.setString(13, intent.packet().bytesDigest());
-      statement.setString(14, intent.role().name());
-      statement.setString(15, intent.profileId());
+      statement.setString(11, intent.request().model());
+      statement.setInt(12, intent.request().maxOutputTokens());
+      statement.setLong(13, intent.request().timeout().getSeconds());
+      statement.setInt(14, intent.request().timeout().getNano());
+      statement.setString(15, intent.contextDigest());
+      statement.setBytes(16, intent.packet().bytes());
+      statement.setString(17, intent.packet().bytesDigest());
+      statement.setLong(18, intent.request().timeout().getSeconds());
+      statement.setInt(19, intent.request().timeout().getNano());
+      statement.setInt(20, intent.request().maxOutputTokens());
+      statement.setInt(21, intent.request().maxOutputTokens());
+      statement.setString(22, intent.role().name());
+      statement.setString(23, intent.profileId());
       return statement.executeUpdate() == 1;
     }
   }
@@ -343,6 +437,7 @@ final class DispatchJournal {
   Optional<Entry> find(Key key) throws SQLException {
     String sql = """
         SELECT journal.run_id, journal.assignment_id, journal.generation, journal.role, journal.profile_id,
+               journal.model_ref, journal.max_output_tokens, journal.timeout_seconds, journal.timeout_nanos,
                journal.context_digest, journal.packet_bytes, journal.packet_bytes_digest, journal.state,
                journal.response_text, journal.input_tokens, journal.output_tokens, journal.unknown_reason,
                journal.recording_fence, allocation.tokens
@@ -362,24 +457,38 @@ final class DispatchJournal {
         if (!result.next()) {
           return Optional.empty();
         }
-        InputPacket packet = new InputPacket(result.getBytes(7));
-        if (!packet.bytesDigest().equals(result.getString(8))) {
+        InputPacket packet = new InputPacket(result.getBytes(11));
+        if (!packet.bytesDigest().equals(result.getString(12))) {
           throw new SQLException("Retained input packet digest does not match its bytes.");
+        }
+        AdvisoryGateway.Request request;
+        try {
+          String context = StandardCharsets.UTF_8.newDecoder()
+              .onMalformedInput(CodingErrorAction.REPORT)
+              .onUnmappableCharacter(CodingErrorAction.REPORT)
+              .decode(ByteBuffer.wrap(packet.bytes())).toString();
+          request = new AdvisoryGateway.Request(key.attemptId(), result.getString(6), context,
+              result.getInt(7), Duration.ofSeconds(result.getLong(8), result.getInt(9)));
+          if (request.maxOutputTokens() > result.getInt(19)) {
+            throw new SQLException("Retained gateway output limit exceeds its sealed allocation.");
+          }
+        } catch (CharacterCodingException | IllegalArgumentException failure) {
+          throw new SQLException("Retained gateway request is invalid.", failure);
         }
         Intent intent = new Intent(key, result.getString(1), result.getString(2),
             result.getLong(3), AdvisoryBudget.Role.valueOf(result.getString(4)), result.getString(5),
-            result.getString(6), packet);
-        Optional<AdvisoryGateway.Outcome> outcome = switch (result.getString(9)) {
+            request, result.getString(10), packet);
+        Optional<AdvisoryGateway.Outcome> outcome = switch (result.getString(13)) {
           case "DISPATCH_INTENT" -> Optional.empty();
           case "RESPONSE" -> Optional.of(new AdvisoryGateway.Response(
-              result.getString(10), result.getInt(11), result.getInt(12)));
-          case "UNKNOWN" -> Optional.of(new AdvisoryGateway.Unknown(result.getString(13)));
+              result.getString(14), result.getInt(15), result.getInt(16)));
+          case "UNKNOWN" -> Optional.of(new AdvisoryGateway.Unknown(result.getString(17)));
           default -> throw new SQLException("Unrecognized dispatch journal state.");
         };
-        String recordingFence = result.getString(14);
+        String recordingFence = result.getString(18);
         return Optional.of(new Entry(intent, outcome,
             recordingFence == null ? Optional.empty() : Optional.of(RecordingFence.valueOf(recordingFence)),
-            result.getInt(15)));
+            result.getInt(19)));
       }
     }
   }
