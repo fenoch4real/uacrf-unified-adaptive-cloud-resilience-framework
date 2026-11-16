@@ -11,6 +11,12 @@ microservices system.
 
 ## Published paper
 
+The UACRF paper proposes a unified framework for assessing resilience across cloud services and AI-agent workloads. It connects dependency-aware observation and evidence-based assessment with bounded, policy-governed actions, independent recovery validation, and learning from outcomes. Its agent approach keeps advisory assistance separate from operational authority: recommendations can inform human review, but they do not by themselves authorize recovery or prove that recovery succeeded.
+
+This matters because an agent’s reliability depends on more than its model: tools, knowledge, memory, identity, and infrastructure can all become failure points. UACRF offers a structured way to reason about those dependencies, preserve evidence, and govern actions across the resilience lifecycle—without treating a confident recommendation or a provider’s success message as proof of resilience.
+
+For readers: What evidence and independent tests would you require before trusting an agent-assisted recovery recommendation in a critical environment? Which failure scenarios or governance questions should future evaluations prioritize?
+
 The framework is introduced in the following publication:
 
 Fabiyi, O. O., & Yeboah, M. M. (2026). [*UACRF: A Unified Adaptive Framework
