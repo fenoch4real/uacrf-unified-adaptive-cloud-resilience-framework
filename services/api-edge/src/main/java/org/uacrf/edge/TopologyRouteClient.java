@@ -56,6 +56,34 @@ class TopologyRouteClient {
     return sendBody(HttpMethod.POST, "/v1/graphs:accept", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> classifyDifferences(
+      String authorization, String idempotencyKey, String requestBody) {
+    return sendBody(
+        HttpMethod.POST,
+        "/v1/graphs/differences:classify",
+        null,
+        authorization,
+        idempotencyKey,
+        requestBody);
+  }
+
+  ResponseEntity<String> selectSubgraph(
+      String authorization, String idempotencyKey, String requestBody) {
+    return sendBody(
+        HttpMethod.POST,
+        "/v1/graphs/subgraphs:select",
+        null,
+        authorization,
+        idempotencyKey,
+        requestBody);
+  }
+
+  ResponseEntity<String> getCommand(String authorization, String id) {
+    return send(
+        topologyRestClient.get().uri(uriBuilder -> uriBuilder.path("/v1/commands/{id}").build(id)),
+        authorization);
+  }
+
   ResponseEntity<String> getGraph(String authorization, String id) {
     return send(
         topologyRestClient.get().uri(uriBuilder -> uriBuilder.path("/v1/graphs/{id}").build(id)),
@@ -99,12 +127,25 @@ class TopologyRouteClient {
 
   private ResponseEntity<String> sendBody(
       HttpMethod method, String path, String variable, String authorization, String requestBody) {
+    return sendBody(method, path, variable, authorization, null, requestBody);
+  }
+
+  private ResponseEntity<String> sendBody(
+      HttpMethod method,
+      String path,
+      String variable,
+      String authorization,
+      String idempotencyKey,
+      String requestBody) {
     RestClient.RequestBodySpec request =
         topologyRestClient
             .method(method)
             .uri(
                 uriBuilder -> variable == null ? uriBuilder.path(path).build() : uriBuilder.path(path).build(variable));
     request.contentType(MediaType.APPLICATION_JSON).body(requestBody);
+    if (idempotencyKey != null) {
+      request.header("Idempotency-Key", idempotencyKey);
+    }
     return send(request, authorization);
   }
 

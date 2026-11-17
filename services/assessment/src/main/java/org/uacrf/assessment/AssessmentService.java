@@ -14,12 +14,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.uacrf.security.DelegationPrincipal;
 import tools.jackson.databind.ObjectMapper;
 
 @Service
 class AssessmentService {
   private static final String DB = "uacrf_assessment.";
+  private static final Set<String> GRAPH_RECEIPT_PURPOSES =
+      Set.of("topology.graph.subgraph-selection", "topology.graph.difference-classification");
   private final JdbcTemplate jdbc;
   private final ObjectMapper json;
   private final ReceiptVerifier receiptVerifier;
@@ -60,8 +63,8 @@ class AssessmentService {
     return jdbc.query("SELECT * FROM " + DB + "analysis_case WHERE tenant_id=? AND environment_id=? AND (CAST(? AS text) IS NULL OR workload_id=?) ORDER BY id", (rs,n)->caseRow(rs), actor.tenantId(), actor.environmentId(), workloadId, workloadId);
   }
   @Transactional(readOnly=true)
-  Receipt receipt(DelegationPrincipal actor, String id) {
-    permit(actor, "assessment.case.read");
+  Receipt receipt(DelegationPrincipal actor, String id, Jwt jwt) {
+    permitReceipt(actor, id, jwt);
     Case item = findCase(actor, id, false);
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "A receipt requires a sealed case.");
     return new Receipt(id, item.purpose(), item.caseDigest(), item.workloadId(), item.requiredSourceKinds());
@@ -226,6 +229,22 @@ class AssessmentService {
   private static String hash(String value) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); } catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); } }
   private static void permit(DelegationPrincipal actor, String capability) {
     if (!actor.capabilities().contains(capability) || !"*".equals(actor.serviceScope())) throw new AssessmentException(HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "The current principal cannot perform this assessment operation.");
+  }
+  private static void permitReceipt(DelegationPrincipal actor, String id, Jwt jwt) {
+    if (!actor.capabilities().contains("assessment.case.read")) {
+      throw new AssessmentException(HttpStatus.FORBIDDEN, "PERMISSION_DENIED",
+          "The current principal cannot perform this assessment operation.");
+    }
+    if ("*".equals(actor.serviceScope())) return;
+    String purpose = jwt.getClaimAsString("purpose");
+    boolean scopedGraphReceipt = id.equals(actor.serviceScope())
+        && "assessment_case".equals(jwt.getClaimAsString("resource_type"))
+        && id.equals(jwt.getClaimAsString("resource_id"))
+        && GRAPH_RECEIPT_PURPOSES.contains(purpose);
+    if (!scopedGraphReceipt) {
+      throw new AssessmentException(HttpStatus.FORBIDDEN, "PERMISSION_DENIED",
+          "The current principal cannot perform this assessment operation.");
+    }
   }
   private static AssessmentException invalid(String message) { return new AssessmentException(HttpStatus.BAD_REQUEST,"INVALID_REQUEST",message); }
   private static AssessmentException conflict(String code, String message) { return new AssessmentException(HttpStatus.CONFLICT,code,message); }

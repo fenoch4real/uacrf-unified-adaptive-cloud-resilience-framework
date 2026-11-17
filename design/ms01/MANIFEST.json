@@ -34,8 +34,8 @@
     },
     {
       "path": "INTERNAL_INTERFACES.md",
-      "bytes": 21889,
-      "sha256": "206e22f17fd933756e2655192e24ce37085a99e462043906bbe2c5d438de63b6"
+      "bytes": 32768,
+      "sha256": "c8e14de323c7400998462cc84539381080b3c7274d00991ac79766a2b2e9eda0"
     },
     {
       "path": "README.md",
@@ -184,13 +184,13 @@
     },
     {
       "path": "contracts/source/api_reference/core.openapi.json",
-      "bytes": 334863,
-      "sha256": "61a29b0f4d33ae7d381be6cc349cd982425f4328c49a4b2dc857843e7dbd3ed6"
+      "bytes": 356326,
+      "sha256": "b1c8dff8e91596493b27176aea9bd1ebb7be278583e89e9a5430a37a07376044"
     },
     {
       "path": "contracts/source/api_reference/openapi.json",
-      "bytes": 478570,
-      "sha256": "af8656b33ec39eec24686c61955a590e77d1fadf82dea3c60b76fe9007ee0658"
+      "bytes": 500033,
+      "sha256": "ea652f614626e203a2e002d79087bbdc15c9d734a6b9407fd6364e82dba9114a"
     },
     {
       "path": "contracts/source/assurance_design/openapi.proposed.json",
@@ -804,8 +804,8 @@
     },
     {
       "path": "tools/build_contracts.py",
-      "bytes": 6579,
-      "sha256": "d57c777bb1ece25dac77bbfc221892c3b990dafe3237e03f4871aea9c849a359"
+      "bytes": 6703,
+      "sha256": "a7fcbac9f9f7746043f4a0381445697263a1ebce4de11c2f25e1064d03e1b23a"
     },
     {
       "path": "tools/build_diagrams.py",

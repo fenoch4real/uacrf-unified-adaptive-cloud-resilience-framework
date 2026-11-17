@@ -28,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 class IdentityExchangeService {
   private static final Set<String> FIELDS =
       Set.of("audience", "resource_type", "resource_id", "purpose", "operation_deadline");
+  private static final Set<String> GRAPH_OPERATION_PURPOSES =
+      Set.of("topology.graph.subgraph-selection", "topology.graph.difference-classification");
   private static final Duration BUDGET = Duration.ofSeconds(5);
 
   private final JdbcTemplate jdbc;
@@ -66,8 +68,16 @@ class IdentityExchangeService {
     if (!resourceId.matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")) {
       throw invalid("The resource id is malformed.");
     }
+    boolean graphOperation = GRAPH_OPERATION_PURPOSES.contains(purpose);
     String downstreamCapability;
-    if ("S02".equals(audience) && "agent_workload".equals(resourceType)) {
+    if (graphOperation) {
+      downstreamCapability = switch (audience + "/" + resourceType) {
+        case "S02/service" -> "catalog.service.read";
+        case "S04/evidence_event" -> "evidence.topology.summary";
+        case "S07/assessment_case" -> "assessment.case.read";
+        default -> throw invalid("The audience and resource type are not supported for this purpose.");
+      };
+    } else if ("S02".equals(audience) && "agent_workload".equals(resourceType)) {
       downstreamCapability = "catalog.agent.owner-receipt";
     } else if ("S04".equals(audience) && "evidence_event".equals(resourceType)) {
       downstreamCapability = "evidence.topology.summary";
@@ -78,6 +88,8 @@ class IdentityExchangeService {
       case "topology.dependency-proposal" -> "topology.proposal.write";
       case "topology.dependency-review" -> "topology.proposal.review";
       case "topology.graph.current-use" -> "topology.graph.read";
+      case "topology.graph.subgraph-selection", "topology.graph.difference-classification" ->
+          "topology.graph.read";
       default -> throw invalid("The purpose is not supported.");
     };
     Instant deadline;

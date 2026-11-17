@@ -113,6 +113,28 @@ class IdentityExchangeTests {
   }
 
   @Test
+  void narrowsGraphOperationDelegationsToCurrentCaseAndServiceReceipts() {
+    for (String purpose : List.of(
+        "topology.graph.subgraph-selection", "topology.graph.difference-classification")) {
+      Jwt assertion = incoming("S06", "topology.graph.read", now.minusSeconds(1), now.plusSeconds(20));
+      for (var target : List.of(
+          List.of("S07", "assessment_case", "case-1", "assessment.case.read"),
+          List.of("S02", "service", "service-1", "catalog.service.read"),
+          List.of("S04", "evidence_event", "evidence-1", "evidence.topology.summary"))) {
+        Jwt result = decodeOutput(
+            service.exchange(assertion, request(target.get(0), target.get(1), target.get(2), purpose))
+                .accessToken(),
+            target.get(0));
+        assertThat(result.getClaimAsString("service_scope")).isEqualTo(target.get(2));
+        assertThat(result.getClaimAsString("resource_id")).isEqualTo(target.get(2));
+        assertThat(result.getClaimAsString("resource_type")).isEqualTo(target.get(1));
+        assertThat(result.getClaimAsString("purpose")).isEqualTo(purpose);
+        assertThat(result.getClaimAsStringList("capabilities")).containsExactly(target.get(3));
+      }
+    }
+  }
+
+  @Test
   void rejectsUntrustedOrExpiredAssertions() throws Exception {
     assertThatThrownBy(() -> incoming("S02", "topology.graph.read", now.minusSeconds(1), now.plusSeconds(10)))
         .isInstanceOf(JwtException.class);
@@ -143,6 +165,26 @@ class IdentityExchangeTests {
         request("S02", "unknown", "topology.dependency-proposal"),
         request("S02", "agent_workload", "other-purpose"))) {
       assertInvalid(assertion, invalid);
+    }
+    for (String purpose : List.of(
+        "topology.graph.subgraph-selection", "topology.graph.difference-classification")) {
+      for (var invalidTarget : List.of(
+            List.of("S02", "agent_workload"), List.of("S04", "service"),
+            List.of("S07", "service"), List.of("S02", "assessment_case"))) {
+        assertInvalid(assertion, request(invalidTarget.get(0), invalidTarget.get(1), "resource-1", purpose));
+      }
+    }
+    assertInvalid(assertion, request("S02", "service", "topology.graph.current-use"));
+    Jwt nonGraphAuthority = incoming(
+        "S06", "topology.proposal.write", now.minusSeconds(1), now.plusSeconds(20));
+    for (var target : List.of(
+        List.of("S07", "assessment_case", "case-1"),
+        List.of("S02", "service", "service-1"))) {
+      assertThatThrownBy(() -> service.exchange(
+          nonGraphAuthority,
+          request(target.get(0), target.get(1), target.get(2), "topology.graph.subgraph-selection")))
+          .isInstanceOfSatisfying(
+              IdentityException.class, e -> assertThat(e.status().value()).isEqualTo(403));
     }
     for (Instant deadline : List.of(now, now.minusSeconds(1), now.plusSeconds(6))) {
       Map<String, Object> invalid = new HashMap<>(base);
@@ -273,7 +315,11 @@ class IdentityExchangeTests {
   }
 
   private Map<String, Object> request(String audience, String type, String purpose) {
-    return Map.of("audience", audience, "resource_type", type, "resource_id", "resource-1",
+    return request(audience, type, "resource-1", purpose);
+  }
+
+  private Map<String, Object> request(String audience, String type, String resourceId, String purpose) {
+    return Map.of("audience", audience, "resource_type", type, "resource_id", resourceId,
         "purpose", purpose, "operation_deadline", now.plusSeconds(4).toString());
   }
 

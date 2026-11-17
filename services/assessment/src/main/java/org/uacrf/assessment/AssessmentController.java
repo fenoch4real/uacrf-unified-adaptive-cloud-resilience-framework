@@ -36,7 +36,9 @@ class AssessmentController {
   @GetMapping("/v1/cases")
   List<Case> list(@AuthenticationPrincipal Jwt jwt, @RequestParam(value="workload_id", required=false) String workloadId) { return service.listCases(DelegationPrincipal.from(jwt), workloadId); }
   @PostMapping("/internal/v1/cases/{id}:receipt")
-  Receipt receipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.receipt(DelegationPrincipal.from(jwt), id); }
+  Receipt receipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return service.receipt(DelegationPrincipal.from(jwt), id, jwt);
+  }
   @PostMapping("/internal/v1/cases/{id}:material")
   CaseMaterial material(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.material(DelegationPrincipal.from(jwt), id); }
   @PostMapping("/v1/cases/{id}:evaluate") @ResponseStatus(HttpStatus.CREATED)

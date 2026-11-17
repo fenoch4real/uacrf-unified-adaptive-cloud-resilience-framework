@@ -4,15 +4,18 @@ import static org.uacrf.topology.TopologyRequests.*;
 import static org.uacrf.topology.TopologyResponses.*;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.uacrf.security.DelegationPrincipal;
+import java.net.URI;
 
 @RestController
 class TopologyController {
   private final TopologyService service;
-  TopologyController(TopologyService service) { this.service = service; }
+  private final TopologyGraphCommandService commands;
+  TopologyController(TopologyService service, TopologyGraphCommandService commands) { this.service = service; this.commands=commands; }
   @PostMapping("/v1/dependency-proposals") @ResponseStatus(HttpStatus.CREATED)
   Proposal propose(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Propose request) { return service.propose(DelegationPrincipal.from(jwt), request); }
   @PostMapping("/v1/dependency-proposals:evidence-backed") @ResponseStatus(HttpStatus.CREATED)
@@ -35,4 +38,22 @@ class TopologyController {
   Impact impact(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @RequestParam("entity_type") String type, @RequestParam("entity_id") String entityId) { return service.impact(DelegationPrincipal.from(jwt), id, type, entityId); }
   @PostMapping("/internal/v1/graphs/{id}:receipt")
   Receipt receipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.receipt(jwt, id); }
+  @PostMapping("/v1/graphs/differences:classify")
+  ResponseEntity<CommandReceipt> classifyDifferences(@AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody ClassifyDifferences request,
+      @RequestHeader("Idempotency-Key") String key) {
+    CommandReceipt receipt=commands.classify(jwt,request,key);
+    return ResponseEntity.accepted().location(URI.create(receipt.statusResource())).body(receipt);
+  }
+  @PostMapping("/v1/graphs/subgraphs:select")
+  ResponseEntity<CommandReceipt> selectSubgraph(@AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody SelectSubgraph request,
+      @RequestHeader("Idempotency-Key") String key) {
+    CommandReceipt receipt=commands.select(jwt,request,key);
+    return ResponseEntity.accepted().location(URI.create(receipt.statusResource())).body(receipt);
+  }
+  @GetMapping("/v1/commands/{id}")
+  java.util.Map<String,Object> commandStatus(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return commands.status(DelegationPrincipal.from(jwt),id);
+  }
 }

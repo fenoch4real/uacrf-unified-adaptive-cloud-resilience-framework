@@ -70,6 +70,29 @@ class TopologyRouteController {
     return forward(() -> topology.accept(authorization, requestBody));
   }
 
+  @PostMapping("/v1/graphs/differences:classify")
+  ResponseEntity<String> classifyDifferences(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(() -> topology.classifyDifferences(authorization, idempotencyKey, requestBody));
+  }
+
+  @PostMapping("/v1/graphs/subgraphs:select")
+  ResponseEntity<String> selectSubgraph(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(() -> topology.selectSubgraph(authorization, idempotencyKey, requestBody));
+  }
+
+  @GetMapping("/v1/commands/{id}")
+  ResponseEntity<String> getCommand(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> topology.getCommand(authorization, id));
+  }
+
   @GetMapping("/v1/graphs/{id}")
   ResponseEntity<String> getGraph(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

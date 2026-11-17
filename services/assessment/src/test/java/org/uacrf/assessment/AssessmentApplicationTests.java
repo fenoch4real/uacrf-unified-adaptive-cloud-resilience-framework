@@ -21,7 +21,11 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -188,6 +192,48 @@ class AssessmentApplicationTests {
       assertEquals(403, get("/v1/evaluations/" + evaluationId, limited).statusCode());
       assertEquals(403, get("/v1/recommendations?workload_id=w1", limited).statusCode());
     }
+  }
+  @Test void graphOperationReceiptDelegationsBindTheCurrentSealedCase() throws Exception {
+    String owner = token("t-current-case-receipt", "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String otherCaseId = sealed(owner, "[\"a\"]", "LTE");
+    for (String purpose : List.of(
+        "topology.graph.subgraph-selection", "topology.graph.difference-classification")) {
+      String scoped = scopedCaseReceiptToken(
+          "t-current-case-receipt", caseId, "assessment_case", caseId, purpose);
+      JsonNode receipt = body(post("/internal/v1/cases/" + caseId + ":receipt", scoped, "{}"), 200);
+      assertEquals(caseId, receipt.get("case_id").asString());
+      assertEquals("assessment", receipt.get("purpose").asString());
+      assertNotNull(receipt.get("case_digest").asString());
+      assertEquals(403, post("/internal/v1/cases/" + otherCaseId + ":receipt", scoped, "{}").statusCode());
+      assertEquals(404, post("/internal/v1/cases/" + caseId + ":receipt",
+          scopedCaseReceiptToken("t-other-case-receipt", caseId, "assessment_case", caseId, purpose),
+          "{}").statusCode());
+    }
+
+    for (String invalidPurpose : List.of("topology.graph.current-use", "other-purpose")) {
+      assertEquals(403, post("/internal/v1/cases/" + caseId + ":receipt",
+          scopedCaseReceiptToken("t-current-case-receipt", caseId, "assessment_case", caseId, invalidPurpose),
+          "{}").statusCode());
+    }
+    assertEquals(403, post("/internal/v1/cases/" + caseId + ":receipt",
+        scopedCaseReceiptToken("t-current-case-receipt", caseId, "service", caseId,
+            "topology.graph.subgraph-selection"), "{}").statusCode());
+    assertEquals(403, post("/internal/v1/cases/" + caseId + ":receipt",
+        scopedCaseReceiptToken("t-current-case-receipt", "other-case", "assessment_case", caseId,
+            "topology.graph.subgraph-selection"), "{}").statusCode());
+    Instant expiredAt = Instant.now().minusSeconds(120).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    assertEquals(401, post("/internal/v1/cases/" + caseId + ":receipt",
+        scopedCaseReceiptToken("t-current-case-receipt", caseId, "assessment_case", caseId,
+            "topology.graph.subgraph-selection", expiredAt, expiredAt.plusSeconds(30)),
+        "{}").statusCode());
+
+    JsonNode draft = create(owner, "[\"a\"]", "LTE");
+    String draftId = draft.get("id").asString();
+    String draftToken = scopedCaseReceiptToken(
+        "t-current-case-receipt", draftId, "assessment_case", draftId,
+        "topology.graph.subgraph-selection");
+    assertEquals(409, post("/internal/v1/cases/" + draftId + ":receipt", draftToken, "{}").statusCode());
   }
   @Test void authorizationAndTenantIsolation() throws Exception {
     String token = token("t-auth","*",ALL); String id = sealed(token,"[\"a\"]","LTE");
@@ -1409,5 +1455,36 @@ class AssessmentApplicationTests {
   private HttpResponse<String> get(String path,String token) throws Exception { return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).header("Authorization",token).GET().build(),HttpResponse.BodyHandlers.ofString()); }
   private static String token(String tenant,String scope,List<String> capabilities) { return token(tenant, scope, capabilities, "user"); }
   private static String token(String tenant,String scope,List<String> capabilities, String subject) { DelegationPrincipal p = new DelegationPrincipal("https://uacrf.local/s01|"+subject,tenant,"env-1",scope,"https://idp.example.test",subject,capabilities,List.of(),List.of()); return "Bearer "+new DelegationTokenIssuer(ENCODER,Clock.systemUTC(),"https://uacrf.local/s01",KEY_ID).issue(p,"S07"); }
+  private static String scopedCaseReceiptToken(
+      String tenant, String scope, String resourceType, String resourceId, String purpose) {
+    Instant issuedAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    return scopedCaseReceiptToken(
+        tenant, scope, resourceType, resourceId, purpose, issuedAt, issuedAt.plusSeconds(30));
+  }
+  private static String scopedCaseReceiptToken(
+      String tenant, String scope, String resourceType, String resourceId, String purpose,
+      Instant issuedAt, Instant expiresAt) {
+    JwtClaimsSet claims = JwtClaimsSet.builder()
+        .issuer("https://uacrf.local/s01")
+        .subject("principal-case-receipt")
+        .audience(List.of("S07"))
+        .issuedAt(issuedAt)
+        .expiresAt(expiresAt)
+        .id(UUID.randomUUID().toString())
+        .claim("tenant_id", tenant)
+        .claim("environment_id", "env-1")
+        .claim("actor_issuer", "https://idp.example.test")
+        .claim("actor_subject", "graph-operator")
+        .claim("service_scope", scope)
+        .claim("capabilities", List.of("assessment.case.read"))
+        .claim("eligible_owner_ids", List.of())
+        .claim("runtime_principal_ids", List.of())
+        .claim("resource_type", resourceType)
+        .claim("resource_id", resourceId)
+        .claim("purpose", purpose)
+        .build();
+    return "Bearer " + ENCODER.encode(JwtEncoderParameters.from(
+        JwsHeader.with(SignatureAlgorithm.RS256).keyId(KEY_ID).build(), claims)).getTokenValue();
+  }
   private static KeyPair keyPair() { try { KeyPairGenerator g=KeyPairGenerator.getInstance("RSA"); g.initialize(2048); return g.generateKeyPair(); } catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); } }
 }

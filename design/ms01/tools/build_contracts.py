@@ -1,5 +1,6 @@
 from pathlib import Path
 import json,shutil
+from build_graph_async_contracts import generate_outputs as generate_graph_async_contracts
 B=Path(__file__).resolve().parents[1]; S=B.parents[1]/'development/UACRF_v1_0_application'
 def save(n,v):(B/n).write_text(json.dumps(v,indent=2)+'\n')
 id={'type':'string','pattern':'^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$'}
@@ -44,5 +45,6 @@ while queue:
    for v in n:walk(v)
  walk(j)
  target=B/'contracts/source'/p.relative_to(S);target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,target)
+generate_graph_async_contracts()
 save('contracts/SOURCE_CONTRACT_INDEX.json',[str(p.relative_to(S)) for p in sorted(seen)])
 print('Generated four target common schemas,',len(events),'event types and',len(seen),'unaltered source contract files')

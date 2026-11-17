@@ -1,0 +1,142 @@
+# API & Service Communication Contracts
+
+The repository contains 11 Spring MVC applications with more than 100 API and browser routes, plus a non-HTTP advisory module. The service APIs communicate primarily through synchronous REST calls; S03 also publishes through a durable outbox, and S06 processes graph commands asynchronously.
+
+## Service Catalog
+
+| Service | Port | Category | Purpose |
+|---|---:|---|---|
+| API Edge (`services/api-edge`) | 8080 | API Layer | Routes identity and internal domain APIs to their owning services. |
+| Experience API (`services/experience-api`) | 8081 | API Layer | Identity access proxy used by the browser experience. |
+| Identity (`services/identity`) | 8082 | Business | Principals, memberships, access decisions, and scoped delegation exchange. |
+| Estate Catalog (`services/estate-catalog`) | 8083 | Business | Service, agent-workload, customer-journey, immutable revision, and owner-receipt APIs. |
+| Browser Experience (`web`) | 8084 | API Layer | OAuth2-authenticated Thymeleaf pages for identity and catalog workflows. |
+| Connections (`services/connections`) | 8085 | Business | Source connections, observations, quarantine, and durable event publication. |
+| Evidence (`services/evidence`) | 8086 | Business | Evidence intake, review, qualification receipts, and bounded topology summaries. |
+| Objectives (`services/objectives`) | 8087 | Business | Objectives, organization constraints, and review-authority checks. |
+| Topology (`services/topology`) | 8088 | Business | Dependency proposals, accepted graph reads, and asynchronous graph commands. |
+| Assessment (`services/assessment`) | 8089 | Business | Cases, evaluations, model versions, incidents, learning, and adaptation proposals. |
+| Knowledge (`services/knowledge`) | 8090 | Business | Versioned knowledge items and case-bound retrievals. |
+| Advisory (`services/advisory`) | Not configured | Business module | Maven module with advisory orchestration code; no HTTP controller or standalone application port was found. |
+
+The HTTP applications use Spring Boot and Spring MVC. Backend service dependencies include PostgreSQL/JDBC and Flyway; S06 additionally uses the Neo4j driver. The API Edge and Experience API use Spring `RestClient`; the browser application uses Spring MVC, Spring Security OAuth2 Client, Thymeleaf, and REST clients.
+
+## API Endpoints Inventory
+
+The codebase has more than 30 routes, so this inventory groups routes by service/controller and shows representative paths and contract types. Route families listed with `**` are pass-through proxies; the owner service remains authoritative for validation and response status.
+
+| Service | Method | Path | Request Type | Response Type |
+|---|---|---|---|---|
+| Browser Experience | GET | `/`, `/access`, `/contexts`, `/principals`, `/memberships`, `/journeys`, `/journeys/{id}` | Query parameters | Thymeleaf HTML view or redirect |
+| Browser Experience | POST | `/memberships/{membershipId}:revoke`, `/agents`, `/services/{serviceId}/agents`, `/journeys`, `/journeys/{id}/steps`, `/journeys/{journeyId}/services`, `/journeys/{journeyId}/agents/link` | Form data | Thymeleaf HTML view or redirect |
+| Experience API | GET | `/v1/me/access`, `/v1/me/contexts`, `/v1/identity-providers`, `/v1/principals`, `/v1/memberships`, `/v1/owner-candidates` | Query parameters and bearer token | Identity JSON pass-through |
+| Experience API | POST | `/v1/memberships/{id}:revoke`, `/v1/principals/{id}:set-status`, `/internal/v1/delegations` | JSON body and bearer token; idempotency key for mutations | Identity JSON pass-through |
+| API Edge | GET, POST | `/v1/me/**`, `/v1/identity-providers`, `/v1/principals`, `/v1/memberships/**`, `/v1/owner-candidates` | Query/body JSON and bearer token | Identity JSON pass-through |
+| API Edge | GET, POST | `/internal/catalog/v1/**`, `/internal/connections/v1/**`, `/internal/evidence/v1/**`, `/internal/objectives/v1/**`, `/internal/topology/v1/**`, `/internal/assessment/v1/**`, `/internal/knowledge/v1/**` | JSON pass-through; mutation routes forward bearer and idempotency headers | Owner-service JSON and status pass-through |
+| Identity (S01) | GET | `/v1/identity-providers`, `/v1/principals`, `/v1/memberships`, `/v1/me/contexts`, `/v1/me/access`, `/v1/owner-candidates` | Query parameters and bearer JWT | `IdentityResponses` list/page/access records |
+| Identity (S01) | POST | `/v1/memberships`, `/v1/principals`, `/v1/grant-decisions`, `/v1/memberships/{id}:revoke`, `/v1/principals/{id}:set-status` | `IdentityRequests` records; mutations use idempotency keys | `IdentityResponses.MutationReceipt` |
+| Identity (S01) | POST | `/internal/v1/delegations`, `/internal/v1/delegations:exchange`, `/internal/v1/objective-review-authority:check` | Delegation, exchange, or authority-check JSON | Scoped delegation or authority response |
+| Estate Catalog (S02) | GET, POST | `/v1/services`, `/v1/agent-workloads`, `/v1/agent-workloads/{id}/versions`, `/v1/agent-workloads/{id}:activate`, `/v1/customer-journeys/**` | `CatalogRequests` records, query/path parameters, idempotency key for writes | `CatalogResponses` receipts, pages, agents, services, and journeys |
+| Estate Catalog (S02) | GET, POST | `/internal/v1/workload-versions/{id}`, `/internal/v1/workloads/{id}:receipt`, `/internal/v1/services/{id}:receipt`, `/internal/v1/services/{id}/revisions/{version}` | Delegated bearer JWT; receipt request where applicable | Workload/service owner receipt or exact immutable revision snapshot |
+| Connections (S03) | GET, POST | `/v1/connections/**` including source bindings, observations, and quarantine | `ConnectionsRequests` records, query/path parameters, idempotency key for registration | `ConnectionsResponses` pages, records, and ingestion result; observation submission returns 202 |
+| Evidence (S04) | GET, POST | `/v1/evidence/**`, `/internal/v1/observations`, `/internal/v1/qualifications/{id}:receipt`, `:measurement`, `:topology-summary`, `/internal/v1/inbox/events` | `EvidenceRequests` records and delegated bearer JWT | Evidence, qualification/measurement/topology-summary receipts, and inbox result; intake/inbox return 202 |
+| Objectives (S05) | GET, POST, PUT | `/v1/objectives/**`, `/v1/organization-constraints/{metric}`, `/internal/v1/workloads/{id}/objectives:receipt` | `ObjectivesRequests` records and query/path parameters | `ObjectivesResponses` objectives, constraints, and receipt |
+| Topology (S06) | GET, POST | `/v1/dependency-proposals`, `/v1/dependency-proposals:evidence-backed`, `/v1/dependency-proposals/{id}`, `/v1/dependency-proposals/{id}:review`, `/v1/graphs:accept`, `/v1/graphs/{id}/...`, `/internal/v1/graphs/{id}:receipt` | `TopologyRequests` records and query/path parameters | `TopologyResponses` proposals, graph views, impact, and receipt |
+| Topology (S06) | POST, GET | `/v1/graphs/subgraphs:select`, `/v1/graphs/differences:classify`, `/v1/commands/{id}` | `TopologyRequests.SelectSubgraph` / `ClassifyDifferences` and idempotency key; command ID path | 202 admission receipt (`PENDING`, `domain_completion=false`); status projection (`command_id`, `status`, `terminal`, `domain_completion`) and, only on `SUCCEEDED`, a bounded advisory result |
+| Assessment (S07) | GET, POST | `/v1/cases/**`, `/v1/evaluations/{id}`, `/v1/recommendations` | `AssessmentRequests` records and query/path parameters | Case, evaluation, recommendation, and receipt records |
+| Assessment (S07) | GET, POST | `/v1/model-versions/**`, `/internal/v1/model-evaluation-declarations/**` | Model-version and evaluation-declaration request records | Model version or declaration/page |
+| Assessment (S07) | GET, POST | `/v1/incidents/**`, `/v1/learning-records/**`, `/internal/v1/learning-records/{id}:review-receipt`, `/internal/v1/adaptation-proposals/**` | Incident, learning, review, and adaptation request records | Incident, learning/review receipt, or adaptation proposal/page |
+| Knowledge (S08) | GET, POST | `/v1/knowledge-items/**`, `/v1/retrievals/**`, `/internal/v1/retrievals/{id}:receipt` | `KnowledgeRequests` records and query/path parameters | Versioned item, retrieval, or retrieval receipt |
+
+Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
+
+## Management & Observability Endpoints
+
+| Service | Endpoint | Custom Metrics (if any) |
+|---|---|---|
+| All 11 Spring applications | `/actuator/health` | No custom metric registrations were found; actuator exposure is limited to health. |
+
+## DTOs & Contracts
+
+The owner services define request and response types in service-specific `*Requests` and `*Responses` classes, predominantly as Java records. These records are immutable API carriers; domain persistence models are service-owned and are not gateway DTOs. S01 uses `IdentityRequests`/`IdentityResponses`; S02 uses `CatalogRequests`/`CatalogResponses`; S03 uses `ConnectionsRequests`/`ConnectionsResponses`; S04 uses `EvidenceRequests`/`EvidenceResponses`; S05 uses `ObjectivesRequests`/`ObjectivesResponses`; S06 uses `TopologyRequests`/`TopologyResponses`; S07 uses `AssessmentRequests`/`AssessmentResponses` and related model/learning records; S08 uses `KnowledgeRequests`/`KnowledgeResponses`.
+
+For S06 command status, `TopologyController.commandStatus` returns the compact map produced by `TopologyGraphCommandService.status`: `command_id`, `status`, `terminal`, `domain_completion`, and conditionally `advisory_result`. The declared `TopologyResponses.CommandStatus` record has a different field set and is not used by this handler. The public advisory result exposes bounded selection nodes/edges or bounded classification changes; the internal `s04_summary_coverage` map and evidence summaries are not part of the status response.
+
+The persisted S06 selection coverage map records `graph_edge_count`, `verified_summary_count`, `unverified_summary_count`, up to ten verified `summaries`, `truncated`, `complete`, and `reason_codes` drawn from `SUMMARY_INVALIDATED`, `SUMMARY_STALE`, `SUMMARY_UNAVAILABLE`, `SUMMARY_LIMIT_REACHED`, and `SUMMARY_COVERAGE_GAP`. Difference-classification snapshots retain the corresponding authorized and current evidence-coverage maps; none of these internal coverage fields are returned by `GET /v1/commands/{id}`.
+
+The API Edge and Experience API generally forward JSON as text and preserve owner-service response bodies rather than composing gateway-level DTOs. The browser application uses form inputs and Thymeleaf views. Backend JSON uses snake_case naming where configured. The MS01 OpenAPI source is [openapi.json](../../../../../design/ms01/contracts/source/api_reference/openapi.json); no protobuf or GraphQL schemas were found.
+
+## Communication Patterns
+
+- **Synchronous service calls:** The browser application calls the Experience API for identity operations and the API Edge for catalog operations. The Experience API forwards to S01. The API Edge routes to S01, S02, S03, S04, S05, S06, S07, or S08 without response aggregation.
+- **Versioning:** HTTP APIs use path-based `/v1` versioning; service-only routes are placed beneath `/internal`. No header- or query-based API versioning was found.
+- **Internal proof and receipt calls:** S06 verifies identity delegation, S02 owner receipts and exact catalog revisions, S04 bounded evidence summaries, and S07 case receipts. The S07 receipt's `purpose` is the case's business purpose (for example, `incident`); the topology operation purpose is bound and authorized by the S01 delegation exchanged for that exact case ID and is not required to equal the receipt's purpose. S07 also has optional receipt clients for S04/S05/S06; S08 has an optional S07 case-receipt client. These are direct synchronous REST calls, controlled by environment-configurable base URLs.
+- **Outbox processing:** S03 can poll its database outbox every 5 seconds (publisher disabled by default), obtain a scoped S01 delegation, then POST events to the S04 inbox. Failed deliveries remain pending for later cycles; S04 `RECEIVED` and `DUPLICATE` responses are acknowledged, and quarantined events are durably acknowledged. S06 uses its own database outbox and scheduled worker for graph commands; no message broker is used for these flows. A 202 receipt reports admission as `PENDING`, while the persisted command starts at `ACCEPTED`. The current worker follows `ACCEPTED` → `RUNNING` → `SUCCEEDED`, with `RUNNING` → `RETRY_SCHEDULED` → `RUNNING` retries and `FAILED` after five attempts or a non-retryable graph-binding failure. The persisted lifecycle schema also permits `WAITING_FOR_DEPENDENCY`, `REJECTED`, `CANCELLED`, `EXPIRED` and `OUTCOME_UNKNOWN`, but the current worker does not transition to these states. `domain_completion` is true only for `SUCCEEDED`; `OUTCOME_UNKNOWN` is nonterminal.
+- **S06 command revision identity:** Selection revisions are keyed by `service_id` and `query_id`; graph, catalog, case and evidence bindings retain the changing context, so a new context advances `expected_revision` on that target. Difference-classification revisions are keyed by `service_id` and `authorized_graph_revision_id`; the current graph, retained selection, case and evidence bindings are retained separately, and subsequent comparisons advance that target's `expected_revision`.
+- **Timeouts and resilience:** API Edge REST clients use a 2-second connect timeout. The browser REST clients use 2-second connect and 3-second read timeouts; receipt clients use bounded 2-second requests. No circuit-breaker or general-purpose retry library/configuration was found. Edge proxy controllers translate upstream connection failures to 502 responses; durable outbox work is retried by later polling cycles.
+- **Discovery and gateway composition:** Services use configurable base URLs with localhost defaults; no service-discovery client is configured. API Edge and Experience API are routing/proxy layers, not aggregators; browser pages combine separate calls at the workflow level.
+- **Security posture:** Browser routes use OAuth2 login and session cookies. Backend APIs use bearer JWT/resource-server authentication and service/resource-scoped capability checks; S01 integrates with OIDC and issues narrowly scoped delegations. API Edge forwards the caller’s bearer token rather than granting downstream authority. The source config does not enable server-side TLS; local inter-service defaults are HTTP, so production TLS must be provided by deployment/network configuration.
+
+## Service Technology Matrix
+
+| Service | Web | Data Access | Discovery | Gateway | Actuator | Cache | Metrics |
+|---|---|---|---|---|---|---|---|
+| API Edge | Spring MVC | None | None | Yes | Health | None found | None found |
+| Experience API | Spring MVC | None | None | Identity proxy | Health | None found | None found |
+| Browser Experience | Spring MVC, Thymeleaf | None | None | Browser UI | Health | None found | None found |
+| Identity (S01) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+| Estate Catalog (S02) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+| Connections (S03) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+| Evidence (S04) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+| Objectives (S05) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+| Topology (S06) | Spring MVC | JDBC, PostgreSQL, Neo4j driver | None | No | Health | None found | None found |
+| Assessment (S07) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+| Knowledge (S08) | Spring MVC | JDBC, PostgreSQL | None | No | Health | None found | None found |
+
+## Service Communication Sequence
+
+<!-- mermaid-checked: every participant uses `participant Id as "Label"`, no \n in aliases/messages/notes, every alt/opt/loop closed by end, no `:` inside any alias -->
+~~~mermaid
+sequenceDiagram
+    participant Client as "Browser or API Client"
+    participant Edge as "API Edge"
+    participant S06 as "S06 Topology API"
+    participant S01 as "S01 Identity"
+    participant S02 as "S02 Catalog"
+    participant S07 as "S07 Assessment"
+    participant S04 as "S04 Evidence"
+    participant DB as "S06 Command Database"
+    participant Graph as "Accepted Graph Store"
+    participant Worker as "S06 Command Worker"
+
+    Client->>Edge: POST subgraph selection request
+    Edge->>S06: Forward bearer token and JSON
+    S06->>S01: Exchange scoped proof delegations
+    S01-->>S06: Return purpose-bound delegations
+    S06->>S02: Verify owner receipt and read exact service revision
+    S02-->>S06: Return signed receipt and snapshot digest
+    S06->>S07: Verify current sealed case receipt
+    S07-->>S06: Return case receipt
+    S06->>S04: Read bounded qualified evidence summaries
+    S04-->>S06: Return summary metadata and digest
+    alt All proofs are valid
+        S06->>DB: Commit command and outbox record
+        DB-->>S06: Return durable command identifier
+        S06-->>Edge: Return 202 command receipt
+        Edge-->>Client: Return 202 and status location
+    else A required proof is unavailable or stale
+        S06-->>Edge: Reject admission without a command receipt
+        Edge-->>Client: Return service error
+    end
+    DB-)Worker: Scheduled outbox polling finds pending command
+    Worker->>DB: Claim command under a bounded lease
+    Worker->>Graph: Read and verify accepted graph revision
+    Graph-->>Worker: Return bounded graph snapshot
+    Worker->>DB: Persist advisory result and terminal status
+    Client->>Edge: GET command status
+    Edge->>S06: Forward status request
+    S06->>DB: Read command status and result
+    DB-->>S06: Return current status and advisory result
+    S06-->>Edge: Return command status
+    Edge-->>Client: Return status and result
+~~~

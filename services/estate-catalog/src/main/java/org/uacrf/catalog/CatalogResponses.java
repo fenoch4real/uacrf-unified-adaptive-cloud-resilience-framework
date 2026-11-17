@@ -1,6 +1,7 @@
 package org.uacrf.catalog;
 
 import java.util.List;
+import tools.jackson.databind.JsonNode;
 
 final class CatalogResponses {
   private CatalogResponses() {}
@@ -76,6 +77,17 @@ final class CatalogResponses {
       String issuedAt,
       String validUntil,
       String signature) {}
+
+  record ServiceRevisionSnapshot(
+      String serviceId,
+      String name,
+      String ownerId,
+      int criticality,
+      String lifecycle,
+      long revision,
+      List<String> ownedAgentWorkloadIds) {}
+
+  record ServiceRevisionRead(long resourceVersion, String contentDigest, JsonNode snapshot) {}
 
   record Step(
       String id,

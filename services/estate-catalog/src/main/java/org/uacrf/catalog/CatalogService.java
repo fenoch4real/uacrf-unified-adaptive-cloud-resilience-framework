@@ -4,6 +4,7 @@ import static org.uacrf.catalog.CatalogRequests.*;
 import static org.uacrf.catalog.CatalogResponses.*;
 
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -36,6 +37,10 @@ class CatalogService {
           "topology.dependency-proposal",
           "topology.dependency-review",
           "topology.graph.current-use");
+  private static final Set<String> SERVICE_REVISION_RECEIPT_PURPOSES =
+      Set.of(
+          "topology.graph.subgraph-selection",
+          "topology.graph.difference-classification");
   private static final String RECEIPT_IDENTIFIER_PATTERN =
       "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$";
   private final JdbcTemplate jdbc;
@@ -74,20 +79,33 @@ class CatalogService {
         request.id(),
         "SERVICE",
         "catalog.service.registered",
-        () ->
-            jdbc.update(
-                "INSERT INTO "
-                    + SCHEMA
-                    + "service (tenant_id, environment_id, id, name, owner_id, reason, "
-                    + "criticality, lifecycle, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
-                actor.tenantId(),
-                actor.environmentId(),
-                request.id(),
-                request.name().trim(),
-                request.ownerId(),
-                request.reason().trim(),
-                request.criticality(),
-                request.lifecycle()));
+        () -> {
+          String name = request.name().trim();
+          jdbc.update(
+              "INSERT INTO "
+                  + SCHEMA
+                  + "service (tenant_id, environment_id, id, name, owner_id, reason, "
+                  + "criticality, lifecycle, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+              actor.tenantId(),
+              actor.environmentId(),
+              request.id(),
+              name,
+              request.ownerId(),
+              request.reason().trim(),
+              request.criticality(),
+              request.lifecycle());
+          ServiceRevisionSnapshot snapshot =
+              new ServiceRevisionSnapshot(
+                  request.id(),
+                  name,
+                  request.ownerId(),
+                  request.criticality(),
+                  request.lifecycle(),
+                  1,
+                  List.of());
+          appendServiceRevision(actor, snapshot);
+          return 1;
+        });
   }
 
   @Transactional
@@ -120,8 +138,28 @@ class CatalogService {
         request.id(),
         "AGENT_WORKLOAD",
         "catalog.agent-workload.registered",
-        () ->
-            jdbc.update(
+        () -> {
+          List<Map<String, Object>> services = List.of();
+          if (request.serviceId() != null) {
+            services =
+                jdbc.queryForList(
+                    "SELECT name, owner_id, criticality, lifecycle, revision FROM "
+                        + SCHEMA
+                        + "service WHERE tenant_id = ? AND environment_id = ? AND id = ? FOR UPDATE",
+                    actor.tenantId(), actor.environmentId(), request.serviceId());
+            if (services.isEmpty()) {
+              throw notFound("The service is absent or not visible.");
+            }
+          }
+          long oldRevision = 0;
+          if (!services.isEmpty()) {
+            Map<String, Object> service = services.getFirst();
+            oldRevision = ((Number) service.get("revision")).longValue();
+            if (oldRevision >= MAX_SAFE_INTEGER) {
+              throw conflict("SERVICE_REVISION_LIMIT", "The service revision limit was reached.");
+            }
+          }
+          jdbc.update(
                 "INSERT INTO "
                     + SCHEMA
                     + "agent_workload (tenant_id, environment_id, id, service_id, name, kind, "
@@ -135,7 +173,48 @@ class CatalogService {
                 request.kind().name(),
                 request.ownerId(),
                 request.runtimePrincipalId(),
-                request.purpose().trim()));
+                request.purpose().trim());
+          if (!services.isEmpty()) {
+            Map<String, Object> service = services.getFirst();
+            long revision = oldRevision + 1;
+            if (jdbc.update(
+                "UPDATE " + SCHEMA
+                    + "service SET revision = ?, updated_at = now() "
+                    + "WHERE tenant_id = ? AND environment_id = ? AND id = ? AND revision = ?",
+                revision, actor.tenantId(), actor.environmentId(), request.serviceId(), oldRevision) != 1) {
+              throw conflict("SERVICE_REVISION_CHANGED", "The service revision changed during registration.");
+            }
+            List<String> workloadIds =
+                new ArrayList<>(
+                    jdbc.queryForList(
+                        "SELECT id FROM " + SCHEMA
+                            + "agent_workload WHERE tenant_id = ? AND environment_id = ? AND service_id = ?",
+                        String.class, actor.tenantId(), actor.environmentId(), request.serviceId()));
+            workloadIds.sort(String::compareTo);
+            appendServiceRevision(
+                actor,
+                new ServiceRevisionSnapshot(
+                    request.serviceId(),
+                    service.get("name").toString(),
+                    service.get("owner_id").toString(),
+                    ((Number) service.get("criticality")).intValue(),
+                    service.get("lifecycle").toString(),
+                    revision,
+                    workloadIds));
+          }
+          return 1;
+        });
+  }
+
+  private void appendServiceRevision(DelegationPrincipal actor, ServiceRevisionSnapshot snapshot) {
+    String snapshotJson = serialize(snapshot);
+    jdbc.update(
+        "INSERT INTO " + SCHEMA
+            + "service_revision (tenant_id, environment_id, service_id, "
+            + "resource_version, content_digest, snapshot, created_by) "
+            + "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?)",
+        actor.tenantId(), actor.environmentId(), snapshot.serviceId(), snapshot.revision(),
+        sha256(OwnerReceiptSignature.canonicalize(snapshotJson)), snapshotJson, actor.principalId());
   }
 
   @Transactional
@@ -411,6 +490,179 @@ class CatalogService {
         claims.issuedAt(),
         claims.validUntil(),
         signature);
+  }
+
+  @Transactional(readOnly = true)
+  OwnerReceipt issueServiceOwnerReceipt(
+      Jwt jwt, String serviceId, OwnerReceiptRequest request) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    if (serviceId == null || !serviceId.matches(RECEIPT_IDENTIFIER_PATTERN)) {
+      throw invalid("The service id is malformed.");
+    }
+    long resourceVersion = parseServiceRevisionVersion(request.requestedVersion());
+    requireServiceRevisionReceiptDelegation(jwt, actor, serviceId, request.purpose());
+
+    Instant issuedAt = clock.instant();
+    Instant deadline = request.operationDeadline();
+    if (!deadline.isAfter(issuedAt)
+        || deadline.isAfter(issuedAt.plusSeconds(5))
+        || jwt.getExpiresAt() == null
+        || !jwt.getExpiresAt().isAfter(issuedAt)) {
+      throw conflict("OPERATION_DEADLINE_EXPIRED", "The operation deadline is not current.");
+    }
+
+    ServiceRevisionRead retained = loadServiceRevision(actor, serviceId, resourceVersion);
+    JsonNode snapshot = retained.snapshot();
+    String storedDigest = retained.contentDigest();
+    if (request.knownRevision() != null
+        && request.knownRevision().longValue() != snapshot.get("revision").longValue()) {
+      throw conflict(
+          "STALE_SERVICE_REVISION",
+          "The known service revision does not match the requested version.");
+    }
+    if (!"ACTIVE".equals(snapshot.get("lifecycle").asText())) {
+      throw conflict("OWNER_INACTIVE", "The service revision is not active.");
+    }
+    requireReceiptIdentifier(actor.tenantId());
+    requireReceiptIdentifier(actor.environmentId());
+    requireReceiptIdentifier(actor.actorSubject());
+    requireReceiptIdentifier(serviceId);
+
+    Instant validUntil =
+        min(deadline, min(issuedAt.plusSeconds(5), jwt.getExpiresAt()));
+    if (!validUntil.isAfter(issuedAt)) {
+      throw conflict("OPERATION_DEADLINE_EXPIRED", "The operation deadline is not current.");
+    }
+    String resourceVersionText = Long.toString(resourceVersion);
+    OwnerReceiptClaims claims =
+        new OwnerReceiptClaims(
+            "UACRF_OWNER_RECEIPT_V1",
+            ownerReceiptSigningKey.keyId(),
+            UUID.randomUUID().toString(),
+            "S02",
+            "S06",
+            actor.tenantId(),
+            actor.environmentId(),
+            actor.actorSubject(),
+            "service",
+            serviceId,
+            resourceVersionText,
+            resourceVersion,
+            storedDigest,
+            resourceVersion,
+            true,
+            request.purpose(),
+            issuedAt.toString(),
+            validUntil.toString());
+    String signature =
+        OwnerReceiptSignature.sign(
+            serialize(ownerReceiptSigningPayload(claims)), ownerReceiptSigningKey.privateKey());
+    return new OwnerReceipt(
+        claims.protocol(),
+        claims.keyId(),
+        claims.receiptId(),
+        claims.issuerService(),
+        claims.audienceService(),
+        claims.tenantId(),
+        claims.environmentId(),
+        claims.actorId(),
+        claims.resourceType(),
+        claims.resourceId(),
+        claims.resourceVersion(),
+        claims.resourceRevision(),
+        claims.contentDigest(),
+        claims.authorityEpoch(),
+        claims.eligible(),
+        claims.purpose(),
+        claims.issuedAt(),
+        claims.validUntil(),
+        signature);
+  }
+
+  @Transactional(readOnly = true)
+  ServiceRevisionRead getServiceRevision(Jwt jwt, String serviceId, String version) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    if (serviceId == null || !serviceId.matches(RECEIPT_IDENTIFIER_PATTERN)) {
+      throw invalid("The service id is malformed.");
+    }
+    long resourceVersion = parseServiceRevisionVersion(version);
+    requireServiceRevisionReceiptDelegation(jwt, actor, serviceId, jwt.getClaimAsString("purpose"));
+    if (jwt.getExpiresAt() == null || !jwt.getExpiresAt().isAfter(clock.instant())) {
+      throw denied("The catalog-read delegation has expired.");
+    }
+    return loadServiceRevision(actor, serviceId, resourceVersion);
+  }
+
+  private ServiceRevisionRead loadServiceRevision(
+      DelegationPrincipal actor, String serviceId, long resourceVersion) {
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT content_digest, snapshot::text AS snapshot FROM "
+                + SCHEMA
+                + "service_revision WHERE tenant_id = ? AND environment_id = ? "
+                + "AND service_id = ? AND resource_version = ?",
+            actor.tenantId(),
+            actor.environmentId(),
+            serviceId,
+            resourceVersion);
+    if (rows.isEmpty()) {
+      throw notFound("The immutable service catalog revision is absent or not visible.");
+    }
+    Map<String, Object> row = rows.getFirst();
+    String snapshotJson = row.get("snapshot").toString();
+    JsonNode snapshot;
+    try {
+      snapshot = objectMapper.readTree(snapshotJson);
+    } catch (JacksonException error) {
+      throw new IllegalStateException("The retained service catalog revision is invalid.", error);
+    }
+    String canonicalSnapshot = OwnerReceiptSignature.canonicalize(snapshotJson);
+    String storedDigest = row.get("content_digest").toString().trim();
+    String computedDigest = sha256(canonicalSnapshot);
+    if (!computedDigest.equals(storedDigest)
+        || !validServiceSnapshot(snapshot, serviceId, resourceVersion)) {
+      throw conflict("SERVICE_REVISION_INVALID", "The retained service revision is invalid.");
+    }
+    return new ServiceRevisionRead(resourceVersion, storedDigest, snapshot);
+  }
+
+  private static boolean validServiceSnapshot(
+      JsonNode snapshot, String serviceId, long resourceVersion) {
+    if (snapshot == null || !snapshot.isObject()) {
+      return false;
+    }
+    if (snapshot == null || !snapshot.isObject()
+        || !snapshot.hasNonNull("service_id") || !snapshot.get("service_id").isTextual()
+        || !serviceId.equals(snapshot.get("service_id").asText())
+        || !snapshot.hasNonNull("revision") || !snapshot.get("revision").isIntegralNumber()
+        || snapshot.get("revision").longValue() != resourceVersion
+        || !snapshot.hasNonNull("name") || !snapshot.get("name").isTextual()
+        || !snapshot.hasNonNull("owner_id") || !snapshot.get("owner_id").isTextual()
+        || !snapshot.hasNonNull("criticality") || !snapshot.get("criticality").isIntegralNumber()
+        || snapshot.get("criticality").intValue() < 1 || snapshot.get("criticality").intValue() > 5
+        || !snapshot.hasNonNull("lifecycle") || !snapshot.get("lifecycle").isTextual()) {
+      return false;
+    }
+    if (!Set.of("DRAFT", "ACTIVE", "SUSPENDED", "RETIRED")
+        .contains(snapshot.get("lifecycle").asText())) {
+      return false;
+    }
+    JsonNode memberships = snapshot.get("owned_agent_workload_ids");
+    if (memberships == null) {
+      return true;
+    }
+    if (!memberships.isArray()) {
+      return false;
+    }
+    String previous = null;
+    for (JsonNode member : memberships) {
+      if (!member.isTextual() || !member.asText().matches(RECEIPT_IDENTIFIER_PATTERN)
+          || previous != null && previous.compareTo(member.asText()) >= 0) {
+        return false;
+      }
+      previous = member.asText();
+    }
+    return true;
   }
 
   static Map<String, Object> ownerReceiptSigningPayload(OwnerReceiptClaims claims) {
@@ -890,6 +1142,46 @@ class CatalogService {
         || actor.actorSubject() == null
         || actor.actorSubject().isBlank()) {
       throw denied("A resource- and purpose-scoped S01 owner-receipt delegation is required.");
+    }
+  }
+
+  private void requireServiceRevisionReceiptDelegation(
+      Jwt jwt, DelegationPrincipal actor, String serviceId, String purpose) {
+    boolean exactAudience =
+        jwt.getAudience() != null
+            && jwt.getAudience().size() == 1
+            && jwt.getAudience().contains("S02");
+    boolean exactCapability =
+        actor.capabilities().size() == 1
+            && actor.capabilities().contains("catalog.service.read");
+    if (!exactAudience
+        || !exactCapability
+        || !serviceId.equals(actor.serviceScope())
+        || !"service".equals(jwt.getClaims().get("resource_type"))
+        || !serviceId.equals(jwt.getClaims().get("resource_id"))
+        || purpose == null
+        || !purpose.equals(jwt.getClaims().get("purpose"))
+        || !SERVICE_REVISION_RECEIPT_PURPOSES.contains(purpose)
+        || actor.tenantId() == null
+        || actor.environmentId() == null
+        || actor.actorSubject() == null
+        || actor.actorSubject().isBlank()) {
+      throw denied("A resource- and purpose-scoped S01 catalog-read delegation is required.");
+    }
+  }
+
+  private static long parseServiceRevisionVersion(String version) {
+    if (version == null || !version.matches("^[1-9][0-9]{0,15}$")) {
+      throw invalid("requested_version must be a positive immutable service revision.");
+    }
+    try {
+      long parsed = Long.parseLong(version);
+      if (parsed > MAX_SAFE_INTEGER) {
+        throw invalid("requested_version is outside the supported range.");
+      }
+      return parsed;
+    } catch (NumberFormatException error) {
+      throw invalid("requested_version is outside the supported range.");
     }
   }
 

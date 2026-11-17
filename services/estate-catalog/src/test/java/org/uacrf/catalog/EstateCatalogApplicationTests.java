@@ -14,6 +14,7 @@ import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
@@ -29,10 +30,15 @@ import tools.jackson.databind.ObjectMapper;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.uacrf.security.DelegationJwtEncoderFactory;
 import org.uacrf.security.DelegationPrincipal;
 import org.uacrf.security.DelegationTokenIssuer;
+import org.uacrf.security.OwnerReceiptSignature;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -77,6 +83,117 @@ class EstateCatalogApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void concurrentMembershipChangesRetainBothRevisionsAndRollBackOnFailure() throws Exception {
+    String tenant = "tenant-concurrent-membership";
+    String token =
+        bearer(actor(tenant, "environment-a", List.of("catalog.service.write", "catalog.agent.write"),
+            List.of("owner-1"), List.of("runtime-1")));
+    assertEquals(201, post("/v1/services", token, "concurrent-service", """
+        {"reason":"Registration","expected_revision":0,"id":"svc-concurrent","name":"Concurrent","owner_id":"owner-1","criticality":3,"lifecycle":"ACTIVE"}
+        """).statusCode());
+    String agent = """
+        {"id":"agent-x","service_id":"svc-concurrent","name":"Worker","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Work"}
+        """;
+    HttpRequest first = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/agent-workloads"))
+        .header("Authorization", token).header("Idempotency-Key", "concurrent-x")
+        .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(agent)).build();
+    HttpRequest second = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/agent-workloads"))
+        .header("Authorization", token).header("Idempotency-Key", "concurrent-y")
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(agent.replace("agent-x", "agent-y"))).build();
+    var pendingFirst = http.sendAsync(first, HttpResponse.BodyHandlers.ofString());
+    var pendingSecond = http.sendAsync(second, HttpResponse.BodyHandlers.ofString());
+    assertEquals(201, pendingFirst.join().statusCode());
+    assertEquals(201, pendingSecond.join().statusCode());
+    assertEquals(3, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.service_revision WHERE tenant_id = ? AND service_id = ?",
+        Integer.class, tenant, "svc-concurrent"));
+    String latest = jdbc.queryForObject(
+        "SELECT snapshot::text FROM uacrf_catalog.service_revision "
+            + "WHERE tenant_id = ? AND service_id = ? AND resource_version = 3",
+        String.class, tenant, "svc-concurrent");
+    assertThat(objectMapper.readTree(latest).path("owned_agent_workload_ids").toString())
+        .isEqualTo("[\"agent-x\",\"agent-y\"]");
+
+    jdbc.update("INSERT INTO uacrf_catalog.service "
+        + "(tenant_id, environment_id, id, name, owner_id, reason, criticality, lifecycle, revision) "
+        + "VALUES (?, ?, 'svc-limit', 'Limit', 'owner-1', 'legacy', 3, 'ACTIVE', 9007199254740991)",
+        tenant, "environment-a");
+    assertEquals(409, post("/v1/agent-workloads", token, "limit-agent",
+        agent.replace("svc-concurrent", "svc-limit").replace("agent-x", "agent-limit")).statusCode());
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.agent_workload WHERE tenant_id = ? AND id = 'agent-limit'",
+        Integer.class, tenant));
+  }
+
+  @Test
+  void retainsServiceMembershipRevisionsAndExposesOnlyExactSnapshots() throws Exception {
+    String tenant = "tenant-revisions";
+    String serviceId = "svc-membership";
+    String writeToken =
+        bearer(actor(tenant, "environment-a", List.of("catalog.service.write", "catalog.agent.write"),
+            List.of("owner-1"), List.of("runtime-1")));
+    assertEquals(201, post("/v1/services", writeToken, "membership-service", """
+        {"reason":"Registration","expected_revision":0,"id":"svc-membership","name":"Original","owner_id":"owner-1","criticality":3,"lifecycle":"ACTIVE"}
+        """).statusCode());
+    String agent = """
+        {"id":"agent-z","service_id":"svc-membership","name":"Worker","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Work"}
+        """;
+    assertEquals(201, post("/v1/agent-workloads", writeToken, "membership-z", agent).statusCode());
+    assertEquals(201, post("/v1/agent-workloads", writeToken, "membership-z", agent).statusCode());
+    assertEquals(409, post("/v1/agent-workloads", writeToken, "membership-duplicate", agent).statusCode());
+    assertEquals(201, post("/v1/agent-workloads", writeToken, "membership-a",
+        agent.replace("agent-z", "agent-a")).statusCode());
+    assertEquals(201, post("/v1/agent-workloads", writeToken, "membership-standalone",
+        agent.replace("agent-z", "agent-standalone").replace("\"service_id\":\"svc-membership\",", "")).statusCode());
+    assertEquals(3L, jdbc.queryForObject(
+        "SELECT revision FROM uacrf_catalog.service WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+        Long.class, tenant, "environment-a", serviceId));
+
+    Instant now = Instant.now();
+    String readToken = serviceReceiptBearer(
+        tenant, "environment-a", serviceId, "topology.graph.subgraph-selection", now);
+    String path = "/internal/v1/services/" + serviceId + "/revisions/";
+    var first = objectMapper.readTree(get(path + "1", readToken).body());
+    var second = objectMapper.readTree(get(path + "2", readToken).body());
+    HttpResponse<String> latestResponse = get(path + "3", readToken);
+    assertEquals(200, latestResponse.statusCode());
+    var latest = objectMapper.readTree(latestResponse.body());
+    assertThat(first.path("snapshot").path("owned_agent_workload_ids").toString()).isEqualTo("[]");
+    assertThat(second.path("snapshot").path("owned_agent_workload_ids").toString()).isEqualTo("[\"agent-z\"]");
+    assertThat(latest.path("snapshot").path("owned_agent_workload_ids").toString()).isEqualTo("[\"agent-a\",\"agent-z\"]");
+    assertThat(latest.path("content_digest").asText()).isEqualTo(
+        HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(
+            OwnerReceiptSignature.canonicalize(latest.path("snapshot").toString())
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+    HttpResponse<String> receipt = post(
+        "/internal/v1/services/" + serviceId + ":receipt", readToken, "membership-receipt",
+        """
+        {"purpose":"topology.graph.subgraph-selection","requested_version":"3","known_revision":3,"operation_deadline":"%s"}
+        """.formatted(now.plusSeconds(4)));
+    assertEquals(200, receipt.statusCode());
+    assertThat(objectMapper.readTree(receipt.body()).path("content_digest").asText())
+        .isEqualTo(latest.path("content_digest").asText());
+    assertEquals(404, get(path + "4", readToken).statusCode());
+    String foreignToken = serviceReceiptBearer(
+        "foreign", "environment-a", serviceId, "topology.graph.subgraph-selection", Instant.now());
+    assertEquals(404, get(path + "1", foreignToken).statusCode());
+
+    jdbc.update("INSERT INTO uacrf_catalog.service "
+        + "(tenant_id, environment_id, id, name, owner_id, reason, criticality, lifecycle, revision) "
+        + "VALUES (?, ?, 'legacy-service', 'Legacy', 'owner-1', 'legacy', 3, 'ACTIVE', 1)",
+        tenant, "environment-a");
+    assertEquals(201, post("/v1/agent-workloads", writeToken, "legacy-member",
+        agent.replace("agent-z", "legacy-agent").replace(serviceId, "legacy-service")).statusCode());
+    String legacyToken = serviceReceiptBearer(
+        tenant, "environment-a", "legacy-service", "topology.graph.difference-classification", Instant.now());
+    assertEquals(404, get("/internal/v1/services/legacy-service/revisions/1", legacyToken).statusCode());
+    HttpResponse<String> legacyRevision = get("/internal/v1/services/legacy-service/revisions/2", legacyToken);
+    assertEquals(200, legacyRevision.statusCode());
+    assertThat(legacyRevision.body()).contains("\"owned_agent_workload_ids\":[\"legacy-agent\"]");
+  }
+
+  @Test
   void migratesSchemaAndSupportsCreationListingAndIdempotentReplay() throws Exception {
     String request =
         """
@@ -118,6 +235,68 @@ class EstateCatalogApplicationTests {
         jdbc.queryForObject(
             "SELECT count(*) FROM uacrf_catalog.outbox_event WHERE aggregate_id = 'svc-replay'",
             Integer.class));
+    String immutableDigest =
+        jdbc.queryForObject(
+            "SELECT content_digest FROM uacrf_catalog.service_revision "
+                + "WHERE tenant_id = ? AND environment_id = ? AND service_id = ? "
+                + "AND resource_version = 1",
+            String.class,
+            "tenant-a",
+            "environment-a",
+            "svc-replay").trim();
+    jdbc.update(
+        "UPDATE uacrf_catalog.service SET name = ? "
+            + "WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+        "Mutable current value",
+        "tenant-a",
+        "environment-a",
+        "svc-replay");
+    Instant issuedAt = java.time.Instant.now();
+    HttpResponse<String> revisionReceipt =
+        post(
+            "/internal/v1/services/svc-replay:receipt",
+            serviceReceiptBearer(
+                "tenant-a",
+                "environment-a",
+                "svc-replay",
+                "topology.graph.subgraph-selection",
+                issuedAt),
+            "service-revision-receipt",
+            """
+            {"purpose":"topology.graph.subgraph-selection","requested_version":"1","known_revision":1,"operation_deadline":"%s"}
+            """.formatted(issuedAt.plusSeconds(3)));
+    assertEquals(200, revisionReceipt.statusCode());
+    assertThat(revisionReceipt.body())
+        .contains(
+            "\"resource_type\":\"service\"",
+            "\"resource_id\":\"svc-replay\"",
+            "\"resource_version\":\"1\"",
+            "\"content_digest\":\"" + immutableDigest + "\"",
+            "\"purpose\":\"topology.graph.subgraph-selection\"");
+    HttpResponse<String> revisionRead =
+        get(
+            "/internal/v1/services/svc-replay/revisions/1",
+            serviceReceiptBearer(
+                "tenant-a",
+                "environment-a",
+                "svc-replay",
+                "topology.graph.subgraph-selection",
+                Instant.now()));
+    assertEquals(200, revisionRead.statusCode());
+    assertThat(revisionRead.body())
+        .contains("\"name\":\"Payments\"", "\"owned_agent_workload_ids\":[]")
+        .doesNotContain("Mutable current value");
+    assertThrows(
+        DataAccessException.class,
+        () ->
+            jdbc.update(
+                "UPDATE uacrf_catalog.service_revision SET content_digest = ? "
+                    + "WHERE tenant_id = ? AND environment_id = ? AND service_id = ? "
+                    + "AND resource_version = 1",
+                "c".repeat(64),
+                "tenant-a",
+                "environment-a",
+                "svc-replay"));
   }
 
   @Test
@@ -756,6 +935,36 @@ class EstateCatalogApplicationTests {
                 "https://uacrf.local/s01",
                 DELEGATION_KEY_ID)
             .issue(principal, "S02");
+  }
+
+  private String serviceReceiptBearer(
+      String tenant, String environment, String serviceId, String purpose, Instant now) {
+    JwtClaimsSet claims =
+        JwtClaimsSet.builder()
+            .issuer("https://uacrf.local/s01")
+            .subject("https://uacrf.local/s01|delegator")
+            .audience(List.of("S02"))
+            .issuedAt(now.minusSeconds(1))
+            .expiresAt(now.plusSeconds(5))
+            .claim("tenant_id", tenant)
+            .claim("environment_id", environment)
+            .claim("service_scope", serviceId)
+            .claim("actor_issuer", "https://idp.example.test")
+            .claim("actor_subject", "user-1")
+            .claim("capabilities", List.of("catalog.service.read"))
+            .claim("eligible_owner_ids", List.of())
+            .claim("runtime_principal_ids", List.of())
+            .claim("resource_type", "service")
+            .claim("resource_id", serviceId)
+            .claim("purpose", purpose)
+            .build();
+    return "Bearer "
+        + TEST_DELEGATION_ENCODER
+            .encode(
+                JwtEncoderParameters.from(
+                    JwsHeader.with(SignatureAlgorithm.RS256).keyId(DELEGATION_KEY_ID).build(),
+                    claims))
+            .getTokenValue();
   }
 
   private String manifestDigest(WorkloadVersionManifest manifest) throws Exception {

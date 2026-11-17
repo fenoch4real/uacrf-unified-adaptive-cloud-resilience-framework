@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 import org.springframework.test.context.*;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.neo4j.Neo4jContainer;
@@ -38,18 +39,349 @@ class TopologyApplicationTests {
     container.setPortBindings(List.of("55689:7687"));
     return container;
   }
+
+  @Test void asyncSubgraphAdmissionIsDurableIdempotentAndExplicitlyIncomplete() throws Exception {
+    String alice=token("alice","command-admission","*",ALL), bob=token("bob","command-admission","*",ALL);
+    createAndApprove(alice,bob,proposal("command-edge","service","svc","DEPENDS_ON","agent_workload","agent","AUTHORED",""),"command-edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    String body=selectionRequest(graph.get("id").asString(),"first reason");
+    HttpResponse<String> admitted=postCommand("/v1/graphs/subgraphs:select",bob,"selection-key",body);
+    assertEquals(202,admitted.statusCode());
+    JsonNode receipt=json.readTree(admitted.body());
+    assertEquals("PENDING",receipt.get("status").asString());
+    assertEquals(false,receipt.get("domain_completion").asBoolean());
+    assertEquals("/v1/commands/"+receipt.get("command_id").asString(),receipt.get("status_resource").asString());
+    assertEquals(receipt.get("status_resource").asString(),admitted.headers().firstValue("Location").orElseThrow());
+    assertEquals(1,db.queryForObject("SELECT count(*) FROM uacrf_topology.graph_command_outbox WHERE command_id=?::uuid",Integer.class,receipt.get("command_id").asString()));
+    assertEquals(graph.get("digest").asString(),db.queryForObject(
+        "SELECT source_binding->>'graph_digest' FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,receipt.get("command_id").asString()));
+
+    HttpResponse<String> replay=postCommand("/v1/graphs/subgraphs:select",bob,"selection-key",body);
+    assertEquals(202,replay.statusCode());
+    assertEquals(receipt.get("command_id").asString(),json.readTree(replay.body()).get("command_id").asString());
+    assertEquals(409,postCommand("/v1/graphs/subgraphs:select",bob,"selection-key",
+        selectionRequest(graph.get("id").asString(),"different reason")).statusCode());
+    org.mockito.Mockito.verify(proofs,org.mockito.Mockito.times(1)).prepareServiceRevision(
+        org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq("svc"),org.mockito.ArgumentMatchers.eq("1"),
+        org.mockito.ArgumentMatchers.eq("a".repeat(64)),org.mockito.ArgumentMatchers.eq(TopologyProofClient.SUBGRAPH_SELECTION),
+        org.mockito.ArgumentMatchers.any());
+
+    HttpResponse<String> pending=get("/v1/commands/"+receipt.get("command_id").asString(),bob);
+    assertEquals(200,pending.statusCode());
+    assertEquals("ACCEPTED",json.readTree(pending.body()).get("status").asString());
+    while (graphCommandWorker.processNext()) {
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),bob).body()).get("status").asString())) break;
+    }
+    JsonNode status=json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),bob).body());
+    assertEquals("SUCCEEDED",status.get("status").asString());
+    assertEquals(true,status.get("terminal").asBoolean());
+    assertEquals(true,status.get("domain_completion").asBoolean());
+    assertEquals("INCOMPLETE",status.get("advisory_result").get("completeness").asString());
+    assertThat(status.get("advisory_result").get("summary").asString())
+        .contains("SLOs","customer journeys","customer segments","controls","fallbacks","recovery paths");
+    assertThat(status.has("result")).isFalse();
+    JsonNode result=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,receipt.get("command_id").asString()));
+    assertThat(result.get("result_digest").asString()).matches("[a-f0-9]{64}");
+    assertThat(result.get("s04_summary_coverage").get("complete").asBoolean()).isFalse();
+    assertEquals(result.get("result_digest").asString(),
+        status.get("advisory_result").get("result_digest").asString());
+    assertEquals(404,get("/v1/commands/"+receipt.get("command_id").asString(),alice).statusCode());
+  }
+
+  @Test void preservesObservedAtFromBoundedQualifiedSummaryWithoutClaimingFreshness() throws Exception {
+    String alice=token("alice","command-evidence","*",ALL), bob=token("bob","command-evidence","*",ALL);
+    createAndApprove(alice,bob,proposal("evidence-edge","service","svc","DEPENDS_ON","agent_workload","agent","AUTHORED",""),"evidence-edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    String digest="e".repeat(64), observedAt="2024-01-02T03:04:05Z";
+    Map<String,Object> summary=Map.of("evidence_id","evidence-1","source_class","PROVIDER",
+        "source_ref","provider://bounded-reference","sequence",1,"observed_at",observedAt,
+        "kind","metric","qualification_state","QUALIFIED","revision",1,"payload_digest",digest);
+    db.update("INSERT INTO uacrf_topology.proposal_evidence "
+        +"(tenant_id,environment_id,proposal_id,source_version,target_version,evidence_id,evidence_digest,evidence_revision,source_receipt,target_receipt,summary) "
+        +"VALUES ('command-evidence','env-1','evidence-edge','v1','v1','evidence-1',?,1,'{}'::jsonb,'{}'::jsonb,?::jsonb)",
+        digest,json.writeValueAsString(summary));
+    org.mockito.Mockito.when(proofs.prepare(org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.eq(TopologyProofClient.SUBGRAPH_SELECTION),
+        org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+        .thenAnswer(call->{
+          TopologyProofClient.Binding expected=call.getArgument(2);
+          return new TopologyProofClient.Binding(expected.sourceId(),expected.sourceVersion(),
+              expected.targetId(),expected.targetVersion(),expected.evidenceId(),expected.evidenceDigest(),
+              expected.evidenceRevision(),expected.sourceReceipt(),expected.targetReceipt(),summary);
+        });
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode admitted=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"old-evidence",
+        selectionRequest(graph.get("id").asString(),"old qualified evidence")).body());
+    while (graphCommandWorker.processNext()) {
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+admitted.get("command_id").asString(),bob).body()).get("status").asString())) break;
+    }
+    JsonNode result=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,admitted.get("command_id").asString()));
+    assertEquals("INCOMPLETE",result.get("outcome").asString());
+    assertEquals(observedAt,result.get("verified_s04_summaries").get(0).get("observed_at").asString());
+    assertThat(result.get("freshness_limitation").asString())
+        .contains("no evidence-expiration policy","QUALIFIED does not certify freshness");
+    assertThat(result.get("unsupported_domains").toString())
+        .contains("S02 service-revision snapshots do not bind journey membership");
+  }
+
+  @Test void recordsStaleEvidenceSummaryAsExplicitIncompleteCoverage() throws Exception {
+    String alice=token("alice","stale-summary","*",ALL), bob=token("bob","stale-summary","*",ALL);
+    createAndApprove(alice,bob,proposal("stale-summary-edge","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"stale-summary-edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    db.update("INSERT INTO uacrf_topology.proposal_evidence "
+        +"(tenant_id,environment_id,proposal_id,source_version,target_version,evidence_id,evidence_digest,evidence_revision,source_receipt,target_receipt,summary) "
+        +"VALUES ('stale-summary','env-1','stale-summary-edge','v1','v1','stale-evidence',?,1,'{}'::jsonb,'{}'::jsonb,'{}'::jsonb)",
+        "e".repeat(64));
+    org.mockito.Mockito.when(proofs.prepare(org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.eq(TopologyProofClient.SUBGRAPH_SELECTION),
+        org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any()))
+        .thenThrow(new TopologyException(org.springframework.http.HttpStatus.CONFLICT,
+            "PROOF_STALE","The evidence proof is stale."));
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode admitted=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"stale-summary-command",
+        selectionRequest(graph.get("id").asString(),"stale evidence")).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+admitted.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    JsonNode result=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,admitted.get("command_id").asString()));
+    JsonNode coverage=result.get("s04_summary_coverage");
+    assertEquals(false,coverage.get("complete").asBoolean());
+    assertEquals(1,coverage.get("unverified_summary_count").asInt());
+    assertThat(coverage.get("reason_codes").toString()).contains("SUMMARY_STALE","SUMMARY_COVERAGE_GAP");
+  }
+
+  @Test void validatesAllowlistOpaqueCatalogReferenceAndRequestShape() throws Exception {
+    String actor=token("alice","command-validation","*",ALL);
+    String badQuery=selectionRequest("graph","bad reason").replace("action-relevant-dependencies.v1","arbitrary-query");
+    assertEquals(422,postCommand("/v1/graphs/subgraphs:select",actor,"bad-query",badQuery).statusCode());
+    String badRef=selectionRequest("graph","bad reason").replace(
+        "catalog://service/svc/revision/1","https://catalog.example/svc");
+    assertEquals(400,postCommand("/v1/graphs/subgraphs:select",actor,"bad-ref",badRef).statusCode());
+    String missingVersion=selectionRequest("graph","bad reason").replace(
+        "catalog://service/svc/revision/1","catalog://service/svc/revision/");
+    assertEquals(409,postCommand("/v1/graphs/subgraphs:select",actor,"missing-version",missingVersion).statusCode());
+    String badDigest=selectionRequest("graph","bad reason").replace("a".repeat(64),"bad");
+    assertEquals(400,postCommand("/v1/graphs/subgraphs:select",actor,"bad-digest",badDigest).statusCode());
+    assertEquals(400,postCommand("/v1/graphs/subgraphs:select",actor,null,
+        selectionRequest("graph","bad reason")).statusCode());
+  }
+
+  @Test void selectionRevisionFenceAllowsMatchingPositiveAndRejectsStaleRevision() throws Exception {
+    String alice=token("alice","selection-revisions","*",ALL), bob=token("bob","selection-revisions","*",ALL);
+    createAndApprove(alice,bob,proposal("revision-edge","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"revision-edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode first=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"selection-r0",
+        selectionRequest(graph.get("id").asString(),"first")).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+first.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    assertEquals("SUCCEEDED",json.readTree(get("/v1/commands/"+first.get("command_id").asString(),bob)
+        .body()).get("status").asString());
+
+    JsonNode second=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"selection-r1",
+        selectionRequest(graph.get("id").asString(),"second",1)).body());
+    assertEquals("PENDING",second.get("status").asString());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+second.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    assertEquals(2,db.queryForObject("SELECT current_revision FROM uacrf_topology.graph_domain_head "
+        +"WHERE tenant_id='selection-revisions' AND operation='SUBGRAPH_SELECTION'",
+        Integer.class));
+    createAndApprove(alice,bob,proposal("revision-edge-2","agent_workload","agent","DEPENDS_ON",
+        "shared_resource","database","AUTHORED",""),"revision-edge-2");
+    JsonNode updatedGraph=json.readTree(post("/v1/graphs:accept",bob,accept(1)).body());
+    assertThat(updatedGraph.get("id").asString()).isNotEqualTo(graph.get("id").asString());
+    JsonNode third=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"selection-r2",
+        selectionRequest(updatedGraph.get("id").asString(),"updated graph context",2)).body());
+    assertEquals("PENDING",third.get("status").asString());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+third.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    assertEquals("SUCCEEDED",json.readTree(get("/v1/commands/"+third.get("command_id").asString(),bob)
+        .body()).get("status").asString());
+    assertEquals(3,db.queryForObject("SELECT current_revision FROM uacrf_topology.graph_domain_head "
+        +"WHERE tenant_id='selection-revisions' AND operation='SUBGRAPH_SELECTION'",
+        Integer.class));
+    assertEquals(409,postCommand("/v1/graphs/subgraphs:select",bob,"selection-stale",
+        selectionRequest(graph.get("id").asString(),"stale",1)).statusCode());
+  }
+
+  @Test void classifiesRetainedSelectionDependencyDeltaAndFencesRevision() throws Exception {
+    String alice=token("alice","classification-delta","*",ALL),
+        bob=token("bob","classification-delta","*",ALL);
+    createAndApprove(alice,bob,proposal("delta-base","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"delta-base");
+    JsonNode authorized=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode selectionReceipt=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"delta-selection",
+        selectionRequest(authorized.get("id").asString(),"select")).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+selectionReceipt.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    JsonNode selectionResult=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,selectionReceipt.get("command_id").asString()));
+    String selectionDigest=selectionResult.get("result_digest").asString();
+    assertThat(selectionDigest).matches("[a-f0-9]{64}");
+
+    createAndApprove(alice,bob,proposal("delta-added","agent_workload","agent","DEPENDS_ON",
+        "shared_resource","database","AUTHORED",""),"delta-added");
+    JsonNode current=json.readTree(post("/v1/graphs:accept",bob,accept(1)).body());
+    assertEquals(1,db.queryForObject("SELECT count(*) FROM uacrf_topology.graph_edges WHERE graph_id=? "
+        +"AND source_type='agent_workload' AND source_id='agent' AND relationship_type='DEPENDS_ON'",
+        Integer.class,current.get("id").asString()));
+    whenCaseReceipt(TopologyProofClient.DIFFERENCE_CLASSIFICATION);
+    String compareBody=classifyRequest("svc",authorized.get("id").asString(),current.get("id").asString(),
+        selectionDigest,0);
+    assertEquals(409,postCommand("/v1/graphs/differences:classify",bob,"wrong-selection",
+        compareBody.replace(selectionDigest,"f".repeat(64))).statusCode());
+
+    JsonNode first=json.readTree(postCommand("/v1/graphs/differences:classify",bob,"classify-r0",
+        compareBody).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+first.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    JsonNode status=json.readTree(get("/v1/commands/"+first.get("command_id").asString(),bob).body());
+    assertEquals("SUCCEEDED",status.get("status").asString());
+    assertEquals("INDETERMINATE",status.get("advisory_result").get("completeness").asString());
+    assertEquals(selectionDigest,status.get("advisory_result").get("selection_digest").asString());
+    JsonNode result=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,first.get("command_id").asString()));
+    assertEquals("widening",result.get("classification").asString(),result.toString());
+    assertEquals(selectionDigest,result.get("selection_digest").asString());
+    assertThat(result.get("changes").get(0).get("change_type").asString()).isEqualTo("dependency_added");
+    assertEquals("database",result.get("changes").get(0).get("after").get("target_id").asString());
+    assertEquals(false,result.get("complete").asBoolean());
+    assertThat(result.get("unsupported_domains").toString())
+        .contains("SLOs","customer journeys","controls","recovery paths");
+
+    createAndApprove(alice,bob,proposal("delta-added-2","agent_workload","agent","DEPENDS_ON",
+        "shared_resource","cache","AUTHORED",""),"delta-added-2");
+    JsonNode updatedCurrent=json.readTree(post("/v1/graphs:accept",bob,accept(2)).body());
+    assertThat(updatedCurrent.get("id").asString()).isNotEqualTo(current.get("id").asString());
+    JsonNode second=json.readTree(postCommand("/v1/graphs/differences:classify",bob,"classify-r1",
+        classifyRequest("svc",authorized.get("id").asString(),updatedCurrent.get("id").asString(),
+            selectionDigest,1)).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+second.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    assertEquals(2,db.queryForObject("SELECT current_revision FROM uacrf_topology.graph_domain_head "
+        +"WHERE tenant_id='classification-delta' AND operation='DIFFERENCE_CLASSIFICATION'",
+        Integer.class));
+    assertEquals(409,postCommand("/v1/graphs/differences:classify",bob,"classify-stale",
+        classifyRequest("svc",authorized.get("id").asString(),updatedCurrent.get("id").asString(),
+            selectionDigest,1)).statusCode());
+  }
+
+  @Test void classifiesSupportedFailureDomainDeltaAsTargetChanging() throws Exception {
+    String alice=token("alice","failure-domain-delta","*",ALL),
+        bob=token("bob","failure-domain-delta","*",ALL);
+    createAndApprove(alice,bob,proposal("failure-base","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"failure-base");
+    JsonNode authorized=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode selectionReceipt=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"failure-selection",
+        selectionRequest(authorized.get("id").asString(),"select")).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+selectionReceipt.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    JsonNode selectionResult=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,selectionReceipt.get("command_id").asString()));
+
+    createAndApprove(alice,bob,proposal("failure-added","agent_workload","agent","MEMBER_OF_FAILURE_DOMAIN",
+        "failure_domain","zone-a","AUTHORED",""),"failure-added");
+    JsonNode current=json.readTree(post("/v1/graphs:accept",bob,accept(1)).body());
+    whenCaseReceipt(TopologyProofClient.DIFFERENCE_CLASSIFICATION);
+    JsonNode receipt=json.readTree(postCommand("/v1/graphs/differences:classify",bob,"failure-classify",
+        classifyRequest("svc",authorized.get("id").asString(),current.get("id").asString(),
+            selectionResult.get("result_digest").asString(),0)).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    JsonNode result=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,receipt.get("command_id").asString()));
+    assertEquals("target-changing",result.get("classification").asString());
+    assertEquals("failure_domain_membership_added",
+        result.get("changes").get(0).get("change_type").asString());
+    assertEquals("MEMBER_OF_FAILURE_DOMAIN",
+        result.get("changes").get(0).get("after").get("relationship_type").asString());
+    assertEquals("zone-a",result.get("changes").get(0).get("after").get("target_id").asString());
+    assertEquals(false,result.get("complete").asBoolean());
+  }
+
+  @Test void canonicalizesLegacyFailureDomainRelationshipOnProposal() throws Exception {
+    String alice=token("alice","legacy-failure-domain","*",ALL),
+        bob=token("bob","legacy-failure-domain","*",ALL);
+    HttpResponse<String> proposed=post("/v1/dependency-proposals",alice,
+        proposal("legacy-failure-domain-edge","agent_workload","agent","IN_FAILURE_DOMAIN",
+            "failure_domain","zone-a","AUTHORED",""));
+    assertEquals(201,proposed.statusCode());
+    assertEquals("MEMBER_OF_FAILURE_DOMAIN",
+        json.readTree(proposed.body()).get("relationship_type").asString());
+    assertEquals(200,post("/v1/dependency-proposals/legacy-failure-domain-edge:review",bob,
+        review(1)).statusCode());
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    assertEquals("MEMBER_OF_FAILURE_DOMAIN",graph.get("edges").get(0)
+        .get("relationship_type").asString());
+  }
+
+  @Test void stalePinnedGraphBecomesIndeterminateAndNeverClaimsClassification() throws Exception {
+    String alice=token("alice","command-stale","*",ALL), bob=token("bob","command-stale","*",ALL);
+    createAndApprove(alice,bob,proposal("stale-edge","service","svc","DEPENDS_ON","agent_workload","agent","AUTHORED",""),"stale-edge");
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode selection=json.readTree(postCommand("/v1/graphs/subgraphs:select",bob,"stale-selection",
+        selectionRequest(graph.get("id").asString(),"select")).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+selection.get("command_id").asString(),bob)
+          .body()).get("status").asString())) break;
+    JsonNode selectionResult=json.readTree(db.queryForObject(
+        "SELECT result::text FROM uacrf_topology.graph_command WHERE command_id=?::uuid",
+        String.class,selection.get("command_id").asString()));
+    String digest=selectionResult.get("result_digest").asString();
+    whenCaseReceipt(TopologyProofClient.DIFFERENCE_CLASSIFICATION);
+    String body=classifyRequest("svc",graph.get("id").asString(),graph.get("id").asString(),digest,0);
+    JsonNode receipt=json.readTree(postCommand("/v1/graphs/differences:classify",bob,"difference-key",body).body());
+    assertEquals("PENDING",receipt.get("status").asString());
+    db.update("UPDATE uacrf_topology.graph_revisions SET digest=? WHERE id=?","b".repeat(64),graph.get("id").asString());
+    while (graphCommandWorker.processNext()) {
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),bob).body()).get("status").asString())) break;
+    }
+    JsonNode status=json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),bob).body());
+    assertEquals("FAILED",status.get("status").asString());
+    assertEquals(true,status.get("terminal").asBoolean());
+    assertEquals(false,status.get("domain_completion").asBoolean());
+    assertThat(status.has("advisory_result")).isFalse();
+  }
   @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
     p.add("spring.datasource.url",POSTGRES::getJdbcUrl); p.add("spring.datasource.username",POSTGRES::getUsername); p.add("spring.datasource.password",POSTGRES::getPassword);
     p.add("uacrf.topology.neo4j.uri",NEO4J::getBoltUrl); p.add("uacrf.topology.neo4j.user",()->"neo4j"); p.add("uacrf.topology.neo4j.password",NEO4J::getAdminPassword);
     p.add("uacrf.topology.neo4j.connection-timeout-ms",()->"500"); p.add("uacrf.topology.neo4j.max-transaction-retry-ms",()->"1000");
     p.add("uacrf.topology.projection.enabled",()->"true"); p.add("uacrf.topology.projection.interval-ms",()->"3600000"); p.add("uacrf.topology.projection.retry-base-ms",()->"10");
+    p.add("uacrf.topology.commands.interval-ms",()->"3600000");
     p.add("uacrf.delegation.public-key-base64",()->Base64.getEncoder().encodeToString(KEYS.getPublic().getEncoded())); p.add("uacrf.delegation.key-id",()->KEY_ID);
   }
   @LocalServerPort int port;
   @Autowired JdbcTemplate db;
   @Autowired ObjectMapper json;
   @Autowired GraphProjectionWorker projectionWorker;
+  @Autowired GraphCommandWorker graphCommandWorker;
   @Autowired Driver neo4j;
+  @MockitoBean TopologyProofClient proofs;
   final HttpClient http=HttpClient.newHttpClient();
 
   @Test void lifecycleConcurrencyIsolationAndReceipt() throws Exception {
@@ -218,6 +550,49 @@ class TopologyApplicationTests {
   private static String proposal(String id,String st,String si,String rel,String tt,String ti,String kind,String extra) { return "{\"id\":\"%s\",\"source_type\":\"%s\",\"source_id\":\"%s\",\"relationship_type\":\"%s\",\"target_type\":\"%s\",\"target_id\":\"%s\",\"provenance_kind\":\"%s\"%s}".formatted(id,st,si,rel,tt,ti,kind,extra); }
   private static String review(long revision) { return "{\"decision\":\"ACCEPT\",\"expected_revision\":"+revision+"}"; }
   private static String accept(long revision) { return "{\"scope\":\"all\",\"expected_revision_number\":"+revision+"}"; }
+  private static String selectionRequest(String graphId,String reason) {
+    return selectionRequest(graphId,reason,0);
+  }
+  private static String selectionRequest(String graphId,String reason,long expectedRevision) {
+    return "{\"service_id\":\"svc\",\"case_id\":\"case-1\",\"graph_revision_id\":\""+graphId
+        +"\",\"reason\":\""+reason+"\",\"expected_revision\":"+expectedRevision+",\"query_id\":\"action-relevant-dependencies.v1\","
+        +"\"query_parameters_ref\":\"catalog://service/svc/revision/1\",\"query_parameters_digest\":\""+"a".repeat(64)
+        +"\",\"purpose\":\"topology.graph.subgraph-selection\",\"maximum_nodes\":200}";
+  }
+  private static String classifyRequest(String serviceId,String authorizedGraphId,String currentGraphId,
+      String selectionDigest,long expectedRevision) {
+    return "{\"service_id\":\""+serviceId+"\",\"case_id\":\"case-1\",\"reason\":\"compare\","
+        +"\"expected_revision\":"+expectedRevision+",\"authorized_graph_revision_id\":\""+authorizedGraphId+"\","
+        +"\"current_graph_revision_id\":\""+currentGraphId+"\",\"selection_digest\":\""+selectionDigest+"\"}";
+  }
+  private void stubCommandProofs(String serviceId,String version,String purpose) {
+    Map<String,Object> snapshot=Map.of("service_id",serviceId,"name","Service","owner_id","owner-1",
+        "criticality",3,"lifecycle","ACTIVE","revision",Integer.parseInt(version),
+        "owned_agent_workload_ids",List.of("agent"));
+    org.mockito.Mockito.when(proofs.prepareServiceRevision(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.eq(serviceId),
+        org.mockito.ArgumentMatchers.eq(version),org.mockito.ArgumentMatchers.eq("a".repeat(64)),
+        org.mockito.ArgumentMatchers.eq(purpose),org.mockito.ArgumentMatchers.any()))
+        .thenReturn(new TopologyProofClient.ServiceRevisionBinding(
+            Map.of("resource_id",serviceId,"resource_version",version,"content_digest","a".repeat(64)),
+            snapshot,List.of("agent"),true));
+    whenCaseReceipt(purpose);
+  }
+  private static boolean activeCommandStatus(String status) {
+    return List.of("ACCEPTED","RUNNING","WAITING_FOR_DEPENDENCY","RETRY_SCHEDULED","OUTCOME_UNKNOWN")
+        .contains(status);
+  }
+  private void whenCaseReceipt(String purpose) {
+    org.mockito.Mockito.when(proofs.prepareCaseReceipt(org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.eq("case-1"),org.mockito.ArgumentMatchers.eq(purpose),org.mockito.ArgumentMatchers.any()))
+        .thenReturn(Map.of("case_id","case-1","purpose","incident","case_digest","d".repeat(64),
+            "workload_id","workload-1","required_source_kinds",List.of("metrics")));
+  }
+  private HttpResponse<String> postCommand(String path,String token,String key,String body) throws Exception {
+    HttpRequest.Builder request=HttpRequest.newBuilder(URI.create("http://localhost:"+port+path))
+        .header("Authorization",token).header("Content-Type","application/json");
+    if(key!=null) request.header("Idempotency-Key",key);
+    return http.send(request.POST(HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofString());
+  }
   private HttpResponse<String> post(String path,String token,String body) throws Exception { return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).header("Authorization",token).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build(),HttpResponse.BodyHandlers.ofString()); }
   private HttpResponse<String> get(String path,String token) throws Exception { return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).header("Authorization",token).GET().build(),HttpResponse.BodyHandlers.ofString()); }
   private static String token(String user,String tenant,String scope,List<String> caps) { DelegationPrincipal p=new DelegationPrincipal("https://uacrf.local/s01|"+user,tenant,"env-1",scope,"https://idp.example.test",user,caps,List.of(),List.of()); return "Bearer "+new DelegationTokenIssuer(ENCODER,Clock.systemUTC(),"https://uacrf.local/s01",KEY_ID).issue(p,"S06"); }

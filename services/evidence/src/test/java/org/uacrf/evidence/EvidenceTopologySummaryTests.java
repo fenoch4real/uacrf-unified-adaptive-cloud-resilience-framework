@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import jakarta.validation.Validation;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.sql.Timestamp;
@@ -19,10 +20,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.Jwt;
+import tools.jackson.databind.ObjectMapper;
 
 class EvidenceTopologySummaryTests {
   private static final String EVIDENCE_ID = "evidence-1";
   private static final String PURPOSE = "topology.dependency-proposal";
+  private static final List<String> PURPOSES =
+      List.of(
+          PURPOSE,
+          "topology.dependency-review",
+          "topology.graph.current-use",
+          "topology.graph.subgraph-selection",
+          "topology.graph.difference-classification");
   private static final String PAYLOAD = "raw evidence payload";
   private static final String REVIEW_TEXT = "private reviewer free text";
   private static final Instant OBSERVED_AT = Instant.parse("2026-01-01T00:00:00Z");
@@ -42,71 +51,110 @@ class EvidenceTopologySummaryTests {
 
   @Test
   void returnsOnlyBoundedMetadataForCurrentQualifiedEvidence() {
-    EvidenceResponses.TopologySummaryResult result =
-        service.topologySummary(delegation(), EVIDENCE_ID, request(sha(PAYLOAD), 3, CUTOFF));
+    try (var factory = Validation.buildDefaultValidatorFactory()) {
+      for (String purpose : PURPOSES) {
+        var request = request(purpose, sha(PAYLOAD), 3, CUTOFF);
+        assertThat(factory.getValidator().validate(request)).isEmpty();
+        EvidenceResponses.TopologySummaryResult result =
+            service.topologySummary(delegation(purpose), EVIDENCE_ID, request);
 
-    assertThat(result.usableAsEvidence()).isTrue();
-    assertThat(result.summary())
-        .isEqualTo(
-            new EvidenceResponses.TopologySummary(
-                EVIDENCE_ID,
-                "PROVIDER",
-                "provider:source-1",
-                7,
-                OBSERVED_AT.toString(),
-                "measurement.latency",
-                "QUALIFIED",
-                3,
-                sha(PAYLOAD)));
-    assertThat(result.toString()).doesNotContain(PAYLOAD, REVIEW_TEXT, "reviewReason");
+        assertThat(result.usableAsEvidence()).isTrue();
+        assertThat(result.summary())
+            .isEqualTo(
+                new EvidenceResponses.TopologySummary(
+                    EVIDENCE_ID,
+                    "PROVIDER",
+                    "provider:source-1",
+                    7,
+                    OBSERVED_AT.toString(),
+                    "measurement.latency",
+                    "QUALIFIED",
+                    3,
+                    sha(PAYLOAD)));
+        assertThat(result.toString()).doesNotContain(PAYLOAD, REVIEW_TEXT, "reviewReason");
+        var json = new ObjectMapper().valueToTree(result);
+        assertThat(json.size()).isEqualTo(2);
+        assertThat(json.get("summary").size()).isEqualTo(9);
+        assertThat(json.toString()).doesNotContain(PAYLOAD, REVIEW_TEXT, "reviewReason", "\"payload\"");
+      }
+    }
   }
 
   @Test
   void requiresExactS01AudienceResourcePurposeAndCapabilityScope() {
-    List<Jwt> outOfScope =
-        List.of(
-            delegation("S06", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, PURPOSE, true),
-            delegation("S04", "agent_workload", EVIDENCE_ID, EVIDENCE_ID, PURPOSE, true),
-            delegation("S04", "evidence_event", "other-evidence", EVIDENCE_ID, PURPOSE, true),
-            delegation("S04", "evidence_event", EVIDENCE_ID, "other-evidence", PURPOSE, true),
-            delegation("S04", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, "wrong-purpose", true),
-            delegation("S04", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, PURPOSE, false));
+    for (String purpose : PURPOSES) {
+      List<Jwt> outOfScope =
+          List.of(
+              delegation("S06", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, purpose, true),
+              delegation("S04", "agent_workload", EVIDENCE_ID, EVIDENCE_ID, purpose, true),
+              delegation("S04", "evidence_event", "other-evidence", EVIDENCE_ID, purpose, true),
+              delegation("S04", "evidence_event", EVIDENCE_ID, "other-evidence", purpose, true),
+              delegation("S04", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, "wrong-purpose", true),
+              delegation("S04", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, purpose, false));
 
-    for (Jwt jwt : outOfScope) {
-      assertThatThrownBy(() -> service.topologySummary(jwt, EVIDENCE_ID, request(sha(PAYLOAD), 3, CUTOFF)))
+      for (Jwt jwt : outOfScope) {
+        assertThatThrownBy(
+                () -> service.topologySummary(jwt, EVIDENCE_ID, request(purpose, sha(PAYLOAD), 3, CUTOFF)))
+            .isInstanceOf(EvidenceException.class)
+            .extracting(error -> ((EvidenceException) error).code())
+            .isEqualTo("DELEGATION_SCOPE_MISMATCH");
+      }
+    }
+  }
+
+  @Test
+  void rejectsUnrelatedAndCrossPurposeDelegations() {
+    try (var factory = Validation.buildDefaultValidatorFactory()) {
+      String unrelated = "topology.graph.unrelated";
+      var unrelatedRequest = request(unrelated, sha(PAYLOAD), 3, CUTOFF);
+      assertThat(factory.getValidator().validate(unrelatedRequest)).isNotEmpty();
+      assertThatThrownBy(() -> service.topologySummary(delegation(unrelated), EVIDENCE_ID, unrelatedRequest))
           .isInstanceOf(EvidenceException.class)
           .extracting(error -> ((EvidenceException) error).code())
           .isEqualTo("DELEGATION_SCOPE_MISMATCH");
+      for (String purpose : PURPOSES.subList(3, 5)) {
+        assertThatThrownBy(
+                () -> service.topologySummary(delegation(), EVIDENCE_ID, request(purpose, sha(PAYLOAD), 3, CUTOFF)))
+            .isInstanceOf(EvidenceException.class)
+            .extracting(error -> ((EvidenceException) error).code())
+            .isEqualTo("DELEGATION_SCOPE_MISMATCH");
+      }
     }
   }
 
   @Test
   void rejectsStaleMismatchedUnqualifiedAndConflictingEvidence() {
-    assertIneligible(request("0".repeat(64), 3, CUTOFF));
-    assertIneligible(request(sha(PAYLOAD), 4, CUTOFF));
-    assertIneligible(request(sha(PAYLOAD), 3, REVIEWED_AT.minusNanos(1)));
-    row.put("qualification_state", "UNVERIFIED");
-    assertIneligible(request(sha(PAYLOAD), 3, CUTOFF));
-
-    row = evidenceRow();
-    row.put("has_conflict", true);
-    assertIneligible(request(sha(PAYLOAD), 3, CUTOFF));
-
-    row = evidenceRow();
-    row.put("payload", "tampered payload");
-    assertIneligible(request(sha(PAYLOAD), 3, CUTOFF));
+    for (String purpose : PURPOSES) {
+      row = evidenceRow();
+      assertIneligible(purpose, request(purpose, "0".repeat(64), 3, CUTOFF));
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 4, CUTOFF));
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 3, REVIEWED_AT.minusNanos(1)));
+      row.put("observed_at", Timestamp.from(CUTOFF.plusSeconds(1)));
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 3, CUTOFF));
+      row = evidenceRow();
+      row.put("qualification_state", "UNVERIFIED");
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 3, CUTOFF));
+      row.put("qualification_state", "REJECTED");
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 3, CUTOFF));
+      row = evidenceRow();
+      row.put("has_conflict", true);
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 3, CUTOFF));
+      row = evidenceRow();
+      row.put("payload", "tampered payload");
+      assertIneligible(purpose, request(purpose, sha(PAYLOAD), 3, CUTOFF));
+    }
   }
 
-  private void assertIneligible(EvidenceRequests.TopologySummaryRequest request) {
-    assertThatThrownBy(() -> service.topologySummary(delegation(), EVIDENCE_ID, request))
+  private void assertIneligible(String purpose, EvidenceRequests.TopologySummaryRequest request) {
+    assertThatThrownBy(() -> service.topologySummary(delegation(purpose), EVIDENCE_ID, request))
         .isInstanceOf(EvidenceException.class)
         .extracting(error -> ((EvidenceException) error).code())
         .isEqualTo("EVIDENCE_NOT_CURRENT");
   }
 
   private static EvidenceRequests.TopologySummaryRequest request(
-      String digest, long revision, Instant cutoff) {
-    return new EvidenceRequests.TopologySummaryRequest(PURPOSE, digest, revision, cutoff);
+      String purpose, String digest, long revision, Instant cutoff) {
+    return new EvidenceRequests.TopologySummaryRequest(purpose, digest, revision, cutoff);
   }
 
   private static Map<String, Object> evidenceRow() {
@@ -128,7 +176,11 @@ class EvidenceTopologySummaryTests {
   }
 
   private static Jwt delegation() {
-    return delegation("S04", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, PURPOSE, true);
+    return delegation(PURPOSE);
+  }
+
+  private static Jwt delegation(String purpose) {
+    return delegation("S04", "evidence_event", EVIDENCE_ID, EVIDENCE_ID, purpose, true);
   }
 
   private static Jwt delegation(

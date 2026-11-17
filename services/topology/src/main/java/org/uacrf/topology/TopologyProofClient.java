@@ -8,7 +8,10 @@ import java.net.http.HttpResponse;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,27 +26,33 @@ import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+import org.springframework.web.util.UriUtils;
 
 @Component
 class TopologyProofClient {
   static final String PROPOSE = "topology.dependency-proposal", REVIEW = "topology.dependency-review", CURRENT = "topology.graph.current-use";
+  static final String SUBGRAPH_SELECTION = "topology.graph.subgraph-selection";
+  static final String DIFFERENCE_CLASSIFICATION = "topology.graph.difference-classification";
   private static final int MAX_RESPONSE_BYTES = 16 * 1024;
+  private static final int MAX_SNAPSHOT_RESPONSE_BYTES = 4 * 1024 * 1024;
+  private static final int MAX_SERVICE_WORKLOAD_ROOTS = 10_000;
   private static final Set<String> RECEIPT_FIELDS = Set.of("protocol", "key_id", "receipt_id", "issuer_service", "audience_service", "tenant_id", "environment_id", "actor_id", "resource_type", "resource_id", "resource_version", "resource_revision", "content_digest", "authority_epoch", "eligible", "purpose", "issued_at", "valid_until", "signature");
   private static final Set<String> SUMMARY_FIELDS = Set.of("evidence_id", "source_class", "source_ref", "sequence", "observed_at", "kind", "qualification_state", "revision", "payload_digest");
   private static final String ID = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$";
   private final ObjectMapper json;
   private final JsonMapper responseJson;
   private final HttpClient http;
-  private final String identityUrl, catalogUrl, evidenceUrl, keyId;
+  private final String identityUrl, catalogUrl, evidenceUrl, assessmentUrl, keyId;
   private final RSAPublicKey publicKey;
 
   TopologyProofClient(ObjectMapper json,
       @Value("${uacrf.topology.identity-url:http://localhost:8082}") String identityUrl,
       @Value("${uacrf.topology.catalog-url:http://localhost:8083}") String catalogUrl,
       @Value("${uacrf.topology.evidence-url:http://localhost:8086}") String evidenceUrl,
+      @Value("${uacrf.topology.assessment-url:http://localhost:8089}") String assessmentUrl,
       @Value("${uacrf.topology.s02-key-id:}") String keyId,
       @Value("${uacrf.topology.s02-public-key-base64:}") String publicKey) {
-    this.json=json; this.identityUrl=ownerUrl(identityUrl); this.catalogUrl=ownerUrl(catalogUrl); this.evidenceUrl=ownerUrl(evidenceUrl); this.keyId=keyId;
+    this.json=json; this.identityUrl=ownerUrl(identityUrl); this.catalogUrl=ownerUrl(catalogUrl); this.evidenceUrl=ownerUrl(evidenceUrl); this.assessmentUrl=ownerUrl(assessmentUrl); this.keyId=keyId;
     if (!keyId.isBlank()) DelegationKeyMaterial.validateKeyId(keyId);
     this.publicKey=publicKey.isBlank()?null:DelegationKeyMaterial.decodePublicKey(publicKey);
     this.responseJson=JsonMapper.builder()
@@ -70,6 +79,9 @@ class TopologyProofClient {
       String evidenceId, String evidenceDigest, long evidenceRevision,
       Map<String,Object> sourceReceipt, Map<String,Object> targetReceipt, Map<String,Object> summary) {}
 
+  record ServiceRevisionBinding(Map<String,Object> receipt, Map<String,Object> snapshot,
+      List<String> workloadIds, boolean membershipSupported) {}
+
   Binding prepare(Jwt jwt, String purpose, Binding expected, Instant deadline) {
     DelegationPrincipal actor=DelegationPrincipal.from(jwt);
     try {
@@ -93,12 +105,94 @@ class TopologyProofClient {
     catch (RuntimeException e) { throw failure(); }
   }
 
+  ServiceRevisionBinding prepareServiceRevision(Jwt jwt, String serviceId, String version,
+      String digest, String purpose, Instant deadline) {
+    if (version == null || !version.matches("^[1-9][0-9]{0,15}$")) throw failure();
+    long requestedVersion=Long.parseLong(version);
+    DelegationPrincipal actor=DelegationPrincipal.from(jwt);
+    String token=exchange(jwt,"S02","service",serviceId,purpose,deadline);
+    Map<String,Object> body=new LinkedHashMap<>();
+    body.put("purpose",purpose); body.put("requested_version",version);
+    body.put("operation_deadline",deadline.toString());
+    String encodedId=UriUtils.encodePathSegment(serviceId,StandardCharsets.UTF_8);
+    Map<String,Object> receipt=post(catalogUrl+"/internal/v1/services/"+encodedId+":receipt",token,body,deadline);
+    validateReceipt(receipt,actor,purpose,"service",serviceId,version,deadline,Instant.now());
+    if (!digest.equals(receipt.get("content_digest"))) throw stale();
+    String encodedVersion=UriUtils.encodePathSegment(version,StandardCharsets.UTF_8);
+    Map<String,Object> response=get(catalogUrl+"/internal/v1/services/"+encodedId
+        +"/revisions/"+encodedVersion,token,deadline);
+    if (!response.keySet().equals(Set.of("resource_version","content_digest","snapshot"))
+        || !numericVersionMatches(response.get("resource_version"),requestedVersion)
+        || !(response.get("content_digest") instanceof String snapshotDigest)
+        || !digest.equals(snapshotDigest)
+        || !(response.get("snapshot") instanceof Map<?,?> rawSnapshot)) throw stale();
+    @SuppressWarnings("unchecked") Map<String,Object> snapshot=(Map<String,Object>)rawSnapshot;
+    try {
+      if (!serviceId.equals(snapshot.get("service_id"))
+          || !numericVersionMatches(snapshot.get("revision"),requestedVersion)
+          || !digest.equals(sha256(OwnerReceiptSignature.canonicalize(json.writeValueAsString(snapshot)))))
+        throw stale();
+    } catch (JacksonException | NumberFormatException e) {
+      throw failure();
+    }
+
+    Set<String> legacySnapshotFields=Set.of(
+        "service_id","name","owner_id","criticality","lifecycle","revision");
+    Set<String> membershipSnapshotFields=Set.of(
+        "service_id","name","owner_id","criticality","lifecycle","revision",
+        "owned_agent_workload_ids");
+    if (!snapshot.keySet().equals(legacySnapshotFields)
+        && !snapshot.keySet().equals(membershipSnapshotFields)) throw failure();
+    if (!(snapshot.get("name") instanceof String name) || name.isBlank() || name.length()>200
+        || !validId(snapshot.get("owner_id"))
+        || !(snapshot.get("criticality") instanceof Integer criticality)
+        || criticality<1 || criticality>5
+        || !(snapshot.get("lifecycle") instanceof String lifecycle)
+        || !Set.of("DRAFT","ACTIVE","SUSPENDED","RETIRED").contains(lifecycle))
+      throw failure();
+    Object rawMembership=snapshot.get("owned_agent_workload_ids");
+    if (!(rawMembership instanceof List<?> values)) {
+      return new ServiceRevisionBinding(Map.copyOf(receipt),Map.copyOf(snapshot),List.of(),false);
+    }
+    if (values.size()>MAX_SERVICE_WORKLOAD_ROOTS)
+      return new ServiceRevisionBinding(Map.copyOf(receipt),Map.copyOf(snapshot),List.of(),false);
+    java.util.TreeSet<String> unique=new java.util.TreeSet<>();
+    for (Object value:values) {
+      if (!(value instanceof String id) || !id.matches(ID) || !unique.add(id))
+        return new ServiceRevisionBinding(Map.copyOf(receipt),Map.copyOf(snapshot),List.of(),false);
+    }
+    if (!values.equals(List.copyOf(unique)))
+      return new ServiceRevisionBinding(Map.copyOf(receipt),Map.copyOf(snapshot),List.of(),false);
+    return new ServiceRevisionBinding(Map.copyOf(receipt),Map.copyOf(snapshot),
+        List.copyOf(unique),true);
+  }
+
+  Map<String,Object> prepareCaseReceipt(Jwt jwt, String caseId, String purpose, Instant deadline) {
+    DelegationPrincipal actor=DelegationPrincipal.from(jwt);
+    String token=exchange(jwt,"S07","assessment_case",caseId,purpose,deadline);
+    String encodedCase=UriUtils.encodePathSegment(caseId,StandardCharsets.UTF_8);
+    Map<String,Object> receipt=post(assessmentUrl+"/internal/v1/cases/"+encodedCase+":receipt",token,Map.of(),deadline);
+    if (!receipt.keySet().equals(Set.of("case_id","purpose","case_digest","workload_id","required_source_kinds"))
+        || !caseId.equals(receipt.get("case_id"))
+        || !(receipt.get("purpose") instanceof String casePurpose) || casePurpose.isBlank()
+        || casePurpose.length()>2000
+        || !(receipt.get("case_digest") instanceof String digest) || !digest.matches("^[a-f0-9]{64}$")
+        || !(receipt.get("workload_id") instanceof String workloadId) || !workloadId.matches(ID)
+        || !(receipt.get("required_source_kinds") instanceof java.util.List<?> kinds)
+        || kinds.isEmpty() || kinds.size()>100) throw failure();
+    Set<String> unique=new java.util.HashSet<>();
+    for (Object kind:kinds)
+      if (!(kind instanceof String value) || value.isBlank() || value.length()>200 || !unique.add(value)) throw failure();
+    if (!Instant.now().isBefore(deadline)) throw failure();
+    return Map.copyOf(receipt);
+  }
+
   private Map<String,Object> owner(Jwt jwt, DelegationPrincipal actor, String purpose, String id, String version, Map<String,Object> prior, Instant deadline) {
     String token=exchange(jwt,"S02","agent_workload",id,purpose,deadline);
     Map<String,Object> body=new LinkedHashMap<>(); body.put("purpose",purpose); body.put("requested_version",version); body.put("operation_deadline",deadline.toString());
     if (prior!=null) body.put("known_revision",prior.get("resource_revision"));
     Map<String,Object> receipt=post(catalogUrl+"/internal/v1/workloads/"+id+":receipt",token,body,deadline);
-    validateReceipt(receipt,actor,purpose,id,version,deadline,Instant.now());
+    validateReceipt(receipt,actor,purpose,"agent_workload",id,version,deadline,Instant.now());
     if (prior!=null && (!prior.get("resource_revision").equals(receipt.get("resource_revision")) || !prior.get("authority_epoch").equals(receipt.get("authority_epoch")) || !prior.get("content_digest").equals(receipt.get("content_digest")))) throw stale();
     return receipt;
   }
@@ -110,14 +204,32 @@ class TopologyProofClient {
   }
 
   private Map<String,Object> post(String url, String token, Map<String,Object> body, Instant deadline) {
+    return request(url,token,deadline,MAX_RESPONSE_BYTES,
+        HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)),"POST");
+  }
+
+  private Map<String,Object> get(String url,String token,Instant deadline) {
+    return request(url,token,deadline,MAX_SNAPSHOT_RESPONSE_BYTES,
+        HttpRequest.BodyPublishers.noBody(),"GET");
+  }
+
+  private Map<String,Object> request(String url,String token,Instant deadline,int maxBytes,
+      HttpRequest.BodyPublisher body,String method) {
     Duration remaining=Duration.between(Instant.now(),deadline);
     if (remaining.isNegative() || remaining.isZero()) throw failure();
     Duration timeout=remaining.compareTo(Duration.ofSeconds(2))<0?remaining:Duration.ofSeconds(2);
     try {
-      HttpRequest request=HttpRequest.newBuilder(URI.create(url)).timeout(timeout).header("Authorization","Bearer "+token).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build();
+      HttpRequest.Builder builder=HttpRequest.newBuilder(URI.create(url)).timeout(timeout)
+          .header("Authorization","Bearer "+token);
+      if ("POST".equals(method)) builder.header("Content-Type","application/json").POST(body);
+      else builder.GET();
+      HttpRequest request=builder.build();
       HttpResponse<byte[]> response=http.send(request,
-          HttpResponse.BodyHandlers.limiting(HttpResponse.BodyHandlers.ofByteArray(), MAX_RESPONSE_BYTES));
+          HttpResponse.BodyHandlers.limiting(HttpResponse.BodyHandlers.ofByteArray(), maxBytes));
       if (response.statusCode()!=200) {
+        if (url.startsWith(catalogUrl+"/internal/v1/services/") && (response.statusCode()==404 || response.statusCode()==409))
+          throw new TopologyException(HttpStatus.CONFLICT,"SERVICE_REVISION_UNAVAILABLE",
+              "The requested immutable S02 service revision is unavailable or its receipt is stale.");
         if (url.startsWith(catalogUrl+"/internal/v1/workloads/") && response.statusCode()==409) {
           Object error=responseJson.readValue(response.body(),Object.class);
           if (error instanceof Map<?,?> map && Set.of("STALE_WORKLOAD_VERSION","STALE_WORKLOAD_REVISION","OWNER_INACTIVE","WORKLOAD_VERSION_INACTIVE","WORKLOAD_MANIFEST_INVALID").contains(map.get("code"))) throw stale();
@@ -134,12 +246,27 @@ class TopologyProofClient {
     catch (IOException | JacksonException | IllegalArgumentException e) { throw failure(); }
   }
 
+  private static String sha256(String value) {
+    try {
+      return java.util.HexFormat.of().formatHex(
+          java.security.MessageDigest.getInstance("SHA-256")
+              .digest(value.getBytes(StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   void validateReceipt(Map<String,Object> receipt, DelegationPrincipal actor, String purpose, String id, String version, Instant deadline, Instant now) {
+    validateReceipt(receipt,actor,purpose,"agent_workload",id,version,deadline,now);
+  }
+
+  void validateReceipt(Map<String,Object> receipt, DelegationPrincipal actor, String purpose,
+      String resourceType, String id, String version, Instant deadline, Instant now) {
     if (!receipt.keySet().equals(RECEIPT_FIELDS) || publicKey==null || keyId.isBlank()
         || !"UACRF_OWNER_RECEIPT_V1".equals(receipt.get("protocol")) || !keyId.equals(receipt.get("key_id"))
         || !"S02".equals(receipt.get("issuer_service")) || !"S06".equals(receipt.get("audience_service"))
         || !actor.tenantId().equals(receipt.get("tenant_id")) || !actor.environmentId().equals(receipt.get("environment_id"))
-        || !actor.actorSubject().equals(receipt.get("actor_id")) || !"agent_workload".equals(receipt.get("resource_type"))
+        || !actor.actorSubject().equals(receipt.get("actor_id")) || !resourceType.equals(receipt.get("resource_type"))
         || !id.equals(receipt.get("resource_id")) || !version.equals(receipt.get("resource_version")) || !purpose.equals(receipt.get("purpose"))
         || !(receipt.get("eligible") instanceof Boolean) || !validId(receipt.get("receipt_id"))
         || !(receipt.get("content_digest") instanceof String digest) || !digest.matches("^[a-f0-9]{64}$")
@@ -168,6 +295,11 @@ class TopologyProofClient {
     if (!expected.evidenceDigest().equals(digest) || !"QUALIFIED".equals(state) || n.longValue()!=expected.evidenceRevision()) throw stale();
   }
   private static boolean validId(Object value) { return value instanceof String s && s.matches(ID); }
+  private static boolean numericVersionMatches(Object value,long expected) {
+    if (!(value instanceof Number number)) return false;
+    try { return new BigDecimal(number.toString()).longValueExact()==expected; }
+    catch (NumberFormatException | ArithmeticException e) { return false; }
+  }
   private static boolean validNumber(Object value) { return value instanceof Integer i && i>=0 || value instanceof Long l && l>=0 && l<=9007199254740991L; }
   static TopologyException failure() { return new TopologyException(HttpStatus.CONFLICT,"PROOF_UNAVAILABLE_OR_STALE","Current owner proof is unavailable or does not match the retained proposal."); }
   static TopologyException stale() { return new TopologyException(HttpStatus.CONFLICT,"PROOF_STALE","The retained owner proof is no longer current."); }

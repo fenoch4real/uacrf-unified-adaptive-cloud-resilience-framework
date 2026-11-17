@@ -37,7 +37,9 @@ class EvidenceService {
       Set.of(
           "topology.dependency-proposal",
           "topology.dependency-review",
-          "topology.graph.current-use");
+          "topology.graph.current-use",
+          "topology.graph.subgraph-selection",
+          "topology.graph.difference-classification");
   private static final String COLUMNS =
       "id, source_class, source_ref, sequence, observed_at, kind, payload_digest, submitted_by, "
           + "qualification_state, revision, reviewed_by, review_reason";

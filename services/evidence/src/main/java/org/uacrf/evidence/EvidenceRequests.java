@@ -45,7 +45,7 @@ final class EvidenceRequests {
       @NotNull java.time.Instant cutoff) {}
 
   record TopologySummaryRequest(
-      @NotBlank @Pattern(regexp = "^(topology\\.dependency-proposal|topology\\.dependency-review|topology\\.graph\\.current-use)$")
+      @NotBlank @Pattern(regexp = "^(topology\\.dependency-proposal|topology\\.dependency-review|topology\\.graph\\.current-use|topology\\.graph\\.subgraph-selection|topology\\.graph\\.difference-classification)$")
           String purpose,
       @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String expectedDigest,
       @Min(1) long expectedRevision,

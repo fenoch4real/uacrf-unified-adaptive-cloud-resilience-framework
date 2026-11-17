@@ -89,6 +89,20 @@ class CatalogController {
     return catalog.issueOwnerReceipt(jwt, id, request);
   }
 
+  @PostMapping("/internal/v1/services/{id}:receipt")
+  OwnerReceipt getServiceOwnerReceipt(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody OwnerReceiptRequest request) {
+    return catalog.issueServiceOwnerReceipt(jwt, id, request);
+  }
+
+  @GetMapping("/internal/v1/services/{id}/revisions/{version}")
+  ServiceRevisionRead getServiceRevision(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String version) {
+    return catalog.getServiceRevision(jwt, id, version);
+  }
+
   @GetMapping("/v1/agent-workloads")
   Page<Agent> listAgents(
       @AuthenticationPrincipal Jwt jwt,

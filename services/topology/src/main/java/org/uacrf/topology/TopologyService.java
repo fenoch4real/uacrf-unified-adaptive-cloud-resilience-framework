@@ -44,12 +44,13 @@ class TopologyService {
   @Transactional
   Proposal propose(DelegationPrincipal a, Propose r) {
     permit(a,"topology.proposal.write",true);
+    String relationshipType=canonicalRelationshipType(r.relationshipType());
     boolean any = r.sourceSystem()!=null || r.sourceRevision()!=null || r.verifiedAt()!=null;
     if (r.provenanceKind()==ProvenanceKind.AUTHORED && any || r.provenanceKind()==ProvenanceKind.OBSERVED && (r.sourceSystem()==null || r.sourceSystem().isBlank() || r.sourceRevision()==null || r.sourceRevision().isBlank() || r.verifiedAt()==null))
       throw bad("INVALID_PROVENANCE", "Observed provenance requires source system, revision and verification time; authored provenance must be absent.");
-    Integer allowed=db.queryForObject("SELECT count(*) FROM "+S+"permitted_relationships WHERE source_type=? AND relationship_type=? AND target_type=?",Integer.class,r.sourceType(),r.relationshipType(),r.targetType());
+    Integer allowed=db.queryForObject("SELECT count(*) FROM "+S+"permitted_relationships WHERE source_type=? AND relationship_type=? AND target_type=?",Integer.class,r.sourceType(),relationshipType,r.targetType());
     if (allowed==null || allowed==0) throw bad("INVALID_RELATIONSHIP", "The relationship endpoint roles are not permitted.");
-    db.update("INSERT INTO "+S+"dependency_proposals (tenant_id,environment_id,id,source_type,source_id,relationship_type,target_type,target_id,provenance_kind,source_system,source_revision,verified_at,status,proposer,revision) VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'PROPOSED',?,1)", a.tenantId(),a.environmentId(),r.id(),r.sourceType(),r.sourceId(),r.relationshipType(),r.targetType(),r.targetId(),r.provenanceKind().name(),r.sourceSystem(),r.sourceRevision(),r.verifiedAt()==null?null:Timestamp.from(r.verifiedAt()),a.principalId());
+    db.update("INSERT INTO "+S+"dependency_proposals (tenant_id,environment_id,id,source_type,source_id,relationship_type,target_type,target_id,provenance_kind,source_system,source_revision,verified_at,status,proposer,revision) VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'PROPOSED',?,1)", a.tenantId(),a.environmentId(),r.id(),r.sourceType(),r.sourceId(),relationshipType,r.targetType(),r.targetId(),r.provenanceKind().name(),r.sourceSystem(),r.sourceRevision(),r.verifiedAt()==null?null:Timestamp.from(r.verifiedAt()),a.principalId());
     return findProposal(a,r.id());
   }
   @Transactional
@@ -124,8 +125,12 @@ class TopologyService {
     Node node() { return new Node(type,id); }
   }
   private static int compare(List<String> a,List<String> b) { for(int i=0;i<a.size();i++){ int c=a.get(i).compareTo(b.get(i)); if(c!=0)return c; } return 0; }
-  private static EdgeKey key(Proposal p) { return new EdgeKey(p.sourceType(),p.sourceId(),p.relationshipType(),p.targetType(),p.targetId()); }
-  private static EdgeKey key(Edge e) { return new EdgeKey(e.sourceType(),e.sourceId(),e.relationshipType(),e.targetType(),e.targetId()); }
+  private static String canonicalRelationshipType(String relationshipType) {
+    return "IN_FAILURE_DOMAIN".equals(relationshipType)
+        ? "MEMBER_OF_FAILURE_DOMAIN" : relationshipType;
+  }
+  private static EdgeKey key(Proposal p) { return new EdgeKey(p.sourceType(),p.sourceId(),canonicalRelationshipType(p.relationshipType()),p.targetType(),p.targetId()); }
+  private static EdgeKey key(Edge e) { return new EdgeKey(e.sourceType(),e.sourceId(),canonicalRelationshipType(e.relationshipType()),e.targetType(),e.targetId()); }
   private static List<Object> provenance(Proposal p) { return Arrays.asList(p.provenanceKind(),p.sourceSystem(),p.sourceRevision(),p.verifiedAt()); }
   @Transactional
   Graph accept(DelegationPrincipal a,Accept r) {
