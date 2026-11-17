@@ -1069,6 +1069,189 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void objectiveReviewCapabilityRequiresHumanAndGlobalScope() throws Exception {
+    String capability = "objectives.objective.review";
+    String context = "?tenant_id=tenant-test&environment_id=environment-test";
+    String expiresAt = Instant.now().plusSeconds(86400)
+        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+    String decision = "objective-review-test-decision";
+    String membershipId = "00000000-0000-4000-8000-000000000222";
+    try {
+      jdbc.update("INSERT INTO uacrf_identity.principal "
+          + "(id,issuer_uri,subject,display_name,kind,enabled,token_valid_after,revision) "
+          + "VALUES ('objective-review-human',?,'objective-review-human-subject','Human',"
+          + "'HUMAN',true,now() - interval '1 minute',1),"
+          + "('objective-review-system',?,'objective-review-system-subject','System',"
+          + "'SYSTEM',true,now() - interval '1 minute',1),"
+          + "('objective-review-agent',?,'objective-review-agent-subject','Agent',"
+          + "'AGENT',true,now() - interval '1 minute',1)", ISSUER, ISSUER, ISSUER);
+      String approver = token("keycloak-subject-approver");
+      String scoped = decisionBody("objective-review-scoped", "objective-review-human", capability, expiresAt)
+          .replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"");
+      assertEquals(422, post("/v1/grant-decisions" + context, approver, scoped).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("objective-review-system-decision", "objective-review-system",
+              capability, expiresAt)).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("objective-review-agent-decision", "objective-review-agent",
+              capability, expiresAt)).statusCode());
+      String request = "{\"audience\":\"S05\",\"capability_ids\":[\"objectives.objective.review\"]}";
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test','objective-review-human',?,'svc-1',"
+          + "'2099-12-31T23:59:59Z',1)", UUID.randomUUID(), capability);
+      assertEquals(403, post("/internal/v1/delegations",
+          token("objective-review-human-subject"), request).statusCode());
+      assertEquals(201, post("/v1/grant-decisions" + context, approver,
+          decisionBody(decision, "objective-review-human", capability, expiresAt)).statusCode());
+      assertEquals(201, post("/v1/memberships" + context, token("keycloak-subject-1"),
+          membershipBody(membershipId, "objective-review-human", capability, expiresAt, decision),
+          "objective-review-grant").statusCode());
+      for (String principal : List.of("objective-review-system", "objective-review-agent")) {
+        jdbc.update("INSERT INTO uacrf_identity.membership "
+            + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+            + "VALUES (?,'tenant-test','environment-test',?,?,'*','2099-12-31T23:59:59Z',1)",
+            UUID.randomUUID(), principal, capability);
+      }
+      assertEquals(200, post("/internal/v1/delegations",
+          token("objective-review-human-subject"), request).statusCode());
+      assertEquals(403, post("/internal/v1/delegations",
+          token("objective-review-system-subject"), request).statusCode());
+      assertEquals(403, post("/internal/v1/delegations",
+          token("objective-review-agent-subject"), request).statusCode());
+    } finally {
+      jdbc.update("UPDATE uacrf_identity.grant_decision SET consumed_at = NULL, consumed_membership_id = NULL "
+          + "WHERE id = ?", decision);
+      jdbc.update("DELETE FROM uacrf_identity.audit_event WHERE principal_id = 'objective-review-human'");
+      jdbc.update("DELETE FROM uacrf_identity.outbox_event WHERE aggregate_id IN "
+          + "(SELECT id::text FROM uacrf_identity.membership WHERE principal_id = 'objective-review-human')");
+      jdbc.update("DELETE FROM uacrf_identity.idempotency_record WHERE idempotency_key = 'objective-review-grant'");
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id IN "
+          + "('objective-review-human','objective-review-system','objective-review-agent')");
+      jdbc.update("DELETE FROM uacrf_identity.grant_decision WHERE id IN (?,?,?,?)", decision,
+          "objective-review-scoped", "objective-review-system-decision", "objective-review-agent-decision");
+      jdbc.update("DELETE FROM uacrf_identity.principal "
+          + "WHERE id IN ('objective-review-human','objective-review-system','objective-review-agent')");
+    }
+  }
+
+  @Test
+  void objectiveReviewAuthorityCheckRequiresCurrentSystemAndHumanAuthority() throws Exception {
+    String path = "/internal/v1/objective-review-authority:check";
+    String body = """
+        {"tenant_id":"tenant-test","environment_id":"environment-test","reviewer_id":"authority-human"}
+        """;
+    String capability = "objectives.review-authority.check";
+    String expiresAt = Instant.now().plusSeconds(86400)
+        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+    String membershipId = "00000000-0000-4000-8000-000000000223";
+    try {
+      jdbc.update("INSERT INTO uacrf_identity.principal "
+          + "(id,issuer_uri,subject,display_name,kind,enabled,token_valid_after,revision) "
+          + "VALUES ('authority-system',?,'authority-system-subject','System',"
+          + "'SYSTEM',true,now() - interval '1 minute',1),"
+          + "('authority-human',?,'authority-human-subject','Human',"
+          + "'HUMAN',true,now() - interval '1 minute',1),"
+          + "('authority-agent',?,'authority-agent-subject','Agent',"
+          + "'AGENT',true,now() - interval '1 minute',1)",
+          ISSUER, ISSUER, ISSUER);
+      for (String principal : List.of("authority-system", "authority-human")) {
+        jdbc.update("INSERT INTO uacrf_identity.membership "
+            + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+            + "VALUES (?,'tenant-test','environment-test',?,'catalog.service.read','*',"
+            + "'2099-12-31T23:59:59Z',1)", UUID.randomUUID(), principal);
+      }
+      String system = token("authority-system-subject");
+      String human = token("authority-human-subject");
+      assertEquals(401, post(path, "Bearer invalid", body).statusCode());
+      assertEquals(403, post(path, system, body).statusCode());
+      String approver = token("keycloak-subject-approver");
+      String context = "?tenant_id=tenant-test&environment_id=environment-test";
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("authority-human-grant", "authority-human", capability, expiresAt)).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("authority-agent-grant", "authority-agent", capability, expiresAt)).statusCode());
+      String scoped = decisionBody("authority-scoped-grant", "authority-system", capability, expiresAt)
+          .replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"");
+      assertEquals(422, post("/v1/grant-decisions" + context, approver, scoped).statusCode());
+      assertEquals(201, post("/v1/grant-decisions" + context, approver,
+          decisionBody("authority-system-grant", "authority-system", capability, expiresAt)).statusCode());
+      UUID checkGrant = UUID.randomUUID();
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test','authority-system',?,'svc-1',"
+          + "'2099-12-31T23:59:59Z',1)", checkGrant, capability);
+      assertEquals(403, post(path, system, body).statusCode());
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE id=?", checkGrant);
+      assertEquals(201, post("/v1/memberships" + context, token("keycloak-subject-1"),
+          membershipBody(membershipId, "authority-system", capability, expiresAt, "authority-system-grant"),
+          "objective-authority-grant").statusCode());
+      assertEquals(403, post("/internal/v1/delegations", system,
+          "{\"audience\":\"S05\",\"capability_ids\":[\"objectives.review-authority.check\"]}").statusCode());
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test','authority-human',?,'*',"
+          + "'2099-12-31T23:59:59Z',1)", UUID.randomUUID(), capability);
+      assertEquals(403, post(path, human, body).statusCode());
+      assertEquals(403, post(path, system, body).statusCode());
+      UUID reviewerGrant = UUID.randomUUID();
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test','authority-human','objectives.objective.review','*',"
+          + "'2099-12-31T23:59:59Z',1)", reviewerGrant);
+      HttpResponse<String> success = post(path, system, body);
+      assertEquals(200, success.statusCode(), success.body());
+      assertThat(success.body()).contains("\"reviewer_id\":\"authority-human\"",
+          "\"tenant_id\":\"tenant-test\"", "\"environment_id\":\"environment-test\"",
+          "\"status\":\"AUTHORIZED\"", "\"checked_at\":\"");
+      String checkedAt = success.body().replaceFirst("^.*\"checked_at\":\"([^\"]+)\".*$", "$1");
+      assertThat(Instant.parse(checkedAt)).isBeforeOrEqualTo(Instant.now().plusSeconds(5));
+      assertEquals(403, post(path, system, body.replace("authority-human", "authority-system")).statusCode());
+      assertEquals(403, post(path, system, body.replace("environment-test", "environment-other")).statusCode());
+      assertEquals(400, post(path, system, body.replace("authority-human", "../invalid")).statusCode());
+      jdbc.update("INSERT INTO uacrf_identity.tenant (id,display_name,status,revision) "
+          + "VALUES ('authority-other-tenant','Other tenant','ACTIVE',1)");
+      jdbc.update("INSERT INTO uacrf_identity.environment (tenant_id,id,display_name,status,revision) "
+          + "VALUES ('authority-other-tenant','authority-other-env','Other environment','ACTIVE',1)");
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'authority-other-tenant','authority-other-env','authority-system',?,'*',"
+          + "'2099-12-31T23:59:59Z',1)", UUID.randomUUID(), capability);
+      String otherContext = body.replace("tenant-test", "authority-other-tenant")
+          .replace("environment-test", "authority-other-env");
+      assertEquals(403, post(path, system, otherContext).statusCode());
+      jdbc.update("UPDATE uacrf_identity.membership SET service_scope='svc-1' WHERE id=?", reviewerGrant);
+      assertEquals(403, post(path, system, body).statusCode());
+      jdbc.update("UPDATE uacrf_identity.membership SET service_scope='*' WHERE id=?", reviewerGrant);
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at=now() WHERE id=?", reviewerGrant);
+      assertEquals(403, post(path, system, body).statusCode());
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at=NULL, expires_at=now() - interval '1 second' "
+          + "WHERE id=?", reviewerGrant);
+      assertEquals(403, post(path, system, body).statusCode());
+      jdbc.update("UPDATE uacrf_identity.membership SET expires_at='2099-12-31T23:59:59Z' WHERE id=?", reviewerGrant);
+      jdbc.update("UPDATE uacrf_identity.principal SET enabled=false WHERE id='authority-human'");
+      assertEquals(403, post(path, system, body).statusCode());
+      jdbc.update("UPDATE uacrf_identity.principal SET enabled=true WHERE id='authority-human'");
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at=now() WHERE id=?", UUID.fromString(membershipId));
+      assertEquals(403, post(path, system, body).statusCode());
+    } finally {
+      jdbc.update("UPDATE uacrf_identity.grant_decision SET consumed_at = NULL, consumed_membership_id = NULL "
+          + "WHERE id = 'authority-system-grant'");
+      jdbc.update("DELETE FROM uacrf_identity.audit_event WHERE principal_id = 'authority-system'");
+      jdbc.update("DELETE FROM uacrf_identity.outbox_event WHERE aggregate_id IN "
+          + "(SELECT id::text FROM uacrf_identity.membership WHERE principal_id = 'authority-system')");
+      jdbc.update("DELETE FROM uacrf_identity.idempotency_record WHERE idempotency_key = 'objective-authority-grant'");
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id IN ('authority-system','authority-human')");
+      jdbc.update("DELETE FROM uacrf_identity.grant_decision WHERE id IN "
+          + "('authority-human-grant','authority-agent-grant','authority-scoped-grant','authority-system-grant')");
+      jdbc.update("DELETE FROM uacrf_identity.principal "
+          + "WHERE id IN ('authority-system','authority-human','authority-agent')");
+      jdbc.update("DELETE FROM uacrf_identity.environment WHERE tenant_id='authority-other-tenant'");
+      jdbc.update("DELETE FROM uacrf_identity.tenant WHERE id='authority-other-tenant'");
+    }
+  }
+
+  @Test
   void knowledgeCapabilitiesAreDelegableToS08OnlyForHumanMemberships() throws Exception {
     List<String> knowledgeCapabilities =
         List.of(

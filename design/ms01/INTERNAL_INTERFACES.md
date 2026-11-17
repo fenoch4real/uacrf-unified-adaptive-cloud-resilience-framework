@@ -15,6 +15,7 @@ Current access and content permission are separate from historical authenticity.
 | S01 | POST /internal/v1/access:check | Original actor, receiver, operation, workload/resource scope, expected epoch; current access receipt or concealed denial |
 | S01 | POST /internal/v1/delegations | Current service plus original actor and narrowed audience/scope; short-lived delegation token |
 | S01 | POST /internal/v1/owners/{id}:check | Target domain/scope and owner ID; eligible-human owner receipt |
+| S01 | POST /internal/v1/objective-review-authority:check | Directly authenticated system caller and scoped reviewer ID; unsigned point-in-time reviewer-authority snapshot, not an owner receipt |
 | S02 | POST /internal/v1/workloads/{id}:receipt | Purpose, requested version and known revision; exact current workload/profile receipt |
 | S02 | GET /internal/v1/workload-versions/{id} | Current disclosure; immutable manifest and artifact metadata |
 | S03 | POST /internal/v1/source-batches | Bound source/checkpoint/lease and exact observation references; intake receipt with accepted/duplicate/rejected identities |
@@ -27,6 +28,8 @@ Current access and content permission are separate from historical authenticity.
 | S06 | POST /internal/v1/dependency-proposals | Catalog/source revisions and typed endpoints; accepted proposal command, not direct Neo4j mutation |
 | S07 | POST /internal/v1/cases/{id}:receipt | Purpose, case digest and current source requirements; fixed-case receipt |
 | S07 | POST /internal/v1/learning-records/{id}:review-receipt | Point-in-time review and evidence verification, proposal/review digests and evaluation lineage; explicitly not adoption authorization |
+| S07 | POST /internal/v1/adaptation-proposals | Feature-gated immutable unverified draft with learning-review lineage and declared target, tests, reviewer and rollback criteria; no submission or authorization |
+| S07 | GET /internal/v1/adaptation-proposals/{id} and GET /internal/v1/adaptation-proposals | Scoped historical draft read and paginated discovery by learning record |
 | S07 | POST /internal/v1/evaluation-triggers | Workload, observation cutoff and deduplication trigger; coalesced evaluation command |
 | S08 | POST /internal/v1/retrievals/{id}:receipt | Case, purpose/classification and manifest digest; current retained-guidance receipt |
 | S09 | POST /internal/v1/runs/{id}:cancel | Expected revision/generation and reason; retained cancellation with late-output policy |
@@ -40,6 +43,29 @@ Current access and content permission are separate from historical authenticity.
 | S14 | POST /internal/v1/export-requests | Requested source references, purpose and actor scope; durable export command after owner disclosure |
 
 The implemented S07 learning-review receipt is an exception to the target protocol above: it is an internal, unsigned point-in-time verification response, not a signed owner receipt or adoption authorization. It requires global-scope `assessment.learning.read` and `UACRF_ASSESSMENT_LEARNING_REVIEW_ENABLED=true`, and is not routed through EDGE01 or consumed by S10. S07 verifies an approved review for the proposal revision, compares its SHA-256 digest with `owned_digest` in exactly one retained review outbox event, and revalidates supporting incident evaluation evidence with current owners. The digest uses the current Jackson serialization rather than RFC 8785, and the check does not verify the whole outbox payload digest; serialization changes or removal of the event can fail closed. Owner checks are sequential, and later changes can invalidate the result.
+
+The implemented S01 objective-review authority check takes `tenant_id`, `environment_id`
+and `reviewer_id`. A directly authenticated SYSTEM caller requires a current
+global `objectives.review-authority.check` membership; that capability cannot be
+delegated. In one database statement S01 checks current caller and reviewer
+status, trusted identity providers and global memberships. An authorized result
+contains the scope, reviewer, status and database check time; denials do not
+disclose whether the reviewer exists. It is unsigned, has no authority epoch or
+validity interval, and does not bind an objective, decision or operation. It is
+not the target access receipt or an activation authorization, and subsequent
+revocation may invalidate it. It is not routed by EDGE01. With the optional
+`UACRF_OBJECTIVES_REVIEWER_CHECK_ENABLED` gate enabled, S05 verifies the
+retained reviewer's current authority through this response before activation,
+using direct SYSTEM credentials. It rejects unavailable, malformed, mismatched
+or stale responses, but does not check the activator, bind the response to an
+objective or prevent revocation between the check and commit. With the gate
+disabled, activation performs no reviewer recheck.
+
+For both review approval and receipt issuance, S07 additionally checks typed proposal content against the separately stored incident and evidence references, recomputes its digest and compares it with `owned_digest` in exactly one retained proposal event. Inconsistency or a missing event fails closed. This proposal digest also uses current Jackson serialization and is not a versioned canonical scheme; the check does not authenticate the event or verify its full payload.
+
+S07 also rechecks the proposal's expected incident revision and requires its evidence to be a subset of the incident's evidence, even when the supporting evaluations contain additional verified measurements. A previously retained approval remains historical and readable, but does not produce a current verification response if this binding is inconsistent.
+
+Adaptation draft creation requires global-scope `assessment.learning.write` and `assessment.learning.read`, both the adaptation and learning-review feature flags, and a fresh successful learning-review check. The retained learning digests and check time are historical evidence only. Target owner, controlled version, proposed reviewer, tests and rollback criteria are caller declarations, not owner-verified or independently approved; no owner workflow is contacted. Reads require global-scope `assessment.learning.read`, even when creation is disabled. Listing requires `learning_record_id`, uses an ID cursor and `limit` 1–100 (default 50); separate pages are not a snapshot. Creation requires `Idempotency-Key`, scoped to tenant, environment and actor; same-content retries return the retained draft without rechecking owners, while changed content conflicts. Replays still require the feature flags and capabilities and are not current approval. Matching uses a hash of the current Jackson serialization and may conflict after serialization changes. The transactional local outbox event is unpublished and is not an execution permit. No EDGE01 route or target-owner submission exists.
 
 Owner checks have a proposed two-second per-call timeout and a five-second overall current-context preparation budget under the nominal profile. Slow actual artifact verification can use durable asynchronous commands instead of holding transactions open. These are engineering targets, not measured service performance. Safe read retries must stay within the original operation deadline. Permission denied, stale revision, expired source and unavailable owner remain distinct internal outcomes.
 

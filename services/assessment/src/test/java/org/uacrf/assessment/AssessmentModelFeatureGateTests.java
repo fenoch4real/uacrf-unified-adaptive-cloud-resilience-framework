@@ -1,6 +1,7 @@
 package org.uacrf.assessment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -38,7 +39,7 @@ class AssessmentModelFeatureGateTests {
               "env-1", "*", "https://idp.example.test", "model-user",
               List.of("assessment.model.read", "assessment.model.write",
                   "assessment.model.review", "assessment.learning.review",
-                  "assessment.learning.read"), List.of(), List.of()), "S07");
+                  "assessment.learning.read", "assessment.learning.write"), List.of(), List.of()), "S07");
   @Container private static final PostgreSQLContainer POSTGRES =
       new PostgreSQLContainer("postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81")
           .withDatabaseName("uacrf_assessment").withUsername("assessment_test")
@@ -60,6 +61,16 @@ class AssessmentModelFeatureGateTests {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
   private final HttpClient http = HttpClient.newHttpClient();
+
+  @Test
+  void adaptationStillRequiresLearningReviewWhenItsOwnFlagIsEnabled() {
+    var service = new IncidentLearningService(null, null, null, false, true);
+    var actor = new DelegationPrincipal("principal", "tenant", "environment", "*",
+        "https://idp.example.test", "subject",
+        List.of("assessment.learning.write", "assessment.learning.read"), List.of(), List.of());
+    var failure = assertThrows(AssessmentException.class, () -> service.proposeAdaptation(actor, null, "key"));
+    assertEquals("FEATURE_DISABLED", failure.code());
+  }
 
   @Test
   void disabledGateBlocksCommandsButKeepsReadsAvailable() throws Exception {
@@ -124,6 +135,12 @@ class AssessmentModelFeatureGateTests {
     HttpResponse<String> deniedReceipt = post("/internal/v1/learning-records/any:review-receipt", "{}");
     assertEquals(409, deniedReceipt.statusCode());
     assertEquals("FEATURE_DISABLED", json.readTree(deniedReceipt.body()).get("code").asString());
+    HttpResponse<String> deniedAdaptation = postWithKey("/internal/v1/adaptation-proposals",
+        "{\"learning_record_id\":\"any\",\"target_type\":\"MODEL\",\"target_owner\":\"S07\","
+            + "\"controlled_version_ref\":\"v1\",\"reason\":\"reason\",\"required_tests\":[\"test\"],"
+            + "\"proposed_reviewer\":\"reviewer\",\"rollback_criteria\":\"rollback\"}");
+    assertEquals(409, deniedAdaptation.statusCode());
+    assertEquals("FEATURE_DISABLED", json.readTree(deniedAdaptation.body()).get("code").asString());
     jdbc.update("INSERT INTO uacrf_assessment.analysis_case "
         + "(tenant_id,environment_id,id,workload_id,content,state,revision,created_by) "
         + "VALUES ('t-model-gate','env-1','case-1','w1','{}'::jsonb,'DRAFT',1,'user')");
@@ -145,12 +162,33 @@ class AssessmentModelFeatureGateTests {
         .header("Authorization", TOKEN).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(200, read.statusCode());
     assertEquals("REJECT", json.readTree(read.body()).get("decision").asString());
+    String adaptationId = java.util.UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.adaptation_proposal "
+            + "(tenant_id,environment_id,id,learning_record_id,learning_record_digest,learning_review_digest,"
+            + "learning_checked_at,content,state,created_by) VALUES ('t-model-gate','env-1',?,?,"
+            + "repeat('a',64),repeat('b',64),now(),?::jsonb,'DRAFT_UNVERIFIED','user')",
+        adaptationId, recordId, "{\"learning_record_id\":\"" + recordId
+            + "\",\"target_type\":\"MODEL\",\"target_owner\":\"S07\",\"controlled_version_ref\":\"v1\","
+            + "\"reason\":\"reason\",\"required_tests\":[\"test\"],\"proposed_reviewer\":\"reviewer\","
+            + "\"rollback_criteria\":\"rollback\"}");
+    HttpResponse<String> adaptationRead = http.send(HttpRequest.newBuilder(URI.create(
+        "http://localhost:" + port + "/internal/v1/adaptation-proposals/" + adaptationId))
+        .header("Authorization", TOKEN).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, adaptationRead.statusCode());
+    assertEquals("DRAFT_UNVERIFIED", json.readTree(adaptationRead.body()).get("state").asString());
   }
 
   private HttpResponse<String> post(String path, String body) throws Exception {
     return http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
         .header("Authorization", TOKEN).header("Content-Type", "application/json")
         .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postWithKey(String path, String body) throws Exception {
+    return http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        .header("Authorization", TOKEN).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "key").POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+        HttpResponse.BodyHandlers.ofString());
   }
 
   private String seedVersion(String suffix, String state) {

@@ -20,6 +20,11 @@ final class IdentityRequests {
       @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String tenantId,
       @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String environmentId) {}
 
+  record ObjectiveReviewAuthorityCheck(
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String tenantId,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String environmentId,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String reviewerId) {}
+
   record RevokeMembership(
       @Min(1) long expectedRevision, @NotBlank @Size(max = 2000) String reason) {}
 

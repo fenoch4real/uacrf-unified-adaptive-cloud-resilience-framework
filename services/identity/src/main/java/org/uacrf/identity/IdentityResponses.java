@@ -29,6 +29,9 @@ final class IdentityResponses {
 
   record Delegation(String accessToken, String tokenType, int expiresIn) {}
 
+  record ObjectiveReviewAuthority(
+      String tenantId, String environmentId, String reviewerId, String status, java.time.Instant checkedAt) {}
+
   record Error(String code, String message, String requestId) {}
 
   record IdentityProvider(String id, String displayName, String status) {}

@@ -120,6 +120,22 @@ class AssessmentController {
   LearningReviewReceipt learningReviewReceipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return incidentLearning.learningReviewReceipt(DelegationPrincipal.from(jwt), id);
   }
+  @PostMapping("/internal/v1/adaptation-proposals") @ResponseStatus(HttpStatus.CREATED)
+  AdaptationProposal proposeAdaptation(@AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody ProposeAdaptation request, @RequestHeader("Idempotency-Key") String key) {
+    return incidentLearning.proposeAdaptation(DelegationPrincipal.from(jwt), request, key);
+  }
+  @GetMapping("/internal/v1/adaptation-proposals/{id}")
+  AdaptationProposal adaptationProposal(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return incidentLearning.getAdaptation(DelegationPrincipal.from(jwt), id);
+  }
+  @GetMapping("/internal/v1/adaptation-proposals")
+  AdaptationProposalPage adaptationProposals(@AuthenticationPrincipal Jwt jwt,
+      @RequestParam("learning_record_id") String learningRecordId,
+      @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="after", required=false) String after) {
+    return incidentLearning.listAdaptations(DelegationPrincipal.from(jwt), learningRecordId, limit, after);
+  }
   @GetMapping("/v1/learning-records/{id}")
   LearningRecord getLearningRecord(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return incidentLearning.getLearningRecord(DelegationPrincipal.from(jwt), id);

@@ -27,13 +27,16 @@ class IncidentLearningService {
   private final ObjectMapper json;
   private final AssessmentService assessment;
   private final boolean reviewEnabled;
+  private final boolean adaptationEnabled;
 
   IncidentLearningService(JdbcTemplate jdbc, ObjectMapper json, AssessmentService assessment,
-      @Value("${uacrf.assessment.learning-review.enabled:false}") boolean reviewEnabled) {
+      @Value("${uacrf.assessment.learning-review.enabled:false}") boolean reviewEnabled,
+      @Value("${uacrf.assessment.adaptation.enabled:false}") boolean adaptationEnabled) {
     this.jdbc = jdbc;
     this.json = json;
     this.assessment = assessment;
     this.reviewEnabled = reviewEnabled;
+    this.adaptationEnabled = adaptationEnabled;
   }
 
   @Transactional
@@ -179,6 +182,7 @@ class IncidentLearningService {
       throw conflict("INVALID_STATE", "This learning record already has a review decision.");
     }
     if (request.decision() == LearningDecision.APPROVE) {
+      verifyLearningRecordIntegrity(actor, record);
       verifyLearningEvidence(actor, record);
     }
     jdbc.update("INSERT INTO " + DB + "learning_review "
@@ -205,6 +209,7 @@ class IncidentLearningService {
     if (!"APPROVE".equals(review.decision()) || review.expectedRevision() != record.revision()) {
       throw conflict("LEARNING_REVIEW_NOT_APPROVED", "An approved review for this revision is required.");
     }
+    String contentDigest = verifyLearningRecordIntegrity(actor, record);
     String reviewDigest = hash(write(review));
     List<String> retainedDigests = jdbc.query("SELECT payload->>'owned_digest' FROM " + DB
             + "outbox_event WHERE tenant_id=? AND environment_id=? AND aggregate_type='LEARNING_REVIEW' "
@@ -214,15 +219,140 @@ class IncidentLearningService {
       throw conflict("REVIEW_INTEGRITY_MISMATCH", "The retained review event does not match the review.");
     }
     Incident incident = verifyLearningEvidence(actor, record);
-    String contentDigest = jdbc.queryForObject("SELECT content_digest FROM " + DB
-            + "learning_record WHERE tenant_id=? AND environment_id=? AND id=?", String.class,
-        actor.tenantId(), actor.environmentId(), id);
     return new LearningReviewReceipt(id, incident.id(), contentDigest, reviewDigest,
         incident.sourceEvaluationIds(), "VERIFIED", Instant.now(), false);
   }
 
+  @Transactional
+  AdaptationProposal proposeAdaptation(DelegationPrincipal actor, ProposeAdaptation request, String key) {
+    permit(actor, "assessment.learning.write");
+    permit(actor, "assessment.learning.read");
+    if (!adaptationEnabled) throw conflict("FEATURE_DISABLED", "Adaptation proposals are disabled.");
+    requireLearningReviewEnabled();
+    if (key == null || key.isBlank() || key.length() > 200 || key.chars().anyMatch(Character::isWhitespace)) {
+      throw new AssessmentException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "Idempotency-Key must be a non-empty token of at most 200 characters.");
+    }
+    String content = write(request);
+    String digest = hash(content);
+    int inserted = jdbc.update("INSERT INTO " + DB + "adaptation_idempotency "
+            + "(tenant_id,environment_id,actor_id,idempotency_key,payload_digest) VALUES (?,?,?,?,?) "
+            + "ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+    if (inserted == 0) {
+      List<AdaptationRequest> prior = jdbc.query("SELECT payload_digest,proposal_id FROM " + DB
+              + "adaptation_idempotency WHERE tenant_id=? AND environment_id=? AND actor_id=? "
+              + "AND idempotency_key=? FOR UPDATE",
+          (rs, row) -> new AdaptationRequest(rs.getString("payload_digest"), rs.getString("proposal_id")),
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+      if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+      }
+      if (prior.getFirst().proposalId() == null) {
+        throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+      }
+      return findAdaptation(actor, prior.getFirst().proposalId());
+    }
+    LearningReviewReceipt receipt = learningReviewReceipt(actor, request.learningRecordId());
+    String id = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO " + DB + "adaptation_proposal "
+            + "(tenant_id,environment_id,id,learning_record_id,learning_record_digest,"
+            + "learning_review_digest,learning_checked_at,content,state,created_by) "
+            + "VALUES (?,?,?,?,?,?,?,?::jsonb,'DRAFT_UNVERIFIED',?)",
+        actor.tenantId(), actor.environmentId(), id, request.learningRecordId(),
+        receipt.learningRecordDigest(), receipt.reviewDigest(), Timestamp.from(receipt.checkedAt()),
+        content, actor.principalId());
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("owned_resource_id", id);
+    payload.put("owned_revision", 1);
+    payload.put("owned_digest", digest);
+    payload.put("minimal_outcome_metadata", Map.of(
+        "learning_record_id", request.learningRecordId(), "state", "DRAFT_UNVERIFIED"));
+    payload.put("actor_id", actor.principalId());
+    String serialized = write(payload);
+    jdbc.update("INSERT INTO " + DB + "outbox_event "
+            + "(event_id,tenant_id,environment_id,aggregate_type,aggregate_id,aggregate_sequence,"
+            + "event_type,payload,payload_digest) VALUES (?,?,?,?,?,?,?,?::jsonb,?)",
+        UUID.randomUUID(), actor.tenantId(), actor.environmentId(), "ADAPTATION_PROPOSAL", id, 1,
+        "uacrf.s07.adaptation.proposed.v1", serialized, hash(serialized));
+    jdbc.update("UPDATE " + DB + "adaptation_idempotency SET proposal_id=? "
+            + "WHERE tenant_id=? AND environment_id=? AND actor_id=? AND idempotency_key=?",
+        id, actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    return findAdaptation(actor, id);
+  }
+
+  @Transactional(readOnly = true)
+  AdaptationProposal getAdaptation(DelegationPrincipal actor, String id) {
+    permit(actor, "assessment.learning.read");
+    return findAdaptation(actor, id);
+  }
+
+  @Transactional(readOnly = true)
+  AdaptationProposalPage listAdaptations(DelegationPrincipal actor, String learningRecordId,
+      int limit, String after) {
+    permit(actor, "assessment.learning.read");
+    if (learningRecordId.isBlank() || learningRecordId.length() > 200
+        || !AssessmentPagination.valid(limit, after)) {
+      throw new AssessmentException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "A learning record, a limit between 1 and 100 and a valid cursor are required.");
+    }
+    findLearningRecord(actor, learningRecordId);
+    List<AdaptationProposal> rows = jdbc.query("SELECT * FROM " + DB
+            + "adaptation_proposal WHERE tenant_id=? AND environment_id=? AND learning_record_id=? "
+            + "AND id>? ORDER BY id LIMIT ?",
+        (rs, row) -> adaptationProposalRow(rs), actor.tenantId(), actor.environmentId(),
+        learningRecordId, after == null ? "" : after, limit + 1);
+    boolean more = rows.size() > limit;
+    return new AdaptationProposalPage(List.copyOf(rows.subList(0, Math.min(rows.size(), limit))),
+        more ? rows.get(limit - 1).id() : null);
+  }
+
+  private AdaptationProposal findAdaptation(DelegationPrincipal actor, String id) {
+    List<AdaptationProposal> rows = jdbc.query("SELECT * FROM " + DB
+            + "adaptation_proposal WHERE tenant_id=? AND environment_id=? AND id=?",
+        (rs, row) -> adaptationProposalRow(rs),
+        actor.tenantId(), actor.environmentId(), id);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
+  }
+
+  private AdaptationProposal adaptationProposalRow(ResultSet rs) throws SQLException {
+    return new AdaptationProposal(rs.getString("id"),
+        read(rs.getString("content"), ProposeAdaptation.class),
+        rs.getString("learning_record_digest"), rs.getString("learning_review_digest"),
+        rs.getTimestamp("learning_checked_at").toInstant(), rs.getString("state"),
+        rs.getString("created_by"), rs.getTimestamp("created_at").toInstant());
+  }
+
+  private String verifyLearningRecordIntegrity(DelegationPrincipal actor, LearningRecord record) {
+    List<LearningContent> contents = jdbc.query("SELECT content::text,content_digest FROM " + DB
+            + "learning_record WHERE tenant_id=? AND environment_id=? AND id=?",
+        (rs, row) -> new LearningContent(read(rs.getString("content"), ProposeLearningRecord.class),
+            rs.getString("content_digest")), actor.tenantId(), actor.environmentId(), record.id());
+    if (contents.size() != 1) {
+      throw conflict("LEARNING_INTEGRITY_MISMATCH", "The retained learning proposal does not match its event.");
+    }
+    LearningContent retained = contents.getFirst();
+    ProposeLearningRecord actual = new ProposeLearningRecord(record.incidentId(), record.experimentId(),
+        record.hypotheses(), record.actionItems(), record.evidenceRefs(), record.expectedRevision(), record.reason());
+    List<String> eventDigests = jdbc.query("SELECT payload->>'owned_digest' FROM " + DB
+            + "outbox_event WHERE tenant_id=? AND environment_id=? AND aggregate_type='LEARNING_RECORD' "
+            + "AND aggregate_id=? AND aggregate_sequence=1 AND event_type='uacrf.s07.learning.proposed.v1'",
+        (rs, row) -> rs.getString(1), actor.tenantId(), actor.environmentId(), record.id());
+    if (!actual.equals(retained.content()) || !hash(write(retained.content())).equals(retained.digest())
+        || eventDigests.size() != 1 || !retained.digest().equals(eventDigests.getFirst())) {
+      throw conflict("LEARNING_INTEGRITY_MISMATCH", "The retained learning proposal does not match its event.");
+    }
+    return retained.digest();
+  }
+
   private Incident verifyLearningEvidence(DelegationPrincipal actor, LearningRecord record) {
     Incident incident = findIncident(actor, record.incidentId());
+    if (record.expectedRevision() != incident.revision()
+        || !new HashSet<>(incident.evidenceRefs()).containsAll(record.evidenceRefs())) {
+      throw conflict("INCIDENT_PROVENANCE_INVALID",
+          "Learning evidence must belong to the expected incident revision.");
+    }
     if (incident.sourceEvaluationIds() == null) {
       throw conflict("INCIDENT_PROVENANCE_REQUIRED",
           "Approval requires the incident's retained evaluation provenance.");
@@ -471,4 +601,6 @@ class IncidentLearningService {
 
   private record CaseRef(String workloadId, String state) {}
   private record EvaluationEvidence(String id, Instant observationCutoff, DependencyVector vector) {}
+  private record LearningContent(ProposeLearningRecord content, String digest) {}
+  private record AdaptationRequest(String digest, String proposalId) {}
 }

@@ -33,10 +33,12 @@ class ObjectivesService {
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
+  private final ObjectiveReviewAuthorityClient reviewerAuthority;
 
-  ObjectivesService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+  ObjectivesService(JdbcTemplate jdbc, ObjectMapper objectMapper, ObjectiveReviewAuthorityClient reviewerAuthority) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
+    this.reviewerAuthority = reviewerAuthority;
   }
 
   @Transactional
@@ -142,6 +144,7 @@ class ObjectivesService {
     requireRevision(row, request.expectedRevision());
     requireState(row, "APPROVED");
     enforceConstraint(actor, row);
+    reviewerAuthority.check(actor.tenantId(), actor.environmentId(), (String) row.get("decided_by"));
     List<Map<String, Object>> previous =
         jdbc.queryForList(
             "SELECT id, revision FROM " + SCHEMA + "objective WHERE tenant_id = ? AND environment_id = ? "
@@ -316,7 +319,7 @@ class ObjectivesService {
   private Map<String, Object> lock(DelegationPrincipal actor, String id) {
     List<Map<String, Object>> rows =
         jdbc.queryForList(
-            "SELECT workload_id, metric, unit, target, content_digest, state, revision, proposed_by FROM "
+            "SELECT workload_id, metric, unit, target, content_digest, state, revision, proposed_by, decided_by FROM "
                 + SCHEMA + "objective WHERE tenant_id = ? AND environment_id = ? AND id = ? FOR UPDATE",
             actor.tenantId(),
             actor.environmentId(),

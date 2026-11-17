@@ -114,6 +114,7 @@ class EvidenceAssessmentCrossServiceTests {
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_ENABLED", "true"),
           Map.entry("UACRF_ASSESSMENT_MODELS_ENABLED", "true"),
           Map.entry("UACRF_ASSESSMENT_LEARNING_REVIEW_ENABLED", "true"),
+          Map.entry("UACRF_ASSESSMENT_ADAPTATION_ENABLED", "true"),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_TOKEN_URL", fixture + "/token"),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_CLIENT_SECRET", "fixture-secret"),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_DELEGATION_URL", fixture + "/delegations"),
@@ -186,6 +187,14 @@ class EvidenceAssessmentCrossServiceTests {
       JsonNode reviewReceipt = post(assessment, reviewReceiptPath, actor, "{}", 200);
       assertEquals("VERIFIED", reviewReceipt.get("owner_receipts").asString());
       assertEquals(false, reviewReceipt.get("authorizes_adoption").asBoolean());
+      String adaptationBody = "{\"learning_record_id\":\"" + approvedLearning
+          + "\",\"target_type\":\"OBJECTIVE\",\"target_owner\":\"S05\","
+          + "\"controlled_version_ref\":\"objective:1\",\"reason\":\"investigate\","
+          + "\"required_tests\":[\"replay\"],\"proposed_reviewer\":\"reviewer-2\","
+          + "\"rollback_criteria\":\"restore prior version\"}";
+      String adaptationPath = "/internal/v1/adaptation-proposals";
+      String adaptationId = postAdaptation(assessment, adaptationPath, actor, adaptationBody, "attempt-1", 201)
+          .get("id").asString();
       String modelBody = "{\"model_id\":\"freshness-model\",\"version\":\"1\","
           + "\"artifact_ref\":\"artifact\",\"digest\":\"" + "b".repeat(64)
           + "\",\"model_card_ref\":\"card\",\"evaluation_pack_ref\":\"pack\",\"reason\":\"test\"}";
@@ -212,6 +221,14 @@ class EvidenceAssessmentCrossServiceTests {
           .get("code").asString());
       assertEquals("OWNER_REVALIDATION_FAILED", post(assessment, reviewReceiptPath, actor, "{}", 409)
           .get("code").asString());
+      assertEquals("OWNER_REVALIDATION_FAILED",
+          postAdaptation(assessment, adaptationPath, actor, adaptationBody, "attempt-2", 409)
+              .get("code").asString());
+      assertEquals(adaptationId,
+          postAdaptation(assessment, adaptationPath, actor, adaptationBody, "attempt-1", 201)
+              .get("id").asString());
+      assertEquals("DRAFT_UNVERIFIED",
+          get(assessment, adaptationPath + "/" + adaptationId, actor, 200).get("state").asString());
       assertEquals("APPROVE", get(assessment, "/v1/learning-records/" + approvedLearning + "/review",
           actor, 200).get("decision").asString());
       JsonNode retainedIncidentBody = get(assessment, "/v1/incidents/" + retainedIncident, actor, 200);
@@ -259,6 +276,16 @@ class EvidenceAssessmentCrossServiceTests {
 
   private static JsonNode post(URI base, String path, String token, String body, int expected) throws Exception {
     HttpResponse<String> response = send("POST", base, path, token, body);
+    assertEquals(expected, response.statusCode(), response.body());
+    return JSON.readTree(response.body());
+  }
+
+  private static JsonNode postAdaptation(URI base, String path, String token, String body,
+      String key, int expected) throws Exception {
+    HttpResponse<String> response = HTTP.send(HttpRequest.newBuilder(base.resolve(path))
+        .timeout(Duration.ofSeconds(10)).header("Authorization", "Bearer " + token)
+        .header("Content-Type", "application/json").header("Idempotency-Key", key)
+        .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(expected, response.statusCode(), response.body());
     return JSON.readTree(response.body());
   }

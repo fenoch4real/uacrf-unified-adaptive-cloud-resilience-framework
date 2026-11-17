@@ -137,4 +137,11 @@ class IdentityController {
       @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody IdentityRequests.Delegation request) {
     return identity.createDelegation(jwt, request);
   }
+
+  @PostMapping("/internal/v1/objective-review-authority:check")
+  IdentityResponses.ObjectiveReviewAuthority checkObjectiveReviewAuthority(
+      @AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody IdentityRequests.ObjectiveReviewAuthorityCheck request) {
+    return identity.checkObjectiveReviewAuthority(jwt, request);
+  }
 }

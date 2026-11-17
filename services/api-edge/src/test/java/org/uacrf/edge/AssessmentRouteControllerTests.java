@@ -199,6 +199,11 @@ class AssessmentRouteControllerTests {
     mvc.perform(post("/internal/assessment/internal/v1/learning-records/l-1:review-receipt")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isNotFound());
+    mvc.perform(post("/internal/assessment/internal/v1/adaptation-proposals")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isNotFound());
+    mvc.perform(get("/internal/assessment/internal/v1/adaptation-proposals/a-1"))
+        .andExpect(status().isNotFound());
     server.verify();
   }
 }

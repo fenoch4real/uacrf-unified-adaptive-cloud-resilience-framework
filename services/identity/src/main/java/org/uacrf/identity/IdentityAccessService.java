@@ -30,7 +30,7 @@ import tools.jackson.databind.ObjectMapper;
 
 @Service
 class IdentityAccessService {
-  private static final Set<String> DELEGABLE_CAPABILITIES =
+  private static final Set<String> GRANTABLE_CAPABILITIES =
       Set.of(
           "catalog.journey.read",
           "catalog.journey.write",
@@ -49,6 +49,7 @@ class IdentityAccessService {
           "objectives.objective.write",
           "objectives.objective.review",
           "objectives.objective.activate",
+          "objectives.review-authority.check",
           "objectives.constraint.write",
           "topology.graph.read",
           "topology.proposal.write",
@@ -113,6 +114,9 @@ class IdentityAccessService {
         || requestedCapabilities.stream().anyMatch(capability -> capability.contains("*"))) {
       throw invalid("Delegated capabilities must be unique and cannot include wildcards.");
     }
+    if (requestedCapabilities.contains("objectives.review-authority.check")) {
+      throw denied("Objective review authority checks require direct system authentication.");
+    }
 
     Actor actor = resolveActor(jwt, request.tenantId(), request.environmentId());
     if (requestedCapabilities.contains("evidence.inbox.write") && !"SYSTEM".equals(actor.kind())) {
@@ -123,6 +127,9 @@ class IdentityAccessService {
     }
     if (requestedCapabilities.contains("assessment.learning.review") && !"HUMAN".equals(actor.kind())) {
       throw denied("Learning review delegations are only available to human principals.");
+    }
+    if (requestedCapabilities.contains("objectives.objective.review") && !"HUMAN".equals(actor.kind())) {
+      throw denied("Objective review delegations are only available to human principals.");
     }
     if (requestedCapabilities.contains("advisory.run.create") && !"HUMAN".equals(actor.kind())) {
       throw denied("Advisory run creation is only available to human principals.");
@@ -282,6 +289,47 @@ class IdentityAccessService {
         serviceId,
         scope,
         capabilities);
+  }
+
+  @Transactional(readOnly = true)
+  IdentityResponses.ObjectiveReviewAuthority checkObjectiveReviewAuthority(
+      Jwt jwt, IdentityRequests.ObjectiveReviewAuthorityCheck request) {
+    Actor caller = resolveActor(jwt, request.tenantId(), request.environmentId());
+    List<Instant> checkedAt =
+        jdbc.query(
+            "SELECT statement_timestamp() FROM uacrf_identity.principal caller "
+                + "JOIN uacrf_identity.identity_provider caller_provider ON caller_provider.issuer_uri = caller.issuer_uri "
+                + "JOIN uacrf_identity.environment e ON e.tenant_id = ? AND e.id = ? "
+                + "JOIN uacrf_identity.tenant t ON t.id = e.tenant_id "
+                + "JOIN uacrf_identity.principal reviewer ON reviewer.id = ? "
+                + "JOIN uacrf_identity.identity_provider reviewer_provider ON reviewer_provider.issuer_uri = reviewer.issuer_uri "
+                + "WHERE caller.id = ? AND caller.issuer_uri = ? AND caller.subject = ? "
+                + "AND caller.kind = 'SYSTEM' AND caller.enabled = true "
+                + "AND caller.token_valid_after <= ? AND caller_provider.status = 'TRUSTED' "
+                + "AND t.status = 'ACTIVE' AND e.status = 'ACTIVE' "
+                + "AND reviewer.kind = 'HUMAN' AND reviewer.enabled = true "
+                + "AND reviewer.token_valid_after <= statement_timestamp() AND reviewer_provider.status = 'TRUSTED' "
+                + "AND EXISTS (SELECT 1 FROM uacrf_identity.membership m "
+                + "WHERE m.tenant_id = e.tenant_id AND m.environment_id = e.id "
+                + "AND m.principal_id = caller.id AND m.capability = 'objectives.review-authority.check' "
+                + "AND m.service_scope = '*' AND m.revoked_at IS NULL AND m.expires_at > statement_timestamp()) "
+                + "AND EXISTS (SELECT 1 FROM uacrf_identity.membership m "
+                + "WHERE m.tenant_id = e.tenant_id AND m.environment_id = e.id "
+                + "AND m.principal_id = reviewer.id AND m.capability = 'objectives.objective.review' "
+                + "AND m.service_scope = '*' AND m.revoked_at IS NULL AND m.expires_at > statement_timestamp())",
+            (rs, row) -> rs.getTimestamp(1).toInstant(),
+            request.tenantId(),
+            request.environmentId(),
+            request.reviewerId(),
+            caller.principalId(),
+            jwt.getIssuer().toString(),
+            jwt.getSubject(),
+            java.sql.Timestamp.from(jwt.getIssuedAt()));
+    if (checkedAt.isEmpty()) {
+      throw denied("Objective review authority is unavailable or not authorized.");
+    }
+    return new IdentityResponses.ObjectiveReviewAuthority(
+        request.tenantId(), request.environmentId(), request.reviewerId(), "AUTHORIZED", checkedAt.getFirst());
   }
 
   @Transactional(readOnly = true)
@@ -1146,8 +1194,8 @@ class IdentityAccessService {
 
   private void validateGrantShape(
       Actor actor, String principalId, String capability, String serviceScope, Instant expiresAt) {
-    if (!DELEGABLE_CAPABILITIES.contains(capability)) {
-      throw unprocessable("UNKNOWN_CAPABILITY", "The capability is unknown or not delegable.");
+    if (!GRANTABLE_CAPABILITIES.contains(capability)) {
+      throw unprocessable("UNKNOWN_CAPABILITY", "The capability is unknown or not grantable.");
     }
     if (!"*".equals(serviceScope) && !isValidId(serviceScope)) {
       throw invalid("service_scope is malformed.");
@@ -1160,6 +1208,12 @@ class IdentityAccessService {
     }
     if ("assessment.learning.review".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "assessment.learning.review requires global scope.");
+    }
+    if ("objectives.objective.review".equals(capability) && !"*".equals(serviceScope)) {
+      throw unprocessable("INVALID_SCOPE", "objectives.objective.review requires global scope.");
+    }
+    if ("objectives.review-authority.check".equals(capability) && !"*".equals(serviceScope)) {
+      throw unprocessable("INVALID_SCOPE", "objectives.review-authority.check requires global scope.");
     }
     Instant now = Instant.now();
     if (!expiresAt.isAfter(now) || expiresAt.isAfter(now.plus(MAX_GRANT_LIFETIME))) {
@@ -1183,7 +1237,9 @@ class IdentityAccessService {
         switch (capability) {
           case "owner.eligible" -> "HUMAN".equals(kind);
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
-          case "knowledge.item.review", "advisory.run.create", "assessment.learning.review" -> "HUMAN".equals(kind);
+          case "objectives.review-authority.check" -> "SYSTEM".equals(kind);
+          case "knowledge.item.review", "advisory.run.create", "assessment.learning.review",
+              "objectives.objective.review" -> "HUMAN".equals(kind);
           default -> "HUMAN".equals(kind) || "SYSTEM".equals(kind);
         };
     if (!allowed) {

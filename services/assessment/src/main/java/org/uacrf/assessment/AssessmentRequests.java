@@ -13,6 +13,7 @@ final class AssessmentRequests {
   enum ModelDecision { APPROVE, REJECT }
   enum LearningDecision { APPROVE, REJECT }
   enum TargetMode { SHADOW, ADVISORY }
+  enum AdaptationTarget { OBJECTIVE, MODEL, WORKLOAD, POLICY }
   record ObjectiveRef(@NotBlank @Size(max=200) String objectiveId, @Min(1) long revision,
       @NotBlank @Size(max=200) String digest) {}
   record GraphRef(@NotBlank @Size(max=200) String graphId, @Min(1) long revision,
@@ -63,4 +64,11 @@ final class AssessmentRequests {
       @Min(1) long expectedRevision, @NotBlank @Size(max=2000) String reason) {}
   record ReviewLearningRecord(@Min(1) long expectedRevision, @NotNull LearningDecision decision,
       @NotBlank @Size(max=2000) String reason) {}
+  record ProposeAdaptation(@NotBlank @Size(max=200) String learningRecordId,
+      @NotNull AdaptationTarget targetType, @NotBlank @Size(max=200) String targetOwner,
+      @NotBlank @Size(max=1000) String controlledVersionRef,
+      @NotBlank @Size(max=2000) String reason,
+      @NotEmpty @Size(max=100) List<@NotBlank @Size(max=2000) String> requiredTests,
+      @NotBlank @Size(max=200) String proposedReviewer,
+      @NotBlank @Size(max=2000) String rollbackCriteria) {}
 }

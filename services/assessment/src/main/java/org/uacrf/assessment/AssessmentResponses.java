@@ -52,5 +52,9 @@ final class AssessmentResponses {
   record LearningReviewReceipt(String learningRecordId, String incidentId, String learningRecordDigest,
       String reviewDigest, List<String> sourceEvaluationIds, String ownerReceipts,
       Instant checkedAt, boolean authorizesAdoption) {}
+  record AdaptationProposal(String id, ProposeAdaptation content, String learningRecordDigest,
+      String learningReviewDigest, Instant learningCheckedAt, String state,
+      String createdBy, Instant createdAt) {}
+  record AdaptationProposalPage(List<AdaptationProposal> items, String nextCursor) {}
   record Error(String code, String message, String requestId) {}
 }
