@@ -51,7 +51,7 @@ measured against the target services and their executed tests.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
 - [Current implementation status](docs/IMPLEMENTATION_STATUS.md) —
-  implemented slices, evidence, and remaining work.
+  milestone progress, implemented slices, evidence, and remaining work.
 - [UI prototype](design/ui-prototype/ui_workloads/index.html) and [setup guide](design/ui-prototype/ui_workloads/START_HERE.html) —
   illustrative screens and local-only flows.
 - [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —

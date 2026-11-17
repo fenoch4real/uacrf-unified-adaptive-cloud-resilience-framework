@@ -2,8 +2,38 @@
 
 The target is the complete M0-M8 roadmap in
 [`implementation-roadmap.md`](implementation-roadmap.md). No milestone is
-complete yet. The initial code is a buildable module skeleton, not an accepted
-microservices system.
+complete yet. The repository now contains tested slices across several
+services, but they do not yet constitute an accepted end-to-end microservices
+system.
+
+## Milestone and capability tracker
+
+**Status snapshot: 2026-11-17.** This roll-up summarizes the evidence and gaps
+recorded in the detailed sections below; it is not a percentage-complete
+estimate.
+
+| Milestone | Services and capabilities | Progress | Remaining milestone-level work |
+| --- | --- | --- | --- |
+| M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete the authorized browser workflow and broader edge coverage; verify deployment identity and end-to-end acceptance. |
+| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, S05 objectives, S06 topology and projection | In progress | Qualify real cloud collectors; broaden freshness and ontology coverage; complete live multi-service acceptance and implement the first reporting capabilities. |
+| M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
+| M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
+| M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
+| M6 — Commercial and operational administration | Usage admission, rating, invoicing, payment reconciliation, notifications, evidence export | Not started | Implement and test the commercial and operational workflows, including duplicate/reordered events and interrupted reconciliation. |
+| M7 — Governed prediction and provider breadth | Model evaluation and learning; AWS, Azure, and Google Cloud capabilities | Not started | Implement temporal evaluation, uncertainty/calibration and shadow criteria; qualify providers individually. Existing model metadata and provider stubs do not meet this milestone. |
+| M8 — Migration and release acceptance | Single-writer cutovers, inherited scenarios, distributed and browser acceptance, deployment/restore/provider/billing evidence | Not started | Complete migration and the release-scope acceptance matrix; retain the required operational evidence. |
+
+**Status meanings:** *In progress* means implementation and tests exist, but
+the milestone acceptance criteria remain open. *Partial* means a limited
+capability exists while major milestone workflows are not implemented.
+*Not started* means no milestone-level implementation is recorded; design
+artifacts or preparatory work alone do not count as delivery.
+
+As implementation advances, update this table with the milestone's services,
+progress label, evidence, and remaining gaps. Change a milestone to complete
+only when its roadmap and acceptance criteria are met; keep detailed test
+results and scope limits in the corresponding sections below.
 
 ## S10 policy-bundle proposal, review, and read
 
