@@ -33,6 +33,10 @@ class AssessmentRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> listCaseIncidents(String authorization, String id, String limit, String after) {
+    return listPage(authorization, "/v1/cases/{id}/incidents", id, limit, after);
+  }
+
   ResponseEntity<String> listCases(String authorization, String workloadId) {
     RestClient.RequestHeadersSpec<?> request =
         assessmentRestClient
@@ -118,8 +122,28 @@ class AssessmentRouteClient {
         .uri(uriBuilder -> uriBuilder.path("/v1/incidents/{id}").build(id)), authorization);
   }
 
+  ResponseEntity<String> listIncidentLearningRecords(
+      String authorization, String id, String limit, String after) {
+    return listPage(authorization, "/v1/incidents/{id}/learning-records", id, limit, after);
+  }
+
+  private ResponseEntity<String> listPage(
+      String authorization, String path, String id, String limit, String after) {
+    return send(assessmentRestClient.get().uri(uriBuilder -> {
+      uriBuilder.path(path);
+      if (limit != null) uriBuilder.queryParam("limit", limit);
+      if (after != null) uriBuilder.queryParam("after", after);
+      return uriBuilder.build(id);
+    }), authorization);
+  }
+
   ResponseEntity<String> proposeLearningRecord(String authorization, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/learning-records", null, authorization, requestBody);
+  }
+
+  ResponseEntity<String> getLearningRecord(String authorization, String id) {
+    return send(assessmentRestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/v1/learning-records/{id}").build(id)), authorization);
   }
 
   private ResponseEntity<String> sendBody(

@@ -6,6 +6,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -81,6 +82,35 @@ class AssessmentRouteControllerTests {
     server.expect(requestTo(URL + "/v1/learning-records"))
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/learning-records/l-1"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+            HttpHeaders.AUTHORIZATION, "Bearer learning-reader"))
+        .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/learning-records/l-1"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+            HttpHeaders.AUTHORIZATION, "Bearer learning-reader"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"id\":\"l-1\",\"state\":\"PROPOSED\"}"));
+    server.expect(requestTo(URL + "/v1/incidents/i-1/learning-records?limit=1&after=cursor"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+            HttpHeaders.AUTHORIZATION, "Bearer learning-reader"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"items\":[],\"next_cursor\":null}"));
+    server.expect(requestTo(URL + "/v1/incidents/i-1/learning-records"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/cases/c-1/incidents?limit=1&after=cursor"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+            HttpHeaders.AUTHORIZATION, "Bearer incident-reader"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"items\":[],\"next_cursor\":null}"));
+    server.expect(requestTo(URL + "/v1/cases/c-1/incidents"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("{}"));
 
     mvc.perform(get("/internal/assessment/v1/cases").param("workload_id", "w1"))
         .andExpect(status().isUnauthorized())
@@ -118,6 +148,32 @@ class AssessmentRouteControllerTests {
     mvc.perform(post("/internal/assessment/v1/learning-records")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
+    mvc.perform(get("/internal/assessment/v1/learning-records/l-1")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer learning-reader"))
+        .andExpect(status().isForbidden())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(get("/internal/assessment/v1/learning-records/l-1")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer learning-reader"))
+        .andExpect(status().isOk())
+        .andExpect(content().json("{\"id\":\"l-1\",\"state\":\"PROPOSED\"}"));
+    mvc.perform(get("/internal/assessment/v1/incidents/i-1/learning-records")
+            .param("limit", "1").param("after", "cursor")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer learning-reader"))
+        .andExpect(status().isOk())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+        .andExpect(content().json("{\"items\":[],\"next_cursor\":null}"));
+    mvc.perform(get("/internal/assessment/v1/incidents/i-1/learning-records"))
+        .andExpect(status().isForbidden())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(get("/internal/assessment/v1/cases/c-1/incidents")
+            .param("limit", "1").param("after", "cursor")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer incident-reader"))
+        .andExpect(status().isOk())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+        .andExpect(content().json("{\"items\":[],\"next_cursor\":null}"));
+    mvc.perform(get("/internal/assessment/v1/cases/c-1/incidents"))
+        .andExpect(status().isForbidden())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(post("/internal/assessment/internal/v1/cases/c-1:receipt")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isNotFound());

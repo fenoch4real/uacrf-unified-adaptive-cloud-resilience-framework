@@ -31,7 +31,7 @@ class AssessmentService {
 
   @Transactional
   Case create(DelegationPrincipal actor, CreateCase request) {
-    permit(actor, "assessment.case.write", true);
+    permit(actor, "assessment.case.write");
     TreeSet<String> kinds = new TreeSet<>(request.requiredSourceKinds());
     if (kinds.size() != request.requiredSourceKinds().size()) throw invalid("Source kinds must be unique.");
     CreateCase content = new CreateCase(request.workloadId(), request.purpose(), request.metric(), request.comparator(),
@@ -43,7 +43,7 @@ class AssessmentService {
   }
   @Transactional
   Case seal(DelegationPrincipal actor, String id, Transition request) {
-    permit(actor, "assessment.case.write", true);
+    permit(actor, "assessment.case.write");
     Case item = findCase(actor, id, true);
     if (item.revision() != request.expectedRevision()) throw conflict("REVISION_MISMATCH", "The case changed since it was read.");
     if (!item.state().equals("DRAFT")) throw conflict("INVALID_STATE", "Only a draft case can be sealed.");
@@ -53,22 +53,22 @@ class AssessmentService {
     return findCase(actor, id, false);
   }
   @Transactional(readOnly=true)
-  Case getCase(DelegationPrincipal actor, String id) { permit(actor, "assessment.case.read", false); return findCase(actor, id, false); }
+  Case getCase(DelegationPrincipal actor, String id) { permit(actor, "assessment.case.read"); return findCase(actor, id, false); }
   @Transactional(readOnly=true)
   List<Case> listCases(DelegationPrincipal actor, String workloadId) {
-    permit(actor, "assessment.case.read", false);
+    permit(actor, "assessment.case.read");
     return jdbc.query("SELECT * FROM " + DB + "analysis_case WHERE tenant_id=? AND environment_id=? AND (CAST(? AS text) IS NULL OR workload_id=?) ORDER BY id", (rs,n)->caseRow(rs), actor.tenantId(), actor.environmentId(), workloadId, workloadId);
   }
   @Transactional(readOnly=true)
   Receipt receipt(DelegationPrincipal actor, String id) {
-    permit(actor, "assessment.case.read", false);
+    permit(actor, "assessment.case.read");
     Case item = findCase(actor, id, false);
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "A receipt requires a sealed case.");
     return new Receipt(id, item.purpose(), item.caseDigest(), item.workloadId(), item.requiredSourceKinds());
   }
   @Transactional(readOnly=true)
   CaseMaterial material(DelegationPrincipal actor, String id) {
-    permit(actor, "assessment.case.read", false);
+    permit(actor, "assessment.case.read");
     Case item = findCase(actor, id, false);
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "Material requires a sealed case.");
     String canonicalText = write(content(item));
@@ -79,7 +79,7 @@ class AssessmentService {
   }
   @Transactional
   Evaluation evaluate(DelegationPrincipal actor, String id, Evaluate request) {
-    permit(actor, "assessment.evaluation.run", true);
+    permit(actor, "assessment.evaluation.run");
     Case item = findCase(actor, id, true);
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "Evaluation requires a sealed case.");
     Instant cutoff = request.observationCutoff();
@@ -136,7 +136,7 @@ class AssessmentService {
   private record ResultMaterial(Instant observationCutoff, Mode mode, String outcome, DependencyVector dependencyVector) {}
   @Transactional(readOnly=true)
   List<Evaluation> evaluations(DelegationPrincipal actor, String id) {
-    permit(actor, "assessment.evaluation.read", false); findCase(actor, id, false);
+    permit(actor, "assessment.evaluation.read"); findCase(actor, id, false);
     return jdbc.query("SELECT * FROM " + DB + "evaluation WHERE tenant_id=? AND environment_id=? AND case_id=? ORDER BY cutoff_epoch_second DESC, cutoff_nano DESC, revision DESC", (rs,n)->evaluationRow(rs), actor.tenantId(), actor.environmentId(), id);
   }
   @Transactional(readOnly=true)
@@ -144,7 +144,7 @@ class AssessmentService {
     List<Evaluation> rows = evaluations(actor, id); if (rows.isEmpty()) throw notFound(); return rows.getFirst();
   }
   @Transactional(readOnly=true)
-  Evaluation evaluation(DelegationPrincipal actor, String id) { permit(actor, "assessment.evaluation.read", false); return findEvaluation(actor,id); }
+  Evaluation evaluation(DelegationPrincipal actor, String id) { permit(actor, "assessment.evaluation.read"); return findEvaluation(actor,id); }
   void revalidateEvaluationForModel(DelegationPrincipal actor, String id) {
     Evaluation evaluation = findEvaluation(actor, id);
     DependencyVector vector = evaluation.dependencyVector();
@@ -196,7 +196,7 @@ class AssessmentService {
   }
   @Transactional(readOnly=true)
   List<Recommendation> recommendations(DelegationPrincipal actor, String workloadId) {
-    permit(actor, "assessment.recommendation.read", false);
+    permit(actor, "assessment.recommendation.read");
     return jdbc.query("SELECT * FROM " + DB + "recommendation WHERE tenant_id=? AND environment_id=? AND workload_id=? ORDER BY created_at,id", (rs,n)->new Recommendation(rs.getString("id"), rs.getString("evaluation_id"), rs.getString("case_id"), rs.getString("workload_id"), rs.getString("kind"), read(rs.getString("effect_bounds"), Bounds.class), read(rs.getString("prerequisite_refs"), Prerequisites.class), rs.getBoolean("executable")), actor.tenantId(), actor.environmentId(), workloadId);
   }
   private Case findCase(DelegationPrincipal actor, String id, boolean lock) {
@@ -224,8 +224,8 @@ class AssessmentService {
   private <T> T read(String value, Class<T> type) { return json.readValue(value, type); }
   private static BigDecimal canonical(BigDecimal value) { return value.stripTrailingZeros(); }
   private static String hash(String value) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8))); } catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); } }
-  private static void permit(DelegationPrincipal actor, String capability, boolean write) {
-    if (!actor.capabilities().contains(capability) || (write && !"*".equals(actor.serviceScope()))) throw new AssessmentException(HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "The current principal cannot perform this assessment operation.");
+  private static void permit(DelegationPrincipal actor, String capability) {
+    if (!actor.capabilities().contains(capability) || !"*".equals(actor.serviceScope())) throw new AssessmentException(HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "The current principal cannot perform this assessment operation.");
   }
   private static AssessmentException invalid(String message) { return new AssessmentException(HttpStatus.BAD_REQUEST,"INVALID_REQUEST",message); }
   private static AssessmentException conflict(String code, String message) { return new AssessmentException(HttpStatus.CONFLICT,code,message); }

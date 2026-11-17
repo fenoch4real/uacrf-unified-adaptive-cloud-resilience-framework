@@ -27,6 +27,12 @@ class AssessmentController {
   Case seal(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) { return service.seal(DelegationPrincipal.from(jwt), id, request); }
   @GetMapping("/v1/cases/{id}")
   Case get(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.getCase(DelegationPrincipal.from(jwt), id); }
+  @GetMapping("/v1/cases/{id}/incidents")
+  IncidentPage caseIncidents(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="after", required=false) String after) {
+    return incidentLearning.listCaseIncidents(DelegationPrincipal.from(jwt), id, limit, after);
+  }
   @GetMapping("/v1/cases")
   List<Case> list(@AuthenticationPrincipal Jwt jwt, @RequestParam(value="workload_id", required=false) String workloadId) { return service.listCases(DelegationPrincipal.from(jwt), workloadId); }
   @PostMapping("/internal/v1/cases/{id}:receipt")
@@ -90,9 +96,19 @@ class AssessmentController {
   Incident getIncident(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return incidentLearning.getIncident(DelegationPrincipal.from(jwt), id);
   }
+  @GetMapping("/v1/incidents/{id}/learning-records")
+  LearningRecordPage incidentLearningRecords(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="after", required=false) String after) {
+    return incidentLearning.listLearningRecords(DelegationPrincipal.from(jwt), id, limit, after);
+  }
   @PostMapping("/v1/learning-records") @ResponseStatus(HttpStatus.CREATED)
   LearningRecord proposeLearningRecord(@AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ProposeLearningRecord request) {
     return incidentLearning.proposeLearningRecord(DelegationPrincipal.from(jwt), request);
+  }
+  @GetMapping("/v1/learning-records/{id}")
+  LearningRecord getLearningRecord(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return incidentLearning.getLearningRecord(DelegationPrincipal.from(jwt), id);
   }
 }

@@ -95,8 +95,8 @@ class ModelVersionService {
   ModelEvaluationDeclarationPage listEvaluationDeclarations(
       DelegationPrincipal actor, String modelVersionId, int limit, String after) {
     permit(actor, "assessment.model.read", false);
-    if (modelVersionId.isBlank() || modelVersionId.length() > 200 || limit < 1 || limit > 100
-        || (after != null && !after.matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))) {
+    if (modelVersionId.isBlank() || modelVersionId.length() > 200
+        || !AssessmentPagination.valid(limit, after)) {
       throw invalid("A model version, a limit between 1 and 100 and a valid cursor are required.");
     }
     find(actor, modelVersionId, false);

@@ -56,7 +56,7 @@ class AssessmentApplicationTests {
   private static final List<String> ALL = List.of("assessment.case.read", "assessment.case.write",
       "assessment.evaluation.run", "assessment.evaluation.read", "assessment.recommendation.read",
       "assessment.model.read", "assessment.model.write", "assessment.model.review",
-      "assessment.incident.read", "assessment.incident.write", "assessment.learning.write");
+      "assessment.incident.read", "assessment.incident.write", "assessment.learning.read", "assessment.learning.write");
   @Container private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81").withDatabaseName("uacrf_assessment").withUsername("assessment_test").withPassword("assessment_test");
   @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
     p.add("spring.flyway.locations", AssessmentTestMigrations::location);
@@ -146,6 +146,34 @@ class AssessmentApplicationTests {
     JsonNode recs = body(get("/v1/recommendations?workload_id=w1",token),200); assertEquals(1,recs.size()); assertFalse(recs.get(0).get("executable").asBoolean());
     assertThrows(DataIntegrityViolationException.class, () -> jdbc.update("UPDATE uacrf_assessment.recommendation SET executable=true WHERE tenant_id='t-mode'"));
     assertEquals(5, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event WHERE tenant_id='t-mode'",Integer.class));
+  }
+  @Test void assessmentReadsRejectServiceScopedDelegations() throws Exception {
+    String tenant = "t-assessment-read-scope";
+    String owner = token(tenant, "*", ALL);
+    String id = sealed(owner, "[\"a\"]", "LTE");
+    String evaluationId = eval(owner, id, "2026-01-01T01:00:00Z", "LIVE",
+        measurement("r-scope", "a", "2026-01-01T00:59:00Z", "20", "ms"))
+        .get("id").asString();
+    assertEquals(200, get("/v1/cases/" + id, owner).statusCode());
+    assertEquals(200, get("/v1/cases", owner).statusCode());
+    assertEquals(200, post("/internal/v1/cases/" + id + ":receipt", owner, "{}").statusCode());
+    assertEquals(200, post("/internal/v1/cases/" + id + ":material", owner, "{}").statusCode());
+    assertEquals(200, get("/v1/cases/" + id + "/evaluations", owner).statusCode());
+    assertEquals(200, get("/v1/cases/" + id + "/evaluations:latest", owner).statusCode());
+    assertEquals(200, get("/v1/evaluations/" + evaluationId, owner).statusCode());
+    assertEquals(200, get("/v1/recommendations?workload_id=w1", owner).statusCode());
+    for (String scope : List.of("w1", "another-service")) {
+      String limited = token(tenant, scope, ALL);
+      assertEquals(403, get("/v1/cases/" + id, limited).statusCode());
+      assertEquals(403, get("/v1/cases", limited).statusCode());
+      assertEquals(403, get("/v1/cases?workload_id=w1", limited).statusCode());
+      assertEquals(403, post("/internal/v1/cases/" + id + ":receipt", limited, "{}").statusCode());
+      assertEquals(403, post("/internal/v1/cases/" + id + ":material", limited, "{}").statusCode());
+      assertEquals(403, get("/v1/cases/" + id + "/evaluations", limited).statusCode());
+      assertEquals(403, get("/v1/cases/" + id + "/evaluations:latest", limited).statusCode());
+      assertEquals(403, get("/v1/evaluations/" + evaluationId, limited).statusCode());
+      assertEquals(403, get("/v1/recommendations?workload_id=w1", limited).statusCode());
+    }
   }
   @Test void authorizationAndTenantIsolation() throws Exception {
     String token = token("t-auth","*",ALL); String id = sealed(token,"[\"a\"]","LTE");
@@ -474,6 +502,21 @@ class AssessmentApplicationTests {
     int modelCount = jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.model_version "
         + "WHERE tenant_id='t-learning-proposal'", Integer.class);
     JsonNode proposed = body(post("/v1/learning-records", learningWriter, recordBody), 201);
+    String learningPath = "/v1/learning-records/" + proposed.get("id").asString();
+    String reader = token("t-learning-proposal", "*", List.of("assessment.learning.read"));
+    assertEquals(proposed, body(get(learningPath, reader), 200));
+    assertEquals(403, get(learningPath, learningWriter).statusCode());
+    assertEquals(403, get(learningPath,
+        token("t-learning-proposal", "w1", List.of("assessment.learning.read"))).statusCode());
+    assertEquals(404, get(learningPath,
+        token("t-learning-foreign", "*", List.of("assessment.learning.read"))).statusCode());
+    assertEquals(404, get("/v1/learning-records/" + UUID.randomUUID(), reader).statusCode());
+    DelegationPrincipal otherEnvironment = new DelegationPrincipal(
+        "https://uacrf.local/s01|reader", "t-learning-proposal", "env-2", "*",
+        "https://idp.example.test", "reader", List.of("assessment.learning.read"), List.of(), List.of());
+    String envToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(otherEnvironment, "S07");
+    assertEquals(404, get(learningPath, envToken).statusCode());
     assertEquals("PROPOSED", proposed.get("state").asString());
     assertEquals(1, proposed.get("revision").asInt());
     assertEquals(1, proposed.get("expected_revision").asInt());
@@ -503,6 +546,109 @@ class AssessmentApplicationTests {
     assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
         "UPDATE uacrf_assessment.incident SET reason='changed' WHERE tenant_id=? AND id=?",
         "t-learning-proposal", incidentId));
+  }
+
+  @Test void incidentLearningRecordsArePaginatedAndRequireBothReadPermissions() throws Exception {
+    String tenant = "t-learning-list";
+    String owner = token(tenant, "*", ALL);
+    String reader = token(tenant, "*", List.of("assessment.learning.read", "assessment.incident.read"));
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    seedIncidentEvaluation(tenant, caseId, "2026-01-01T01:00:00Z", "VERIFIED",
+        measurementReceipt("r-list", "2026-01-01T00:59:00Z"));
+    String incidentBody = incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-list\"]");
+    String incident = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
+    String otherIncident = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
+    String path = "/v1/incidents/" + incident + "/learning-records";
+    assertEquals(0, body(get(path, reader), 200).get("items").size());
+    String one = body(post("/v1/learning-records", owner,
+        learningJson(incident, 1, "[\"r-list\"]")), 201).get("id").asString();
+    String two = body(post("/v1/learning-records", owner,
+        learningJson(incident, 1, "[\"r-list\"]")), 201).get("id").asString();
+    body(post("/v1/learning-records", owner, learningJson(otherIncident, 1, "[\"r-list\"]")), 201);
+    assertEquals(403, get(path, token(tenant, "*", List.of("assessment.learning.read"))).statusCode());
+    assertEquals(403, get(path, token(tenant, "*", List.of("assessment.incident.read"))).statusCode());
+    assertEquals(403, get(path, token(tenant, "w1",
+        List.of("assessment.learning.read", "assessment.incident.read"))).statusCode());
+    assertEquals(404, get(path, token("t-learning-list-foreign", "*", ALL)).statusCode());
+    assertEquals(404, get("/v1/incidents/unknown/learning-records", reader).statusCode());
+    assertEquals(400, get(path + "?limit=0", reader).statusCode());
+    assertEquals(400, get(path + "?limit=101", reader).statusCode());
+    assertEquals(400, get(path + "?after=invalid", reader).statusCode());
+    assertEquals(2, body(get(path + "?limit=100", reader), 200).get("items").size());
+    JsonNode first = body(get(path + "?limit=1", reader), 200);
+    String cursor = first.get("next_cursor").asString();
+    assertEquals(1, first.get("items").size());
+    assertEquals(cursor, first.get("items").get(0).get("id").asString());
+    JsonNode second = body(get(path + "?limit=1&after=" + cursor, reader), 200);
+    assertEquals(1, second.get("items").size());
+    assertTrue(second.get("next_cursor").isNull());
+    assertEquals(Set.of(one, two), Set.of(cursor, second.get("items").get(0).get("id").asString()));
+    assertEquals("PROPOSED", second.get("items").get(0).get("state").asString());
+    assertEquals(0, body(get(path + "?after=" + second.get("items").get(0).get("id").asString(), reader),
+        200).get("items").size());
+    DelegationPrincipal foreignEnvironment = new DelegationPrincipal(
+        "https://uacrf.local/s01|reader", tenant, "env-2", "*", "https://idp.example.test", "reader",
+        List.of("assessment.learning.read", "assessment.incident.read"), List.of(), List.of());
+    String envToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(foreignEnvironment, "S07");
+    assertEquals(404, get(path, envToken).statusCode());
+  }
+
+  @Test void caseIncidentsArePaginatedAndRequireBothReadPermissions() throws Exception {
+    String tenant = "t-case-incidents";
+    String owner = token(tenant, "*", ALL);
+    String reader = token(tenant, "*", List.of("assessment.case.read", "assessment.incident.read"));
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String otherCase = sealed(owner, "[\"a\"]", "LTE");
+    String path = "/v1/cases/" + caseId + "/incidents";
+    assertEquals(0, body(get(path, reader), 200).get("items").size());
+    String cutoff = "2026-01-01T01:00:00Z";
+    seedIncidentEvaluation(tenant, caseId, cutoff, "VERIFIED",
+        measurementReceipt("r-case-incidents", "2026-01-01T00:59:00Z"));
+    seedIncidentEvaluation(tenant, otherCase, cutoff, "VERIFIED",
+        measurementReceipt("r-other-case", "2026-01-01T00:59:00Z"));
+    String incidentBody = incidentJson(caseId, "w1", cutoff, "[\"r-case-incidents\"]");
+    String one = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
+    String two = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
+    body(post("/v1/incidents", owner,
+        incidentJson(otherCase, "w1", cutoff, "[\"r-other-case\"]")), 201);
+    assertEquals(403, get(path, token(tenant, "*", List.of("assessment.case.read"))).statusCode());
+    assertEquals(403, get(path, token(tenant, "*", List.of("assessment.incident.read"))).statusCode());
+    assertEquals(403, get(path, token(tenant, "w1",
+        List.of("assessment.case.read", "assessment.incident.read"))).statusCode());
+    assertEquals(404, get(path, token("t-case-incidents-foreign", "*", ALL)).statusCode());
+    assertEquals(404, get("/v1/cases/unknown/incidents", reader).statusCode());
+    assertEquals(400, get(path + "?limit=0", reader).statusCode());
+    assertEquals(400, get(path + "?limit=101", reader).statusCode());
+    assertEquals(400, get(path + "?after=invalid", reader).statusCode());
+    assertEquals(2, body(get(path + "?limit=100", reader), 200).get("items").size());
+    JsonNode first = body(get(path + "?limit=1", reader), 200);
+    String cursor = first.get("next_cursor").asString();
+    assertEquals(1, first.get("items").size());
+    assertEquals(cursor, first.get("items").get(0).get("id").asString());
+    JsonNode second = body(get(path + "?limit=1&after=" + cursor, reader), 200);
+    assertEquals(1, second.get("items").size());
+    assertTrue(second.get("next_cursor").isNull());
+    assertEquals(Set.of(one, two), Set.of(cursor, second.get("items").get(0).get("id").asString()));
+    assertEquals(caseId, second.get("items").get(0).get("source_case_id").asString());
+    DelegationPrincipal foreignEnvironment = new DelegationPrincipal(
+        "https://uacrf.local/s01|reader", tenant, "env-2", "*", "https://idp.example.test", "reader",
+        List.of("assessment.case.read", "assessment.incident.read"), List.of(), List.of());
+    String envToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(foreignEnvironment, "S07");
+    assertEquals(404, get(path, envToken).statusCode());
+    jdbc.update("INSERT INTO uacrf_assessment.incident "
+            + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+            + "evidence_refs,reason,revision,created_by) "
+            + "SELECT tenant_id,environment_id,gen_random_uuid()::text,workload_id,source_case_id,"
+            + "observed_from,description,evidence_refs,reason,revision,created_by "
+            + "FROM uacrf_assessment.incident CROSS JOIN generate_series(1,49) "
+            + "WHERE tenant_id=? AND environment_id='env-1' AND id=?", tenant, one);
+    JsonNode defaultPage = body(get(path, reader), 200);
+    assertEquals(50, defaultPage.get("items").size());
+    JsonNode lastPage = body(get(path + "?after=" + defaultPage.get("next_cursor").asString(), reader), 200);
+    assertEquals(1, lastPage.get("items").size());
+    assertTrue(lastPage.get("next_cursor").isNull());
   }
 
   private JsonNode create(String token,String kinds,String comparator) throws Exception { return body(post("/v1/cases",token,caseJson(kinds,comparator)),201); }

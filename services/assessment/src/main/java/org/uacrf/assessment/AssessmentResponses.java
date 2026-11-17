@@ -42,8 +42,10 @@ final class AssessmentResponses {
   record Incident(String id, String workloadId, String sourceCaseId, Instant observedFrom,
       String description, List<String> evidenceRefs, String reason, long revision,
       String createdBy, Instant createdAt) {}
+  record IncidentPage(List<Incident> items, String nextCursor) {}
   record LearningRecord(String id, String incidentId, String experimentId, List<String> hypotheses,
       List<ActionItem> actionItems, List<String> evidenceRefs, long expectedRevision,
       String reason, String state, long revision, String proposedBy, Instant createdAt) {}
+  record LearningRecordPage(List<LearningRecord> items, String nextCursor) {}
   record Error(String code, String message, String requestId) {}
 }

@@ -86,6 +86,25 @@ class IncidentLearningService {
     return findIncident(actor, id, false);
   }
 
+  @Transactional(readOnly = true)
+  IncidentPage listCaseIncidents(DelegationPrincipal actor, String caseId, int limit, String after) {
+    permit(actor, "assessment.case.read");
+    permit(actor, "assessment.incident.read");
+    if (!AssessmentPagination.valid(limit, after)) {
+      throw new AssessmentException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "A limit between 1 and 100 and a valid cursor are required.");
+    }
+    findCase(actor, caseId);
+    List<Incident> rows = jdbc.query("SELECT * FROM " + DB
+            + "incident WHERE tenant_id=? AND environment_id=? AND source_case_id=? "
+            + "AND id>? ORDER BY id LIMIT ?",
+        (rs, row) -> incidentRow(rs), actor.tenantId(), actor.environmentId(), caseId,
+        after == null ? "" : after, limit + 1);
+    boolean more = rows.size() > limit;
+    List<Incident> items = List.copyOf(rows.subList(0, Math.min(rows.size(), limit)));
+    return new IncidentPage(items, more ? items.getLast().id() : null);
+  }
+
   @Transactional
   LearningRecord proposeLearningRecord(DelegationPrincipal actor, ProposeLearningRecord request) {
     permit(actor, "assessment.learning.write", "assessment.incident.write");
@@ -114,6 +133,32 @@ class IncidentLearningService {
     return findLearningRecord(actor, id);
   }
 
+  @Transactional(readOnly = true)
+  LearningRecord getLearningRecord(DelegationPrincipal actor, String id) {
+    permit(actor, "assessment.learning.read");
+    return findLearningRecord(actor, id);
+  }
+
+  @Transactional(readOnly = true)
+  LearningRecordPage listLearningRecords(DelegationPrincipal actor, String incidentId,
+      int limit, String after) {
+    permit(actor, "assessment.learning.read");
+    permit(actor, "assessment.incident.read");
+    if (!AssessmentPagination.valid(limit, after)) {
+      throw new AssessmentException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "A limit between 1 and 100 and a valid cursor are required.");
+    }
+    findIncident(actor, incidentId);
+    List<LearningRecord> rows = jdbc.query("SELECT * FROM " + DB
+            + "learning_record WHERE tenant_id=? AND environment_id=? AND incident_id=? "
+            + "AND id>? ORDER BY id LIMIT ?",
+        (rs, row) -> learningRecordRow(rs), actor.tenantId(), actor.environmentId(), incidentId,
+        after == null ? "" : after, limit + 1);
+    boolean more = rows.size() > limit;
+    List<LearningRecord> items = List.copyOf(rows.subList(0, Math.min(rows.size(), limit)));
+    return new LearningRecordPage(items, more ? items.getLast().id() : null);
+  }
+
   private CaseRef findCase(DelegationPrincipal actor, String id) {
     List<CaseRef> rows = jdbc.query("SELECT workload_id,state FROM " + DB
             + "analysis_case WHERE tenant_id=? AND environment_id=? AND id=?",
@@ -137,9 +182,11 @@ class IncidentLearningService {
   }
 
   private LearningRecord findLearningRecord(DelegationPrincipal actor, String id) {
-    return jdbc.queryForObject("SELECT * FROM " + DB
+    List<LearningRecord> rows = jdbc.query("SELECT * FROM " + DB
             + "learning_record WHERE tenant_id=? AND environment_id=? AND id=?",
         (rs, row) -> learningRecordRow(rs), actor.tenantId(), actor.environmentId(), id);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
   }
 
   private Incident incidentRow(ResultSet rs) throws SQLException {

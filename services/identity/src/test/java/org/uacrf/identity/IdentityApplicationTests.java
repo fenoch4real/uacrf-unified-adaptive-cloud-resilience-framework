@@ -962,28 +962,42 @@ class IdentityApplicationTests {
     seedScopedMemberships();
     List<String> modelCapabilities =
         List.of("assessment.model.read", "assessment.model.write", "assessment.model.review",
-            "assessment.incident.read", "assessment.incident.write", "assessment.learning.write");
+            "assessment.incident.read", "assessment.incident.write", "assessment.learning.write",
+            "assessment.learning.read");
     assertEquals(
         0,
         jdbc.queryForObject(
             "SELECT count(*) FROM uacrf_identity.membership WHERE principal_id='admin-test' "
                 + "AND capability IN ('assessment.model.read','assessment.model.write',"
                 + "'assessment.model.review','assessment.incident.read',"
-                + "'assessment.incident.write','assessment.learning.write') AND revoked_at IS NULL",
+                + "'assessment.incident.write','assessment.learning.write','assessment.learning.read') AND revoked_at IS NULL",
             Integer.class));
     try {
+      String decision = "learning-read-test-decision";
+      try {
+        String expiresAt = Instant.now().plusSeconds(86400)
+            .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+        HttpResponse<String> approved = post("/v1/grant-decisions?tenant_id=tenant-test&environment_id=environment-test",
+            token("keycloak-subject-approver"),
+            decisionBody(decision, "admin-test", "assessment.learning.read", expiresAt));
+        assertEquals(201, approved.statusCode(), approved.body());
+      } finally {
+        jdbc.update("DELETE FROM uacrf_identity.grant_decision WHERE id=?", decision);
+      }
       for (String capability : modelCapabilities) {
         jdbc.update(
             "INSERT INTO uacrf_identity.membership "
                 + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
-                + "VALUES (?,'tenant-test','environment-test','admin-test',?,'svc-1',"
+                + "VALUES (?,'tenant-test','environment-test','admin-test',?,?,"
                 + "'2099-12-31T23:59:59Z',1)",
-            java.util.UUID.randomUUID(), capability);
+            java.util.UUID.randomUUID(), capability, "assessment.learning.read".equals(capability) ? "*" : "svc-1");
         HttpResponse<String> response =
             post(
                 "/internal/v1/delegations",
                 token("keycloak-subject-1"),
-                """
+                "assessment.learning.read".equals(capability)
+                    ? "{\"audience\":\"S07\",\"capability_ids\":[\"assessment.learning.read\"]}"
+                    : """
                 {"audience":"S07","service_id":"svc-1","capability_ids":["%s"]}
                 """.formatted(capability));
         assertEquals(200, response.statusCode(), response.body());
@@ -993,6 +1007,9 @@ class IdentityApplicationTests {
             java.util.Base64.getUrlDecoder().decode(accessToken.split("\\.")[1]),
             java.nio.charset.StandardCharsets.UTF_8);
         assertThat(claims).contains("\"capabilities\":[\"" + capability + "\"]");
+        if ("assessment.learning.read".equals(capability)) {
+          assertThat(claims).contains("\"service_scope\":\"*\"");
+        }
       }
 
     } finally {
@@ -1000,7 +1017,7 @@ class IdentityApplicationTests {
           "DELETE FROM uacrf_identity.membership WHERE principal_id='admin-test' "
               + "AND capability IN ('assessment.model.read','assessment.model.write',"
               + "'assessment.model.review','assessment.incident.read',"
-              + "'assessment.incident.write','assessment.learning.write')");
+              + "'assessment.incident.write','assessment.learning.write','assessment.learning.read')");
     }
   }
 

@@ -61,6 +61,7 @@ class IdentityAccessService {
           "assessment.recommendation.read",
           "assessment.incident.read",
           "assessment.incident.write",
+          "assessment.learning.read",
           "assessment.learning.write",
           "assessment.model.read",
           "assessment.model.write",

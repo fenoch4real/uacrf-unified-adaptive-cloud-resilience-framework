@@ -48,6 +48,15 @@ class AssessmentRouteController {
     return forward(() -> assessment.getCase(authorization, id));
   }
 
+  @GetMapping("/v1/cases/{id}/incidents")
+  ResponseEntity<String> listCaseIncidents(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id,
+      @RequestParam(value = "limit", required = false) String limit,
+      @RequestParam(value = "after", required = false) String after) {
+    return forward(() -> assessment.listCaseIncidents(authorization, id, limit, after));
+  }
+
   @GetMapping("/v1/cases")
   ResponseEntity<String> listCases(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
@@ -142,11 +151,27 @@ class AssessmentRouteController {
     return forward(() -> assessment.getIncident(authorization, id));
   }
 
+  @GetMapping("/v1/incidents/{id}/learning-records")
+  ResponseEntity<String> listIncidentLearningRecords(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id,
+      @RequestParam(value = "limit", required = false) String limit,
+      @RequestParam(value = "after", required = false) String after) {
+    return forward(() -> assessment.listIncidentLearningRecords(authorization, id, limit, after));
+  }
+
   @PostMapping("/v1/learning-records")
   ResponseEntity<String> proposeLearningRecord(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @RequestBody String requestBody) {
     return forward(() -> assessment.proposeLearningRecord(authorization, requestBody));
+  }
+
+  @GetMapping("/v1/learning-records/{id}")
+  ResponseEntity<String> getLearningRecord(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> assessment.getLearningRecord(authorization, id));
   }
 
   private static ResponseEntity<String> forward(Supplier<ResponseEntity<String>> request) {
