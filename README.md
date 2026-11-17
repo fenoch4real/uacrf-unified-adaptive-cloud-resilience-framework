@@ -1,21 +1,21 @@
 # Unified Adaptive Cloud Resilience Framework (UACRF)
 
-UACRF is in design and prototyping for assessing the resilience of services
-and AI-agent workloads, governing bounded operational actions, and reviewing
-recovery evidence. Customer journeys connect those capabilities to outcomes;
-services and agents remain separately managed workloads.
+UACRF is being developed as a framework for assessing the resilience of cloud
+services and AI-agent workloads, governing bounded operational actions, and
+reviewing recovery evidence. Customer journeys connect those capabilities to
+outcomes; services and agents remain separately managed workloads.
 
-This repository records the current product and architecture baseline and the
-work planned to implement it. It is not a release of a completed UACRF
+This repository records the product and architecture baseline and tracks
+incremental implementation. It is not a release of a completed UACRF
 microservices system.
 
 ## Published paper
 
-The UACRF paper proposes a unified framework for assessing resilience across cloud services and AI-agent workloads. It connects dependency-aware observation and evidence-based assessment with bounded, policy-governed actions, independent recovery validation, and learning from outcomes. Its agent approach keeps advisory assistance separate from operational authority: recommendations can inform human review, but they do not by themselves authorize recovery or prove that recovery succeeded.
-
-This matters because an agent’s reliability depends on more than its model: tools, knowledge, memory, identity, and infrastructure can all become failure points. UACRF offers a structured way to reason about those dependencies, preserve evidence, and govern actions across the resilience lifecycle—without treating a confident recommendation or a provider’s success message as proof of resilience.
-
-For readers: What evidence and independent tests would you require before trusting an agent-assisted recovery recommendation in a critical environment? Which failure scenarios or governance questions should future evaluations prioritize?
+The UACRF paper proposes a unified approach to cloud and AI-agent resilience,
+linking dependency-aware evidence and assessment to bounded actions, independent
+recovery validation, and learning from outcomes. It keeps advisory assistance
+separate from operational authority: recommendations do not authorize recovery
+or prove that it succeeded.
 
 The framework is introduced in the following publication:
 
@@ -24,23 +24,25 @@ for Resilient AI-Cloud Systems Supporting Critical Digital Infrastructure*](http
 NJBEI Review, 1.0, 1–29. Published September 18, 2026. NID:
 nid/njbei.2026.0001.
 
-This repository describes the product and implementation design that builds
-on the paper's framework.
+This repository contains the product design and incremental implementation
+that build on the paper's framework.
 
 ## Project status
 
-The repository contains a detailed microservices architecture, supporting
-contracts and inventories, a static UI prototype, and an incrementally
-implemented Maven multi-module system. The first S01 identity and S02 catalog
-APIs have database-backed integration coverage; the target distributed
-services have not yet been accepted as a complete system.
+Implementation is underway, but this is not a complete or production-ready
+release. The repository contains the target microservices architecture,
+contracts and inventories, a static UI prototype, and a Maven multi-module
+system with selected service slices and focused database-backed tests. No M0-M8
+milestone is complete, and the distributed system has not passed full runtime
+acceptance. For current scope, test evidence, and open gaps, see
+[implementation status](docs/IMPLEMENTATION_STATUS.md).
 
-The architecture uses Java with Spring Boot, PostgreSQL for authoritative
-transactional data, and Neo4j as a verified graph projection. The browser
-experience is designed around the existing Bootstrap-based UI. Kafka and
-object storage are also part of the target design. See the [architecture
-overview](docs/architecture-overview.md) for boundaries and important
-constraints.
+The target architecture uses Java 25 and Spring Boot, PostgreSQL for
+authoritative transactional data, and Neo4j as a verified graph projection.
+Kafka and object storage are also in the target design; not all target
+components or service flows are connected. See the
+[architecture overview](docs/architecture-overview.md) and
+[service architecture](docs/ARCHITECTURE.md) for boundaries and constraints.
 
 This is a fresh microservices implementation. The existing Java application
 is not a build, runtime, regression, or acceptance dependency. Delivery status
@@ -52,13 +54,14 @@ is based on the target services and their executed tests.
   service boundaries, data ownership, and system behavior.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
+- [Current implementation status](docs/IMPLEMENTATION_STATUS.md) —
+  implemented slices, evidence, and remaining work.
 - [UI prototype](design/ui-prototype/ui_workloads/index.html) and [setup guide](design/ui-prototype/ui_workloads/START_HERE.html) —
   illustrative screens and local-only flows.
 - [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —
   planned system-level acceptance tests and principal risks.
-
-The [implementation roadmap](docs/implementation-roadmap.md) summarizes the
-planned sequence.
+- [Build and dependency policy](docs/BUILD_AND_DEPENDENCY_POLICY.md) —
+  supported build baseline and supply-chain controls.
 
 ## Important limitations
 
@@ -67,19 +70,25 @@ planned sequence.
 - Architecture checks demonstrate allocation and consistency of design
   artifacts, not runtime behavior, production readiness, or completion of
   acceptance tests.
-- Cloud-provider integrations, live identity configuration, production
-capacity, retention, and commercial policies require implementation decisions
-and validation before use.
+- Provider integrations, production identity configuration, operational
+  capacity, retention, and commercial policies require further implementation
+  and validation before use.
 - This repository does not grant rights to any third-party material. No
 software license has been selected; until one is added, do not assume that
 the code or documents may be reused or redistributed.
 
-## Implementation starting point
+## Build and validate
 
-Implementation is planned to begin with milestone M0: preserve and reconcile
-the migration baseline, establish the build and CI foundation, and record
-security and contract policies. Milestone M1 then establishes the first real
-multi-service workflow for identity, catalog, and customer journeys.
+Requirements: Java 25, Python 3 for the MS01 design check, and a
+Docker-compatible runtime for integration tests that use Testcontainers.
 
-See the [implementation plan](docs/IMPLEMENTATION_PLAN.md)
-for milestone entry and completion criteria.
+Run the same primary checks configured in CI:
+
+```sh
+python3 -B design/ms01/tools/check_architecture.py
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+These checks do not establish full-system runtime acceptance. See the
+[implementation roadmap](docs/implementation-roadmap.md) for milestones and
+the [implementation status](docs/IMPLEMENTATION_STATUS.md) for current evidence.
