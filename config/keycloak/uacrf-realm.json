@@ -77,6 +77,22 @@
       "fullScopeAllowed": false
     },
     {
+      "clientId": "uacrf-s05-objective-reviewer",
+      "name": "UACRF S05 objective reviewer authority checker",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KEYCLOAK_S05_OBJECTIVE_REVIEWER_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "uacrf-s01-context"
+      ],
+      "fullScopeAllowed": false
+    },
+    {
       "clientId": "uacrf-s01-directory",
       "name": "UACRF S01 directory reader",
       "enabled": true,
@@ -293,6 +309,12 @@
       "username": "service-account-uacrf-s07-evaluator",
       "enabled": true,
       "serviceAccountClientId": "uacrf-s07-evaluator"
+    },
+    {
+      "id": "00000000-0000-4000-8000-0000000000d4",
+      "username": "service-account-uacrf-s05-objective-reviewer",
+      "enabled": true,
+      "serviceAccountClientId": "uacrf-s05-objective-reviewer"
     },
     {
       "id": "00000000-0000-4000-8000-0000000000d1",

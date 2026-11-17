@@ -16,9 +16,11 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
@@ -30,6 +32,12 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 class EvidenceService {
   private static final String SCHEMA = "uacrf_evidence.";
+  private static final String TOPOLOGY_SUMMARY_CAPABILITY = "evidence.topology.summary";
+  private static final Set<String> TOPOLOGY_PURPOSES =
+      Set.of(
+          "topology.dependency-proposal",
+          "topology.dependency-review",
+          "topology.graph.current-use");
   private static final String COLUMNS =
       "id, source_class, source_ref, sequence, observed_at, kind, payload_digest, submitted_by, "
           + "qualification_state, revision, reviewed_by, review_reason";
@@ -282,6 +290,73 @@ class EvidenceService {
         row.get("payload_digest").toString(),
         ((Number) row.get("revision")).longValue(),
         reason);
+  }
+
+  @Transactional(readOnly = true)
+  TopologySummaryResult topologySummary(Jwt jwt, String id, TopologySummaryRequest request) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    if (!"S04".equals(jwt.getAudience().size() == 1 ? jwt.getAudience().getFirst() : null)
+        || !id.equals(actor.serviceScope())
+        || !"evidence_event".equals(jwt.getClaimAsString("resource_type"))
+        || !id.equals(jwt.getClaimAsString("resource_id"))
+        || !TOPOLOGY_SUMMARY_CAPABILITY.equals(actor.capabilities().size() == 1
+            ? actor.capabilities().getFirst()
+            : null)
+        || !TOPOLOGY_PURPOSES.contains(request.purpose())
+        || !request.purpose().equals(jwt.getClaimAsString("purpose"))) {
+      throw new EvidenceException(
+          HttpStatus.FORBIDDEN,
+          "DELEGATION_SCOPE_MISMATCH",
+          "A matching S01 resource- and purpose-scoped delegation is required.");
+    }
+
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT e.id, e.source_class, e.source_ref, e.sequence, e.observed_at, e.kind, "
+                + "e.payload, e.payload_digest, e.qualification_state, e.revision, e.reviewed_at, "
+                + HAS_EVIDENCE_CONFLICT + " AS has_conflict FROM " + SCHEMA
+                + "evidence_event e WHERE e.tenant_id = ? AND e.environment_id = ? AND e.id = ?",
+            actor.tenantId(),
+            actor.environmentId(),
+            id);
+    if (rows.isEmpty()) {
+      throw notFound();
+    }
+    Map<String, Object> row = rows.getFirst();
+    String digest = row.get("payload_digest") == null ? "" : row.get("payload_digest").toString().trim();
+    String payload = (String) row.get("payload");
+    Instant observedAt = ((Timestamp) row.get("observed_at")).toInstant();
+    Timestamp reviewedAt = (Timestamp) row.get("reviewed_at");
+    long revision = ((Number) row.get("revision")).longValue();
+    boolean eligible =
+        "PROVIDER".equals(row.get("source_class"))
+            && "QUALIFIED".equals(row.get("qualification_state"))
+            && request.expectedDigest().equals(digest)
+            && payload != null
+            && sha256(payload).equals(digest)
+            && request.expectedRevision() == revision
+            && !observedAt.isAfter(request.cutoff())
+            && reviewedAt != null
+            && !reviewedAt.toInstant().isAfter(request.cutoff())
+            && !Boolean.TRUE.equals(row.get("has_conflict"));
+    if (!eligible) {
+      throw conflict(
+          "EVIDENCE_NOT_CURRENT",
+          "Evidence is stale, mismatched, unqualified, or has a retained source conflict.");
+    }
+
+    return new TopologySummaryResult(
+        true,
+        new TopologySummary(
+            (String) row.get("id"),
+            (String) row.get("source_class"),
+            (String) row.get("source_ref"),
+            ((Number) row.get("sequence")).longValue(),
+            observedAt.toString(),
+            (String) row.get("kind"),
+            (String) row.get("qualification_state"),
+            revision,
+            digest));
   }
 
   @Transactional(readOnly = true)

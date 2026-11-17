@@ -16,6 +16,18 @@ final class TopologyRequests {
       @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String targetId,
       @NotNull ProvenanceKind provenanceKind, @Size(max=200) String sourceSystem,
       @Size(max=200) String sourceRevision, Instant verifiedAt) {}
+  record EvidenceBackedPropose(
+      @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String id,
+      @NotBlank String sourceType,
+      @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String sourceId,
+      @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String sourceVersion,
+      @NotBlank String relationshipType,
+      @NotBlank String targetType,
+      @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String targetId,
+      @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String targetVersion,
+      @NotBlank @Pattern(regexp="^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String evidenceId,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{64}$") String evidenceDigest,
+      @NotNull @Min(1) Long evidenceRevision) {}
   record Review(@NotNull Decision decision, @NotNull @Min(1) Long expectedRevision) {}
   record Accept(@NotBlank @Size(max=200) String scope, @NotNull @Min(0) Long expectedRevisionNumber) {}
 }

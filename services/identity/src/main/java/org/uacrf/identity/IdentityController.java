@@ -1,6 +1,7 @@
 package org.uacrf.identity;
 
 import jakarta.validation.Valid;
+import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class IdentityController {
   private final IdentityAccessService identity;
+  private final IdentityExchangeService exchange;
 
-  IdentityController(IdentityAccessService identity) {
+  IdentityController(IdentityAccessService identity, IdentityExchangeService exchange) {
     this.identity = identity;
+    this.exchange = exchange;
   }
 
   @GetMapping("/v1/identity-providers")
@@ -136,6 +139,12 @@ class IdentityController {
   IdentityResponses.Delegation createDelegation(
       @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody IdentityRequests.Delegation request) {
     return identity.createDelegation(jwt, request);
+  }
+
+  @PostMapping("/internal/v1/delegations:exchange")
+  IdentityResponses.Delegation exchangeDelegation(
+      @AuthenticationPrincipal Jwt jwt, @RequestBody Map<String, Object> request) {
+    return exchange.exchange(jwt, request);
   }
 
   @PostMapping("/internal/v1/objective-review-authority:check")

@@ -48,6 +48,13 @@ class TopologyRouteController {
     return forward(() -> topology.propose(authorization, requestBody));
   }
 
+  @PostMapping("/v1/dependency-proposals:evidence-backed")
+  ResponseEntity<String> proposeEvidence(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestBody String requestBody) {
+    return forward(() -> topology.proposeEvidence(authorization, requestBody));
+  }
+
   @PostMapping("/v1/dependency-proposals/{id}:review")
   ResponseEntity<String> review(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

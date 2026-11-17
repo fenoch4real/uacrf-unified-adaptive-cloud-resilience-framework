@@ -48,6 +48,19 @@ final class EvidenceResponses {
       String unit,
       String reason) {}
 
+  record TopologySummaryResult(boolean usableAsEvidence, TopologySummary summary) {}
+
+  record TopologySummary(
+      String evidenceId,
+      String sourceClass,
+      String sourceRef,
+      long sequence,
+      String observedAt,
+      String kind,
+      String qualificationState,
+      long revision,
+      String payloadDigest) {}
+
   record InboxResult(String eventId, String status, String reason) {}
 
   record Error(String code, String message, String requestId) {}

@@ -44,6 +44,10 @@ class TopologyRouteClient {
     return sendBody(HttpMethod.POST, "/v1/dependency-proposals", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> proposeEvidence(String authorization, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/dependency-proposals:evidence-backed", null, authorization, requestBody);
+  }
+
   ResponseEntity<String> review(String authorization, String id, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/dependency-proposals/{id}:review", id, authorization, requestBody);
   }

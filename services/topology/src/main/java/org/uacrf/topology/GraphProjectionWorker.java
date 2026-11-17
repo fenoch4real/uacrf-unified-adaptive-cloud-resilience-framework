@@ -58,7 +58,7 @@ class GraphProjectionWorker {
       Snapshot snapshot = snapshot(claim);
       store.write(snapshot);
       GraphData actual = store.read(snapshot.tenant(), snapshot.environment(), snapshot.id());
-      String actualDigest = GraphDigest.digest(actual.nodes(), actual.edges());
+      String actualDigest = GraphDigest.digest(actual.nodes(), actual.edges(), snapshot.digestVersion());
       if (!actual.contentIntegrityValid() || actual.nodes().size() != snapshot.nodes().size()
           || actual.edges().size() != snapshot.edges().size() || !snapshot.digest().equals(actualDigest)) {
         finishDrift(claim, actual.nodes().size(), actual.edges().size(), actualDigest);
@@ -84,10 +84,10 @@ class GraphProjectionWorker {
   }
 
   private Snapshot snapshot(Claim claim) {
-    Map<String, Object> revision = db.queryForMap("SELECT revision_number, digest FROM " + SCHEMA + "graph_revisions WHERE tenant_id=? AND environment_id=? AND id=?", claim.tenant(), claim.environment(), claim.id());
+    Map<String, Object> revision = db.queryForMap("SELECT revision_number, digest, digest_version FROM " + SCHEMA + "graph_revisions WHERE tenant_id=? AND environment_id=? AND id=?", claim.tenant(), claim.environment(), claim.id());
     List<Node> nodes = db.query("SELECT entity_type, entity_id FROM " + SCHEMA + "graph_nodes WHERE tenant_id=? AND environment_id=? AND graph_id=?", (rs, n) -> new Node(rs.getString(1), rs.getString(2)), claim.tenant(), claim.environment(), claim.id());
     List<Edge> edges = db.query("SELECT source_type, source_id, relationship_type, target_type, target_id, proposal_id FROM " + SCHEMA + "graph_edges WHERE tenant_id=? AND environment_id=? AND graph_id=?", (rs, n) -> new Edge(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6)), claim.tenant(), claim.environment(), claim.id());
-    return new Snapshot(claim.tenant(), claim.environment(), claim.id(), ((Number) revision.get("revision_number")).longValue(), (String) revision.get("digest"), nodes, edges);
+    return new Snapshot(claim.tenant(), claim.environment(), claim.id(), ((Number) revision.get("revision_number")).longValue(), (String) revision.get("digest"), ((Number)revision.get("digest_version")).intValue(), nodes, edges);
   }
 
   private void finishProjected(Claim claim, Snapshot graph, int nodeCount, int edgeCount, String digest) {

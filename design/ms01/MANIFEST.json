@@ -34,8 +34,8 @@
     },
     {
       "path": "INTERNAL_INTERFACES.md",
-      "bytes": 10389,
-      "sha256": "47a7487a78da41072b161a2ce363582e7b2e09b1a27dafce5b375157a053fce5"
+      "bytes": 21889,
+      "sha256": "206e22f17fd933756e2655192e24ce37085a99e462043906bbe2c5d438de63b6"
     },
     {
       "path": "README.md",
@@ -64,13 +64,13 @@
     },
     {
       "path": "TARGET_API_ADDITIONS.md",
-      "bytes": 13660,
-      "sha256": "d1aae333358a4a3699cc21c66ac603f83ab451c8dccd1d2073f698c3facd751b"
+      "bytes": 15462,
+      "sha256": "5e4c0b90cd5232c5f0a7a4dffb8046cce53bb0653f38d472ea43c9ea14b936d4"
     },
     {
       "path": "UACRF_Microservices_Architecture_v1_0.docx",
-      "bytes": 639972,
-      "sha256": "56975889df4b273ae62082275484b7a261db712b0148e7062ba68f9fed28b5cb"
+      "bytes": 644924,
+      "sha256": "7105a91bec551bb3ce341a9eeddde05fd6d99b7354342a59a098fa87a7ea67f8"
     },
     {
       "path": "UACRF_Microservices_Architecture_v1_0.pdf",
@@ -94,8 +94,8 @@
     },
     {
       "path": "contracts/owner-receipt.schema.json",
-      "bytes": 2511,
-      "sha256": "ed823e6252c5b6585e056cc328f3b169db7c7bfb325074d3aeb7f56e500834de"
+      "bytes": 3048,
+      "sha256": "0cabe2076dfc8e514c615a350871df4264e4d2bab2768121311e08a867869422"
     },
     {
       "path": "contracts/source/action_design/candidate.schema.json",
@@ -704,8 +704,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 140102,
-      "sha256": "338aa3b1c4a53a25faa813759b790c3d55e12a3f2c2e4c6407f445fd0c6d3f1c"
+      "bytes": 155529,
+      "sha256": "96f12f772f927d964412a1d89fda0b338cebd0d2b29f60fcaa0762e2402906b8"
     },
     {
       "path": "inventories/ACCEPTANCE_SCENARIOS.json",
@@ -804,8 +804,8 @@
     },
     {
       "path": "tools/build_contracts.py",
-      "bytes": 6236,
-      "sha256": "c7c8fad48cd16e4e617c236ce27f43c0b9d707baf40b284ca416672e44888ff0"
+      "bytes": 6579,
+      "sha256": "d57c777bb1ece25dac77bbfc221892c3b990dafe3237e03f4871aea9c849a359"
     },
     {
       "path": "tools/build_diagrams.py",

@@ -44,6 +44,13 @@ final class EvidenceRequests {
       @NotBlank @Size(max = 100) String metric,
       @NotNull java.time.Instant cutoff) {}
 
+  record TopologySummaryRequest(
+      @NotBlank @Pattern(regexp = "^(topology\\.dependency-proposal|topology\\.dependency-review|topology\\.graph\\.current-use)$")
+          String purpose,
+      @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String expectedDigest,
+      @Min(1) long expectedRevision,
+      @NotNull java.time.Instant cutoff) {}
+
   record InboxEvent(
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String eventId,
       @NotBlank @Pattern(regexp = "^S[0-9]{2}$") String sourceService,

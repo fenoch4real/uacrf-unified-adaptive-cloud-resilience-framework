@@ -42,6 +42,8 @@ class TopologyRouteControllerTests {
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server.expect(requestTo(URL + "/v1/dependency-proposals")).andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server.expect(requestTo(URL + "/v1/dependency-proposals:evidence-backed")).andExpect(method(HttpMethod.POST))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server.expect(requestTo(URL + "/v1/dependency-proposals/p-1:review")).andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server.expect(requestTo(URL + "/v1/graphs:accept")).andExpect(method(HttpMethod.POST))
@@ -64,6 +66,9 @@ class TopologyRouteControllerTests {
         .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(get("/internal/topology/v1/dependency-proposals/p-1")).andExpect(status().isOk());
     mvc.perform(post("/internal/topology/v1/dependency-proposals").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    mvc.perform(post("/internal/topology/v1/dependency-proposals:evidence-backed")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
     mvc.perform(post("/internal/topology/v1/dependency-proposals/p-1:review")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))

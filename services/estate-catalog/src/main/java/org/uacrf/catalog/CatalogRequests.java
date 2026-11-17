@@ -41,6 +41,13 @@ final class CatalogRequests {
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String versionId,
       @Min(1) long expectedRevision) {}
 
+  record OwnerReceiptRequest(
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String purpose,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")
+          String requestedVersion,
+      @Min(1) @Max(9_007_199_254_740_991L) Long knownRevision,
+      @NotNull java.time.Instant operationDeadline) {}
+
   record WorkloadVersionManifest(
       @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String instructionsDigest,
       @NotBlank @Size(max = 4096) String modelRef,

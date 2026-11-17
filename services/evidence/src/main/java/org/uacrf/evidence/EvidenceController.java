@@ -61,6 +61,14 @@ class EvidenceController {
     return evidence.measurement(DelegationPrincipal.from(jwt), id, request);
   }
 
+  @PostMapping("/internal/v1/qualifications/{id}:topology-summary")
+  TopologySummaryResult topologySummary(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody TopologySummaryRequest request) {
+    return evidence.topologySummary(jwt, id, request);
+  }
+
   @PostMapping("/internal/v1/inbox/events")
   @ResponseStatus(HttpStatus.ACCEPTED)
   InboxResult inbox(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody InboxEvent event) {

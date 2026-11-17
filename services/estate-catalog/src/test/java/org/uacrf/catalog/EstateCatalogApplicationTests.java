@@ -41,6 +41,7 @@ class EstateCatalogApplicationTests {
   private static final KeyPair DELEGATION_KEY_PAIR = generateDelegationKeyPair();
   private static final String DELEGATION_PUBLIC_KEY_BASE64 =
       Base64.getEncoder().encodeToString(DELEGATION_KEY_PAIR.getPublic().getEncoded());
+  private static final KeyPair OWNER_RECEIPT_KEY_PAIR = generateDelegationKeyPair();
   private static final JwtEncoder TEST_DELEGATION_ENCODER =
       DelegationJwtEncoderFactory.create(DELEGATION_KEY_PAIR, DELEGATION_KEY_ID);
   private static final String POSTGRES_IMAGE =
@@ -61,6 +62,13 @@ class EstateCatalogApplicationTests {
     properties.add(
         "uacrf.delegation.public-key-base64", () -> DELEGATION_PUBLIC_KEY_BASE64);
     properties.add("uacrf.delegation.key-id", () -> DELEGATION_KEY_ID);
+    properties.add(
+        "uacrf.owner-receipt.public-key-base64",
+        () -> Base64.getEncoder().encodeToString(OWNER_RECEIPT_KEY_PAIR.getPublic().getEncoded()));
+    properties.add(
+        "uacrf.owner-receipt.private-key-base64",
+        () -> Base64.getEncoder().encodeToString(OWNER_RECEIPT_KEY_PAIR.getPrivate().getEncoded()));
+    properties.add("uacrf.owner-receipt.key-id", () -> "s02-owner-test-key");
   }
 
   @LocalServerPort private int port;

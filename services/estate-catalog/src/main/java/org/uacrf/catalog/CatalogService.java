@@ -8,29 +8,50 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
+import org.uacrf.security.OwnerReceiptSignature;
 
 @org.springframework.stereotype.Service
 class CatalogService {
   private static final String SCHEMA = "uacrf_catalog.";
+  private static final long MAX_SAFE_INTEGER = 9_007_199_254_740_991L;
+  private static final Set<String> OWNER_RECEIPT_PURPOSES =
+      Set.of(
+          "topology.dependency-proposal",
+          "topology.dependency-review",
+          "topology.graph.current-use");
+  private static final String RECEIPT_IDENTIFIER_PATTERN =
+      "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$";
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
+  private final OwnerReceiptSigningKey ownerReceiptSigningKey;
+  private final Clock clock;
 
-  CatalogService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+  CatalogService(
+      JdbcTemplate jdbc,
+      ObjectMapper objectMapper,
+      OwnerReceiptSigningKey ownerReceiptSigningKey,
+      Clock clock) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
+    this.ownerReceiptSigningKey = ownerReceiptSigningKey;
+    this.clock = clock;
   }
 
   @Transactional
@@ -267,6 +288,152 @@ class CatalogService {
         version.get("digest").toString().trim(),
         version.get("object_ref").toString(),
         manifest);
+  }
+
+  @Transactional(readOnly = true)
+  OwnerReceipt issueOwnerReceipt(Jwt jwt, String workloadId, OwnerReceiptRequest request) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    requireOwnerReceiptDelegation(jwt, actor, workloadId, request.purpose());
+
+    Instant issuedAt = clock.instant();
+    Instant deadline = request.operationDeadline();
+    if (!deadline.isAfter(issuedAt)
+        || deadline.isAfter(issuedAt.plusSeconds(5))
+        || jwt.getExpiresAt() == null
+        || !jwt.getExpiresAt().isAfter(issuedAt)) {
+      throw conflict("OPERATION_DEADLINE_EXPIRED", "The operation deadline is not current.");
+    }
+
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT profile.revision, profile.active_version_id, parent_service.lifecycle "
+                + "AS service_lifecycle, version.state AS version_state, version.digest, "
+                + "version.manifest::text AS manifest FROM "
+                + SCHEMA
+                + "agent_workload profile "
+                + "LEFT JOIN "
+                + SCHEMA
+                + "service parent_service ON parent_service.tenant_id = profile.tenant_id "
+                + "AND parent_service.environment_id = profile.environment_id "
+                + "AND parent_service.id = profile.service_id "
+                + "LEFT JOIN "
+                + SCHEMA
+                + "agent_workload_version version ON version.tenant_id = profile.tenant_id "
+                + "AND version.environment_id = profile.environment_id "
+                + "AND version.workload_id = profile.id "
+                + "AND version.id = profile.active_version_id "
+                + "WHERE profile.tenant_id = ? AND profile.environment_id = ? "
+                + "AND profile.id = ?",
+            actor.tenantId(),
+            actor.environmentId(),
+            workloadId);
+    if (rows.isEmpty()) {
+      throw notFound("The agent workload is absent or not visible.");
+    }
+    Map<String, Object> row = rows.getFirst();
+    long profileRevision = ((Number) row.get("revision")).longValue();
+    String activeVersionId = (String) row.get("active_version_id");
+    String serviceLifecycle = (String) row.get("service_lifecycle");
+    String versionState = (String) row.get("version_state");
+    String digest = row.get("digest") == null ? null : row.get("digest").toString().trim();
+
+    if (!"ACTIVE".equals(serviceLifecycle)) {
+      throw conflict("OWNER_INACTIVE", "The parent service is not active.");
+    }
+    if (activeVersionId == null || !"ACTIVE".equals(versionState) || digest == null) {
+      throw conflict("WORKLOAD_VERSION_INACTIVE", "The workload has no current active version.");
+    }
+    if (row.get("manifest") == null
+        || !sha256(serialize(deserializeWorkloadManifest(row.get("manifest").toString())))
+            .equals(digest)) {
+      throw conflict("WORKLOAD_MANIFEST_INVALID", "The active workload manifest digest is invalid.");
+    }
+    if (!activeVersionId.equals(request.requestedVersion())) {
+      throw conflict("STALE_WORKLOAD_VERSION", "The requested workload version is not active.");
+    }
+    if (request.knownRevision() != null && request.knownRevision() != profileRevision) {
+      throw conflict("STALE_WORKLOAD_REVISION", "The workload profile revision has changed.");
+    }
+    if (profileRevision < 0 || profileRevision > MAX_SAFE_INTEGER) {
+      throw conflict("OWNER_REVISION_UNSUPPORTED", "The workload revision cannot be represented safely.");
+    }
+    requireReceiptIdentifier(actor.tenantId());
+    requireReceiptIdentifier(actor.environmentId());
+    requireReceiptIdentifier(actor.actorSubject());
+    requireReceiptIdentifier(workloadId);
+    requireReceiptIdentifier(activeVersionId);
+
+    Instant validUntil =
+        min(deadline, min(issuedAt.plusSeconds(5), jwt.getExpiresAt()));
+    if (!validUntil.isAfter(issuedAt)) {
+      throw conflict("OPERATION_DEADLINE_EXPIRED", "The operation deadline is not current.");
+    }
+    OwnerReceiptClaims claims =
+        new OwnerReceiptClaims(
+            "UACRF_OWNER_RECEIPT_V1",
+            ownerReceiptSigningKey.keyId(),
+            UUID.randomUUID().toString(),
+            "S02",
+            "S06",
+            actor.tenantId(),
+            actor.environmentId(),
+            actor.actorSubject(),
+            "agent_workload",
+            workloadId,
+            activeVersionId,
+            profileRevision,
+            digest,
+            profileRevision,
+            true,
+            request.purpose(),
+            issuedAt.toString(),
+            validUntil.toString());
+    String signature =
+        OwnerReceiptSignature.sign(
+            serialize(ownerReceiptSigningPayload(claims)), ownerReceiptSigningKey.privateKey());
+    return new OwnerReceipt(
+        claims.protocol(),
+        claims.keyId(),
+        claims.receiptId(),
+        claims.issuerService(),
+        claims.audienceService(),
+        claims.tenantId(),
+        claims.environmentId(),
+        claims.actorId(),
+        claims.resourceType(),
+        claims.resourceId(),
+        claims.resourceVersion(),
+        claims.resourceRevision(),
+        claims.contentDigest(),
+        claims.authorityEpoch(),
+        claims.eligible(),
+        claims.purpose(),
+        claims.issuedAt(),
+        claims.validUntil(),
+        signature);
+  }
+
+  static Map<String, Object> ownerReceiptSigningPayload(OwnerReceiptClaims claims) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("protocol", claims.protocol());
+    payload.put("key_id", claims.keyId());
+    payload.put("receipt_id", claims.receiptId());
+    payload.put("issuer_service", claims.issuerService());
+    payload.put("audience_service", claims.audienceService());
+    payload.put("tenant_id", claims.tenantId());
+    payload.put("environment_id", claims.environmentId());
+    payload.put("actor_id", claims.actorId());
+    payload.put("resource_type", claims.resourceType());
+    payload.put("resource_id", claims.resourceId());
+    payload.put("resource_version", claims.resourceVersion());
+    payload.put("resource_revision", claims.resourceRevision());
+    payload.put("content_digest", claims.contentDigest());
+    payload.put("authority_epoch", claims.authorityEpoch());
+    payload.put("eligible", claims.eligible());
+    payload.put("purpose", claims.purpose());
+    payload.put("issued_at", claims.issuedAt());
+    payload.put("valid_until", claims.validUntil());
+    return payload;
   }
 
   @Transactional
@@ -700,6 +867,40 @@ class CatalogService {
     if (!actor.capabilities().contains(capability)) {
       throw denied("The current principal cannot perform this catalog operation.");
     }
+  }
+
+  private void requireOwnerReceiptDelegation(
+      Jwt jwt, DelegationPrincipal actor, String workloadId, String purpose) {
+    boolean exactAudience =
+        jwt.getAudience() != null
+            && jwt.getAudience().size() == 1
+            && jwt.getAudience().contains("S02");
+    boolean exactCapability =
+        actor.capabilities().size() == 1
+            && actor.capabilities().contains("catalog.agent.owner-receipt");
+    if (!exactAudience
+        || !exactCapability
+        || !workloadId.equals(actor.serviceScope())
+        || !"agent_workload".equals(jwt.getClaims().get("resource_type"))
+        || !workloadId.equals(jwt.getClaims().get("resource_id"))
+        || !purpose.equals(jwt.getClaims().get("purpose"))
+        || !OWNER_RECEIPT_PURPOSES.contains(purpose)
+        || actor.tenantId() == null
+        || actor.environmentId() == null
+        || actor.actorSubject() == null
+        || actor.actorSubject().isBlank()) {
+      throw denied("A resource- and purpose-scoped S01 owner-receipt delegation is required.");
+    }
+  }
+
+  private static void requireReceiptIdentifier(String value) {
+    if (value == null || !value.matches(RECEIPT_IDENTIFIER_PATTERN)) {
+      throw conflict("OWNER_RECEIPT_SCOPE_INVALID", "The owner receipt scope is not schema-valid.");
+    }
+  }
+
+  private static Instant min(Instant left, Instant right) {
+    return left.isBefore(right) ? left : right;
   }
 
   private void requireGlobalScope(DelegationPrincipal actor) {

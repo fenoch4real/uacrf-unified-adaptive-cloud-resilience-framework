@@ -15,12 +15,14 @@ class TopologyController {
   TopologyController(TopologyService service) { this.service = service; }
   @PostMapping("/v1/dependency-proposals") @ResponseStatus(HttpStatus.CREATED)
   Proposal propose(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Propose request) { return service.propose(DelegationPrincipal.from(jwt), request); }
+  @PostMapping("/v1/dependency-proposals:evidence-backed") @ResponseStatus(HttpStatus.CREATED)
+  Proposal proposeEvidence(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody EvidenceBackedPropose request) { return service.proposeEvidence(jwt, request); }
   @GetMapping("/v1/dependency-proposals")
   Page<Proposal> list(@AuthenticationPrincipal Jwt jwt, @RequestParam(defaultValue="25") int pageSize, @RequestParam(required=false) String cursor) { return service.list(DelegationPrincipal.from(jwt), pageSize, cursor); }
   @GetMapping("/v1/dependency-proposals/{id}")
   Proposal get(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.proposal(DelegationPrincipal.from(jwt), id); }
   @PostMapping("/v1/dependency-proposals/{id}:review")
-  Proposal review(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Review request) { return service.review(DelegationPrincipal.from(jwt), id, request); }
+  Proposal review(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Review request) { return service.review(jwt, id, request); }
   @PostMapping("/v1/graphs:accept")
   Graph accept(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Accept request) { return service.accept(DelegationPrincipal.from(jwt), request); }
   @GetMapping("/v1/graphs/{id}")
@@ -32,5 +34,5 @@ class TopologyController {
   @GetMapping("/v1/graphs/{id}/impact")
   Impact impact(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @RequestParam("entity_type") String type, @RequestParam("entity_id") String entityId) { return service.impact(DelegationPrincipal.from(jwt), id, type, entityId); }
   @PostMapping("/internal/v1/graphs/{id}:receipt")
-  Receipt receipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.receipt(DelegationPrincipal.from(jwt), id); }
+  Receipt receipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.receipt(jwt, id); }
 }

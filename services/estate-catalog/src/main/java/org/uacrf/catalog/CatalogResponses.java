@@ -36,6 +36,47 @@ final class CatalogResponses {
       String objectRef,
       CatalogRequests.WorkloadVersionManifest manifest) {}
 
+  record OwnerReceiptClaims(
+      String protocol,
+      String keyId,
+      String receiptId,
+      String issuerService,
+      String audienceService,
+      String tenantId,
+      String environmentId,
+      String actorId,
+      String resourceType,
+      String resourceId,
+      String resourceVersion,
+      long resourceRevision,
+      String contentDigest,
+      long authorityEpoch,
+      boolean eligible,
+      String purpose,
+      String issuedAt,
+      String validUntil) {}
+
+  record OwnerReceipt(
+      String protocol,
+      String keyId,
+      String receiptId,
+      String issuerService,
+      String audienceService,
+      String tenantId,
+      String environmentId,
+      String actorId,
+      String resourceType,
+      String resourceId,
+      String resourceVersion,
+      long resourceRevision,
+      String contentDigest,
+      long authorityEpoch,
+      boolean eligible,
+      String purpose,
+      String issuedAt,
+      String validUntil,
+      String signature) {}
+
   record Step(
       String id,
       int position,

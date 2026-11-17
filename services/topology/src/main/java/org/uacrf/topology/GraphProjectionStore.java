@@ -60,7 +60,7 @@ class GraphProjectionStore {
       contentIntegrityValid &= row.get("endpoints_valid").asBoolean();
       String sourceType = row.get("source_type").asString(null), sourceId = row.get("source_id").asString(null);
       String relationshipType = row.get("relationship_type").asString(null), targetType = row.get("target_type").asString(null), targetId = row.get("target_id").asString(null);
-      if (sourceType == null || sourceId == null || relationshipType == null || targetType == null || targetId == null) {
+      if (sourceType == null || sourceId == null || relationshipType == null || targetType == null || targetId == null || row.get("proposal_id").asString(null) == null) {
         contentIntegrityValid = false;
       } else {
         edges.add(new Edge(sourceType, sourceId, relationshipType, targetType, targetId, row.get("proposal_id").asString(null)));
@@ -84,6 +84,6 @@ class GraphProjectionStore {
     return value;
   }
 
-  record Snapshot(String tenant, String environment, String id, long revision, String digest, List<Node> nodes, List<Edge> edges) {}
+  record Snapshot(String tenant, String environment, String id, long revision, String digest, int digestVersion, List<Node> nodes, List<Edge> edges) {}
   record GraphData(List<Node> nodes, List<Edge> edges, boolean contentIntegrityValid) {}
 }

@@ -6,6 +6,10 @@
     "protocol": {
       "const": "UACRF_OWNER_RECEIPT_V1"
     },
+    "key_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
     "receipt_id": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
@@ -70,6 +74,10 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
     },
+    "resource_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+    },
     "resource_revision": {
       "type": "integer",
       "minimum": 0,
@@ -107,6 +115,7 @@
   },
   "required": [
     "protocol",
+    "key_id",
     "receipt_id",
     "issuer_service",
     "audience_service",
@@ -123,5 +132,24 @@
     "issued_at",
     "valid_until",
     "signature"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "resource_type": {
+            "const": "agent_workload"
+          }
+        },
+        "required": [
+          "resource_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "resource_version"
+        ]
+      }
+    }
   ]
 }

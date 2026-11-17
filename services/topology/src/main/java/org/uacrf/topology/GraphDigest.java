@@ -14,16 +14,23 @@ final class GraphDigest {
   private GraphDigest() {}
 
   static String digest(Collection<Node> nodes, Collection<Edge> edges) {
+    return digest(nodes, edges, 2);
+  }
+
+  static String digest(Collection<Node> nodes, Collection<Edge> edges, int version) {
     TreeSet<Node> sortedNodes = new TreeSet<>((a, b) -> compare(List.of(a.entityType(), a.entityId()), List.of(b.entityType(), b.entityId())));
     sortedNodes.addAll(nodes);
     TreeSet<Edge> sortedEdges = new TreeSet<>((a, b) -> compare(
-        List.of(a.sourceType(), a.sourceId(), a.relationshipType(), a.targetType(), a.targetId()),
-        List.of(b.sourceType(), b.sourceId(), b.relationshipType(), b.targetType(), b.targetId())));
+        List.of(a.sourceType(), a.sourceId(), a.relationshipType(), a.targetType(), a.targetId(), version == 2 ? java.util.Objects.toString(a.proposalId(), "") : ""),
+        List.of(b.sourceType(), b.sourceId(), b.relationshipType(), b.targetType(), b.targetId(), version == 2 ? java.util.Objects.toString(b.proposalId(), "") : "")));
     sortedEdges.addAll(edges);
     StringBuilder canonical = new StringBuilder();
     for (Node node : sortedNodes) canonical.append("N").append(part(node.entityType())).append(part(node.entityId()));
-    for (Edge edge : sortedEdges) canonical.append("E").append(part(edge.sourceType())).append(part(edge.sourceId()))
-        .append(part(edge.relationshipType())).append(part(edge.targetType())).append(part(edge.targetId()));
+    for (Edge edge : sortedEdges) {
+      canonical.append("E").append(part(edge.sourceType())).append(part(edge.sourceId()))
+          .append(part(edge.relationshipType())).append(part(edge.targetType())).append(part(edge.targetId()));
+      if (version == 2) canonical.append(part(java.util.Objects.toString(edge.proposalId(), "")));
+    }
     return sha256(canonical.toString());
   }
 

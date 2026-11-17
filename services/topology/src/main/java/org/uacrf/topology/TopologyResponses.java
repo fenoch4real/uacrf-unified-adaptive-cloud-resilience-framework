@@ -1,13 +1,18 @@
 package org.uacrf.topology;
 
 import java.util.List;
+import java.util.Map;
 
 final class TopologyResponses {
   private TopologyResponses() {}
   record Error(String code, String message, String requestId) {}
   record Proposal(String id, String sourceType, String sourceId, String relationshipType,
       String targetType, String targetId, String provenanceKind, String sourceSystem,
-      String sourceRevision, String verifiedAt, String status, String proposer, String reviewer, long revision) {}
+      String sourceRevision, String verifiedAt, String status, String proposer, String reviewer, long revision,
+      EvidenceDetails evidence) {}
+  record EvidenceDetails(String sourceVersion, String sourceReceiptId, String targetVersion,
+      String targetReceiptId, String evidenceId, String evidenceDigest, long evidenceRevision,
+      Map<String,Object> summary) {}
   record Page<T>(List<T> items, String nextCursor) {}
   record Node(String entityType, String entityId) {}
   record Edge(String sourceType, String sourceId, String relationshipType, String targetType, String targetId, String proposalId) {}

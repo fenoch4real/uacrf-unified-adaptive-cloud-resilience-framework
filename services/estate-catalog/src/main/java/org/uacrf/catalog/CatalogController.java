@@ -81,6 +81,14 @@ class CatalogController {
     return catalog.getActiveWorkloadVersion(DelegationPrincipal.from(jwt), id);
   }
 
+  @PostMapping("/internal/v1/workloads/{id}:receipt")
+  OwnerReceipt getWorkloadOwnerReceipt(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody OwnerReceiptRequest request) {
+    return catalog.issueOwnerReceipt(jwt, id, request);
+  }
+
   @GetMapping("/v1/agent-workloads")
   Page<Agent> listAgents(
       @AuthenticationPrincipal Jwt jwt,
