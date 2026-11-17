@@ -5,6 +5,20 @@ The target is the complete M0-M8 roadmap in
 complete yet. The initial code is a buildable module skeleton, not an accepted
 microservices system.
 
+## S10 policy-bundle proposal and read
+
+S10 now has a database-backed initial policy-bundle slice: propose immutable
+revisions, list the current revision for a service, and read current or
+historical revisions. S01 issues the `authorization.policy.write` and
+`authorization.policy.read` capabilities only through its existing explicit
+grant flow; no automatic grants were added. The responses are digest-only
+`DRAFT` records, with signature/trust fields null and `current_eligible=false`.
+No review/decision, policy evaluation, permit, or action authorization endpoint
+is implemented. The service is registered in the Maven reactor, Docker/Compose,
+and the fixed EDGE01 `/internal/decision-governance/v1/...` routes; this remains
+a local-runtime slice, not live accepted coverage. The service's focused tests
+and selected reactor tests passed: 206 tests, with no failures or errors.
+
 ## Current handoff
 
 - The selected MS01 design, its contracts and inventories, the UI reference,

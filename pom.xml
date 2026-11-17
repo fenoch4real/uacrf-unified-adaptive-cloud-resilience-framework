@@ -24,6 +24,7 @@
     <module>services/identity</module>
     <module>services/estate-catalog</module>
     <module>services/connections</module>
+    <module>services/decision-governance</module>
     <module>services/evidence</module>
     <module>services/objectives</module>
     <module>services/topology</module>

@@ -51,6 +51,8 @@ class IdentityAccessService {
           "objectives.objective.activate",
           "objectives.review-authority.check",
           "objectives.constraint.write",
+          "authorization.policy.read",
+          "authorization.policy.write",
           "topology.graph.read",
           "topology.proposal.write",
           "topology.proposal.review",
@@ -102,8 +104,9 @@ class IdentityAccessService {
   @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
   IdentityResponses.Delegation createDelegation(
       Jwt jwt, IdentityRequests.Delegation request) {
-    if (!Set.of("S02", "S03", "S04", "S05", "S06", "S07", "S08").contains(request.audience())) {
-      throw invalid("Only the S02 through S08 audiences are currently available.");
+    if (!Set.of("S02", "S03", "S04", "S05", "S06", "S07", "S08", "S10")
+        .contains(request.audience())) {
+      throw invalid("Only the S02 through S08 and S10 audiences are currently available.");
     }
     if (request.serviceId() != null && !isValidId(request.serviceId())) {
       throw invalid("service_id is malformed.");

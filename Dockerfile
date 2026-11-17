@@ -15,7 +15,7 @@ RUN mkdir -p /opt/maven \
     && rm /tmp/apache-maven-3.10.0-bin.tar.gz
 COPY . .
 RUN /opt/maven/bin/mvn --batch-mode --no-transfer-progress \
-    -pl services/api-edge,services/experience-api,services/identity,services/estate-catalog,services/connections,services/evidence,services/objectives,services/topology,services/assessment,web \
+    -pl services/api-edge,services/experience-api,services/identity,services/estate-catalog,services/connections,services/decision-governance,services/evidence,services/objectives,services/topology,services/assessment,web \
     -am -Dmaven.test.skip=true package \
     && mkdir -p /out \
     && cp services/api-edge/target/api-edge-*.jar /out/api-edge.jar \
@@ -23,6 +23,7 @@ RUN /opt/maven/bin/mvn --batch-mode --no-transfer-progress \
     && cp services/identity/target/identity-service-*.jar /out/identity-service.jar \
     && cp services/estate-catalog/target/estate-catalog-service-*.jar /out/estate-catalog-service.jar \
     && cp services/connections/target/connections-service-*.jar /out/connections-service.jar \
+    && cp services/decision-governance/target/decision-governance-service-*.jar /out/decision-governance-service.jar \
     && cp services/evidence/target/evidence-service-*.jar /out/evidence-service.jar \
     && cp services/objectives/target/objectives-service-*.jar /out/objectives-service.jar \
     && cp services/topology/target/topology-service-*.jar /out/topology-service.jar \
@@ -60,6 +61,12 @@ ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
 FROM runtime-base AS connections
 COPY --from=build --chown=10001:10001 /out/connections-service.jar /app/app.jar
 EXPOSE 8085
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+
+FROM runtime-base AS decision-governance
+COPY --from=build --chown=10001:10001 /out/decision-governance-service.jar /app/app.jar
+ENV SERVER_PORT=8080
+EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
 
 FROM runtime-base AS evidence

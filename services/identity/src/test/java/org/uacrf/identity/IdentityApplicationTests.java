@@ -1022,6 +1022,109 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void authorizationPolicyCapabilitiesRequireTheExistingGrantFlow() throws Exception {
+    List<String> policyCapabilities =
+        List.of("authorization.policy.read", "authorization.policy.write");
+    String context = "?tenant_id=tenant-test&environment_id=environment-test";
+    String expiresAt =
+        Instant.now().plusSeconds(86400).truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+    String membershipIdRead = UUID.randomUUID().toString();
+    String membershipIdWrite = UUID.randomUUID().toString();
+    seedScopedMemberships();
+    seedGrantParticipant("decision-policy-target");
+    try {
+      assertEquals(
+          0,
+          jdbc.queryForObject(
+              "SELECT count(*) FROM uacrf_identity.membership "
+                  + "WHERE principal_id='admin-test' AND capability IN (?,?) AND revoked_at IS NULL",
+              Integer.class,
+              policyCapabilities.get(0),
+              policyCapabilities.get(1)));
+      bootstrap.run(new DefaultApplicationArguments(new String[0]));
+      assertEquals(
+          0,
+          jdbc.queryForObject(
+              "SELECT count(*) FROM uacrf_identity.membership "
+                  + "WHERE principal_id='admin-test' AND capability IN (?,?) AND revoked_at IS NULL",
+              Integer.class,
+              policyCapabilities.get(0),
+              policyCapabilities.get(1)));
+
+      for (int index = 0; index < policyCapabilities.size(); index++) {
+        String capability = policyCapabilities.get(index);
+        String decisionId = "decision-policy-grant-" + index;
+        String membershipId = index == 0 ? membershipIdRead : membershipIdWrite;
+        String body =
+            membershipBody(
+                membershipId, "decision-policy-target", capability, expiresAt, decisionId);
+        assertEquals(
+            403,
+            post("/v1/memberships" + context, token("keycloak-subject-1"), body,
+                    "decision-policy-unapproved-" + index)
+                .statusCode());
+        assertEquals(
+            201,
+            post(
+                    "/v1/grant-decisions" + context,
+                    token("keycloak-subject-approver"),
+                    decisionBody(decisionId, "decision-policy-target", capability, expiresAt))
+                .statusCode());
+        assertEquals(
+            201,
+            post(
+                    "/v1/memberships" + context,
+                    token("keycloak-subject-1"),
+                    body,
+                    "decision-policy-approved-" + index)
+                .statusCode());
+      }
+
+      assertEquals(
+          2,
+          jdbc.queryForObject(
+              "SELECT count(*) FROM uacrf_identity.membership "
+                  + "WHERE principal_id='decision-policy-target' "
+                  + "AND capability IN (?,?) AND revoked_at IS NULL",
+              Integer.class,
+              policyCapabilities.get(0),
+              policyCapabilities.get(1)));
+      HttpResponse<String> delegation =
+          post(
+              "/internal/v1/delegations",
+              token("decision-policy-target-subject"),
+              """
+              {"audience":"S10","capability_ids":[
+                "authorization.policy.read","authorization.policy.write"]}
+              """);
+      assertEquals(200, delegation.statusCode(), delegation.body());
+      String accessToken =
+          delegation.body().replaceFirst("^.*\"access_token\":\"([^\"]+)\".*$", "$1");
+      assertThat(decodeDelegation(accessToken, "S10").getAudience()).containsExactly("S10");
+      assertThat(decodeDelegation(accessToken, "S10").getClaimAsStringList("capabilities"))
+          .containsExactlyInAnyOrderElementsOf(policyCapabilities);
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.audit_event WHERE principal_id='decision-policy-target'");
+      jdbc.update(
+          "DELETE FROM uacrf_identity.outbox_event WHERE aggregate_id IN "
+              + "(SELECT id::text FROM uacrf_identity.membership "
+              + "WHERE principal_id='decision-policy-target')");
+      jdbc.update(
+          "DELETE FROM uacrf_identity.idempotency_record "
+              + "WHERE idempotency_key LIKE 'decision-policy-%'");
+      jdbc.update(
+          "UPDATE uacrf_identity.grant_decision SET consumed_at=NULL, consumed_membership_id=NULL "
+              + "WHERE id IN ('decision-policy-grant-0','decision-policy-grant-1')");
+      jdbc.update(
+          "DELETE FROM uacrf_identity.membership WHERE principal_id='decision-policy-target'");
+      jdbc.update(
+          "DELETE FROM uacrf_identity.grant_decision "
+              + "WHERE id IN ('decision-policy-grant-0','decision-policy-grant-1')");
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id='decision-policy-target'");
+    }
+  }
+
+  @Test
   void learningReviewCapabilityRequiresHumanAndGlobalScope() throws Exception {
     String capability = "assessment.learning.review";
     String context = "?tenant_id=tenant-test&environment_id=environment-test";
@@ -1747,6 +1850,10 @@ class IdentityApplicationTests {
   }
 
   private Jwt decodeDelegation(String token) {
+    return decodeDelegation(token, "S02");
+  }
+
+  private Jwt decodeDelegation(String token, String audience) {
     NimbusJwtDecoder decoder =
         NimbusJwtDecoder.withPublicKey((RSAPublicKey) DELEGATION_KEY_PAIR.getPublic())
             .signatureAlgorithm(SignatureAlgorithm.RS256)
@@ -1755,7 +1862,7 @@ class IdentityApplicationTests {
         JwtValidators.createDefaultWithValidators(
             JwtValidators.createDefaultWithIssuer("https://uacrf.local/s01"),
             new JwtClaimValidator<Object>(
-                "aud", value -> value instanceof List<?> audiences && audiences.contains("S02"))));
+                "aud", value -> value instanceof List<?> audiences && audiences.contains(audience))));
     Jwt jwt = decoder.decode(token);
     assertThat(jwt.getHeaders().get("kid")).isEqualTo(DELEGATION_KEY_ID);
     return jwt;

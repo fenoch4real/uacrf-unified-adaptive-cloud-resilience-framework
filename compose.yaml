@@ -151,6 +151,43 @@ services:
       timeout: 3s
       retries: 12
 
+  decision-governance-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: ${DECISION_GOVERNANCE_DB_NAME:?copy .env.example to .env and configure it}
+      POSTGRES_USER: ${DECISION_GOVERNANCE_DB_ADMIN_USER:?set a decision-governance database admin user}
+      POSTGRES_PASSWORD: ${DECISION_GOVERNANCE_DB_ADMIN_PASSWORD:?set a decision-governance database admin password}
+      APP_DB_USER: ${DECISION_GOVERNANCE_DB_USER:?copy .env.example to .env and configure it}
+      APP_DB_PASSWORD: ${DECISION_GOVERNANCE_DB_PASSWORD:?copy .env.example to .env and configure it}
+    ports:
+      - "127.0.0.1:55440:5432"
+    volumes:
+      - decision-governance-data:/var/lib/postgresql/data
+      - ./config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  decision-governance:
+    build:
+      context: .
+      target: decision-governance
+    environment:
+      DECISION_GOVERNANCE_JDBC_URL: jdbc:postgresql://decision-governance-db:5432/${DECISION_GOVERNANCE_DB_NAME:?copy .env.example to .env and configure it}
+      DECISION_GOVERNANCE_DB_USER: ${DECISION_GOVERNANCE_DB_USER:?copy .env.example to .env and configure it}
+      DECISION_GOVERNANCE_DB_PASSWORD: ${DECISION_GOVERNANCE_DB_PASSWORD:?copy .env.example to .env and configure it}
+      UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?set the S01 delegation public key}
+      UACRF_DELEGATION_KEY_ID: ${UACRF_DELEGATION_KEY_ID:?set the S01 delegation key id}
+      UACRF_DELEGATION_ISSUER: ${UACRF_DELEGATION_ISSUER:-https://uacrf.local/s01}
+      SERVER_PORT: 8080
+    ports:
+      - "127.0.0.1:8091:8080"
+    depends_on:
+      decision-governance-db:
+        condition: service_healthy
+
   neo4j:
     image: neo4j:5.26.0-community
     environment:
@@ -196,4 +233,5 @@ volumes:
   topology-neo4j-data:
   assessment-data:
   knowledge-data:
+  decision-governance-data:
   keycloak-data:

@@ -8,18 +8,26 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.web.client.RestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ApiEdgeApplicationTests {
   @Autowired private IdentityAccessRouteController identityAccessRoute;
+  @Autowired private DecisionGovernanceRouteController decisionGovernanceRoute;
+  @Autowired
+  @Qualifier("decisionGovernanceServiceRestClient")
+  private RestClient decisionGovernanceRestClient;
   @LocalServerPort private int port;
 
   @Test
   void startsWithTheCurrentAccessRouteConfigured() {
     assertThat(identityAccessRoute).isNotNull();
+    assertThat(decisionGovernanceRoute).isNotNull();
+    assertThat(decisionGovernanceRestClient).isNotNull();
   }
 
   @Test
