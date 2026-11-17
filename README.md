@@ -1,52 +1,48 @@
 # Unified Adaptive Cloud Resilience Framework (UACRF)
 
-UACRF is being developed as a framework for assessing the resilience of cloud
-services and AI-agent workloads, governing bounded operational actions, and
-reviewing recovery evidence. Customer journeys connect those capabilities to
-outcomes; services and agents remain separately managed workloads.
-
-This repository records the product and architecture baseline and tracks
-incremental implementation. It is not a release of a completed UACRF
-microservices system.
+UACRF brings cloud-service and AI-agent resilience into a shared lifecycle:
+assessing risk, governing bounded operational actions, and verifying recovery
+with evidence. Customer journeys connect those capabilities to outcomes, while
+services and agents remain separately managed workloads.
 
 ## Published paper
 
-The UACRF paper proposes a unified approach to cloud and AI-agent resilience,
-linking dependency-aware evidence and assessment to bounded actions, independent
-recovery validation, and learning from outcomes. It keeps advisory assistance
-separate from operational authority: recommendations do not authorize recovery
-or prove that it succeeded.
+The paper proposes a unified approach to cloud and AI-agent resilience,
+connecting dependency-aware evidence and assessment with bounded actions,
+independent recovery validation, and learning from outcomes. Its central
+boundary is that advice is not authority: a recommendation does not authorize
+recovery, and a provider-reported success does not prove that recovery worked.
 
-The framework is introduced in the following publication:
+The framework is described in:
 
 Fabiyi, O. O., & Yeboah, M. M. (2026). [*UACRF: A Unified Adaptive Framework
 for Resilient AI-Cloud Systems Supporting Critical Digital Infrastructure*](https://nahdapublications.org/nid/nid/njbei.2026.0001).
 NJBEI Review, 1.0, 1–29. Published September 18, 2026. NID:
 nid/njbei.2026.0001.
 
-This repository contains the product design and incremental implementation
-that build on the paper's framework.
+This repository develops the product design and implementation that build on
+the paper's framework.
 
 ## Project status
 
-Implementation is underway, but this is not a complete or production-ready
-release. The repository contains the target microservices architecture,
-contracts and inventories, a static UI prototype, and a Maven multi-module
-system with selected service slices and focused database-backed tests. No M0-M8
-milestone is complete, and the distributed system has not passed full runtime
-acceptance. For current scope, test evidence, and open gaps, see
-[implementation status](docs/IMPLEMENTATION_STATUS.md).
+UACRF is being implemented incrementally. This repository brings together the
+target microservices architecture, contracts and inventories, a static UI
+prototype, and a Maven multi-module system with selected service slices and
+focused database-backed tests. It is not yet a complete or production-ready
+system: no M0-M8 milestone is complete, and the distributed system has not
+passed full runtime acceptance. See [implementation status](docs/IMPLEMENTATION_STATUS.md)
+for current scope, test evidence, and open gaps.
 
-The target architecture uses Java 25 and Spring Boot, PostgreSQL for
-authoritative transactional data, and Neo4j as a verified graph projection.
-Kafka and object storage are also in the target design; not all target
-components or service flows are connected. See the
-[architecture overview](docs/architecture-overview.md) and
-[service architecture](docs/ARCHITECTURE.md) for boundaries and constraints.
+The target stack centers on Java 25 and Spring Boot, with PostgreSQL for
+authoritative transactional data and Neo4j for a verified graph projection.
+Kafka and object storage are also part of the design, though not all target
+components and flows are connected. See the [architecture overview](docs/architecture-overview.md)
+and [service architecture](docs/ARCHITECTURE.md) for system boundaries and
+constraints.
 
-This is a fresh microservices implementation. The existing Java application
-is not a build, runtime, regression, or acceptance dependency. Delivery status
-is based on the target services and their executed tests.
+This is a fresh microservices implementation; the existing Java application is
+not a build, runtime, regression, or acceptance dependency. Progress is
+measured against the target services and their executed tests.
 
 ## Explore the project
 
@@ -65,22 +61,21 @@ is based on the target services and their executed tests.
 
 ## Important limitations
 
-- The UI prototype uses illustrative local state. Its actions do not call the
+- The UI prototype runs on illustrative local state; it does not call the
   target microservices, persist production data, or perform cloud operations.
-- Architecture checks demonstrate allocation and consistency of design
-  artifacts, not runtime behavior, production readiness, or completion of
-  acceptance tests.
-- Provider integrations, production identity configuration, operational
-  capacity, retention, and commercial policies require further implementation
-  and validation before use.
+- Architecture checks verify the allocation and consistency of design
+  artifacts. They do not establish runtime behavior, production readiness, or
+  completion of acceptance tests.
+- Provider integrations and production identity, capacity, retention, and
+  commercial policies still require implementation and validation.
 - This repository does not grant rights to any third-party material. No
-software license has been selected; until one is added, do not assume that
-the code or documents may be reused or redistributed.
+  software license has been selected; until one is added, do not assume that
+  the code or documents may be reused or redistributed.
 
 ## Build and validate
 
-Requirements: Java 25, Python 3 for the MS01 design check, and a
-Docker-compatible runtime for integration tests that use Testcontainers.
+You will need Java 25, Python 3 for the MS01 design check, and a
+Docker-compatible runtime for Testcontainers-based integration tests.
 
 Run the same primary checks configured in CI:
 
@@ -90,5 +85,6 @@ python3 -B design/ms01/tools/check_architecture.py
 ```
 
 These checks do not establish full-system runtime acceptance. See the
-[implementation roadmap](docs/implementation-roadmap.md) for milestones and
-the [implementation status](docs/IMPLEMENTATION_STATUS.md) for current evidence.
+[implementation roadmap](docs/implementation-roadmap.md) for milestone
+sequencing and [implementation status](docs/IMPLEMENTATION_STATUS.md) for
+current evidence.
