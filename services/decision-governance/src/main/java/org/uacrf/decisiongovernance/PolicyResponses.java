@@ -32,7 +32,43 @@ final class PolicyResponses {
       String trustDigest,
       Long trustRevision,
       String assertionDigest,
-      String signedAssertion) {}
+      String signedAssertion,
+      Review review) {}
+
+  record Vote(
+      String reviewerId,
+      String decision,
+      String reason,
+      Instant reviewedAt,
+      String keyId,
+      Long trustRevision,
+      String trustDigest,
+      String assertionDigest,
+      boolean currentlyTrusted) {}
+
+  record Review(
+      int requiredApprovalCount,
+      int approvalCount,
+      int validApprovalCount,
+      int rejectionCount,
+      List<Vote> votes) {}
+
+  record Decided(
+      String decision,
+      String reviewerId,
+      String reviewReason,
+      Instant reviewedAt,
+      boolean currentEligible,
+      Long trustRevision,
+      String trustDigest,
+      String assertionDigest,
+      String signedAssertion,
+      Review review) {
+    static Decided draft() {
+      return new Decided(
+          "DRAFT", null, null, null, false, null, null, null, null, new Review(0, 0, 0, 0, List.of()));
+    }
+  }
 
   record ProposalResult(Policy policy, String receiptId) {}
 
@@ -55,7 +91,10 @@ final class PolicyResponses {
       String policyVersionId,
       String trustDigest,
       Long trustRevision,
-      String assertionDigest) {}
+      String assertionDigest,
+      int approvalCount,
+      int validApprovalCount,
+      int rejectionCount) {}
 
   record PolicyPage(List<PolicySummary> items, String nextCursor, String coverage) {}
 
@@ -72,6 +111,10 @@ final class PolicyResponses {
       Instant effectiveFrom,
       String canonicalText) {
     Policy policy() {
+      return policy(Decided.draft());
+    }
+
+    Policy policy(Decided state) {
       return new Policy(
           id,
           revision,
@@ -82,22 +125,27 @@ final class PolicyResponses {
           proposedBy,
           proposalReason,
           proposedAt,
-          "DRAFT",
-          null,
-          null,
-          null,
-          false,
+          state.decision(),
+          state.reviewerId(),
+          state.reviewReason(),
+          state.reviewedAt(),
+          state.currentEligible(),
           new Material("SHA-256", "UTF-8", canonicalText, digest),
           AUTHORITY,
           effectiveFrom,
           null,
-          null,
-          null,
-          null,
-          null);
+          state.trustDigest(),
+          state.trustRevision(),
+          state.assertionDigest(),
+          state.signedAssertion(),
+          state.review());
     }
 
     PolicySummary summary() {
+      return summary(Decided.draft());
+    }
+
+    PolicySummary summary(Decided state) {
       return new PolicySummary(
           id,
           revision,
@@ -107,17 +155,20 @@ final class PolicyResponses {
           proposedBy,
           proposalReason,
           proposedAt,
-          "DRAFT",
-          null,
-          null,
-          null,
-          false,
+          state.decision(),
+          state.reviewerId(),
+          state.reviewReason(),
+          state.reviewedAt(),
+          state.currentEligible(),
           AUTHORITY,
           effectiveFrom,
           null,
-          null,
-          null,
-          null);
+          state.trustDigest(),
+          state.trustRevision(),
+          state.assertionDigest(),
+          state.review().approvalCount(),
+          state.review().validApprovalCount(),
+          state.review().rejectionCount());
     }
   }
 }

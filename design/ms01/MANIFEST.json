@@ -34,8 +34,8 @@
     },
     {
       "path": "INTERNAL_INTERFACES.md",
-      "bytes": 34531,
-      "sha256": "8290f911e2447cb2952974e84c2d1577aacc59c75b646d1714f1b79c135fe7b3"
+      "bytes": 36402,
+      "sha256": "eb020615aacc6cf5a74fa580e09b1e5390d23c25953ef6702cbf2193f9eb34fa"
     },
     {
       "path": "README.md",
@@ -199,8 +199,8 @@
     },
     {
       "path": "contracts/source/authorization_policy_design/openapi.proposed.json",
-      "bytes": 73388,
-      "sha256": "a880b5a9f9890840430d099c2a19efdf78a1c74e481b6e8fe06186744338af80"
+      "bytes": 98508,
+      "sha256": "cf044873335aa97a74b932815fee482bec03c4f8da5de2e548aaeda7556f6761"
     },
     {
       "path": "contracts/source/catalog_contracts/capability_asset.schema.json",

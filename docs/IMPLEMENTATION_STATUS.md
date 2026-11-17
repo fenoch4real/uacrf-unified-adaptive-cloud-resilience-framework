@@ -5,19 +5,28 @@ The target is the complete M0-M8 roadmap in
 complete yet. The initial code is a buildable module skeleton, not an accepted
 microservices system.
 
-## S10 policy-bundle proposal and read
+## S10 policy-bundle proposal, review, and read
 
 S10 now has a database-backed initial policy-bundle slice: propose immutable
 revisions, list the current revision for a service, and read current or
 historical revisions. S01 issues the `authorization.policy.write` and
 `authorization.policy.read` capabilities only through its existing explicit
-grant flow; no automatic grants were added. The responses are digest-only
-`DRAFT` records, with signature/trust fields null and `current_eligible=false`.
-No review/decision, policy evaluation, permit, or action authorization endpoint
-is implemented. The service is registered in the Maven reactor, Docker/Compose,
-and the fixed EDGE01 `/internal/decision-governance/v1/...` routes; this remains
-a local-runtime slice, not live accepted coverage. The service's focused tests
-and selected reactor tests passed: 206 tests, with no failures or errors.
+grant flow; no automatic grants were added. S01 now also makes
+`authorization.policy.review` grantable only to HUMAN principals and only at
+an exact service scope. S10 records immutable reviewer votes through
+`POST /v1/authorization-policy-bundles/{id}:decide`: the reviewer must have
+that exact-service capability, be listed in `eligible_approver_ids`, and differ
+from the proposer. Approval requires an RS256 compact JWS with RFC 8785
+canonical claims, verified against an operator-provisioned, versioned
+public-key trust set scoped to tenant, environment, service, and reviewer.
+Distinct approvals must reach the configured quorum; rejection is unsigned and
+terminal. Trust rollback or a contradiction makes approvals ineligible on
+reads and blocks new approvals. EDGE01 forwards the fixed internal decide
+route. This remains governance metadata only: it creates no action permit,
+reservation, or operational authorization, and policy evaluation is not
+implemented. Focused S01/S10/EDGE01 and dependency tests passed in the selected
+reactor: 222 tests, with no failures, errors, or skips. The MS01 design check
+passed 24 checks; these results do not establish live deployment acceptance.
 
 The EDGE01 policy-get route now forwards revision selectors to S10 instead of
 silently returning the latest revision. Four PostgreSQL-backed concurrency tests
@@ -31,14 +40,17 @@ starts S10 with a distinct database and runtime role, verifies readiness and
 database isolation, and confirms EDGE01 forwards its internal route while the
 public policy route remains absent. All eleven local application images passed
 readiness and route/isolation checks. This is local container evidence; GitHub
-Actions and authenticated policy operations were not exercised. The selected
-Maven reactor covering S03/S04/S07 and dependencies passed 225 tests with no
-failures, errors or skips.
+Actions were not exercised. Authenticated policy-review operations are covered
+by the selected reactor tests with generated RSA keys and test delegations, not
+by a live S01/EDGE01/S10 deployment or operator trust configuration. The
+selected Maven reactor covering S03/S04/S07 and dependencies passed 225 tests
+with no failures, errors or skips.
 
 The MS01 API ownership inventory's `runtime_registered` and
 `current_recorded_status` fields describe the inherited source runtime, not
-the current microservice implementation. Its inherited S10 decision route
-does not mean the S10 microservice implements that route.
+the current microservice implementation. S10 now implements the policy review
+decision route described above; the inherited inventory does not imply that
+policy evaluation, permits, or operational authorization are implemented.
 
 ## S03 observation replay integrity
 

@@ -26,6 +26,17 @@ final class PolicyRequests {
       @NotBlank @Size(max = 2000) String reason,
       @NotNull Instant effectiveFrom) {}
 
+  record DecidePolicy(
+      @NotNull @Min(1) Long expectedRevision,
+      @NotNull Decision decision,
+      @NotBlank @Size(max = 2000) String reason,
+      @Size(min = 1, max = 16000) String signedAssertion) {}
+
+  enum Decision {
+    APPROVE,
+    REJECT
+  }
+
   record Definition(
       @NotEmpty @Size(max = 100)
           List<@NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_]{0,79}$") String> allowedActionKinds,

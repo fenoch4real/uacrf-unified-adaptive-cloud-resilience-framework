@@ -49,6 +49,17 @@ class DecisionGovernanceRouteClient {
     return send(request, authorization, idempotencyKey);
   }
 
+  ResponseEntity<String> decide(
+      String authorization, String idempotencyKey, String id, String requestBody) {
+    RestClient.RequestBodySpec request =
+        decisionGovernanceRestClient
+            .post()
+            .uri("/v1/authorization-policy-bundles/{id}:decide", id)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(requestBody);
+    return send(request, authorization, idempotencyKey);
+  }
+
   ResponseEntity<String> get(
       String authorization, String idempotencyKey, String id, MultiValueMap<String, String> query) {
     return send(

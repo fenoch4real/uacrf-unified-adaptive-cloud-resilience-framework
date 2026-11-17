@@ -53,6 +53,7 @@ class IdentityAccessService {
           "objectives.constraint.write",
           "authorization.policy.read",
           "authorization.policy.write",
+          "authorization.policy.review",
           "topology.graph.read",
           "topology.proposal.write",
           "topology.proposal.review",
@@ -133,6 +134,9 @@ class IdentityAccessService {
     }
     if (requestedCapabilities.contains("objectives.objective.review") && !"HUMAN".equals(actor.kind())) {
       throw denied("Objective review delegations are only available to human principals.");
+    }
+    if (requestedCapabilities.contains("authorization.policy.review") && !"HUMAN".equals(actor.kind())) {
+      throw denied("Policy review delegations are only available to human principals.");
     }
     if (requestedCapabilities.contains("advisory.run.create") && !"HUMAN".equals(actor.kind())) {
       throw denied("Advisory run creation is only available to human principals.");
@@ -1215,6 +1219,9 @@ class IdentityAccessService {
     if ("objectives.objective.review".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "objectives.objective.review requires global scope.");
     }
+    if ("authorization.policy.review".equals(capability) && "*".equals(serviceScope)) {
+      throw unprocessable("INVALID_SCOPE", "authorization.policy.review requires an exact service scope.");
+    }
     if ("objectives.review-authority.check".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "objectives.review-authority.check requires global scope.");
     }
@@ -1242,7 +1249,7 @@ class IdentityAccessService {
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
           case "objectives.review-authority.check" -> "SYSTEM".equals(kind);
           case "knowledge.item.review", "advisory.run.create", "assessment.learning.review",
-              "objectives.objective.review" -> "HUMAN".equals(kind);
+              "objectives.objective.review", "authorization.policy.review" -> "HUMAN".equals(kind);
           default -> "HUMAN".equals(kind) || "SYSTEM".equals(kind);
         };
     if (!allowed) {

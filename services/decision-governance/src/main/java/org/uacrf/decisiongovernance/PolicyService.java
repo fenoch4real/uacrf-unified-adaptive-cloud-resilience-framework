@@ -19,27 +19,42 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.uacrf.security.DelegationPrincipal;
+import org.uacrf.decisiongovernance.PolicyRequests.DecidePolicy;
+import org.uacrf.decisiongovernance.PolicyRequests.Decision;
 import org.uacrf.decisiongovernance.PolicyRequests.Definition;
 import org.uacrf.decisiongovernance.PolicyRequests.ProposePolicy;
+import org.uacrf.decisiongovernance.PolicyResponses.Decided;
 import org.uacrf.decisiongovernance.PolicyResponses.Policy;
 import org.uacrf.decisiongovernance.PolicyResponses.PolicyPage;
 import org.uacrf.decisiongovernance.PolicyResponses.PolicyRow;
 import org.uacrf.decisiongovernance.PolicyResponses.PolicySummary;
 import org.uacrf.decisiongovernance.PolicyResponses.ProposalResult;
+import org.uacrf.decisiongovernance.PolicyResponses.Review;
+import org.uacrf.decisiongovernance.PolicyResponses.Vote;
 
 @Service
 class PolicyService {
   private static final String SCHEMA = "uacrf_decision_governance";
   private static final String ID_PATTERN = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$";
   private static final String OPERATION = "POST /v1/authorization-policy-bundles";
+  private static final String DECIDE_OPERATION = "POST /v1/authorization-policy-bundles/{id}:decide";
+  private static final String REVIEW_CAPABILITY = "authorization.policy.review";
   private static final int MAX_PAGE_SIZE = 200;
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
+  private final PolicyTrustSet trust;
+  private final PolicyAssertionVerifier verifier;
 
-  PolicyService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+  PolicyService(
+      JdbcTemplate jdbc,
+      ObjectMapper objectMapper,
+      PolicyTrustSet trust,
+      PolicyAssertionVerifier verifier) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
+    this.trust = trust;
+    this.verifier = verifier;
   }
 
   @Transactional
@@ -86,7 +101,7 @@ class PolicyService {
         throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
       }
       return new ProposalResult(
-          findRevision(actor, id, revisionNumber.longValue(), null).policy(), null);
+          present(actor, findRevision(actor, id, revisionNumber.longValue(), null)), null);
     }
 
     jdbc.update(
@@ -169,7 +184,377 @@ class PolicyService {
         OPERATION,
         idempotencyKey);
 
-    return new ProposalResult(findRevision(actor, request.id(), revision, null).policy(), null);
+    return new ProposalResult(
+        present(actor, findRevision(actor, request.id(), revision, null)), null);
+  }
+
+  @Transactional
+  ProposalResult decide(
+      DelegationPrincipal actor, String id, DecidePolicy request, String idempotencyKey) {
+    requireCapability(actor, REVIEW_CAPABILITY);
+    if ("*".equals(actor.serviceScope())) {
+      throw new DecisionGovernanceException(
+          HttpStatus.FORBIDDEN,
+          "SERVICE_SCOPE_REQUIRED",
+          "Policy review requires a delegation scoped to one exact service.");
+    }
+    requireIdentifier(id, "id");
+    requireIdentifier(actor.principalId(), "principal_id");
+    validateIdempotencyKey(idempotencyKey);
+    boolean approve = request.decision() == Decision.APPROVE;
+    if (request.reason().isBlank()) {
+      throw invalid("reason must contain a non-whitespace character.");
+    }
+    if (approve == (request.signedAssertion() == null)
+        || (request.signedAssertion() != null && request.signedAssertion().isBlank())) {
+      throw invalid(
+          approve
+              ? "APPROVE requires a signed_assertion."
+              : "REJECT requires signed_assertion to be null.");
+    }
+
+    Map<String, Object> digestMaterial = new TreeMap<>();
+    digestMaterial.put("policy_id", id);
+    digestMaterial.put("expected_revision", request.expectedRevision());
+    digestMaterial.put("decision", request.decision().name());
+    digestMaterial.put("reason", request.reason());
+    digestMaterial.put("signed_assertion", request.signedAssertion());
+    String requestDigest = sha256(canonicalJson(objectMapper.valueToTree(digestMaterial)));
+    int inserted =
+        jdbc.update(
+            "INSERT INTO "
+                + SCHEMA
+                + ".idempotency_record "
+                + "(tenant_id, environment_id, principal_id, operation, idempotency_key, request_digest) "
+                + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+            actor.tenantId(),
+            actor.environmentId(),
+            actor.principalId(),
+            DECIDE_OPERATION,
+            idempotencyKey,
+            requestDigest);
+    if (inserted == 0) {
+      List<Map<String, Object>> records =
+          jdbc.queryForList(
+              "SELECT request_digest, policy_id, policy_revision FROM "
+                  + SCHEMA
+                  + ".idempotency_record WHERE tenant_id = ? AND environment_id = ? "
+                  + "AND principal_id = ? AND operation = ? AND idempotency_key = ? FOR UPDATE",
+              actor.tenantId(),
+              actor.environmentId(),
+              actor.principalId(),
+              DECIDE_OPERATION,
+              idempotencyKey);
+      if (records.isEmpty() || !requestDigest.equals(records.getFirst().get("request_digest"))) {
+        throw conflict(
+            "IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+      }
+      Object policyId = records.getFirst().get("policy_id");
+      Object revision = records.getFirst().get("policy_revision");
+      if (!(policyId instanceof String replayId) || !(revision instanceof Number number)) {
+        throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+      }
+      return new ProposalResult(
+          present(actor, findRevision(actor, replayId, number.longValue(), actor.serviceScope())),
+          null);
+    }
+
+    List<Map<String, Object>> heads =
+        jdbc.queryForList(
+            "SELECT service_id, current_revision FROM "
+                + SCHEMA
+                + ".policy_head WHERE tenant_id = ? AND environment_id = ? AND id = ? FOR UPDATE",
+            actor.tenantId(),
+            actor.environmentId(),
+            id);
+    if (heads.isEmpty() || !actor.serviceScope().equals(heads.getFirst().get("service_id"))) {
+      throw notFound("The policy is absent or not visible.");
+    }
+    long currentRevision = ((Number) heads.getFirst().get("current_revision")).longValue();
+    if (request.expectedRevision() != currentRevision) {
+      throw conflict(
+          "REVISION_CONFLICT",
+          "expected_revision does not match the latest immutable policy revision.");
+    }
+
+    PolicyRow row = findRevision(actor, id, currentRevision, actor.serviceScope());
+    List<String> eligible = row.definition().eligibleApproverIds();
+    if (actor.principalId().equals(row.proposedBy())) {
+      throw new DecisionGovernanceException(
+          HttpStatus.FORBIDDEN,
+          "SELF_REVIEW_FORBIDDEN",
+          "The proposer cannot review their own policy revision.");
+    }
+    if (!eligible.contains(actor.principalId())) {
+      throw new DecisionGovernanceException(
+          HttpStatus.FORBIDDEN,
+          "REVIEWER_NOT_ELIGIBLE",
+          "The reviewer is not listed in eligible_approver_ids for this revision.");
+    }
+    Instant now = Instant.now();
+    if (!now.isBefore(row.expiresAt())) {
+      throw conflict("POLICY_EXPIRED", "The policy revision has expired and cannot be reviewed.");
+    }
+    List<VoteRow> votes = loadVotes(actor, row);
+    if (votes.stream().anyMatch(vote -> vote.reviewerId().equals(actor.principalId()))) {
+      throw conflict("DUPLICATE_VOTE", "This reviewer already voted on this policy revision.");
+    }
+    if (!"DRAFT".equals(derive(row, votes).decision())) {
+      throw conflict("DECISION_FINAL", "The policy revision already has a final decision.");
+    }
+
+    String keyId = null;
+    String keyDigest = null;
+    Long trustRevision = null;
+    String trustDigest = null;
+    String assertionDigest = null;
+    if (approve) {
+      requireTrustCurrent();
+      PolicyAssertionVerifier.Verified verified =
+          verifier.verify(
+              request.signedAssertion(),
+              actor.tenantId(),
+              actor.environmentId(),
+              id,
+              row.revision(),
+              row.serviceId(),
+              row.digest(),
+              actor.principalId(),
+              request.reason());
+      keyId = verified.key().keyId();
+      keyDigest = verified.key().keyDigest();
+      trustRevision = trust.revision();
+      trustDigest = trust.digest();
+      assertionDigest = verified.assertionDigest();
+    }
+    jdbc.update(
+        "INSERT INTO "
+            + SCHEMA
+            + ".policy_review_vote (tenant_id, environment_id, id, revision, reviewer_id, decision, "
+            + "reason, reviewed_at, policy_digest, key_id, key_digest, trust_revision, trust_digest, "
+            + "signed_assertion, assertion_digest) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        actor.tenantId(),
+        actor.environmentId(),
+        id,
+        row.revision(),
+        actor.principalId(),
+        request.decision().name(),
+        request.reason(),
+        timestamp(now),
+        row.digest(),
+        keyId,
+        keyDigest,
+        trustRevision,
+        trustDigest,
+        approve ? request.signedAssertion() : null,
+        assertionDigest);
+    jdbc.update(
+        "UPDATE "
+            + SCHEMA
+            + ".idempotency_record SET policy_id = ?, policy_revision = ? "
+            + "WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? "
+            + "AND operation = ? AND idempotency_key = ?",
+        id,
+        row.revision(),
+        actor.tenantId(),
+        actor.environmentId(),
+        actor.principalId(),
+        DECIDE_OPERATION,
+        idempotencyKey);
+    return new ProposalResult(present(actor, row), null);
+  }
+
+  private void requireTrustCurrent() {
+    if (!trust.configured()) {
+      throw new DecisionGovernanceException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "TRUST_SET_UNAVAILABLE",
+          "No reviewer trust set is configured.");
+    }
+    jdbc.update(
+        "INSERT INTO "
+            + SCHEMA
+            + ".policy_trust_revision (revision, trust_digest) VALUES (?, ?) "
+            + "ON CONFLICT (revision) DO NOTHING",
+        trust.revision(),
+        trust.digest());
+    String recorded =
+        jdbc.queryForObject(
+            "SELECT trust_digest FROM " + SCHEMA + ".policy_trust_revision WHERE revision = ?",
+            String.class,
+            trust.revision());
+    if (!trust.digest().equals(recorded)) {
+      throw new DecisionGovernanceException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "TRUST_SET_CONFLICT",
+          "The configured trust set differs from the recorded content for the same revision.");
+    }
+    Long highest =
+        jdbc.queryForObject(
+            "SELECT max(revision) FROM " + SCHEMA + ".policy_trust_revision", Long.class);
+    if (highest != null && highest > trust.revision()) {
+      throw new DecisionGovernanceException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "TRUST_SET_STALE",
+          "The configured trust set is older than a revision already recorded by this service.");
+    }
+  }
+
+  private Policy present(DelegationPrincipal actor, PolicyRow row) {
+    boolean current =
+        Boolean.TRUE.equals(
+            jdbc.queryForObject(
+                "SELECT current_revision = ? FROM "
+                    + SCHEMA
+                    + ".policy_head WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+                Boolean.class,
+                row.revision(),
+                actor.tenantId(),
+                actor.environmentId(),
+                row.id()));
+    return row.policy(decided(actor, row, current));
+  }
+
+  private Decided decided(DelegationPrincipal actor, PolicyRow row, boolean current) {
+    Decided state = derive(row, loadVotes(actor, row));
+    Instant now = Instant.now();
+    boolean eligible =
+        "APPROVED".equals(state.decision())
+            && current
+            && state.review().validApprovalCount() >= quorum(row)
+            && !now.isBefore(row.effectiveFrom())
+            && now.isBefore(row.expiresAt());
+    return new Decided(
+        state.decision(),
+        state.reviewerId(),
+        state.reviewReason(),
+        state.reviewedAt(),
+        eligible,
+        state.trustRevision(),
+        state.trustDigest(),
+        state.assertionDigest(),
+        state.signedAssertion(),
+        state.review());
+  }
+
+  private static int quorum(PolicyRow row) {
+    return Math.max(1, row.definition().requiredApproverCount());
+  }
+
+  private List<VoteRow> loadVotes(DelegationPrincipal actor, PolicyRow row) {
+    return jdbc.query(
+        "SELECT reviewer_id, decision, reason, reviewed_at, key_id, key_digest, trust_revision, "
+            + "trust_digest, signed_assertion, assertion_digest FROM "
+            + SCHEMA
+            + ".policy_review_vote WHERE tenant_id = ? AND environment_id = ? AND id = ? "
+            + "AND revision = ? ORDER BY vote_seq",
+        (rs, index) ->
+            new VoteRow(
+                rs.getString("reviewer_id"),
+                rs.getString("decision"),
+                rs.getString("reason"),
+                rs.getTimestamp("reviewed_at").toInstant(),
+                rs.getString("key_id"),
+                rs.getString("key_digest"),
+                (Long) rs.getObject("trust_revision"),
+                rs.getString("trust_digest"),
+                rs.getString("signed_assertion"),
+                rs.getString("assertion_digest"),
+                actor.tenantId(),
+                actor.environmentId(),
+                row.serviceId()),
+        actor.tenantId(),
+        actor.environmentId(),
+        row.id(),
+        row.revision());
+  }
+
+  /** Read-only check that the configured trust set is neither rolled back nor contradicted. */
+  private boolean trustRecordCurrent() {
+    if (!trust.configured()) {
+      return false;
+    }
+    List<String> recorded =
+        jdbc.queryForList(
+            "SELECT trust_digest FROM " + SCHEMA + ".policy_trust_revision WHERE revision = ?",
+            String.class,
+            trust.revision());
+    if (!recorded.isEmpty() && !trust.digest().equals(recorded.getFirst())) {
+      return false;
+    }
+    Long highest =
+        jdbc.queryForObject(
+            "SELECT max(revision) FROM " + SCHEMA + ".policy_trust_revision", Long.class);
+    return highest == null || highest <= trust.revision();
+  }
+
+  private Decided derive(PolicyRow row, List<VoteRow> votes) {
+    boolean trustCurrent = trustRecordCurrent();
+    List<VoteRow> approvals = votes.stream().filter(v -> "APPROVE".equals(v.decision())).toList();
+    List<VoteRow> rejections = votes.stream().filter(v -> "REJECT".equals(v.decision())).toList();
+    List<Vote> history =
+        votes.stream()
+            .map(
+                v ->
+                    new Vote(
+                        v.reviewerId(),
+                        v.decision(),
+                        v.reason(),
+                        v.reviewedAt(),
+                        v.keyId(),
+                        v.trustRevision(),
+                        v.trustDigest(),
+                        v.assertionDigest(),
+                        "APPROVE".equals(v.decision()) && trustCurrent && v.currentlyTrusted(trust)))
+            .toList();
+    int validApprovals =
+        (int) approvals.stream().filter(v -> trustCurrent && v.currentlyTrusted(trust)).count();
+    Review review =
+        new Review(
+            quorum(row), approvals.size(), validApprovals, rejections.size(), history);
+    VoteRow decisive = null;
+    String decision = "DRAFT";
+    if (!rejections.isEmpty()) {
+      decision = "REJECTED";
+      decisive = rejections.getFirst();
+    } else if (approvals.size() >= quorum(row)) {
+      decision = "APPROVED";
+      decisive = approvals.get(quorum(row) - 1);
+    }
+    if (decisive == null) {
+      return new Decided("DRAFT", null, null, null, false, null, null, null, null, review);
+    }
+    return new Decided(
+        decision,
+        decisive.reviewerId(),
+        decisive.reason(),
+        decisive.reviewedAt(),
+        false,
+        decisive.trustRevision(),
+        decisive.trustDigest(),
+        decisive.assertionDigest(),
+        decisive.signedAssertion(),
+        review);
+  }
+
+  private record VoteRow(
+      String reviewerId,
+      String decision,
+      String reason,
+      Instant reviewedAt,
+      String keyId,
+      String keyDigest,
+      Long trustRevision,
+      String trustDigest,
+      String signedAssertion,
+      String assertionDigest,
+      String tenantId,
+      String environmentId,
+      String serviceId) {
+    boolean currentlyTrusted(PolicyTrustSet trust) {
+      return keyId != null && trust.stillTrusts(keyId, keyDigest, tenantId, environmentId, serviceId, reviewerId);
+    }
   }
 
   @Transactional(readOnly = true)
@@ -213,7 +598,8 @@ class PolicyService {
     List<PolicyRow> visible = hasMore ? rows.subList(0, pageSize) : rows;
     String nextCursor =
         hasMore && !visible.isEmpty() ? encodeCursor(visible.getLast()) : null;
-    List<PolicySummary> items = visible.stream().map(PolicyRow::summary).toList();
+    List<PolicySummary> items =
+        visible.stream().map(row -> row.summary(decided(actor, row, true))).toList();
     return new PolicyPage(items, nextCursor, "AUTHORIZED_VISIBLE_SCOPE_ONLY");
   }
 
@@ -224,7 +610,7 @@ class PolicyService {
     if (revision != null && revision < 1) {
       throw invalid("revision must be a positive integer.");
     }
-    return findRevision(actor, id, revision, actor.serviceScope()).policy();
+    return present(actor, findRevision(actor, id, revision, actor.serviceScope()));
   }
 
   private PolicyRow findRevision(

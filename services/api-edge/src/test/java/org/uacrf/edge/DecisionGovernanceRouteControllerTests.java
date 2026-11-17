@@ -101,6 +101,40 @@ class DecisionGovernanceRouteControllerTests {
   }
 
   @Test
+  void forwardsDecideWithAuthorizationIdempotencyKeyBodyAndOwnerResponse() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc =
+        MockMvcBuilders.standaloneSetup(
+                new DecisionGovernanceRouteController(
+                    new DecisionGovernanceRouteClient(builder.build())))
+            .build();
+    server
+        .expect(requestTo(URL + "/v1/authorization-policy-bundles/bundle-1:decide"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer incoming-token"))
+        .andExpect(header("Idempotency-Key", "decide-key-1"))
+        .andExpect(
+            org.springframework.test.web.client.match.MockRestRequestMatchers.content()
+                .json("{\"expected_revision\":1,\"decision\":\"REJECT\"}"))
+        .andRespond(
+            withStatus(HttpStatus.CONFLICT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"code\":\"REVISION_CONFLICT\"}"));
+
+    mvc.perform(
+            post("/internal/decision-governance/v1/authorization-policy-bundles/bundle-1:decide")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer incoming-token")
+                .header("Idempotency-Key", "decide-key-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expected_revision\":1,\"decision\":\"REJECT\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(content().json("{\"code\":\"REVISION_CONFLICT\"}"))
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    server.verify();
+  }
+
+  @Test
   void doesNotExposeDecisionPermitOrEvaluationRoutes() throws Exception {
     MockMvc mvc =
         MockMvcBuilders.standaloneSetup(
@@ -110,7 +144,12 @@ class DecisionGovernanceRouteControllerTests {
 
     mvc.perform(
             post(
-                    "/internal/decision-governance/v1/authorization-policy-bundles/bundle-1:decide")
+                    "/internal/decision-governance/v1/authorization-policy-bundles/bundle-1:decide:permit")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isMethodNotAllowed());
+    mvc.perform(
+            post("/internal/decision-governance/v1/authorization-policy-bundles/bundle-1:evaluate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isMethodNotAllowed());

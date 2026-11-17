@@ -1172,6 +1172,64 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void policyReviewCapabilityRequiresHumanAndExactServiceScope() throws Exception {
+    String capability = "authorization.policy.review";
+    String context = "?tenant_id=tenant-test&environment_id=environment-test";
+    String expiresAt = Instant.now().plusSeconds(86400)
+        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+    String decision = "policy-review-test-decision";
+    try {
+      seedGrantParticipant("policy-review-human");
+      jdbc.update("INSERT INTO uacrf_identity.principal "
+          + "(id,issuer_uri,subject,display_name,kind,enabled,token_valid_after,revision) "
+          + "VALUES ('policy-review-system',?,'policy-review-system-subject','System',"
+          + "'SYSTEM',true,now() - interval '1 minute',1)", ISSUER);
+      String approver = token("keycloak-subject-approver");
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("policy-review-global", "policy-review-human", capability, expiresAt)).statusCode());
+      String scoped = decisionBody(decision, "policy-review-human", capability, expiresAt)
+          .replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"");
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("policy-review-system-decision", "policy-review-system", capability, expiresAt)
+              .replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"")).statusCode());
+      assertEquals(201, post("/v1/grant-decisions" + context, approver, scoped).statusCode());
+      String membershipId = "00000000-0000-4000-8000-000000000333";
+      String body = membershipBody(membershipId, "policy-review-human", capability, expiresAt, decision)
+          .replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"");
+      assertEquals(201, post("/v1/memberships" + context, token("keycloak-subject-1"), body,
+          "policy-review-key").statusCode());
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test','policy-review-system',?,'svc-1',"
+          + "'2099-12-31T23:59:59Z',1)", UUID.randomUUID(), capability);
+      String request = "{\"audience\":\"S10\",\"service_id\":\"svc-1\","
+          + "\"capability_ids\":[\"authorization.policy.review\"]}";
+      HttpResponse<String> allowed =
+          post("/internal/v1/delegations", token("policy-review-human-subject"), request);
+      assertEquals(200, allowed.statusCode(), allowed.body());
+      String accessToken =
+          allowed.body().replaceFirst("^.*\"access_token\":\"([^\"]+)\".*$", "$1");
+      assertThat(decodeDelegation(accessToken, "S10").getClaimAsStringList("capabilities"))
+          .containsExactly(capability);
+      assertEquals(403, post("/internal/v1/delegations", token("policy-review-human-subject"),
+          request.replace("svc-1", "svc-2")).statusCode());
+      assertEquals(403, post("/internal/v1/delegations",
+          token("policy-review-system-subject"), request).statusCode());
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.audit_event WHERE principal_id IN ('policy-review-human','policy-review-system')");
+      jdbc.update("DELETE FROM uacrf_identity.outbox_event WHERE aggregate_id IN "
+          + "(SELECT id::text FROM uacrf_identity.membership WHERE principal_id IN ('policy-review-human','policy-review-system'))");
+      jdbc.update("DELETE FROM uacrf_identity.idempotency_record WHERE idempotency_key='policy-review-key'");
+      jdbc.update("UPDATE uacrf_identity.grant_decision SET consumed_at=NULL, consumed_membership_id=NULL "
+          + "WHERE id=?", decision);
+      jdbc.update("DELETE FROM uacrf_identity.membership "
+          + "WHERE principal_id IN ('policy-review-human','policy-review-system')");
+      jdbc.update("DELETE FROM uacrf_identity.grant_decision WHERE id=?", decision);
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id IN ('policy-review-human','policy-review-system')");
+    }
+  }
+
+  @Test
   void objectiveReviewCapabilityRequiresHumanAndGlobalScope() throws Exception {
     String capability = "objectives.objective.review";
     String context = "?tenant_id=tenant-test&environment_id=environment-test";

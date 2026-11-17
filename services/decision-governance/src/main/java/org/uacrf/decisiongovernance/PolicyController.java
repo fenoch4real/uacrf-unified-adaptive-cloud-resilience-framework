@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.uacrf.security.DelegationPrincipal;
+import org.uacrf.decisiongovernance.PolicyRequests.DecidePolicy;
 import org.uacrf.decisiongovernance.PolicyRequests.ProposePolicy;
 import org.uacrf.decisiongovernance.PolicyResponses.Policy;
 import org.uacrf.decisiongovernance.PolicyResponses.PolicyPage;
@@ -33,6 +34,16 @@ class PolicyController {
       @Valid @RequestBody ProposePolicy request,
       @RequestHeader("Idempotency-Key") String idempotencyKey) {
     return policies.propose(DelegationPrincipal.from(jwt), request, idempotencyKey);
+  }
+
+  @PostMapping("/v1/authorization-policy-bundles/{id}:decide")
+  @ResponseStatus(HttpStatus.OK)
+  ProposalResult decide(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody DecidePolicy request,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    return policies.decide(DelegationPrincipal.from(jwt), id, request, idempotencyKey);
   }
 
   @GetMapping("/v1/authorization-policy-bundles")

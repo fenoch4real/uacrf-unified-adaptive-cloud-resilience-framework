@@ -43,6 +43,16 @@ class DecisionGovernanceRouteController {
         () -> decisionGovernance.propose(authorization, idempotencyKey, requestBody));
   }
 
+  @PostMapping("/{id}:decide")
+  ResponseEntity<String> decide(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @PathVariable String id,
+      @RequestBody String requestBody) {
+    return forward(
+        () -> decisionGovernance.decide(authorization, idempotencyKey, id, requestBody));
+  }
+
   @GetMapping("/{id}")
   ResponseEntity<String> get(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
