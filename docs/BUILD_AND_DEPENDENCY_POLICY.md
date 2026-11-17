@@ -39,5 +39,7 @@ dependency changed, not waived in CI).
 Version tags (`v*`) run `.github/workflows/release.yml`, which rebuilds each
 image, applies the same scan gate before pushing, pushes to GHCR, and signs
 each image by digest with keyless cosign, then verifies the signature against
-the workflow identity. The workflow has not yet run against a real tag, and
-release-time SBOM attestation and signature-enforcing admission remain open.
+the workflow identity. For every pushed digest, Trivy generates an SPDX JSON
+SBOM and cosign attaches and verifies an SPDX attestation against that same
+digest and release workflow identity. The workflow has not yet run against a
+real tag, and signature- and attestation-enforcing admission remain open.

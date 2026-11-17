@@ -339,9 +339,11 @@ provider credentials or making release claims.
   `python3 tools/check_service_ownership.py`. The image smoke test now also
   proves each runtime database credential is rejected by the other database;
   broader deployment-level isolation evidence remains open.
-- Image signing: `release.yml` scans, pushes, cosign-signs and verifies images on
-  `v*` tags; scan findings block the release. Still open: first real tag run,
-  SBOM attestation, and signature enforcement at deployment.
+- Image signing and SBOM attestation: `release.yml` scans before push, then
+  pushes, cosign-signs and verifies each image by digest on `v*` tags. It now
+  generates an SPDX JSON SBOM from each pushed digest and attaches and verifies
+  a cosign attestation against the release workflow identity. Still open:
+  first real tag run and signature/attestation enforcement at deployment.
 - First bounded recovery action selected: `workload.set-replicas` with a local
   stub adapter; see `docs/FIRST_RECOVERY_ACTION.md`. The adapter itself is
   built in M5.

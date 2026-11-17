@@ -2,7 +2,8 @@ name: Release
 
 # Release images are built only from version tags, must pass the same
 # HIGH/CRITICAL vulnerability gate as CI (no ignore file), and are signed
-# keylessly by digest so consumers can verify them against this workflow.
+# keylessly by digest. Each pushed digest also receives a verified SPDX SBOM
+# attestation from this workflow.
 on:
   push:
     tags:
@@ -55,6 +56,17 @@ jobs:
             digest=$(docker image inspect "${ref}:${TAG}" --format '{{index .RepoDigests 0}}')
             cosign sign --yes "$digest"
             cosign verify \
+              --certificate-identity "$IDENTITY" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "$digest" > /dev/null
+            sbom="${RUNNER_TEMP}/${image}.spdx.json"
+            trivy image \
+              --format spdx-json \
+              --output "$sbom" \
+              "$digest"
+            cosign attest --yes --type spdx --predicate "$sbom" "$digest"
+            cosign verify-attestation \
+              --type spdx \
               --certificate-identity "$IDENTITY" \
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               "$digest" > /dev/null
