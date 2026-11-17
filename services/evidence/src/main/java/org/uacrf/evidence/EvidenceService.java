@@ -374,6 +374,7 @@ class EvidenceService {
     String payload = (String) row.get("payload");
     String digest = row.get("payload_digest").toString().trim();
     String state = (String) row.get("qualification_state");
+    String kind = (String) row.get("kind");
     Timestamp reviewedAt = (Timestamp) row.get("reviewed_at");
     ParsedMeasurement parsed = parseMeasurement(payload);
     String reason = Boolean.TRUE.equals(row.get("has_conflict")) ? "Evidence has a retained source conflict."
@@ -381,14 +382,20 @@ class EvidenceService {
         : reviewedAt == null || reviewedAt.toInstant().isAfter(request.cutoff()) ? "Qualification happened after the cutoff."
         : ((Timestamp) row.get("observed_at")).toInstant().isAfter(request.cutoff()) ? "Observation happened after the cutoff."
         : !sha256(payload).equals(digest) ? "Stored payload digest does not match."
+        : !isMeasurementKind(kind) ? "Evidence is not a measurement observation."
         : parsed == null ? "Payload is not a valid measurement."
         : !parsed.metric().equals(request.metric()) ? "Payload metric does not match."
         : null;
     return new MeasurementReceipt(id, request.purpose(), state, reason == null, digest,
         ((Number) row.get("revision")).longValue(), ((Timestamp) row.get("observed_at")).toInstant(),
-        (String) row.get("kind"), parsed == null ? null : parsed.metric(),
+        kind, parsed == null ? null : parsed.metric(),
         parsed == null ? null : parsed.value(), parsed == null ? null : parsed.unit(),
         reason == null ? "Qualified measurement." : reason);
+  }
+
+  private static boolean isMeasurementKind(String kind) {
+    String prefix = "measurement.";
+    return kind != null && kind.startsWith(prefix) && kind.length() > prefix.length();
   }
 
   private ParsedMeasurement parseMeasurement(String payload) {

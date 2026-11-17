@@ -68,5 +68,6 @@ jobs:
           objectives objectives-service
           topology topology-service
           assessment assessment-service
+          decision-governance decision-governance-service
           web web
           IMAGES

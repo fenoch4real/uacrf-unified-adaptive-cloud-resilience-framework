@@ -150,6 +150,12 @@ class AssessmentService {
   Evaluation evaluation(DelegationPrincipal actor, String id) { permit(actor, "assessment.evaluation.read"); return findEvaluation(actor,id); }
   void revalidateEvaluation(DelegationPrincipal actor, String id) {
     Evaluation evaluation = findEvaluation(actor, id);
+    String expectedDigest = hash(write(new ResultMaterial(evaluation.observationCutoff(), evaluation.mode(),
+        evaluation.outcome(), evaluation.dependencyVector())));
+    if (!Objects.equals(expectedDigest, evaluation.resultDigest())) {
+      throw conflict("EVALUATION_DIGEST_MISMATCH",
+          "The retained evaluation does not match its result digest.");
+    }
     DependencyVector vector = evaluation.dependencyVector();
     Case item = findCase(actor, evaluation.caseId(), false);
     if (!"SEALED".equals(item.state()) || !Objects.equals(item.caseDigest(), vector.caseDigest())

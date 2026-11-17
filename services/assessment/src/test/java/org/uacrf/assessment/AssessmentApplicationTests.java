@@ -388,6 +388,27 @@ class AssessmentApplicationTests {
         token("t-model-review", "*", ALL, "reviewer"),
         promoteJson(2, "SHADOW")).statusCode());
   }
+  @Test void modelReviewRejectsEvaluationWhoseRetainedResultDigestDoesNotMatch() throws Exception {
+    String tenant = "t-model-corrupt-result-digest";
+    String proposer = token(tenant, "*", ALL);
+    String reviewer = token(tenant, "*", ALL, "reviewer");
+    String caseId = sealed(proposer, "[\"a\"]", "LTE");
+    String evaluation = seedEvaluation(tenant, caseId, "VERIFIED", "CONFIRMED_SUCCESS",
+        "f".repeat(64));
+    String model = modelVersion(proposer, "digest-check", "1").get("id").asString();
+
+    HttpResponse<String> rejected = post(reviewPath(model), reviewer,
+        reviewJson(1, "APPROVE", "[\"" + evaluation + "\"]"));
+
+    assertEquals(409, rejected.statusCode());
+    assertThat(rejected.body()).contains("EVALUATION_DIGEST_MISMATCH");
+    assertEquals("CANDIDATE", body(get("/v1/model-versions/" + model, proposer), 200)
+        .get("state").asString());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id=? AND aggregate_id=? "
+        + "AND event_type='uacrf.s07.model-version.review-decided.v1'",
+        Integer.class, tenant, model));
+  }
   @Test void evaluationIdsAreTenantScopedAndInsufficientEvidenceCannotBeReviewed() throws Exception {
     String proposer = token("t-model-cross", "*", ALL);
     String id = modelVersion(proposer, "m-cross", "1.0").get("id").asString();
@@ -1359,6 +1380,10 @@ class AssessmentApplicationTests {
     return body(post("/v1/model-versions", token, modelJson(model, version)), 201);
   }
   private String seedEvaluation(String tenant, String caseId, String verification, String outcome) {
+    return seedEvaluation(tenant, caseId, verification, outcome, null);
+  }
+  private String seedEvaluation(String tenant, String caseId, String verification, String outcome,
+      String digestOverride) {
     String id = UUID.randomUUID().toString();
     int revision = jdbc.queryForObject("SELECT COALESCE(MAX(revision),0)+1 FROM "
         + "uacrf_assessment.evaluation WHERE tenant_id=? AND environment_id='env-1' AND case_id=?",
@@ -1375,12 +1400,25 @@ class AssessmentApplicationTests {
         List.of(new AssessmentResponses.Evidence(measurement, "USED")),
         List.of(new AssessmentResponses.MeasurementReceipt("r1", "assessment", "QUALIFIED", true,
             "a".repeat(64), 2, measurement.observedAt(), "a", "latency", measurement.value(), "ms", "Qualified measurement.")));
+    String material = json.writeValueAsString(new EvaluationResultMaterial(
+        Instant.parse("2026-01-01T00:00:00Z"), AssessmentRequests.Mode.SHADOW, outcome, vector));
+    String resultDigest = digestOverride == null ? sha256(material) : digestOverride;
     jdbc.update("INSERT INTO uacrf_assessment.evaluation "
         + "(tenant_id,environment_id,id,case_id,revision,observation_cutoff,cutoff_epoch_second,"
         + "cutoff_nano,mode,outcome,dependency_vector,result_digest) "
         + "VALUES (?, 'env-1', ?, ?, ?, '2026-01-01T00:00:00Z', 1767225600,0,'SHADOW',? ,?::jsonb,?)",
-        tenant, id, caseId, revision, outcome, json.writeValueAsString(vector), "b".repeat(64));
+        tenant, id, caseId, revision, outcome, json.writeValueAsString(vector), resultDigest);
     return id;
+  }
+  private record EvaluationResultMaterial(Instant observationCutoff, AssessmentRequests.Mode mode,
+      String outcome, AssessmentResponses.DependencyVector dependencyVector) {}
+  private static String sha256(String value) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+          .digest(value.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException error) {
+      throw new IllegalStateException(error);
+    }
   }
   private static String modelJson(String model, String version) {
     return "{\"model_id\":\"" + model + "\",\"version\":\"" + version

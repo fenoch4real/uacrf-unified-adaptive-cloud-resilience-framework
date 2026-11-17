@@ -85,6 +85,7 @@ jobs:
           objectives objectives-service 8087
           topology topology-service 8088
           assessment assessment-service 8089
+          decision-governance decision-governance-service 8080
           web web 8084
           IMAGES
       - name: Smoke test all application images
@@ -161,6 +162,13 @@ jobs:
           output-file: artifacts/supply-chain/sbom-assessment-service.spdx.json
           upload-artifact: false
           upload-release-assets: false
+      - name: Generate decision-governance-service SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: uacrf/decision-governance-service:${{ github.sha }}
+          output-file: artifacts/supply-chain/sbom-decision-governance-service.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - name: Generate web SBOM
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
@@ -200,6 +208,7 @@ jobs:
           objectives-service uacrf/objectives-service:${{ github.sha }}
           topology-service uacrf/topology-service:${{ github.sha }}
           assessment-service uacrf/assessment-service:${{ github.sha }}
+          decision-governance-service uacrf/decision-governance-service:${{ github.sha }}
           web uacrf/web:${{ github.sha }}
           IMAGES
           exit "$scan_status"

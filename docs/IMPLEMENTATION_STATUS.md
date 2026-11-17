@@ -25,6 +25,16 @@ exercise same-key replay and conflicts and competing first or later revisions;
 they cover controlled interleavings on one service instance, not multi-instance
 load. The focused edge and S10 suites passed 11 tests.
 
+The S10 image is now included in CI image build/port checks, SBOM and
+vulnerability scanning, and release signing. The local all-image smoke test
+starts S10 with a distinct database and runtime role, verifies readiness and
+database isolation, and confirms EDGE01 forwards its internal route while the
+public policy route remains absent. All eleven local application images passed
+readiness and route/isolation checks. This is local container evidence; GitHub
+Actions and authenticated policy operations were not exercised. The selected
+Maven reactor covering S03/S04/S07 and dependencies passed 225 tests with no
+failures, errors or skips.
+
 The MS01 API ownership inventory's `runtime_registered` and
 `current_recorded_status` fields describe the inherited source runtime, not
 the current microservice implementation. Its inherited S10 decision route
@@ -448,6 +458,12 @@ retains evidence events and decides qualification.
   safeguards for decisions made later.
   PostgreSQL integration tests cover concurrency, timestamp precision, tenant
   isolation, unaffected submissions and migration of legacy quarantines.
+- Measurement receipts now require the retained evidence kind to start with
+  `measurement.` and have a nonempty suffix, in addition to the existing
+  qualification, cutoff, digest and payload checks. Measurement-shaped payloads
+  under other evidence kinds remain unusable. This prevents a configuration
+  observation from being treated as a measurement; it does not define a broader
+  source-kind registry or provider attestation contract.
 - `POST /internal/v1/inbox/events` is the consumer-side inbox (digest, duplicate,
   per-aggregate sequence checks, quarantine). A duplicate must match the retained
   source service, event type, aggregate, sequence, payload and digest; reusing an
@@ -593,6 +609,11 @@ retains evidence events and decides qualification.
   simulated S01/S05/S06. These remote checks are sequential point-in-time reads,
   not atomic authorization; later changes do not automatically deactivate an
   active version or change historical evaluations.
+- Before model-review revalidation, S07 now recomputes each retained evaluation's
+  result digest and fails closed with `EVALUATION_DIGEST_MISMATCH` when it does
+  not match. A PostgreSQL-backed regression test confirms a mismatch cannot
+  approve the model or emit the review decision event. The digest still depends
+  on current Jackson serialization and is not a versioned canonical format.
 - **Model promotion is blocked:** workload evaluations do not bind results to a
   model artifact or prove model accuracy, calibration, or safe operation. Even
   with both feature flags enabled and fresh owner receipts, SHADOW and ADVISORY

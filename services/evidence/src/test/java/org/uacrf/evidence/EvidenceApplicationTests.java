@@ -154,6 +154,41 @@ class EvidenceApplicationTests {
   }
 
   @Test
+  void measurementReceiptRejectsEvidenceWithANonMeasurementKind() throws Exception {
+    String submit = bearer("submitter", "tenant-measurement-kind", SUBMITTER);
+    String reviewer = bearer("reviewer", "tenant-measurement-kind", REVIEWER);
+    String payload = "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\"}";
+    String escapedPayload = json.writeValueAsString(payload);
+    String evidence = evidence(
+        "configuration-as-measurement",
+        "PROVIDER",
+        "configuration-source",
+        1,
+        escapedPayload.substring(1, escapedPayload.length() - 1),
+        sha(payload))
+        .replace("measurement.latency", "configuration.snapshot");
+
+    assertEquals(202, post("/internal/v1/observations", submit, evidence).statusCode());
+    assertEquals(
+        200,
+        post(
+                "/v1/evidence/configuration-as-measurement/reviews",
+                reviewer,
+                "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}")
+            .statusCode());
+
+    var receipt =
+        json.readTree(
+            post(
+                    "/internal/v1/qualifications/configuration-as-measurement:measurement",
+                    reviewer,
+                    measurementRequest("latency", "2999-01-01T00:00:00Z"))
+                .body());
+    assertThat(receipt.get("usable_as_evidence").asBoolean()).isFalse();
+    assertThat(receipt.get("reason").asString()).contains("not a measurement observation");
+  }
+
+  @Test
   void receiptsRejectObservationsAfterCutoffAndAcceptTheInclusiveBoundary() throws Exception {
     String submit = bearer("submitter", "tenant-cutoff", SUBMITTER);
     String reviewer = bearer("reviewer", "tenant-cutoff", REVIEWER);

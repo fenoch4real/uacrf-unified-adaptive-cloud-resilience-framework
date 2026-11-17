@@ -14,6 +14,7 @@ evidence_network="uacrf-image-smoke-${smoke_id}-evidence"
 objectives_network="uacrf-image-smoke-${smoke_id}-objectives"
 topology_network="uacrf-image-smoke-${smoke_id}-topology"
 assessment_network="uacrf-image-smoke-${smoke_id}-assessment"
+decision_governance_network="uacrf-image-smoke-${smoke_id}-decision-governance"
 containers=()
 networks=()
 umask 077
@@ -35,6 +36,9 @@ cleanup() {
     "$smoke_root/private.pem" \
     "$smoke_root/private.der" \
     "$smoke_root/public.der" \
+    "$smoke_root/owner-receipt-private.pem" \
+    "$smoke_root/owner-receipt-private.der" \
+    "$smoke_root/owner-receipt-public.der" \
     "$smoke_root/identity.env" \
     "$smoke_root/catalog.env" \
     "$smoke_root/connections.env" \
@@ -42,6 +46,7 @@ cleanup() {
     "$smoke_root/objectives.env" \
     "$smoke_root/topology.env" \
     "$smoke_root/assessment.env" \
+    "$smoke_root/decision-governance.env" \
     "$smoke_root/api-edge.env" \
     "$smoke_root/experience-api.env" \
     "$smoke_root/web.env"
@@ -241,6 +246,7 @@ start_application() {
     objectives) run_network="$objectives_network" ;;
     topology) run_network="$topology_network" ;;
     assessment) run_network="$assessment_network" ;;
+    decision-governance) run_network="$decision_governance_network" ;;
     service) ;;
     *) printf 'Unknown application network: %s\n' "$data_network" >&2; return 2 ;;
   esac
@@ -331,10 +337,12 @@ assert_cross_database_credentials_rejected() {
   docker network connect "$identity_network" "$container"
   docker network connect "$catalog_network" "$container"
   docker network connect "$connections_network" "$container"
+  docker network connect "$decision_governance_network" "$container"
 
   docker exec "$container" pg_isready -h identity-db -p 5432 >/dev/null
   docker exec "$container" pg_isready -h catalog-db -p 5432 >/dev/null
   docker exec "$container" pg_isready -h connections-db -p 5432 >/dev/null
+  docker exec "$container" pg_isready -h decision-governance-db -p 5432 >/dev/null
   docker exec --env PGPASSWORD=connections-smoke-password "$container" psql \
     --host connections-db \
     --username uacrf_connections_smoke \
@@ -357,6 +365,30 @@ assert_cross_database_credentials_rejected() {
       --set=ON_ERROR_STOP=1 \
       --command 'SELECT 1' >/dev/null 2>&1; then
     printf 'catalog database role unexpectedly authenticated to connections database\n' >&2
+    return 1
+  fi
+  docker exec --env "PGPASSWORD=${decision_governance_password}" "$container" psql \
+    --host decision-governance-db \
+    --username uacrf_decision_governance_smoke \
+    --dbname uacrf_decision_governance \
+    --set=ON_ERROR_STOP=1 \
+    --command 'SELECT 1' >/dev/null
+  if docker exec --env "PGPASSWORD=${decision_governance_password}" "$container" psql \
+      --host catalog-db \
+      --username uacrf_decision_governance_smoke \
+      --dbname uacrf_catalog \
+      --set=ON_ERROR_STOP=1 \
+      --command 'SELECT 1' >/dev/null 2>&1; then
+    printf 'decision-governance database role unexpectedly authenticated to catalog database\n' >&2
+    return 1
+  fi
+  if docker exec --env PGPASSWORD=catalog-smoke-password "$container" psql \
+      --host decision-governance-db \
+      --username uacrf_catalog_smoke \
+      --dbname uacrf_decision_governance \
+      --set=ON_ERROR_STOP=1 \
+      --command 'SELECT 1' >/dev/null 2>&1; then
+    printf 'catalog database role unexpectedly authenticated to decision-governance database\n' >&2
     return 1
   fi
   docker exec --env PGPASSWORD=identity-smoke-password "$container" psql \
@@ -405,6 +437,7 @@ assert_edge_routes_reach_owners() {
   local objectives_status
   local topology_status
   local assessment_status
+  local decision_governance_status
   mapping="$(docker port "$container" 8080/tcp)"
   host_port="${mapping##*:}"
   status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
@@ -455,6 +488,23 @@ assert_edge_routes_reach_owners() {
     return 1
   fi
   printf 'EDGE01 assessment route reached S07 and preserved its unauthenticated response\n'
+  decision_governance_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --max-time 3 "http://127.0.0.1:${host_port}/internal/decision-governance/v1/authorization-policy-bundles")"
+  if [[ "$decision_governance_status" != 401 ]]; then
+    printf 'EDGE01 decision-governance route returned %s instead of S10 authentication response 401\n' \
+      "$decision_governance_status" >&2
+    return 1
+  fi
+  printf 'EDGE01 decision-governance route reached S10 and preserved its unauthenticated response\n'
+  local public_decision_governance_status
+  public_decision_governance_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+    --max-time 3 "http://127.0.0.1:${host_port}/v1/authorization-policy-bundles")"
+  if [[ "$public_decision_governance_status" != 404 ]]; then
+    printf 'EDGE01 unexpectedly exposed S10 policy route as public (HTTP %s)\n' \
+      "$public_decision_governance_status" >&2
+    return 1
+  fi
+  printf 'EDGE01 does not expose S10 policy route as public\n'
   identity_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
     --max-time 3 "http://127.0.0.1:${host_port}/v1/me/access")"
   if [[ "$identity_status" != 401 ]]; then
@@ -480,6 +530,13 @@ openssl pkcs8 -topk8 -nocrypt -in "$smoke_root/private.pem" -outform DER -out "$
 openssl pkey -in "$smoke_root/private.pem" -pubout -outform DER -out "$smoke_root/public.der"
 private_key="$(base64 < "$smoke_root/private.der" | tr -d '\r\n')"
 public_key="$(base64 < "$smoke_root/public.der" | tr -d '\r\n')"
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$smoke_root/owner-receipt-private.pem"
+openssl pkcs8 -topk8 -nocrypt -in "$smoke_root/owner-receipt-private.pem" \
+  -outform DER -out "$smoke_root/owner-receipt-private.der"
+openssl pkey -in "$smoke_root/owner-receipt-private.pem" -pubout -outform DER \
+  -out "$smoke_root/owner-receipt-public.der"
+owner_receipt_private_key="$(base64 < "$smoke_root/owner-receipt-private.der" | tr -d '\r\n')"
+owner_receipt_public_key="$(base64 < "$smoke_root/owner-receipt-public.der" | tr -d '\r\n')"
 
 cat > "$smoke_root/identity.env" <<EOF
 IDENTITY_JDBC_URL=jdbc:postgresql://identity-db:5432/uacrf_identity
@@ -499,6 +556,9 @@ CATALOG_DB_USER=uacrf_catalog_smoke
 CATALOG_DB_PASSWORD=catalog-smoke-password
 UACRF_DELEGATION_PUBLIC_KEY_BASE64=${public_key}
 UACRF_DELEGATION_KEY_ID=image-smoke
+UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64=${owner_receipt_public_key}
+UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64=${owner_receipt_private_key}
+UACRF_S02_OWNER_RECEIPT_KEY_ID=image-smoke-owner-receipt
 EOF
 
 cat > "$smoke_root/connections.env" <<EOF
@@ -541,6 +601,16 @@ UACRF_DELEGATION_PUBLIC_KEY_BASE64=${public_key}
 UACRF_DELEGATION_KEY_ID=image-smoke
 EOF
 
+decision_governance_admin_password="$(openssl rand -hex 32)"
+decision_governance_password="$(openssl rand -hex 32)"
+cat > "$smoke_root/decision-governance.env" <<EOF
+DECISION_GOVERNANCE_JDBC_URL=jdbc:postgresql://decision-governance-db:5432/uacrf_decision_governance
+DECISION_GOVERNANCE_DB_USER=uacrf_decision_governance_smoke
+DECISION_GOVERNANCE_DB_PASSWORD=${decision_governance_password}
+UACRF_DELEGATION_PUBLIC_KEY_BASE64=${public_key}
+UACRF_DELEGATION_KEY_ID=image-smoke
+EOF
+
 cat > "$smoke_root/api-edge.env" <<'EOF'
 UACRF_EDGE_IDENTITY_BASE_URL=http://identity:8082
 UACRF_EDGE_CATALOG_BASE_URL=http://estate-catalog:8083
@@ -549,6 +619,7 @@ UACRF_EDGE_EVIDENCE_BASE_URL=http://evidence:8086
 UACRF_EDGE_OBJECTIVES_BASE_URL=http://objectives:8087
 UACRF_EDGE_TOPOLOGY_BASE_URL=http://topology:8088
 UACRF_EDGE_ASSESSMENT_BASE_URL=http://assessment:8089
+UACRF_EDGE_DECISION_GOVERNANCE_BASE_URL=http://decision-governance:8080
 EOF
 
 cat > "$smoke_root/experience-api.env" <<'EOF'
@@ -562,7 +633,7 @@ UACRF_EXPERIENCE_BASE_URL=http://experience-api:8081
 UACRF_CATALOG_BASE_URL=http://api-edge:8080/internal/catalog
 EOF
 
-for network in "$service_network" "$identity_network" "$catalog_network" "$connections_network" "$evidence_network" "$objectives_network" "$topology_network" "$assessment_network"; do
+for network in "$service_network" "$identity_network" "$catalog_network" "$connections_network" "$evidence_network" "$objectives_network" "$topology_network" "$assessment_network" "$decision_governance_network"; do
   docker network create "$network" >/dev/null
   networks+=("$network")
 done
@@ -589,6 +660,9 @@ start_database topology-db uacrf_topology topology_admin topology-admin-smoke-pa
 start_database assessment-db uacrf_assessment assessment_admin assessment-admin-smoke-password \
   uacrf_assessment_smoke assessment-smoke-password \
   "$assessment_network"
+start_database decision-governance-db uacrf_decision_governance decision_governance_admin \
+  "$decision_governance_admin_password" uacrf_decision_governance_smoke \
+  "$decision_governance_password" "$decision_governance_network"
 
 start_application identity "uacrf/identity-service:${image_tag}" 8082 \
   "$smoke_root/identity.env" identity
@@ -604,6 +678,8 @@ start_application topology "uacrf/topology-service:${image_tag}" 8088 \
   "$smoke_root/topology.env" topology
 start_application assessment "uacrf/assessment-service:${image_tag}" 8089 \
   "$smoke_root/assessment.env" assessment
+start_application decision-governance "uacrf/decision-governance-service:${image_tag}" 8080 \
+  "$smoke_root/decision-governance.env" decision-governance
 start_application api-edge "uacrf/api-edge:${image_tag}" 8080 \
   "$smoke_root/api-edge.env" service
 start_application experience-api "uacrf/experience-api:${image_tag}" 8081 \
@@ -641,8 +717,25 @@ assert_database_isolation assessment assessment-db connections-db
 assert_database_isolation assessment assessment-db evidence-db
 assert_database_isolation assessment assessment-db objectives-db
 assert_database_isolation assessment assessment-db topology-db
+assert_database_isolation identity identity-db decision-governance-db
+assert_database_isolation estate-catalog catalog-db decision-governance-db
+assert_database_isolation connections connections-db decision-governance-db
+assert_database_isolation evidence evidence-db decision-governance-db
+assert_database_isolation objectives objectives-db decision-governance-db
+assert_database_isolation topology topology-db decision-governance-db
+assert_database_isolation assessment assessment-db decision-governance-db
+assert_database_isolation decision-governance decision-governance-db identity-db
+assert_database_isolation decision-governance decision-governance-db catalog-db
+assert_database_isolation decision-governance decision-governance-db connections-db
+assert_database_isolation decision-governance decision-governance-db evidence-db
+assert_database_isolation decision-governance decision-governance-db objectives-db
+assert_database_isolation decision-governance decision-governance-db topology-db
+assert_database_isolation decision-governance decision-governance-db assessment-db
 assert_no_database_access api-edge identity-db catalog-db connections-db evidence-db objectives-db topology-db assessment-db
 assert_no_database_access experience-api identity-db catalog-db connections-db evidence-db objectives-db topology-db assessment-db
 assert_no_database_access web identity-db catalog-db connections-db evidence-db objectives-db topology-db assessment-db
+assert_no_database_access api-edge decision-governance-db
+assert_no_database_access experience-api decision-governance-db
+assert_no_database_access web decision-governance-db
 assert_cross_database_credentials_rejected
 assert_edge_routes_reach_owners
