@@ -295,6 +295,9 @@ class ConnectionsService {
     if (!"ACTIVE".equals(connection.status())) {
       throw conflict("CONNECTION_NOT_ACCEPTED", connection.statusReason());
     }
+    jdbc.queryForList(
+        "SELECT pg_advisory_xact_lock(hashtext('connections.observation.id'), hashtext(?))",
+        serialize(List.of(actor.tenantId(), actor.environmentId(), connectionId, request.id())));
     List<Long> bound =
         jdbc.queryForList(
             "SELECT last_sequence FROM "
@@ -314,7 +317,8 @@ class ConnectionsService {
     }
     List<Map<String, Object>> existing =
         jdbc.queryForList(
-            "SELECT payload_digest, source_ref, sequence FROM "
+            "SELECT payload_digest, payload, source_ref, sequence, kind, "
+                + "observed_at_epoch_second, observed_at_nano FROM "
                 + SCHEMA
                 + "observation WHERE tenant_id = ? AND environment_id = ? "
                 + "AND connection_id = ? AND id = ?",
@@ -326,11 +330,32 @@ class ConnectionsService {
       Map<String, Object> row = existing.getFirst();
       boolean same =
           request.payloadDigest().equals(row.get("payload_digest"))
+              && request.payload().equals(row.get("payload"))
               && request.sourceRef().equals(row.get("source_ref"))
+              && request.kind().equals(row.get("kind"))
+              && row.get("observed_at_epoch_second") instanceof Number seconds
+              && seconds.longValue() == request.observedAt().getEpochSecond()
+              && row.get("observed_at_nano") instanceof Number nanos
+              && nanos.intValue() == request.observedAt().getNano()
               && request.sequence() == ((Number) row.get("sequence")).longValue();
       return same
           ? new IngestResult(request.id(), "DUPLICATE", "Already accepted.", request.sequence())
           : quarantine(actor, connectionId, request, "REPLAY_CONFLICT");
+    }
+    List<String> sequenceCollision =
+        jdbc.queryForList(
+            "SELECT id FROM "
+                + SCHEMA
+                + "observation WHERE tenant_id = ? AND environment_id = ? "
+                + "AND connection_id = ? AND source_ref = ? AND sequence = ?",
+            String.class,
+            actor.tenantId(),
+            actor.environmentId(),
+            connectionId,
+            request.sourceRef(),
+            request.sequence());
+    if (!sequenceCollision.isEmpty()) {
+      return quarantine(actor, connectionId, request, "REPLAY_CONFLICT");
     }
     if (request.sequence() <= bound.getFirst()) {
       return quarantine(actor, connectionId, request, "STALE_SEQUENCE");
@@ -339,7 +364,8 @@ class ConnectionsService {
         "INSERT INTO "
             + SCHEMA
             + "observation (tenant_id, environment_id, connection_id, id, source_ref, sequence, "
-            + "observed_at, kind, payload, payload_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "observed_at, observed_at_epoch_second, observed_at_nano, kind, payload, payload_digest) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         actor.tenantId(),
         actor.environmentId(),
         connectionId,
@@ -347,6 +373,8 @@ class ConnectionsService {
         request.sourceRef(),
         request.sequence(),
         java.sql.Timestamp.from(request.observedAt()),
+        request.observedAt().getEpochSecond(),
+        request.observedAt().getNano(),
         request.kind(),
         request.payload(),
         request.payloadDigest());
@@ -402,7 +430,8 @@ class ConnectionsService {
     find(actor, connectionId);
     List<Observation> rows =
         jdbc.query(
-            "SELECT id, source_ref, sequence, observed_at, kind, payload, payload_digest FROM "
+            "SELECT id, source_ref, sequence, observed_at, observed_at_epoch_second, "
+                + "observed_at_nano, kind, payload, payload_digest FROM "
                 + SCHEMA
                 + "observation WHERE tenant_id = ? AND environment_id = ? AND connection_id = ? "
                 + "AND id > ? ORDER BY id LIMIT ?",
@@ -411,7 +440,7 @@ class ConnectionsService {
                     rs.getString("id"),
                     rs.getString("source_ref"),
                     rs.getLong("sequence"),
-                    rs.getTimestamp("observed_at").toInstant().toString(),
+                    observationTime(rs),
                     rs.getString("kind"),
                     rs.getString("payload"),
                     rs.getString("payload_digest")),
@@ -421,6 +450,13 @@ class ConnectionsService {
             decodeCursor(cursor),
             pageSize + 1);
     return page(rows, pageSize, Observation::id);
+  }
+
+  private static String observationTime(java.sql.ResultSet rs) throws java.sql.SQLException {
+    Long seconds = rs.getObject("observed_at_epoch_second", Long.class);
+    return seconds == null
+        ? rs.getTimestamp("observed_at").toInstant().toString()
+        : java.time.Instant.ofEpochSecond(seconds, rs.getInt("observed_at_nano")).toString();
   }
 
   @Transactional(readOnly = true)

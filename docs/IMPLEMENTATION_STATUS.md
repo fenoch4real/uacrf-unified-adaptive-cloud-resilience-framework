@@ -25,6 +25,23 @@ exercise same-key replay and conflicts and competing first or later revisions;
 they cover controlled interleavings on one service instance, not multi-instance
 load. The focused edge and S10 suites passed 11 tests.
 
+The MS01 API ownership inventory's `runtime_registered` and
+`current_recorded_status` fields describe the inherited source runtime, not
+the current microservice implementation. Its inherited S10 decision route
+does not mean the S10 microservice implements that route.
+
+## S03 observation replay integrity
+
+S03 now compares the complete retained observation, including the original
+nanosecond instant, before treating a replay as a duplicate. Conflicting IDs or
+reused source sequences are quarantined; submissions for the same observation
+ID are serialized across source bindings. Observations created before migration
+V3 lack recoverable original timestamp precision and their replays fail closed
+as `REPLAY_CONFLICT`. Avoid mixed old/new ingestion instances and rollback
+without accounting for the weaker old behavior. The focused connections and
+delegation suites passed 20 tests; the MS01 architecture check passed 24
+checks. This does not qualify cloud collectors or replace S04 qualification.
+
 ## Current handoff
 
 - The selected MS01 design, its contracts and inventories, the UI reference,

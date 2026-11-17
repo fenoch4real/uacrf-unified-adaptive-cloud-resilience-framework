@@ -2,6 +2,7 @@ package org.uacrf.connections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,6 +16,10 @@ import java.util.Base64;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -63,6 +68,7 @@ class ConnectionsApplicationTests {
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private DataSource dataSource;
   @Autowired private ObjectMapper mapper;
   private final HttpClient http = HttpClient.newHttpClient();
 
@@ -259,6 +265,306 @@ class ConnectionsApplicationTests {
         403,
         post("/v1/connections/" + connectionId + "/observations", readOnly, null, unbound)
             .statusCode());
+  }
+
+  @Test
+  void onlyExactObservationReplaysAreDuplicatesAndSequenceConflictsAreRetained() throws Exception {
+    String bearer =
+        bearer(
+            actor(
+                "tenant-replay",
+                "env-replay",
+                List.of(
+                    "connections.connection.write",
+                    "connections.connection.read",
+                    "connections.observation.write"),
+                List.of("owner-1")),
+            "S03");
+    assertEquals(
+        201,
+        post(
+                "/v1/connections",
+                bearer,
+                "replay-connection",
+                connection("conn-replay", "SAMPLE_LOCAL", 0))
+            .statusCode());
+    assertEquals(
+        201,
+        post(
+                "/v1/connections/conn-replay/source-bindings",
+                bearer,
+                "replay-binding",
+                "{\"id\":\"binding-replay\",\"source_ref\":\"source-replay\","
+                    + "\"expected_revision\":0}")
+            .statusCode());
+
+    String original =
+        observation(
+            "obs-1",
+            "source-replay",
+            "2026-11-17T10:00:00Z",
+            "service.health",
+            "{}",
+            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a");
+    HttpResponse<String> accepted =
+        post("/v1/connections/conn-replay/observations", bearer, null, original);
+    assertThat(accepted.body()).contains("\"status\":\"ACCEPTED\"");
+    HttpResponse<String> duplicate =
+        post("/v1/connections/conn-replay/observations", bearer, null, original);
+    assertThat(duplicate.body()).contains("\"status\":\"DUPLICATE\"");
+
+    HttpResponse<String> changedKind =
+        post(
+            "/v1/connections/conn-replay/observations",
+            bearer,
+            null,
+            observation(
+                "obs-1",
+                "source-replay",
+                "2026-11-17T10:00:00Z",
+                "service.config",
+                "{}",
+                "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"));
+    HttpResponse<String> changedTime =
+        post(
+            "/v1/connections/conn-replay/observations",
+            bearer,
+            null,
+            observation(
+                "obs-1",
+                "source-replay",
+                "2026-11-17T10:00:01Z",
+                "service.health",
+                "{}",
+                "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"));
+    HttpResponse<String> changedPayload =
+        post(
+            "/v1/connections/conn-replay/observations",
+            bearer,
+            null,
+            observation(
+                "obs-1",
+                "source-replay",
+                "2026-11-17T10:00:00Z",
+                "service.health",
+                "[]",
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"));
+    HttpResponse<String> changedId =
+        post(
+            "/v1/connections/conn-replay/observations",
+            bearer,
+            null,
+            observation(
+                "obs-2",
+                "source-replay",
+                "2026-11-17T10:00:00Z",
+                "service.health",
+                "{}",
+                "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"));
+
+    for (HttpResponse<String> conflict :
+        List.of(changedKind, changedTime, changedPayload, changedId)) {
+      assertEquals(202, conflict.statusCode());
+      assertThat(conflict.body()).contains("\"status\":\"QUARANTINED\"", "REPLAY_CONFLICT");
+    }
+    assertEquals(
+        1,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_connections.observation WHERE tenant_id = 'tenant-replay' "
+                + "AND connection_id = 'conn-replay'",
+            Integer.class));
+    assertEquals(
+        4,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_connections.quarantined_observation "
+                + "WHERE tenant_id = 'tenant-replay' AND connection_id = 'conn-replay' "
+                + "AND reason = 'REPLAY_CONFLICT'",
+            Integer.class));
+  }
+
+  @Test
+  void preservesNanosecondInstantsAndFailsClosedForLegacyReplay() throws Exception {
+    String bearer = intakeBearer("tenant-time");
+    setupIntake(bearer, "conn-time", "source-time");
+    String path = "/v1/connections/conn-time/observations";
+    String original = sampleObservation("nano", "source-time", "2026-11-17T10:00:00.123456101Z");
+    String changed = sampleObservation("nano", "source-time", "2026-11-17T10:00:00.123456102Z");
+
+    assertThat(post(path, bearer, null, original).body()).contains("\"status\":\"ACCEPTED\"");
+    assertThat(post(path, bearer, null, original).body()).contains("\"status\":\"DUPLICATE\"");
+    assertThat(post(path, bearer, null, changed).body()).contains("REPLAY_CONFLICT");
+    assertThat(get(path, bearer).body()).contains("2026-11-17T10:00:00.123456101Z");
+    assertEquals(
+        Boolean.TRUE,
+        jdbc.queryForObject(
+            "SELECT observed_at = ? FROM uacrf_connections.observation "
+                + "WHERE tenant_id = 'tenant-time' AND id = 'nano'",
+            Boolean.class,
+            java.sql.Timestamp.from(java.time.Instant.parse("2026-11-17T10:00:00.123456102Z"))));
+
+    jdbc.update(
+        "UPDATE uacrf_connections.observation SET observed_at_epoch_second = NULL, "
+            + "observed_at_nano = NULL WHERE tenant_id = 'tenant-time' AND id = 'nano'");
+    assertThat(post(path, bearer, null, original).body()).contains("REPLAY_CONFLICT");
+    assertThat(post(path, bearer, null, changed).body()).contains("REPLAY_CONFLICT");
+    assertThat(get(path, bearer).body()).contains("2026-11-17T10:00:00.123456Z");
+
+    setupIntake(bearer, "conn-round", "source-round");
+    String roundPath = "/v1/connections/conn-round/observations";
+    String nearBoundary =
+        sampleObservation("nano-round", "source-round", "2026-11-17T10:00:00.999999800Z");
+    String changedBoundary =
+        sampleObservation("nano-round", "source-round", "2026-11-17T10:00:00.999999900Z");
+    assertThat(post(roundPath, bearer, null, nearBoundary).body()).contains("\"status\":\"ACCEPTED\"");
+    assertThat(post(roundPath, bearer, null, nearBoundary).body()).contains("\"status\":\"DUPLICATE\"");
+    assertThat(post(roundPath, bearer, null, changedBoundary).body()).contains("REPLAY_CONFLICT");
+    assertThat(get(roundPath, bearer).body()).contains("2026-11-17T10:00:00.999999800Z");
+  }
+
+  @Test
+  void serializesSameObservationIdAcrossDifferentBindings() throws Exception {
+    String bearer = intakeBearer("tenant-race");
+    setupIntake(bearer, "conn-race", "source-a");
+    assertEquals(
+        201,
+        post(
+                "/v1/connections/conn-race/source-bindings",
+                bearer,
+                "bind-b",
+                "{\"id\":\"binding-b\",\"source_ref\":\"source-b\",\"expected_revision\":0}")
+            .statusCode());
+    String path = "/v1/connections/conn-race/observations";
+    CompletableFuture<HttpResponse<String>> first;
+    CompletableFuture<HttpResponse<String>> second;
+    try (java.sql.Connection lock = dataSource.getConnection()) {
+      lock.setAutoCommit(false);
+      try (var statement =
+          lock.prepareStatement(
+              "SELECT id FROM uacrf_connections.source_binding WHERE tenant_id = ? "
+                  + "AND environment_id = ? AND connection_id = ? AND source_ref = ? FOR UPDATE")) {
+        statement.setString(1, "tenant-race");
+        statement.setString(2, "env-test");
+        statement.setString(3, "conn-race");
+        statement.setString(4, "source-a");
+        statement.executeQuery();
+      }
+      first =
+          postAsync(
+              path, bearer, sampleObservation("race-id", "source-a", "2026-11-17T10:00:00Z"));
+      try {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline
+            && jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                        + "AND wait_event_type = 'Lock' AND query LIKE '%last_sequence%source_binding%FOR UPDATE%'",
+                    Integer.class)
+                == 0) {
+          Thread.sleep(25);
+        }
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                        + "AND wait_event_type = 'Lock' AND query LIKE '%last_sequence%source_binding%FOR UPDATE%'",
+                    Integer.class))
+            .isPositive();
+        second =
+            postAsync(
+                path, bearer, sampleObservation("race-id", "source-b", "2026-11-17T10:00:00Z"));
+        deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline
+            && jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                        + "AND wait_event_type = 'Lock' AND query LIKE '%pg_advisory_xact_lock%'",
+                    Integer.class)
+                == 0
+            && !second.isDone()) {
+          Thread.sleep(25);
+        }
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                        + "AND wait_event_type = 'Lock' AND query LIKE '%pg_advisory_xact_lock%'",
+                    Integer.class))
+            .isPositive();
+        assertThrows(TimeoutException.class, () -> second.get(500, TimeUnit.MILLISECONDS));
+      } finally {
+        lock.rollback();
+      }
+    }
+    assertThat(first.get(10, TimeUnit.SECONDS).body()).contains("\"status\":\"ACCEPTED\"");
+    HttpResponse<String> rejected = second.get(10, TimeUnit.SECONDS);
+    assertEquals(202, rejected.statusCode());
+    assertThat(rejected.body()).contains("REPLAY_CONFLICT");
+    assertEquals(
+        1,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_connections.observation WHERE tenant_id = 'tenant-race'",
+            Integer.class));
+    assertEquals(
+        1,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_connections.outbox_event WHERE tenant_id = 'tenant-race' "
+                + "AND event_type = 'connections.observation.accepted'",
+            Integer.class));
+  }
+
+  private String intakeBearer(String tenant) {
+    return bearer(
+        actor(
+            tenant,
+            "env-test",
+            List.of(
+                "connections.connection.write",
+                "connections.connection.read",
+                "connections.observation.write"),
+            List.of("owner-1")),
+        "S03");
+  }
+
+  private void setupIntake(String bearer, String connectionId, String sourceRef) throws Exception {
+    assertEquals(
+        201,
+        post("/v1/connections", bearer, "create-" + connectionId, connection(connectionId, "SAMPLE_LOCAL", 0))
+            .statusCode());
+    assertEquals(
+        201,
+        post(
+                "/v1/connections/" + connectionId + "/source-bindings",
+                bearer,
+                "bind",
+                "{\"id\":\"binding-" + connectionId + "\",\"source_ref\":\"" + sourceRef
+                    + "\",\"expected_revision\":0}")
+            .statusCode());
+  }
+
+  private static String sampleObservation(String id, String sourceRef, String observedAt) {
+    return observation(
+        id,
+        sourceRef,
+        observedAt,
+        "service.health",
+        "{}",
+        "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a");
+  }
+
+  private CompletableFuture<HttpResponse<String>> postAsync(
+      String path, String bearer, String body) {
+    HttpRequest request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .header("Authorization", bearer)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+    return http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private static String observation(
+      String id, String sourceRef, String observedAt, String kind, String payload, String digest) {
+    return (
+            "{\"id\":\"%s\",\"source_ref\":\"%s\",\"sequence\":1,"
+                + "\"observed_at\":\"%s\",\"kind\":\"%s\",\"payload\":\"%s\","
+                + "\"payload_digest\":\"%s\"}")
+        .formatted(id, sourceRef, observedAt, kind, payload, digest);
   }
 
   private static String connection(String id, String provider, long revision) {
