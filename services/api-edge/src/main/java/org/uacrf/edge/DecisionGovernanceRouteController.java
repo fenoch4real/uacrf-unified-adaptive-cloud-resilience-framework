@@ -47,8 +47,9 @@ class DecisionGovernanceRouteController {
   ResponseEntity<String> get(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-      @PathVariable String id) {
-    return forward(() -> decisionGovernance.get(authorization, idempotencyKey, id));
+      @PathVariable String id,
+      @RequestParam MultiValueMap<String, String> query) {
+    return forward(() -> decisionGovernance.get(authorization, idempotencyKey, id, query));
   }
 
   private static ResponseEntity<String> forward(Supplier<ResponseEntity<String>> request) {

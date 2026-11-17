@@ -10,14 +10,23 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -79,6 +88,8 @@ class PolicyControllerIntegrationTests {
 
   @LocalServerPort private int port;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private DataSource dataSource;
+  @Autowired private JdbcTemplate jdbc;
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
@@ -187,6 +198,96 @@ class PolicyControllerIntegrationTests {
             BASE_REQUEST.replace("Draft policy for a test", "Changed content"));
     assertThat(changed.statusCode()).isEqualTo(409);
     assertThat(body(changed).path("code").asText()).isEqualTo("IDEMPOTENCY_CONFLICT");
+  }
+
+  @Test
+  void concurrentIdenticalProposalsReplayOneImmutableResult() throws Exception {
+    String tenant = "tenant-concurrent-replay";
+    String token = concurrentToken(tenant);
+    assertThat(post(token, "seed", BASE_REQUEST).statusCode()).isEqualTo(200);
+    String proposal = BASE_REQUEST.replace("\"expected_revision\":0", "\"expected_revision\":1");
+
+    List<HttpResponse<String>> responses =
+        concurrentProposals(tenant, token, "shared-key", proposal, "shared-key", proposal);
+    assertThat(responses).allSatisfy(response -> assertThat(response.statusCode()).isEqualTo(200));
+    JsonNode original = body(responses.getFirst());
+    assertThat(body(responses.getLast())).isEqualTo(original);
+    assertThat(original.path("policy").path("revision").asLong()).isEqualTo(2);
+    assertThat(original.path("policy").path("decision").asText()).isEqualTo("DRAFT");
+    assertThat(original.path("policy").path("signed_assertion").isNull()).isTrue();
+    assertPersistedCounts(tenant, 2, 2);
+
+    String next = proposal.replace("\"expected_revision\":1", "\"expected_revision\":2");
+    assertThat(post(token, "next", next).statusCode()).isEqualTo(200);
+    assertThat(body(post(token, "shared-key", proposal))).isEqualTo(original);
+    assertThat(body(get(token, ROOT + "/policy-test?revision=2")).path("policy"))
+        .isEqualTo(original.path("policy"));
+    assertPersistedCounts(tenant, 3, 3);
+  }
+
+  @Test
+  void concurrentChangedContentWithSameKeyConflictsAndPreservesWinner() throws Exception {
+    String tenant = "tenant-concurrent-key-conflict";
+    String token = concurrentToken(tenant);
+    assertThat(post(token, "seed", BASE_REQUEST).statusCode()).isEqualTo(200);
+    String first = BASE_REQUEST.replace("\"expected_revision\":0", "\"expected_revision\":1");
+    String changed = first.replace("Draft policy for a test", "Different concurrent proposal");
+
+    List<HttpResponse<String>> responses =
+        concurrentProposals(tenant, token, "shared-key", first, "shared-key", changed);
+    assertThat(responses.stream().map(HttpResponse::statusCode).sorted().toList())
+        .containsExactly(200, 409);
+    int winner = responses.getFirst().statusCode() == 200 ? 0 : 1;
+    JsonNode accepted = body(responses.get(winner));
+    assertThat(accepted.path("policy").path("revision").asLong()).isEqualTo(2);
+    assertThat(body(responses.get(1 - winner)).path("code").asText())
+        .isEqualTo("IDEMPOTENCY_CONFLICT");
+    assertThat(body(post(token, "shared-key", winner == 0 ? first : changed))).isEqualTo(accepted);
+    HttpResponse<String> rejected = post(token, "shared-key", winner == 0 ? changed : first);
+    assertThat(rejected.statusCode()).isEqualTo(409);
+    assertThat(body(rejected).path("code").asText()).isEqualTo("IDEMPOTENCY_CONFLICT");
+    assertPersistedCounts(tenant, 2, 2);
+  }
+
+  @Test
+  void concurrentDistinctKeysCannotCreateTheSameExpectedRevision() throws Exception {
+    String tenant = "tenant-concurrent-revision-conflict";
+    String token = concurrentToken(tenant);
+    assertThat(post(token, "seed", BASE_REQUEST).statusCode()).isEqualTo(200);
+    String proposal = BASE_REQUEST.replace("\"expected_revision\":0", "\"expected_revision\":1");
+
+    List<HttpResponse<String>> responses =
+        concurrentProposals(tenant, token, "key-one", proposal, "key-two", proposal);
+    assertThat(responses.stream().map(HttpResponse::statusCode).sorted().toList())
+        .containsExactly(200, 409);
+    int winner = responses.getFirst().statusCode() == 200 ? 0 : 1;
+    JsonNode accepted = body(responses.get(winner));
+    assertThat(accepted.path("policy").path("revision").asLong()).isEqualTo(2);
+    assertThat(body(responses.get(1 - winner)).path("code").asText())
+        .isEqualTo("REVISION_CONFLICT");
+    assertThat(body(post(token, winner == 0 ? "key-one" : "key-two", proposal)))
+        .isEqualTo(accepted);
+    assertPersistedCounts(tenant, 2, 2);
+    String next = proposal.replace("\"expected_revision\":1", "\"expected_revision\":2");
+    HttpResponse<String> retried = post(token, winner == 0 ? "key-two" : "key-one", next);
+    assertThat(retried.statusCode()).isEqualTo(200);
+    assertThat(body(retried).path("policy").path("revision").asLong()).isEqualTo(3);
+    assertPersistedCounts(tenant, 3, 3);
+  }
+
+  @Test
+  void concurrentDistinctKeysCannotBothCreateTheFirstRevision() throws Exception {
+    String tenant = "tenant-concurrent-first-revision";
+    String token = concurrentToken(tenant);
+    List<HttpResponse<String>> responses =
+        concurrentProposals(tenant, token, "key-one", BASE_REQUEST, "key-two", BASE_REQUEST, true);
+    assertThat(responses.stream().map(HttpResponse::statusCode).sorted().toList())
+        .containsExactly(200, 409);
+    int winner = responses.getFirst().statusCode() == 200 ? 0 : 1;
+    assertThat(body(responses.get(winner)).path("policy").path("revision").asLong()).isEqualTo(1);
+    assertThat(body(responses.get(1 - winner)).path("code").asText())
+        .isEqualTo("REVISION_CONFLICT");
+    assertPersistedCounts(tenant, 1, 1);
   }
 
   @Test
@@ -308,6 +409,7 @@ class PolicyControllerIntegrationTests {
   private HttpResponse<String> post(String token, String key, String body) throws Exception {
     HttpRequest request =
         HttpRequest.newBuilder(URI.create("http://localhost:" + port + ROOT))
+            .timeout(Duration.ofSeconds(30))
             .header("Authorization", "Bearer " + token)
             .header("Idempotency-Key", key)
             .header("Content-Type", "application/json")
@@ -327,6 +429,117 @@ class PolicyControllerIntegrationTests {
 
   private JsonNode body(HttpResponse<String> response) {
     return objectMapper.readTree(response.body());
+  }
+
+  private String concurrentToken(String tenant) {
+    return token(
+        tenant,
+        "environment-concurrent",
+        SERVICE,
+        List.of("authorization.policy.write", "authorization.policy.read"));
+  }
+
+  private List<HttpResponse<String>> concurrentProposals(
+      String tenant, String token, String firstKey, String firstBody, String secondKey,
+      String secondBody) throws Exception {
+    return concurrentProposals(tenant, token, firstKey, firstBody, secondKey, secondBody, false);
+  }
+
+  private List<HttpResponse<String>> concurrentProposals(
+      String tenant, String token, String firstKey, String firstBody, String secondKey,
+      String secondBody, boolean uncommittedHead) throws Exception {
+    try (Connection connection = dataSource.getConnection();
+        var executor = Executors.newFixedThreadPool(2)) {
+      connection.setAutoCommit(false);
+      try {
+        // Force both HTTP transactions to overlap at the head or idempotency lock.
+        if (uncommittedHead) {
+          try (PreparedStatement insert =
+              connection.prepareStatement(
+                  "INSERT INTO uacrf_decision_governance.policy_head "
+                      + "(tenant_id, environment_id, id, service_id, current_revision) "
+                      + "VALUES (?, ?, ?, ?, 0)")) {
+            insert.setString(1, tenant);
+            insert.setString(2, "environment-concurrent");
+            insert.setString(3, "policy-test");
+            insert.setString(4, SERVICE);
+            insert.executeUpdate();
+          }
+        }
+        try (PreparedStatement lock =
+            connection.prepareStatement(
+                "SELECT id FROM uacrf_decision_governance.policy_head "
+                    + "WHERE tenant_id = ? AND environment_id = ? AND id = ? FOR UPDATE")) {
+          lock.setString(1, tenant);
+          lock.setString(2, "environment-concurrent");
+          lock.setString(3, "policy-test");
+          try (var rows = lock.executeQuery()) {
+            assertThat(rows.next()).isTrue();
+          }
+        }
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        Future<HttpResponse<String>> first =
+            executor.submit(
+                () -> {
+                  ready.countDown();
+                  start.await();
+                  return post(token, firstKey, firstBody);
+                });
+        Future<HttpResponse<String>> second =
+            executor.submit(
+                () -> {
+                  ready.countDown();
+                  start.await();
+                  return post(token, secondKey, secondBody);
+                });
+        try {
+          assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+          start.countDown();
+          awaitBlockedProposals();
+        } finally {
+          start.countDown();
+          connection.rollback();
+        }
+        return List.of(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+      } finally {
+        connection.rollback();
+      }
+    }
+  }
+
+  private void awaitBlockedProposals() throws InterruptedException {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+    int blocked;
+    do {
+      blocked =
+          jdbc.queryForObject(
+              "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
+                  + "AND wait_event_type = 'Lock' AND state = 'active' "
+                  + "AND (query LIKE '%uacrf_decision_governance.policy_head%' "
+                  + "OR query LIKE '%uacrf_decision_governance.idempotency_record%')",
+              Integer.class);
+      if (blocked >= 2) {
+        return;
+      }
+      Thread.sleep(25);
+    } while (System.nanoTime() < deadline);
+    assertThat(blocked).as("both proposals must be waiting on database locks").isGreaterThanOrEqualTo(2);
+  }
+
+  private void assertPersistedCounts(String tenant, int revisions, int records) {
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM uacrf_decision_governance.policy_revision WHERE tenant_id = ?",
+                Integer.class,
+                tenant))
+        .isEqualTo(revisions);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM uacrf_decision_governance.idempotency_record WHERE tenant_id = ?",
+                Integer.class,
+                tenant))
+        .isEqualTo(records);
   }
 
   private static String token(

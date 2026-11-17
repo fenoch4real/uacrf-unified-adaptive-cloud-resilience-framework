@@ -19,6 +19,12 @@ and the fixed EDGE01 `/internal/decision-governance/v1/...` routes; this remains
 a local-runtime slice, not live accepted coverage. The service's focused tests
 and selected reactor tests passed: 206 tests, with no failures or errors.
 
+The EDGE01 policy-get route now forwards revision selectors to S10 instead of
+silently returning the latest revision. Four PostgreSQL-backed concurrency tests
+exercise same-key replay and conflicts and competing first or later revisions;
+they cover controlled interleavings on one service instance, not multi-instance
+load. The focused edge and S10 suites passed 11 tests.
+
 ## Current handoff
 
 - The selected MS01 design, its contracts and inventories, the UI reference,

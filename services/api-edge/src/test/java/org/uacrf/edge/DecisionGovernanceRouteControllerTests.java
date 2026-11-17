@@ -61,7 +61,7 @@ class DecisionGovernanceRouteControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body("{\"code\":\"NOT_FOUND\"}"));
     server
-        .expect(requestTo(URL + "/v1/authorization-policy-bundles/bundle-2%3Arevision"))
+        .expect(requestTo(URL + "/v1/authorization-policy-bundles/bundle-2%3Arevision?revision=1"))
         .andExpect(method(HttpMethod.GET))
         .andRespond(
             withStatus(HttpStatus.OK)
@@ -93,6 +93,7 @@ class DecisionGovernanceRouteControllerTests {
         .andExpect(content().json("{\"code\":\"NOT_FOUND\"}"));
     mvc.perform(
             get("/internal/decision-governance/v1/authorization-policy-bundles/bundle-2:revision")
+                .param("revision", "1")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer incoming-token"))
         .andExpect(status().isOk())
         .andExpect(content().json("{\"policy\":{\"id\":\"bundle-2:revision\"}}"));

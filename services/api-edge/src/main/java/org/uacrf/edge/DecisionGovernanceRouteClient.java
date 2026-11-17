@@ -1,6 +1,7 @@
 package org.uacrf.edge;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
 @Component
 class DecisionGovernanceRouteClient {
@@ -28,21 +30,11 @@ class DecisionGovernanceRouteClient {
         decisionGovernanceRestClient
             .get()
             .uri(
-                uriBuilder -> {
-                  uriBuilder.path("/v1/authorization-policy-bundles");
-                  Map<String, Object> variables = new LinkedHashMap<>();
-                  int variableIndex = 0;
-                  if (query != null && !query.isEmpty()) {
-                    for (Map.Entry<String, java.util.List<String>> entry : query.entrySet()) {
-                      for (String value : entry.getValue()) {
-                        String variable = "query" + variableIndex++;
-                        uriBuilder.queryParam(entry.getKey(), "{" + variable + "}");
-                        variables.put(variable, value);
-                      }
-                    }
-                  }
-                  return uriBuilder.build(variables);
-                });
+                uriBuilder ->
+                    buildUri(
+                        uriBuilder.path("/v1/authorization-policy-bundles"),
+                        query,
+                        new LinkedHashMap<>()));
     return send(request, authorization, idempotencyKey);
   }
 
@@ -57,13 +49,33 @@ class DecisionGovernanceRouteClient {
     return send(request, authorization, idempotencyKey);
   }
 
-  ResponseEntity<String> get(String authorization, String idempotencyKey, String id) {
+  ResponseEntity<String> get(
+      String authorization, String idempotencyKey, String id, MultiValueMap<String, String> query) {
     return send(
         decisionGovernanceRestClient
             .get()
-            .uri(uriBuilder -> uriBuilder.path("/v1/authorization-policy-bundles/{id}").build(id)),
+            .uri(
+                uriBuilder -> {
+                  Map<String, Object> variables = new LinkedHashMap<>();
+                  variables.put("id", id);
+                  return buildUri(
+                      uriBuilder.path("/v1/authorization-policy-bundles/{id}"), query, variables);
+                }),
         authorization,
         idempotencyKey);
+  }
+
+  private static URI buildUri(
+      UriBuilder uriBuilder, MultiValueMap<String, String> query, Map<String, Object> variables) {
+    int variableIndex = 0;
+    for (Map.Entry<String, java.util.List<String>> entry : query.entrySet()) {
+      for (String value : entry.getValue()) {
+        String variable = "query" + variableIndex++;
+        uriBuilder.queryParam(entry.getKey(), "{" + variable + "}");
+        variables.put(variable, value);
+      }
+    }
+    return uriBuilder.build(variables);
   }
 
   private ResponseEntity<String> send(
