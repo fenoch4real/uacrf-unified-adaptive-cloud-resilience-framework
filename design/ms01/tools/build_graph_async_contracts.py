@@ -34,6 +34,10 @@ UNSUCCESSFUL_TERMINAL_STATUSES = [
     "CANCELLED",
     "EXPIRED",
 ]
+GRAPH_SELECTION_QUERY_IDS = [
+    "action-relevant-dependencies.v1",
+    "action-relevant-dependencies.v2",
+]
 
 
 def command_status_schema():
@@ -311,6 +315,9 @@ def graph_advisory_change_schema():
                     "dependency_removed",
                     "failure_domain_membership_added",
                     "failure_domain_membership_removed",
+                    "data_read_added",
+                    "data_read_removed",
+                    "data_read_target_changed",
                 ]
             },
             "before": {"$ref": "#/components/schemas/GraphAdvisoryEdge"},
@@ -321,7 +328,14 @@ def graph_advisory_change_schema():
         "allOf": [
             {
                 "if": {
-                    "properties": {"change_type": {"const": "dependency_target_changed"}},
+                    "properties": {
+                        "change_type": {
+                            "enum": [
+                                "dependency_target_changed",
+                                "data_read_target_changed",
+                            ]
+                        }
+                    },
                     "required": ["change_type"],
                 },
                 "then": {"required": ["before", "after"]},
@@ -333,6 +347,7 @@ def graph_advisory_change_schema():
                             "enum": [
                                 "dependency_added",
                                 "failure_domain_membership_added",
+                                "data_read_added",
                             ]
                         }
                     },
@@ -350,6 +365,7 @@ def graph_advisory_change_schema():
                             "enum": [
                                 "dependency_removed",
                                 "failure_domain_membership_removed",
+                                "data_read_removed",
                             ]
                         }
                     },
@@ -442,10 +458,11 @@ def update_request_schema(schemas, name):
         return
 
     request["properties"]["query_id"] = {
-        "const": "action-relevant-dependencies.v1",
+        "enum": GRAPH_SELECTION_QUERY_IDS,
         "description": (
-            "Versioned allowlist ID. The first query definition covers bounded "
-            "dependency selection only; it is not complete framework-wide "
+            "Versioned allowlist ID. v1 covers bounded dependency selection; v2 "
+            "additionally selects READS_FROM relationships for data-read "
+            "classification. Neither query is complete framework-wide "
             "action-relevant selection."
         ),
     }
@@ -585,8 +602,9 @@ def apply_contracts(document):
         "topology.graph.subgraph-selection",
         "The user-approved action-relevant scope spans bounded dependencies, failure "
         "domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and "
-        "recovery paths. This initial query supports bounded dependency selection "
-        "only; coverage of the broader framework selection is incomplete.",
+        "recovery paths. Query v1 supports bounded dependency selection; query v2 "
+        "additionally selects READS_FROM relationships for data-read classification. "
+        "Coverage of the broader framework selection remains incomplete.",
     )
     return document
 

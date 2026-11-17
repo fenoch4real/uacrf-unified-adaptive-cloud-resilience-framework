@@ -28,6 +28,16 @@ class GraphCommandWorker {
   private static final int MAX_ATTEMPTS=5;
   private static final Set<String> FAILURE_DOMAIN_RELATIONSHIPS=
       Set.of("IN_FAILURE_DOMAIN","MEMBER_OF_FAILURE_DOMAIN");
+  private static final String V1_QUERY="action-relevant-dependencies.v1";
+  private static final String V2_QUERY="action-relevant-dependencies.v2";
+  // These are the only existing S06 labels mapped to canonical READS_FROM endpoint roles.
+  private static final Map<String,String> READ_SOURCE_TYPES=Map.of(
+      "service","Service","agent_workload","ApplicationComponent");
+  private static final Map<String,String> READ_TARGET_TYPES=Map.of("shared_resource","DataStore");
+  private static final Set<String> CANONICAL_READ_CONSUMERS=
+      Set.of("Service","ApplicationComponent","ModelEndpoint");
+  private static final Set<String> CANONICAL_READ_DATA_ASSETS=
+      Set.of("Database","DataStore","Dataset","FeatureStore");
   private final JdbcTemplate db;
   private final TransactionTemplate transactions;
   private final ObjectMapper json;
@@ -103,17 +113,24 @@ class GraphCommandWorker {
   }
 
   private boolean bound(Claim claim) {
-    if ("SUBGRAPH_SELECTION".equals(claim.operation()))
-      return graphMatches(claim,"graph_revision_id","graph_digest");
+    if ("SUBGRAPH_SELECTION".equals(claim.operation())) {
+      String queryId=claim.binding().get("query_id") instanceof String value?value:V1_QUERY;
+      return graphMatches(claim,"graph_revision_id","graph_digest")
+          && Set.of(V1_QUERY,V2_QUERY).contains(queryId);
+    }
     if (!graphMatches(claim,"authorized_graph_revision_id","authorized_graph_digest")
         || !graphMatches(claim,"current_graph_revision_id","current_graph_digest")) return false;
     Map<String,Object> snapshot=mapValue(claim.binding().get("selection_snapshot"));
     Map<String,Object> selectionBinding=mapValue(claim.binding().get("selection_source_binding"));
     String selectionDigest=(String)claim.binding().get("selection_digest");
+    String snapshotQuery=snapshot.get("query_id") instanceof String value?value:V1_QUERY;
+    String boundQuery=selectionBinding.get("query_id") instanceof String value?value:snapshotQuery;
     return selectionDigest!=null
         && selectionDigest.equals(selectionDigest(snapshot))
         && claim.binding().get("authorized_graph_revision_id").equals(snapshot.get("graph_revision_id"))
         && claim.binding().get("service_id").equals(snapshot.get("service_id"))
+        && snapshotQuery.equals(boundQuery)
+        && Set.of(V1_QUERY,V2_QUERY).contains(snapshotQuery)
         && selectionBinding.get("service_snapshot") instanceof Map<?,?> serviceSnapshot
         && claim.binding().get("service_id").equals(serviceSnapshot.get("service_id"));
   }
@@ -262,6 +279,34 @@ class GraphCommandWorker {
         selectedEdges.put(new EdgeKey(edge),edge);
       }
     }
+    String queryId=binding.get("query_id") instanceof String value?value:V1_QUERY;
+    if (V2_QUERY.equals(queryId)) {
+      for (TopologyResponses.Node node:List.copyOf(selectedNodes.values())) {
+        if (!CANONICAL_READ_CONSUMERS.contains(READ_SOURCE_TYPES.get(node.entityType()))) continue;
+        NodeKey source=new NodeKey(node.entityType(),node.entityId());
+        for (TopologyResponses.Edge edge:outgoing.getOrDefault(source,List.of())) {
+          if (!"READS_FROM".equals(edge.relationshipType())
+              || !CANONICAL_READ_DATA_ASSETS.contains(READ_TARGET_TYPES.get(edge.targetType()))) continue;
+          NodeKey target=new NodeKey(edge.targetType(),edge.targetId());
+          if (!selectedNodes.containsKey(target) && selectedNodes.size()>=maximumNodes) {
+            truncated=true;
+            continue;
+          }
+          if (!selectedEdges.containsKey(new EdgeKey(edge))
+              && selectedEdges.size()>=Math.min(MAX_SELECTED_EDGES,MAX_RESULT_EDGES)) {
+            truncated=true;
+            continue;
+          }
+          TopologyResponses.Node targetNode=nodeByKey.get(target);
+          if (targetNode==null) {
+            truncated=true;
+            continue;
+          }
+          selectedNodes.putIfAbsent(target,targetNode);
+          selectedEdges.put(new EdgeKey(edge),edge);
+        }
+      }
+    }
 
     List<String> unsupported=List.of(
         "SLOs and versioned measurement definitions",
@@ -279,7 +324,7 @@ class GraphCommandWorker {
     result.put("graph_revision_id",graphId);
     result.put("graph_revision_number",revisionNumber);
     result.put("graph_digest",graphDigest);
-    result.put("query_id","action-relevant-dependencies.v1");
+    result.put("query_id",queryId);
     result.put("service_node_present",hasNode(claim,graphId,"service",(String)binding.get("service_id")));
     result.put("catalog_ref",binding.get("catalog_ref"));
     result.put("catalog_revision",binding.get("service_snapshot") instanceof Map<?,?> snapshot
@@ -298,10 +343,13 @@ class GraphCommandWorker {
     result.put("result_node_cap",MAX_RESULT_NODES);
     result.put("result_edge_cap",MAX_RESULT_EDGES);
     result.put("truncated",truncated);
-    result.put("supported_domains",List.of(
+    List<String> supportedDomains=new java.util.ArrayList<>(List.of(
         "service-rooted, catalog-revision-bound agent-workload mapping",
         "accepted S06 DEPENDS_ON edges within the pinned graph revision",
         "bounded region, cloud-resource, identity, model, and failure-domain context where represented"));
+    if (V2_QUERY.equals(queryId))
+      supportedDomains.add("accepted READS_FROM edges from reachable service and agent-workload sources to shared-resource targets");
+    result.put("supported_domains",supportedDomains);
     result.put("unsupported_domains",unsupported);
     result.put("verified_s04_summaries",evidenceSnapshot instanceof Map<?,?> snapshot
         ?snapshot.get("summaries"):List.of());
@@ -338,7 +386,12 @@ class GraphCommandWorker {
 
   private Computation classify(Claim claim) {
     Map<String,Object> authorizedSnapshot=mapValue(claim.binding().get("selection_snapshot"));
-    Map<String,Object> selectionBinding=mapValue(claim.binding().get("selection_source_binding"));
+    Map<String,Object> retainedSelectionBinding=new LinkedHashMap<>(
+        mapValue(claim.binding().get("selection_source_binding")));
+    String queryId=authorizedSnapshot.get("query_id") instanceof String retainedQuery
+        ?retainedQuery:V1_QUERY;
+    retainedSelectionBinding.putIfAbsent("query_id",queryId);
+    Map<String,Object> selectionBinding=retainedSelectionBinding;
     String currentGraphId=(String)claim.binding().get("current_graph_revision_id");
     String currentGraphDigest=(String)claim.binding().get("current_graph_digest");
     Computation current=select(claim,selectionBinding,currentGraphId,currentGraphDigest,
@@ -371,6 +424,14 @@ class GraphCommandWorker {
     Set<EdgeValue> addedFailureDomains=new java.util.TreeSet<>(newFailureDomains);
     addedFailureDomains.removeAll(oldFailureDomains);
 
+    ReadDelta readDelta=V2_QUERY.equals(queryId)
+        ?compareReadEdges(edges(authorizedSnapshot,"READS_FROM"),
+            edges(current.selectionSnapshot(),"READS_FROM"))
+        :ReadDelta.empty();
+    Set<EdgeValue> readAdditions=readDelta.additions();
+    Set<EdgeValue> readRemovals=readDelta.removals();
+    List<Map<String,Object>> readTargetChanges=readDelta.targetChanges();
+
     List<Map<String,Object>> allChanges=new java.util.ArrayList<>();
     for (Map<String,Object> change:dependencyTargetChanges)
       allChanges.add(changeEntry("dependency_target_changed",change.get("from"),change.get("to")));
@@ -382,6 +443,12 @@ class GraphCommandWorker {
       allChanges.add(changeEntry("failure_domain_membership_added",null,edge.asMap()));
     for (EdgeValue edge:removedFailureDomains)
       allChanges.add(changeEntry("failure_domain_membership_removed",edge.asMap(),null));
+    for (Map<String,Object> change:readTargetChanges)
+      allChanges.add(changeEntry("data_read_target_changed",change.get("from"),change.get("to")));
+    for (EdgeValue edge:readAdditions)
+      allChanges.add(changeEntry("data_read_added",null,edge.asMap()));
+    for (EdgeValue edge:readRemovals)
+      allChanges.add(changeEntry("data_read_removed",edge.asMap(),null));
     allChanges.sort(java.util.Comparator.comparing(value->value.get("change_type").toString()
         +json.writeValueAsString(value.get("before"))+json.writeValueAsString(value.get("after"))));
     boolean changesTruncated=allChanges.size()>MAX_RESULT_CHANGES;
@@ -389,12 +456,17 @@ class GraphCommandWorker {
         .limit(MAX_RESULT_CHANGES).toList());
 
     String classification;
-    if (!dependencyTargetChanges.isEmpty()
+    boolean mixedReadDelta=readDelta.mixed();
+    if (mixedReadDelta) {
+      classification="indeterminate";
+    } else if (!dependencyTargetChanges.isEmpty() || !readTargetChanges.isEmpty()
         || !addedFailureDomains.isEmpty() || !removedFailureDomains.isEmpty()) {
       classification="target-changing";
-    } else if (!addedDependencies.isEmpty() && removedDependencies.isEmpty()) {
+    } else if ((!addedDependencies.isEmpty() || !readAdditions.isEmpty())
+        && removedDependencies.isEmpty() && readRemovals.isEmpty()) {
       classification="widening";
-    } else if (!removedDependencies.isEmpty() && addedDependencies.isEmpty()) {
+    } else if ((!removedDependencies.isEmpty() || !readRemovals.isEmpty())
+        && addedDependencies.isEmpty() && readAdditions.isEmpty()) {
       classification="narrowing";
     } else {
       classification="indeterminate";
@@ -432,19 +504,32 @@ class GraphCommandWorker {
     result.put("failure_domain_removals",removedFailureDomains.stream().map(EdgeValue::asMap).toList());
     result.put("changes",changes);
     result.put("changes_truncated",changesTruncated);
-    result.put("supported_rules",List.of(
+    List<String> supportedRules=new java.util.ArrayList<>(List.of(
         "added DEPENDS_ON edges classify as widening",
         "removed DEPENDS_ON edges classify as narrowing",
         "a changed DEPENDS_ON target or MEMBER_OF_FAILURE_DOMAIN membership classifies as target-changing",
         "legacy IN_FAILURE_DOMAIN membership is interpreted as MEMBER_OF_FAILURE_DOMAIN",
         "no supported delta or mixed unpaired additions/removals classify as indeterminate"));
+    if (V2_QUERY.equals(queryId)) {
+      supportedRules.add("added READS_FROM edges classify as widening");
+      supportedRules.add("removed READS_FROM edges classify as narrowing");
+      supportedRules.add("a same-source READS_FROM target replacement classifies as target-changing");
+      supportedRules.add("mixed or unpaired READS_FROM additions and removals classify as indeterminate");
+    }
+    result.put("supported_rules",supportedRules);
+    if (V2_QUERY.equals(queryId)) {
+      result.put("read_additions",readAdditions.stream().map(EdgeValue::asMap).toList());
+      result.put("read_removals",readRemovals.stream().map(EdgeValue::asMap).toList());
+      result.put("read_target_changes",readTargetChanges);
+    }
     result.put("unsupported_domains",unsupportedDomains());
     result.put("authorized_evidence_coverage",authorizedSnapshot.get("s04_summary_coverage"));
     result.put("current_evidence_coverage",current.selectionSnapshot().get("s04_summary_coverage"));
     result.put("freshness_limitation",
         "S04 supplies no evidence-expiration policy. observed_at is retained metadata; QUALIFIED does not certify freshness.");
-    result.put("coverage_limitation",
-        "The supported graph delta is only a bounded dependency/failure-domain advisory; all listed ontology and freshness domains remain unimplemented.");
+    result.put("coverage_limitation",V2_QUERY.equals(queryId)
+        ?"The supported graph delta is only a bounded dependency/read/failure-domain advisory; all listed ontology and freshness domains remain unimplemented."
+        :"The supported graph delta is only a bounded dependency/failure-domain advisory; all listed ontology and freshness domains remain unimplemented.");
     result.put("summary","Supported graph delta classified as "+classification
         +" with "+changes.size()+" bounded change entries; overall coverage is "+completeness+".");
     result.put("reason_code",classification.equals("indeterminate")
@@ -470,9 +555,47 @@ class GraphCommandWorker {
     comparisonSnapshot.put("changes_truncated",changesTruncated);
     comparisonSnapshot.put("authorized_evidence_coverage",authorizedSnapshot.get("s04_summary_coverage"));
     comparisonSnapshot.put("current_evidence_coverage",current.selectionSnapshot().get("s04_summary_coverage"));
+    if (V2_QUERY.equals(queryId)) {
+      comparisonSnapshot.put("read_additions",readAdditions.stream().map(EdgeValue::asMap).toList());
+      comparisonSnapshot.put("read_removals",readRemovals.stream().map(EdgeValue::asMap).toList());
+      comparisonSnapshot.put("read_target_changes",readTargetChanges);
+    }
     String resultDigest=selectionDigest(comparisonSnapshot);
     result.put("result_digest",resultDigest);
     return new Computation(result,null,comparisonSnapshot,null,resultDigest);
+  }
+
+  static ReadDelta compareReadEdges(Set<EdgeValue> oldEdges,Set<EdgeValue> newEdges) {
+    Set<EdgeValue> removals=new java.util.TreeSet<>(oldEdges);
+    removals.removeAll(newEdges);
+    Set<EdgeValue> additions=new java.util.TreeSet<>(newEdges);
+    additions.removeAll(oldEdges);
+    List<Map<String,Object>> changes=new java.util.ArrayList<>();
+    Map<String,List<EdgeValue>> removedBySource=groupBySource(removals);
+    Map<String,List<EdgeValue>> addedBySource=groupBySource(additions);
+    for (Map.Entry<String,List<EdgeValue>> entry:removedBySource.entrySet()) {
+      List<EdgeValue> targets=addedBySource.get(entry.getKey());
+      if (entry.getValue().size()!=1 || targets==null || targets.size()!=1) continue;
+      EdgeValue before=entry.getValue().getFirst(), after=targets.getFirst();
+      removals.remove(before);
+      additions.remove(after);
+      changes.add(Map.of("from",before.asMap(),"to",after.asMap()));
+    }
+    boolean mixed=(!additions.isEmpty() && !removals.isEmpty())
+        || (!changes.isEmpty() && (!additions.isEmpty() || !removals.isEmpty()));
+    String classification=mixed?"indeterminate":!changes.isEmpty()?"target-changing":
+        !additions.isEmpty()?"widening":!removals.isEmpty()?"narrowing":"indeterminate";
+    return new ReadDelta(java.util.Collections.unmodifiableSet(additions),
+        java.util.Collections.unmodifiableSet(removals),List.copyOf(changes),
+        classification,mixed);
+  }
+
+  private static Map<String,List<EdgeValue>> groupBySource(Set<EdgeValue> edges) {
+    Map<String,List<EdgeValue>> result=new java.util.TreeMap<>();
+    for (EdgeValue edge:edges)
+      result.computeIfAbsent(edge.sourceType()+"\u0000"+edge.sourceId(),ignored->
+          new java.util.ArrayList<>()).add(edge);
+    return result;
   }
 
   private void succeed(Claim claim,Computation computation) {
@@ -620,7 +743,14 @@ class GraphCommandWorker {
   private record Computation(Map<String,Object> result,Map<String,Object> selectionSnapshot,
       Map<String,Object> comparisonSnapshot,String selectionDigest,String resultDigest) {}
 
-  private record EdgeValue(String sourceType,String sourceId,String relationshipType,
+  record ReadDelta(Set<EdgeValue> additions,Set<EdgeValue> removals,
+      List<Map<String,Object>> targetChanges,String classification,boolean mixed) {
+    static ReadDelta empty() {
+      return new ReadDelta(Set.of(),Set.of(),List.of(),"indeterminate",false);
+    }
+  }
+
+  record EdgeValue(String sourceType,String sourceId,String relationshipType,
       String targetType,String targetId) implements Comparable<EdgeValue> {
     boolean sameSourceAndRelationship(EdgeValue other) {
       return sourceType.equals(other.sourceType) && sourceId.equals(other.sourceId)

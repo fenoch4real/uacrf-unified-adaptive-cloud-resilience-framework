@@ -26,7 +26,8 @@ class TopologyGraphCommandService {
   private static final String S = "uacrf_topology.";
   private static final String SELECTION = "SUBGRAPH_SELECTION";
   private static final String DIFFERENCE = "DIFFERENCE_CLASSIFICATION";
-  private static final String QUERY = "action-relevant-dependencies.v1";
+  private static final Set<String> QUERIES = Set.of(
+      "action-relevant-dependencies.v1", "action-relevant-dependencies.v2");
   private static final Pattern CATALOG_REF = Pattern.compile(
       "^catalog://service/([A-Za-z0-9][A-Za-z0-9_.:-]{0,199})/revision/([1-9][0-9]{0,15})$");
   private final JdbcTemplate db;
@@ -43,7 +44,7 @@ class TopologyGraphCommandService {
     DelegationPrincipal actor=DelegationPrincipal.from(jwt);
     permit(actor,request.serviceId());
     validateKey(key);
-    if (!QUERY.equals(request.queryId()))
+    if (!QUERIES.contains(request.queryId()))
       throw new TopologyException(HttpStatus.UNPROCESSABLE_ENTITY,"QUERY_NOT_ALLOWLISTED","The query identifier is not in the versioned S06 allowlist.");
     if (!TopologyProofClient.SUBGRAPH_SELECTION.equals(request.purpose()))
       throw new TopologyException(HttpStatus.BAD_REQUEST,"INVALID_PURPOSE","The requested purpose is not supported.");
@@ -92,6 +93,7 @@ class TopologyGraphCommandService {
     binding.put("case_receipt",caseReceipt);
     binding.put("evidence_snapshot",evidence);
     binding.put("maximum_nodes",request.maximumNodes());
+    binding.put("query_id",request.queryId());
     String targetKey=targetKey(Map.ofEntries(
         Map.entry("service_id",request.serviceId()),
         Map.entry("query_id",request.queryId())));

@@ -95,8 +95,31 @@ class GraphAsyncContractTests(unittest.TestCase):
         )
         self.assertEqual(
             ["dependency_target_changed", "dependency_added", "dependency_removed",
-             "failure_domain_membership_added", "failure_domain_membership_removed"],
+             "failure_domain_membership_added", "failure_domain_membership_removed",
+             "data_read_added", "data_read_removed", "data_read_target_changed"],
             change["properties"]["change_type"]["enum"],
+        )
+        transition_requirements = {}
+        for condition in change["allOf"]:
+            change_type = condition["if"]["properties"]["change_type"]
+            change_types = change_type.get("enum", [change_type.get("const")])
+            transition_requirements.update(
+                {
+                    value: condition["then"]["required"]
+                    for value in change_types
+                }
+            )
+        self.assertEqual(
+            ["after"],
+            transition_requirements["data_read_added"],
+        )
+        self.assertEqual(
+            ["before"],
+            transition_requirements["data_read_removed"],
+        )
+        self.assertEqual(
+            ["before", "after"],
+            transition_requirements["data_read_target_changed"],
         )
 
     def test_both_requests_keep_required_fields_and_bound_source_refs(self):
@@ -131,7 +154,13 @@ class GraphAsyncContractTests(unittest.TestCase):
                 ],
                 selection["required"],
             )
-            self.assertEqual("action-relevant-dependencies.v1", selection["properties"]["query_id"]["const"])
+            self.assertEqual(
+                generator.GRAPH_SELECTION_QUERY_IDS,
+                selection["properties"]["query_id"]["enum"],
+            )
+            query_description = selection["properties"]["query_id"]["description"]
+            self.assertIn("v1 covers bounded dependency selection", query_description)
+            self.assertIn("v2 additionally selects READS_FROM", query_description)
             self.assertIn(
                 r"^catalog://service/[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}/revision/[1-9][0-9]{0,15}$",
                 selection["properties"]["query_parameters_ref"]["pattern"],

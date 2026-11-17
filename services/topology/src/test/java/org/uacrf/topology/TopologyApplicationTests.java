@@ -175,6 +175,86 @@ class TopologyApplicationTests {
         selectionRequest("graph","bad reason")).statusCode());
   }
 
+  @Test void v1SelectionStaysUnchangedAndV2IncludesOnlyAcceptedReachableReads() throws Exception {
+    String alice=token("alice","reads-selection","*",ALL), bob=token("bob","reads-selection","*",ALL);
+    assertThat(post("/v1/dependency-proposals",alice,proposal("reads-invalid-source",
+        "shared_resource","resource","READS_FROM","shared_resource","other","AUTHORED","")).statusCode())
+        .isBetween(400,499);
+    assertThat(post("/v1/dependency-proposals",alice,proposal("reads-invalid-target",
+        "service","svc","READS_FROM","model","model-1","AUTHORED","")).statusCode())
+        .isBetween(400,499);
+    createAndApprove(alice,bob,proposal("reads-root","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"reads-root");
+    createAndApprove(alice,bob,proposal("reads-accepted","agent_workload","agent","READS_FROM",
+        "shared_resource","accepted-data","AUTHORED",""),"reads-accepted");
+    createAndApprove(alice,bob,proposal("reads-unreachable-root","service","outsider","DEPENDS_ON",
+        "agent_workload","other","AUTHORED",""),"reads-unreachable-root");
+    createAndApprove(alice,bob,proposal("reads-unreachable","agent_workload","other","READS_FROM",
+        "shared_resource","unreachable-data","AUTHORED",""),"reads-unreachable");
+    assertEquals(201,post("/v1/dependency-proposals",alice,proposal("reads-pending",
+        "agent_workload","agent","READS_FROM","shared_resource","pending-data","AUTHORED","")).statusCode());
+    JsonNode graph=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+
+    JsonNode v1=runSelection(bob,"reads-v1",selectionRequest(graph.get("id").asString(),
+        "legacy selection"));
+    JsonNode v2=runSelection(bob,"reads-v2",selectionRequest(graph.get("id").asString(),
+        "read-aware selection","action-relevant-dependencies.v2",0));
+    assertEquals("action-relevant-dependencies.v1",v1.get("query_id").asString());
+    assertThat(v1.get("edges").toString()).doesNotContain("READS_FROM","accepted-data");
+    assertThat(v1.get("nodes").toString()).doesNotContain("accepted-data");
+
+    assertEquals("action-relevant-dependencies.v2",v2.get("query_id").asString());
+    assertThat(v2.get("edges").toString()).contains("READS_FROM","accepted-data");
+    assertThat(v2.get("edges").toString()).doesNotContain("unreachable-data","pending-data");
+    assertThat(v2.get("nodes").toString()).contains("accepted-data");
+    assertThat(v2.get("nodes").toString()).doesNotContain("unreachable-data","pending-data");
+    String context=db.queryForObject("SELECT source_binding->>'query_id' FROM "
+        +"uacrf_topology.graph_domain_revision WHERE selection_digest=?",
+        String.class,v2.get("result_digest").asString());
+    assertEquals("action-relevant-dependencies.v2",context);
+  }
+
+  @Test void differenceRecomputesTheRetainedQueryVersionAndClassifiesV2ReadAdditions() throws Exception {
+    String alice=token("alice","reads-classification","*",ALL),
+        bob=token("bob","reads-classification","*",ALL);
+    createAndApprove(alice,bob,proposal("reads-classification-root","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"reads-classification-root");
+    JsonNode authorized=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    JsonNode retainedV2=runSelection(bob,"reads-classification-v2",
+        selectionRequest(authorized.get("id").asString(),"v2 select",
+            "action-relevant-dependencies.v2",0));
+    String v2Digest=retainedV2.get("result_digest").asString();
+    JsonNode retainedV1=runSelection(bob,"reads-classification-v1",
+        selectionRequest(authorized.get("id").asString(),"v1 select"));
+    String v1Digest=retainedV1.get("result_digest").asString();
+
+    createAndApprove(alice,bob,proposal("reads-classification-added","agent_workload","agent",
+        "READS_FROM","shared_resource","data-store","AUTHORED",""),"reads-classification-added");
+    JsonNode current=json.readTree(post("/v1/graphs:accept",bob,accept(1)).body());
+    whenCaseReceipt(TopologyProofClient.DIFFERENCE_CLASSIFICATION);
+
+    JsonNode v2Receipt=json.readTree(postCommand("/v1/graphs/differences:classify",bob,
+        "reads-classification-v2",classifyRequest("svc",authorized.get("id").asString(),
+            current.get("id").asString(),v2Digest,0)).body());
+    JsonNode v2Result=runClassification(bob,v2Receipt);
+    assertEquals("widening",v2Result.get("classification").asString());
+    assertThat(v2Result.get("read_additions").toString()).contains("data-store");
+    assertThat(v2Result.get("changes").toString()).contains("data_read_added");
+
+    JsonNode v1Receipt=json.readTree(postCommand("/v1/graphs/differences:classify",bob,
+        "reads-classification-v1",classifyRequest("svc",authorized.get("id").asString(),
+            current.get("id").asString(),v1Digest,1)).body());
+    JsonNode v1Result=runClassification(bob,v1Receipt);
+    assertEquals("indeterminate",v1Result.get("classification").asString());
+    assertThat(v1Result.has("read_additions")).isFalse();
+    String recomputedQuery=db.queryForObject("SELECT comparison_snapshot->'current_selection_snapshot'->>'query_id' "
+        +"FROM uacrf_topology.graph_domain_revision WHERE command_id=?::uuid",
+        String.class,v1Receipt.get("command_id").asString());
+    assertEquals("action-relevant-dependencies.v1",recomputedQuery);
+  }
+
   @Test void selectionRevisionFenceAllowsMatchingPositiveAndRejectsStaleRevision() throws Exception {
     String alice=token("alice","selection-revisions","*",ALL), bob=token("bob","selection-revisions","*",ALL);
     createAndApprove(alice,bob,proposal("revision-edge","service","svc","DEPENDS_ON",
@@ -554,10 +634,28 @@ class TopologyApplicationTests {
     return selectionRequest(graphId,reason,0);
   }
   private static String selectionRequest(String graphId,String reason,long expectedRevision) {
+    return selectionRequest(graphId,reason,"action-relevant-dependencies.v1",expectedRevision);
+  }
+  private static String selectionRequest(String graphId,String reason,String queryId,long expectedRevision) {
     return "{\"service_id\":\"svc\",\"case_id\":\"case-1\",\"graph_revision_id\":\""+graphId
-        +"\",\"reason\":\""+reason+"\",\"expected_revision\":"+expectedRevision+",\"query_id\":\"action-relevant-dependencies.v1\","
+        +"\",\"reason\":\""+reason+"\",\"expected_revision\":"+expectedRevision+",\"query_id\":\""+queryId+"\","
         +"\"query_parameters_ref\":\"catalog://service/svc/revision/1\",\"query_parameters_digest\":\""+"a".repeat(64)
         +"\",\"purpose\":\"topology.graph.subgraph-selection\",\"maximum_nodes\":200}";
+  }
+  private JsonNode runSelection(String token,String key,String body) throws Exception {
+    JsonNode receipt=json.readTree(postCommand("/v1/graphs/subgraphs:select",token,key,body).body());
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),
+          token).body()).get("status").asString())) break;
+    return json.readTree(db.queryForObject("SELECT result::text FROM uacrf_topology.graph_command "
+        +"WHERE command_id=?::uuid",String.class,receipt.get("command_id").asString()));
+  }
+  private JsonNode runClassification(String token,JsonNode receipt) throws Exception {
+    while (graphCommandWorker.processNext())
+      if (!activeCommandStatus(json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),
+          token).body()).get("status").asString())) break;
+    return json.readTree(db.queryForObject("SELECT result::text FROM uacrf_topology.graph_command "
+        +"WHERE command_id=?::uuid",String.class,receipt.get("command_id").asString()));
   }
   private static String classifyRequest(String serviceId,String authorizedGraphId,String currentGraphId,
       String selectionDigest,long expectedRevision) {
