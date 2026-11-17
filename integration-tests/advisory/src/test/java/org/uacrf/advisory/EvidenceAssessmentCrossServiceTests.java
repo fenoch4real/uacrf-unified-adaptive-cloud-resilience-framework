@@ -113,6 +113,7 @@ class EvidenceAssessmentCrossServiceTests {
           Map.entry("UACRF_DELEGATION_KEY_ID", KEY_ID),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_ENABLED", "true"),
           Map.entry("UACRF_ASSESSMENT_MODELS_ENABLED", "true"),
+          Map.entry("UACRF_ASSESSMENT_LEARNING_REVIEW_ENABLED", "true"),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_TOKEN_URL", fixture + "/token"),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_CLIENT_SECRET", "fixture-secret"),
           Map.entry("UACRF_ASSESSMENT_RECEIPTS_DELEGATION_URL", fixture + "/delegations"),
@@ -127,7 +128,10 @@ class EvidenceAssessmentCrossServiceTests {
       String actor = token(issuer, "assessor", TENANT, ENVIRONMENT, "S07",
           List.of("assessment.case.read", "assessment.case.write", "assessment.evaluation.run",
               "assessment.evaluation.read", "assessment.recommendation.read",
-              "assessment.model.read", "assessment.model.write"));
+              "assessment.model.read", "assessment.model.write", "assessment.incident.write",
+              "assessment.incident.read", "assessment.learning.read", "assessment.learning.write"));
+      String learningReviewer = token(issuer, "learning-reviewer", TENANT, ENVIRONMENT, "S07",
+          List.of("assessment.learning.review"));
       String modelReviewer = token(issuer, "model-reviewer", TENANT, ENVIRONMENT, "S07",
           List.of("assessment.model.review"));
       String modelPromoter = token(issuer, "model-promoter", TENANT, ENVIRONMENT, "S07",
@@ -159,6 +163,29 @@ class EvidenceAssessmentCrossServiceTests {
       JsonNode before = post(assessment, path, actor, evaluation, 201);
       assertEquals("CONFIRMED_SUCCESS", before.get("outcome").asString());
       assertEquals("VERIFIED", before.at("/dependency_vector/receipt_verification").asString());
+      String incidentBody = "{\"workload_id\":\"w1\",\"source_case_id\":\"" + caseId
+          + "\",\"observed_from\":\"" + cutoff + "\",\"description\":\"observed incident\","
+          + "\"evidence_refs\":[\"e1\"],\"reason\":\"retain incident evidence\"}";
+      JsonNode incident = post(assessment, "/v1/incidents", actor, incidentBody, 201);
+      String retainedIncident = incident.get("id").asString();
+      assertEquals(before.get("id").asString(),
+          incident.get("source_evaluation_ids").get(0).asString());
+      String learningBody = "{\"incident_id\":\"" + retainedIncident + "\","
+          + "\"hypotheses\":[\"test recovery\"],\"action_items\":[{"
+          + "\"description\":\"test\",\"owner_id\":\"owner-1\","
+          + "\"due_at\":\"2027-01-01T00:00:00Z\",\"closure_test\":\"replay\"}],"
+          + "\"evidence_refs\":[\"e1\"],\"expected_revision\":1,\"reason\":\"follow up\"}";
+      String approvedLearning = post(assessment, "/v1/learning-records", actor, learningBody, 201)
+          .get("id").asString();
+      String pendingLearning = post(assessment, "/v1/learning-records", actor, learningBody, 201)
+          .get("id").asString();
+      String learningReviewBody = "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"reviewed\"}";
+      assertEquals("APPROVE", post(assessment, "/v1/learning-records/" + approvedLearning + ":review",
+          learningReviewer, learningReviewBody, 200).get("decision").asString());
+      String reviewReceiptPath = "/internal/v1/learning-records/" + approvedLearning + ":review-receipt";
+      JsonNode reviewReceipt = post(assessment, reviewReceiptPath, actor, "{}", 200);
+      assertEquals("VERIFIED", reviewReceipt.get("owner_receipts").asString());
+      assertEquals(false, reviewReceipt.get("authorizes_adoption").asBoolean());
       String modelBody = "{\"model_id\":\"freshness-model\",\"version\":\"1\","
           + "\"artifact_ref\":\"artifact\",\"digest\":\"" + "b".repeat(64)
           + "\",\"model_card_ref\":\"card\",\"evaluation_pack_ref\":\"pack\",\"reason\":\"test\"}";
@@ -178,6 +205,18 @@ class EvidenceAssessmentCrossServiceTests {
           "{\"purpose\":\"assessment\",\"metric\":\"latency\",\"cutoff\":\"" + cutoff + "\"}").statusCode());
       assertEquals("REPLAY_CONFLICT", post(evidence, "/internal/v1/observations", submit,
           observation.replace("\"kind\":\"a\"", "\"kind\":\"other\""), 202).get("reason").asString());
+      JsonNode rejectedIncident = post(assessment, "/v1/incidents", actor, incidentBody, 409);
+      assertEquals("OWNER_REVALIDATION_FAILED", rejectedIncident.get("code").asString());
+      assertEquals("OWNER_REVALIDATION_FAILED", post(assessment,
+          "/v1/learning-records/" + pendingLearning + ":review", learningReviewer, learningReviewBody, 409)
+          .get("code").asString());
+      assertEquals("OWNER_REVALIDATION_FAILED", post(assessment, reviewReceiptPath, actor, "{}", 409)
+          .get("code").asString());
+      assertEquals("APPROVE", get(assessment, "/v1/learning-records/" + approvedLearning + "/review",
+          actor, 200).get("decision").asString());
+      JsonNode retainedIncidentBody = get(assessment, "/v1/incidents/" + retainedIncident, actor, 200);
+      assertEquals("w1", retainedIncidentBody.get("workload_id").asString());
+      assertEquals(incident.get("source_evaluation_ids"), retainedIncidentBody.get("source_evaluation_ids"));
       JsonNode rejectedReview = post(assessment, "/v1/model-versions/" + candidate + ":review",
           modelReviewer, reviewBody, 409);
       assertEquals("OWNER_REVALIDATION_FAILED", rejectedReview.get("code").asString());

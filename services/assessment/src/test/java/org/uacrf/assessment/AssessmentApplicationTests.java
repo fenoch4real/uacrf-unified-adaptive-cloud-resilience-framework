@@ -8,6 +8,7 @@ import java.security.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -18,6 +19,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -34,9 +36,18 @@ import tools.jackson.databind.ObjectMapper;
 class AssessmentApplicationTests {
   @TestConfiguration
   static class ModelReceiptFixture {
+    static final Set<String> UNAVAILABLE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    static final Set<String> UNAVAILABLE_RECEIPTS = java.util.concurrent.ConcurrentHashMap.newKeySet();
     @Bean @Primary ReceiptVerifier receiptVerifierFixture() {
       return (item, measurements, cutoff, tenant, environment) -> {
-        if (!tenant.startsWith("t-model-") || tenant.equals("t-model-disabled-receipts")) {
+        if (UNAVAILABLE.contains(tenant)
+            || measurements.stream().anyMatch(m -> UNAVAILABLE_RECEIPTS.contains(m.sourceReceiptId()))) {
+          return ReceiptVerifier.Verification.failed("OWNER_UNAVAILABLE", null, null, List.of(), Map.of());
+        }
+        if ((!tenant.startsWith("t-model-") && !tenant.startsWith("t-learning-")
+            && !tenant.startsWith("t-incident-fresh") && !tenant.equals("t-incident-valid")
+            && !tenant.equals("t-case-incidents"))
+            || tenant.equals("t-model-disabled-receipts")) {
           return ReceiptVerifier.Verification.skipped();
         }
         var objective = new AssessmentResponses.ObjectiveReceipt(item.workloadId(), "set-od",
@@ -63,6 +74,7 @@ class AssessmentApplicationTests {
     p.add("spring.datasource.url", POSTGRES::getJdbcUrl); p.add("spring.datasource.username", POSTGRES::getUsername); p.add("spring.datasource.password", POSTGRES::getPassword);
     p.add("uacrf.delegation.public-key-base64", () -> Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded())); p.add("uacrf.delegation.key-id", () -> KEY_ID);
     p.add("uacrf.assessment.models.enabled", () -> "true");
+    p.add("uacrf.assessment.learning-review.enabled", () -> "true");
   }
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
@@ -413,11 +425,198 @@ class AssessmentApplicationTests {
         + "('uacrf.s07.model-version.promoted.v1','uacrf.s07.model-version.superseded.v1')", Integer.class));
   }
 
+  @Test void incidentCreationRevalidatesCurrentOwnerEvidence() throws Exception {
+    String tenant = "t-incident-fresh";
+    String owner = token(tenant, "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00Z";
+    JsonNode evaluation = eval(owner, caseId, cutoff, "LIVE",
+        measurement("r-fresh", "a", "2026-01-01T00:59:00Z", "5", "ms"));
+    assertEquals("VERIFIED", evaluation.at("/dependency_vector/receipt_verification").asString());
+    String request = incidentJson(caseId, "w1", cutoff, "[\"r-fresh\"]");
+    JsonNode incident = body(post("/v1/incidents", owner, request), 201);
+    String retained = incident.get("id").asString();
+    assertEquals(List.of(evaluation.get("id").asString()),
+        json.convertValue(incident.get("source_evaluation_ids"), List.class));
+    assertEquals(incident.get("source_evaluation_ids"),
+        body(get("/v1/incidents/" + retained, owner), 200).get("source_evaluation_ids"));
+    assertEquals(incident.get("source_evaluation_ids"),
+        body(get("/v1/cases/" + caseId + "/incidents", owner), 200)
+            .get("items").get(0).get("source_evaluation_ids"));
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "UPDATE uacrf_assessment.incident SET source_evaluation_ids='[\"different\"]'::jsonb WHERE tenant_id=? AND id=?",
+        tenant, retained));
+    try {
+      ModelReceiptFixture.UNAVAILABLE.add(tenant);
+      JsonNode rejected = body(post("/v1/incidents", owner, request), 409);
+      assertEquals("OWNER_REVALIDATION_FAILED", rejected.get("code").asString());
+      assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.incident "
+          + "WHERE tenant_id=?", Integer.class, tenant));
+      assertEquals(200, get("/v1/incidents/" + retained, owner).statusCode());
+    } finally {
+      ModelReceiptFixture.UNAVAILABLE.remove(tenant);
+    }
+  }
+
+  @Test void incidentRevalidatesEveryContributingEvaluationButNotUnrelatedOnes() throws Exception {
+    String tenant = "t-incident-fresh-multiple";
+    String owner = token(tenant, "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00Z";
+    Map<String, String> evaluations = new HashMap<>();
+    for (String id : List.of("r-first", "r-second", "r-unrelated")) {
+      evaluations.put(id, eval(owner, caseId, cutoff, "LIVE",
+          measurement(id, "a", "2026-01-01T00:59:00Z", "5", "ms")).get("id").asString());
+    }
+    try {
+      ModelReceiptFixture.UNAVAILABLE_RECEIPTS.add("r-unrelated");
+      body(post("/v1/incidents", owner,
+          incidentJson(caseId, "w1", cutoff, "[\"r-first\"]")), 201);
+      ModelReceiptFixture.UNAVAILABLE_RECEIPTS.add("r-second");
+      String both = incidentJson(caseId, "w1", cutoff, "[\"r-first\",\"r-second\"]");
+      assertEquals("OWNER_REVALIDATION_FAILED",
+          body(post("/v1/incidents", owner, both), 409).get("code").asString());
+      assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.incident "
+          + "WHERE tenant_id=?", Integer.class, tenant));
+      ModelReceiptFixture.UNAVAILABLE_RECEIPTS.remove("r-second");
+      JsonNode accepted = body(post("/v1/incidents", owner, both), 201);
+      assertEquals(List.of(evaluations.get("r-second"), evaluations.get("r-first")),
+          json.convertValue(accepted.get("source_evaluation_ids"), List.class));
+      ModelReceiptFixture.UNAVAILABLE_RECEIPTS.remove("r-unrelated");
+      eval(owner, caseId, cutoff, "LIVE",
+          measurement("r-first", "a", "2026-01-01T00:58:00Z", "5", "ms") + ","
+              + measurement("r-unrelated", "a", "2026-01-01T00:59:00Z", "5", "ms"));
+      ModelReceiptFixture.UNAVAILABLE_RECEIPTS.add("r-unrelated");
+      assertEquals("OWNER_REVALIDATION_FAILED", body(post("/v1/incidents", owner,
+          incidentJson(caseId, "w1", cutoff, "[\"r-first\"]")), 409).get("code").asString());
+    } finally {
+      ModelReceiptFixture.UNAVAILABLE_RECEIPTS.removeAll(List.of("r-second", "r-unrelated"));
+    }
+  }
+
+  @Test void incidentProvenanceMigrationPreservesUnknownLegacyLineage() {
+    String database = "assessment_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+    jdbc.execute("CREATE DATABASE " + database);
+    try {
+      String url = POSTGRES.getJdbcUrl().replace("/uacrf_assessment?", "/" + database + "?");
+      var source = new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword());
+      Flyway.configure().dataSource(source).locations(AssessmentTestMigrations.location())
+          .target("7").load().migrate();
+      var oldDb = new JdbcTemplate(source);
+      oldDb.update("INSERT INTO uacrf_assessment.analysis_case "
+          + "(tenant_id,environment_id,id,workload_id,content,state,revision,created_by) "
+          + "VALUES ('legacy','env-1','case-1','w1','{}'::jsonb,'DRAFT',1,'user')");
+      oldDb.update("INSERT INTO uacrf_assessment.incident "
+          + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+          + "evidence_refs,reason,revision,created_by) "
+          + "VALUES ('legacy','env-1','00000000-0000-0000-0000-000000000001','w1','case-1',"
+          + "'2026-01-01T00:00:00Z','incident','[\"receipt\"]'::jsonb,'reason',1,'user')");
+      Flyway.configure().dataSource(source).locations(AssessmentTestMigrations.location())
+          .target("8").load().migrate();
+      oldDb.update("INSERT INTO uacrf_assessment.evaluation "
+          + "(tenant_id,environment_id,id,case_id,revision,observation_cutoff,cutoff_epoch_second,"
+          + "cutoff_nano,mode,outcome,dependency_vector,result_digest) VALUES "
+          + "('legacy','env-1','evaluation-1','case-1',1,'2026-01-01T00:00:00Z',"
+          + "1767225600,0,'LIVE','INSUFFICIENT_EVIDENCE','{}'::jsonb,repeat('a',64))");
+      oldDb.update("INSERT INTO uacrf_assessment.incident "
+          + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+          + "evidence_refs,source_evaluation_ids,reason,revision,created_by) "
+          + "VALUES ('legacy','env-1','00000000-0000-0000-0000-000000000002','w1','case-1',"
+          + "'2026-01-01T00:00:00Z','incident','[\"receipt\"]'::jsonb,'[\"evaluation-1\"]'::jsonb,"
+          + "'reason',1,'user')");
+      Flyway.configure().dataSource(source).locations(AssessmentTestMigrations.location()).load().migrate();
+      assertEquals(1, oldDb.queryForObject("SELECT count(*) FROM uacrf_assessment.incident "
+          + "WHERE tenant_id='legacy' AND source_evaluation_ids IS NULL", Integer.class));
+      assertEquals(1, oldDb.queryForObject("SELECT count(*) FROM uacrf_assessment.incident "
+          + "WHERE tenant_id='legacy' AND source_evaluation_ids='[\"evaluation-1\"]'::jsonb", Integer.class));
+    } finally {
+      jdbc.execute("DROP DATABASE " + database);
+    }
+  }
+
+  @Test void incidentProvenanceRejectsInvalidDatabaseReferences() throws Exception {
+    String tenant = "t-incident-fresh-provenance";
+    String owner = token(tenant, "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String otherCase = sealed(owner, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00Z";
+    String evaluation = eval(owner, caseId, cutoff, "LIVE",
+        measurement("r-provenance", "a", "2026-01-01T00:59:00Z", "5", "ms")).get("id").asString();
+    String wrongCase = eval(owner, otherCase, cutoff, "LIVE",
+        measurement("r-wrong-case", "a", "2026-01-01T00:59:00Z", "5", "ms")).get("id").asString();
+    String otherOwner = token("t-incident-fresh-provenance-foreign", "*", ALL);
+    String foreignCase = sealed(otherOwner, "[\"a\"]", "LTE");
+    String foreignTenant = eval(otherOwner, foreignCase, cutoff, "LIVE",
+        measurement("r-foreign", "a", "2026-01-01T00:59:00Z", "5", "ms")).get("id").asString();
+    String foreignEnvironment = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.analysis_case "
+        + "(tenant_id,environment_id,id,workload_id,content,state,revision,case_digest,created_by) "
+        + "SELECT tenant_id,'env-2',id,workload_id,content,state,revision,case_digest,created_by "
+        + "FROM uacrf_assessment.analysis_case WHERE tenant_id=? AND environment_id='env-1' AND id=?",
+        tenant, caseId);
+    jdbc.update("INSERT INTO uacrf_assessment.evaluation "
+        + "(tenant_id,environment_id,id,case_id,revision,observation_cutoff,cutoff_epoch_second,"
+        + "cutoff_nano,mode,outcome,dependency_vector,result_digest) "
+        + "SELECT tenant_id,'env-2',?,case_id,revision,observation_cutoff,cutoff_epoch_second,"
+        + "cutoff_nano,mode,outcome,dependency_vector,result_digest FROM uacrf_assessment.evaluation "
+        + "WHERE tenant_id=? AND environment_id='env-1' AND id=?", foreignEnvironment, tenant, evaluation);
+    String incidentId = body(post("/v1/incidents", owner,
+        incidentJson(caseId, "w1", cutoff, "[\"r-provenance\"]")), 201).get("id").asString();
+    String insert = "INSERT INTO uacrf_assessment.incident "
+        + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+        + "evidence_refs,source_evaluation_ids,reason,revision,created_by) "
+        + "SELECT tenant_id,environment_id,?,workload_id,source_case_id,observed_from,description,"
+        + "evidence_refs,?::jsonb,reason,revision,created_by FROM uacrf_assessment.incident "
+        + "WHERE tenant_id=? AND environment_id='env-1' AND id=?";
+    List<String> invalid = List.of(
+        json.writeValueAsString(List.of(wrongCase)),
+        json.writeValueAsString(List.of(foreignTenant)),
+        json.writeValueAsString(List.of(foreignEnvironment)),
+        json.writeValueAsString(List.of(UUID.randomUUID().toString())),
+        json.writeValueAsString(List.of(evaluation, evaluation)),
+        "[123]");
+    for (String lineage : invalid) {
+      assertThrows(DataIntegrityViolationException.class,
+          () -> jdbc.update(insert, UUID.randomUUID().toString(), lineage, tenant, incidentId), lineage);
+    }
+    assertEquals(1, jdbc.update(insert, UUID.randomUUID().toString(),
+        json.writeValueAsString(List.of(evaluation)), tenant, incidentId));
+    assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.incident "
+        + "WHERE tenant_id=?", Integer.class, tenant));
+  }
+
+  @Test void incidentProvenanceMigrationRejectsCorruptExistingLineage() {
+    String database = "assessment_bad_lineage_" + UUID.randomUUID().toString().replace("-", "");
+    jdbc.execute("CREATE DATABASE " + database);
+    try {
+      String url = POSTGRES.getJdbcUrl().replace("/uacrf_assessment?", "/" + database + "?");
+      var source = new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword());
+      Flyway.configure().dataSource(source).locations(AssessmentTestMigrations.location())
+          .target("8").load().migrate();
+      var oldDb = new JdbcTemplate(source);
+      oldDb.update("INSERT INTO uacrf_assessment.analysis_case "
+          + "(tenant_id,environment_id,id,workload_id,content,state,revision,created_by) "
+          + "VALUES ('legacy','env-1','case-1','w1','{}'::jsonb,'DRAFT',1,'user')");
+      oldDb.update("INSERT INTO uacrf_assessment.incident "
+          + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+          + "evidence_refs,source_evaluation_ids,reason,revision,created_by) "
+          + "VALUES ('legacy','env-1','00000000-0000-0000-0000-000000000001','w1','case-1',"
+          + "'2026-01-01T00:00:00Z','incident','[\"receipt\"]'::jsonb,'[\"missing\"]'::jsonb,"
+          + "'reason',1,'user')");
+      assertThrows(org.flywaydb.core.api.FlywayException.class,
+          () -> Flyway.configure().dataSource(source).locations(AssessmentTestMigrations.location()).load().migrate());
+      assertEquals(1, oldDb.queryForObject("SELECT count(*) FROM uacrf_assessment.incident "
+          + "WHERE source_evaluation_ids='[\"missing\"]'::jsonb", Integer.class));
+    } finally {
+      jdbc.execute("DROP DATABASE " + database);
+    }
+  }
+
   @Test void incidentRequiresVerifiedMeasurementsAtOrBeforeObservationAndIsAttributable() throws Exception {
     String owner = token("t-incident-valid", "*", ALL);
     String caseId = sealed(owner, "[\"a\"]", "LTE");
-    seedIncidentEvaluation("t-incident-valid", caseId, "2026-01-01T01:00:00Z", "VERIFIED",
-        measurementReceipt("r-incident", "2026-01-01T00:59:00Z"));
+    eval(owner, caseId, "2026-01-01T01:00:00Z", "LIVE",
+        measurement("r-incident", "a", "2026-01-01T00:59:00Z", "5", "ms"));
     String forged = incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-incident\"]")
         .replace("\"reason\":\"retain incident evidence\"}",
             "\"reason\":\"retain incident evidence\",\"capabilities\":[\"assessment.incident.write\"]}");
@@ -482,8 +681,8 @@ class AssessmentApplicationTests {
   @Test void learningRecordsAreImmutableRevisionFencedProposalsWithTransactionalOutbox() throws Exception {
     String owner = token("t-learning-proposal", "*", ALL);
     String caseId = sealed(owner, "[\"a\"]", "LTE");
-    seedIncidentEvaluation("t-learning-proposal", caseId, "2026-01-01T01:00:00Z", "VERIFIED",
-        measurementReceipt("r-learning", "2026-01-01T00:59:00Z"));
+    eval(owner, caseId, "2026-01-01T01:00:00Z", "LIVE",
+        measurement("r-learning", "a", "2026-01-01T00:59:00Z", "5", "ms"));
     JsonNode incident = body(post("/v1/incidents", owner,
         incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-learning\"]")), 201);
     String incidentId = incident.get("id").asString();
@@ -548,13 +747,195 @@ class AssessmentApplicationTests {
         "t-learning-proposal", incidentId));
   }
 
+  @Test void learningReviewsRequireIndependentFreshEvidenceAndDoNotAdoptChanges() throws Exception {
+    String tenant = "t-learning-review";
+    String owner = token(tenant, "*", ALL);
+    String reviewer = token(tenant, "*", List.of("assessment.learning.review"), "reviewer");
+    String reader = token(tenant, "*", List.of("assessment.learning.read"), "reader");
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00Z";
+    eval(owner, caseId, cutoff, "LIVE",
+        measurement("r-review", "a", "2026-01-01T00:59:00Z", "5", "ms"));
+    String incidentId = body(post("/v1/incidents", owner,
+        incidentJson(caseId, "w1", cutoff, "[\"r-review\"]")), 201).get("id").asString();
+    String recordId = body(post("/v1/learning-records", owner,
+        learningJson(incidentId, 1, "[\"r-review\"]")), 201).get("id").asString();
+    String reviewPath = "/v1/learning-records/" + recordId + ":review";
+    String readPath = "/v1/learning-records/" + recordId + "/review";
+    String approve = "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"reviewed\"}";
+    assertEquals(403, post(reviewPath, owner, approve).statusCode());
+    assertEquals(409, post(reviewPath, token(tenant, "*",
+        List.of("assessment.learning.review"), "user"), approve).statusCode());
+    assertEquals(403, post(reviewPath, token(tenant, "w1",
+        List.of("assessment.learning.review"), "reviewer"), approve).statusCode());
+    assertEquals(404, post(reviewPath, token("t-learning-review-foreign", "*",
+        List.of("assessment.learning.review"), "reviewer"), approve).statusCode());
+    assertEquals(409, post(reviewPath, reviewer, approve.replace("\"expected_revision\":1",
+        "\"expected_revision\":2")).statusCode());
+    try {
+      ModelReceiptFixture.UNAVAILABLE.add(tenant);
+      assertEquals("OWNER_REVALIDATION_FAILED",
+          body(post(reviewPath, reviewer, approve), 409).get("code").asString());
+      assertEquals(404, get(readPath, reader).statusCode());
+      assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+          + "WHERE tenant_id=? AND event_type='uacrf.s07.learning.reviewed.v1'", Integer.class, tenant));
+    } finally {
+      ModelReceiptFixture.UNAVAILABLE.remove(tenant);
+    }
+    JsonNode review = body(post(reviewPath, reviewer, approve), 200);
+    assertEquals("APPROVE", review.get("decision").asString());
+    assertEquals(review, body(get(readPath, reader), 200));
+    String receiptPath = "/internal/v1/learning-records/" + recordId + ":review-receipt";
+    JsonNode receipt = body(post(receiptPath, reader, "{}"), 200);
+    assertEquals(recordId, receipt.get("learning_record_id").asString());
+    assertEquals(incidentId, receipt.get("incident_id").asString());
+    assertEquals("VERIFIED", receipt.get("owner_receipts").asString());
+    assertFalse(receipt.get("authorizes_adoption").asBoolean());
+    assertEquals(jdbc.queryForObject("SELECT content_digest FROM uacrf_assessment.learning_record "
+        + "WHERE tenant_id=? AND id=?", String.class, tenant, recordId),
+        receipt.get("learning_record_digest").asString());
+    assertEquals(jdbc.queryForObject("SELECT payload->>'owned_digest' "
+        + "FROM uacrf_assessment.outbox_event WHERE tenant_id=? AND aggregate_id=? "
+        + "AND event_type='uacrf.s07.learning.reviewed.v1'", String.class, tenant, recordId),
+        receipt.get("review_digest").asString());
+    assertEquals(403, post(receiptPath, reviewer, "{}").statusCode());
+    try {
+      ModelReceiptFixture.UNAVAILABLE.add(tenant);
+      assertEquals("OWNER_REVALIDATION_FAILED",
+          body(post(receiptPath, reader, "{}"), 409).get("code").asString());
+      assertEquals(review, body(get(readPath, reader), 200));
+    } finally {
+      ModelReceiptFixture.UNAVAILABLE.remove(tenant);
+    }
+    assertEquals(403, get(readPath, reviewer).statusCode());
+    assertEquals(404, get(readPath, token("t-learning-review-foreign", "*",
+        List.of("assessment.learning.read"), "reader")).statusCode());
+    DelegationPrincipal foreignEnvironment = new DelegationPrincipal(
+        "https://uacrf.local/s01|reader", tenant, "env-2", "*", "https://idp.example.test", "reader",
+        List.of("assessment.learning.read", "assessment.learning.review"), List.of(), List.of());
+    String envToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(foreignEnvironment, "S07");
+    assertEquals(404, get(readPath, envToken).statusCode());
+    assertEquals(404, post(reviewPath, envToken, approve).statusCode());
+    assertEquals(404, post(receiptPath, envToken, "{}").statusCode());
+    assertEquals(409, post(reviewPath, reviewer, approve).statusCode());
+    assertEquals("PROPOSED", body(get("/v1/learning-records/" + recordId, reader), 200)
+        .get("state").asString());
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id=? AND event_type='uacrf.s07.learning.reviewed.v1'", Integer.class, tenant));
+    assertEquals("APPROVE", jdbc.queryForObject("SELECT payload->'minimal_outcome_metadata'->>'decision' "
+        + "FROM uacrf_assessment.outbox_event WHERE tenant_id=? "
+        + "AND event_type='uacrf.s07.learning.reviewed.v1'", String.class, tenant));
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "DELETE FROM uacrf_assessment.learning_review WHERE tenant_id=? AND learning_record_id=?",
+        tenant, recordId));
+    String forgedIncident = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.incident "
+        + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+        + "evidence_refs,source_evaluation_ids,reason,revision,created_by) "
+        + "SELECT tenant_id,environment_id,?,workload_id,source_case_id,observed_from,description,"
+        + "'[\"r-forged\"]'::jsonb,source_evaluation_ids,reason,revision,created_by "
+        + "FROM uacrf_assessment.incident WHERE tenant_id=? AND id=?",
+        forgedIncident, tenant, incidentId);
+    String forgedRecord = body(post("/v1/learning-records", owner,
+        learningJson(forgedIncident, 1, "[\"r-forged\"]")), 201).get("id").asString();
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "INSERT INTO uacrf_assessment.learning_review "
+            + "(tenant_id,environment_id,learning_record_id,expected_revision,decision,reason,reviewed_by) "
+            + "VALUES (?,'env-1',?,1,'REJECT','review','https://uacrf.local/s01|user')",
+        tenant, forgedRecord));
+    assertEquals("INCIDENT_PROVENANCE_INVALID",
+        body(post("/v1/learning-records/" + forgedRecord + ":review", reviewer, approve), 409)
+            .get("code").asString());
+    jdbc.update("UPDATE uacrf_assessment.outbox_event SET payload=jsonb_set(payload,"
+        + "'{owned_digest}',to_jsonb(?::text)) WHERE tenant_id=? AND aggregate_id=? "
+        + "AND event_type='uacrf.s07.learning.reviewed.v1'", "0".repeat(64), tenant, recordId);
+    assertEquals("REVIEW_INTEGRITY_MISMATCH",
+        body(post(receiptPath, reader, "{}"), 409).get("code").asString());
+  }
+
+  @Test void competingLearningReviewsProduceOnlyOneDecisionAndEvent() throws Exception {
+    String tenant = "t-learning-review-race";
+    String owner = token(tenant, "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String incidentId = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.incident "
+        + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+        + "evidence_refs,reason,revision,created_by) VALUES (?,'env-1',?,'w1',?,"
+        + "'2026-01-01T01:00:00Z','legacy','[\"receipt\"]'::jsonb,'reason',1,'user')",
+        tenant, incidentId, caseId);
+    String recordId = body(post("/v1/learning-records", owner,
+        learningJson(incidentId, 1, "[\"receipt\"]")), 201).get("id").asString();
+    String path = "/v1/learning-records/" + recordId + ":review";
+    String request = "{\"expected_revision\":1,\"decision\":\"REJECT\",\"reason\":\"reviewed\"}";
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var first = executor.submit(() -> {
+        gate.await();
+        return post(path, token(tenant, "*", List.of("assessment.learning.review"), "reviewer-1"), request);
+      });
+      var second = executor.submit(() -> {
+        gate.await();
+        return post(path, token(tenant, "*", List.of("assessment.learning.review"), "reviewer-2"), request);
+      });
+      gate.countDown();
+      assertEquals(Set.of(200, 409), Set.of(first.get().statusCode(), second.get().statusCode()));
+    }
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.learning_review "
+        + "WHERE tenant_id=? AND learning_record_id=?", Integer.class, tenant, recordId));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id=? AND aggregate_id=? AND event_type='uacrf.s07.learning.reviewed.v1'",
+        Integer.class, tenant, recordId));
+  }
+
+  @Test void learningApprovalPreservesNanosecondIncidentCutoff() throws Exception {
+    String tenant = "t-learning-review-precision";
+    String owner = token(tenant, "*", ALL);
+    String reviewer = token(tenant, "*", List.of("assessment.learning.review"), "reviewer");
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00.123456001Z";
+    eval(owner, caseId, cutoff, "LIVE", measurement("r-precision", "a", cutoff, "5", "ms"));
+    JsonNode incident = body(post("/v1/incidents", owner,
+        incidentJson(caseId, "w1", cutoff, "[\"r-precision\"]")), 201);
+    assertEquals(Instant.parse(cutoff), Instant.parse(incident.get("observed_from").asString()));
+    String recordId = body(post("/v1/learning-records", owner,
+        learningJson(incident.get("id").asString(), 1, "[\"r-precision\"]")), 201).get("id").asString();
+    assertEquals("APPROVE", body(post("/v1/learning-records/" + recordId + ":review", reviewer,
+        "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"reviewed\"}"), 200)
+        .get("decision").asString());
+  }
+
+  @Test void learningReviewOfLegacyUnknownProvenanceCanRejectButCannotApprove() throws Exception {
+    String tenant = "t-learning-review-legacy";
+    String owner = token(tenant, "*", ALL);
+    String reviewer = token(tenant, "*", List.of("assessment.learning.review"), "reviewer");
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String incidentId = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.incident "
+        + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+        + "evidence_refs,reason,revision,created_by) VALUES (?,'env-1',?,'w1',?,"
+        + "'2026-01-01T01:00:00Z','legacy','[\"receipt\"]'::jsonb,'reason',1,'user')",
+        tenant, incidentId, caseId);
+    String recordId = body(post("/v1/learning-records", owner,
+        learningJson(incidentId, 1, "[\"receipt\"]")), 201).get("id").asString();
+    String path = "/v1/learning-records/" + recordId + ":review";
+    String request = "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"reviewed\"}";
+    assertEquals("INCIDENT_PROVENANCE_REQUIRED", body(post(path, reviewer, request), 409)
+        .get("code").asString());
+    assertEquals("REJECT", body(post(path, reviewer, request.replace("APPROVE", "REJECT")), 200)
+        .get("decision").asString());
+    assertEquals("LEARNING_REVIEW_NOT_APPROVED", body(post(
+        "/internal/v1/learning-records/" + recordId + ":review-receipt",
+        token(tenant, "*", List.of("assessment.learning.read"), "reader"), "{}"), 409).get("code").asString());
+  }
+
   @Test void incidentLearningRecordsArePaginatedAndRequireBothReadPermissions() throws Exception {
     String tenant = "t-learning-list";
     String owner = token(tenant, "*", ALL);
     String reader = token(tenant, "*", List.of("assessment.learning.read", "assessment.incident.read"));
     String caseId = sealed(owner, "[\"a\"]", "LTE");
-    seedIncidentEvaluation(tenant, caseId, "2026-01-01T01:00:00Z", "VERIFIED",
-        measurementReceipt("r-list", "2026-01-01T00:59:00Z"));
+    eval(owner, caseId, "2026-01-01T01:00:00Z", "LIVE",
+        measurement("r-list", "a", "2026-01-01T00:59:00Z", "5", "ms"));
     String incidentBody = incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-list\"]");
     String incident = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
     String otherIncident = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
@@ -603,10 +984,10 @@ class AssessmentApplicationTests {
     String path = "/v1/cases/" + caseId + "/incidents";
     assertEquals(0, body(get(path, reader), 200).get("items").size());
     String cutoff = "2026-01-01T01:00:00Z";
-    seedIncidentEvaluation(tenant, caseId, cutoff, "VERIFIED",
-        measurementReceipt("r-case-incidents", "2026-01-01T00:59:00Z"));
-    seedIncidentEvaluation(tenant, otherCase, cutoff, "VERIFIED",
-        measurementReceipt("r-other-case", "2026-01-01T00:59:00Z"));
+    eval(owner, caseId, cutoff, "LIVE",
+        measurement("r-case-incidents", "a", "2026-01-01T00:59:00Z", "5", "ms"));
+    eval(owner, otherCase, cutoff, "LIVE",
+        measurement("r-other-case", "a", "2026-01-01T00:59:00Z", "5", "ms"));
     String incidentBody = incidentJson(caseId, "w1", cutoff, "[\"r-case-incidents\"]");
     String one = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
     String two = body(post("/v1/incidents", owner, incidentBody), 201).get("id").asString();
@@ -637,6 +1018,7 @@ class AssessmentApplicationTests {
     String envToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
         "https://uacrf.local/s01", KEY_ID).issue(foreignEnvironment, "S07");
     assertEquals(404, get(path, envToken).statusCode());
+    assertEquals(404, get("/v1/incidents/" + one, envToken).statusCode());
     jdbc.update("INSERT INTO uacrf_assessment.incident "
             + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
             + "evidence_refs,reason,revision,created_by) "
@@ -649,6 +1031,16 @@ class AssessmentApplicationTests {
     JsonNode lastPage = body(get(path + "?after=" + defaultPage.get("next_cursor").asString(), reader), 200);
     assertEquals(1, lastPage.get("items").size());
     assertTrue(lastPage.get("next_cursor").isNull());
+    JsonNode legacy = null;
+    for (JsonNode item : defaultPage.get("items")) {
+      if (item.get("source_evaluation_ids").isNull()) {
+        legacy = item;
+        break;
+      }
+    }
+    assertNotNull(legacy);
+    assertTrue(body(get("/v1/incidents/" + legacy.get("id").asString(), reader), 200)
+        .get("source_evaluation_ids").isNull());
   }
 
   private JsonNode create(String token,String kinds,String comparator) throws Exception { return body(post("/v1/cases",token,caseJson(kinds,comparator)),201); }

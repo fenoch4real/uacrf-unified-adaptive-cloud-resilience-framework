@@ -37,7 +37,8 @@ class AssessmentModelFeatureGateTests {
           new DelegationPrincipal("https://uacrf.local/s01|model-user", "t-model-gate",
               "env-1", "*", "https://idp.example.test", "model-user",
               List.of("assessment.model.read", "assessment.model.write",
-                  "assessment.model.review"), List.of(), List.of()), "S07");
+                  "assessment.model.review", "assessment.learning.review",
+                  "assessment.learning.read"), List.of(), List.of()), "S07");
   @Container private static final PostgreSQLContainer POSTGRES =
       new PostgreSQLContainer("postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81")
           .withDatabaseName("uacrf_assessment").withUsername("assessment_test")
@@ -112,6 +113,38 @@ class AssessmentModelFeatureGateTests {
         .header("Authorization", TOKEN).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(200, read.statusCode());
     assertEquals(2, json.readTree(read.body()).size());
+  }
+
+  @Test
+  void disabledLearningReviewBlocksDecisionsButKeepsExistingReviewsReadable() throws Exception {
+    HttpResponse<String> denied = post("/v1/learning-records/any:review",
+        "{\"expected_revision\":1,\"decision\":\"REJECT\",\"reason\":\"review\"}");
+    assertEquals(409, denied.statusCode());
+    assertEquals("FEATURE_DISABLED", json.readTree(denied.body()).get("code").asString());
+    HttpResponse<String> deniedReceipt = post("/internal/v1/learning-records/any:review-receipt", "{}");
+    assertEquals(409, deniedReceipt.statusCode());
+    assertEquals("FEATURE_DISABLED", json.readTree(deniedReceipt.body()).get("code").asString());
+    jdbc.update("INSERT INTO uacrf_assessment.analysis_case "
+        + "(tenant_id,environment_id,id,workload_id,content,state,revision,created_by) "
+        + "VALUES ('t-model-gate','env-1','case-1','w1','{}'::jsonb,'DRAFT',1,'user')");
+    String incidentId = java.util.UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.incident "
+        + "(tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,"
+        + "evidence_refs,reason,revision,created_by) VALUES ('t-model-gate','env-1',?,'w1','case-1',"
+        + "'2026-01-01T00:00:00Z','incident','[\"receipt\"]'::jsonb,'reason',1,'user')", incidentId);
+    String recordId = java.util.UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.learning_record "
+        + "(tenant_id,environment_id,id,incident_id,content,evidence_refs,content_digest,state,revision,proposed_by) "
+        + "VALUES ('t-model-gate','env-1',?,?,'{\"hypotheses\":[\"h\"],\"action_items\":[{}]}'::jsonb,"
+        + "'[\"receipt\"]'::jsonb,repeat('a',64),'PROPOSED',1,'proposer')", recordId, incidentId);
+    jdbc.update("INSERT INTO uacrf_assessment.learning_review "
+        + "(tenant_id,environment_id,learning_record_id,expected_revision,decision,reason,reviewed_by) "
+        + "VALUES ('t-model-gate','env-1',?,1,'REJECT','review','reviewer')", recordId);
+    HttpResponse<String> read = http.send(HttpRequest.newBuilder(URI.create(
+        "http://localhost:" + port + "/v1/learning-records/" + recordId + "/review"))
+        .header("Authorization", TOKEN).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, read.statusCode());
+    assertEquals("REJECT", json.readTree(read.body()).get("decision").asString());
   }
 
   private HttpResponse<String> post(String path, String body) throws Exception {

@@ -26,6 +26,7 @@ Current access and content permission are separate from historical authenticity.
 | S06 | POST /internal/v1/graphs/{id}:receipt | Exact accepted revision/digest and query scope; accepted/projected status and eligibility receipt |
 | S06 | POST /internal/v1/dependency-proposals | Catalog/source revisions and typed endpoints; accepted proposal command, not direct Neo4j mutation |
 | S07 | POST /internal/v1/cases/{id}:receipt | Purpose, case digest and current source requirements; fixed-case receipt |
+| S07 | POST /internal/v1/learning-records/{id}:review-receipt | Point-in-time review and evidence verification, proposal/review digests and evaluation lineage; explicitly not adoption authorization |
 | S07 | POST /internal/v1/evaluation-triggers | Workload, observation cutoff and deduplication trigger; coalesced evaluation command |
 | S08 | POST /internal/v1/retrievals/{id}:receipt | Case, purpose/classification and manifest digest; current retained-guidance receipt |
 | S09 | POST /internal/v1/runs/{id}:cancel | Expected revision/generation and reason; retained cancellation with late-output policy |
@@ -37,6 +38,8 @@ Current access and content permission are separate from historical authenticity.
 | S12 | POST /internal/v1/validation-requests | Execution outcome references and plan/version; durable independent validation command |
 | S13 | POST /internal/v1/usage-receipts | Allowlisted producer, metric/unit, quantity, time/scope and source identity; admitted/duplicate/rejected usage identity |
 | S14 | POST /internal/v1/export-requests | Requested source references, purpose and actor scope; durable export command after owner disclosure |
+
+The implemented S07 learning-review receipt is an exception to the target protocol above: it is an internal, unsigned point-in-time verification response, not a signed owner receipt or adoption authorization. It requires global-scope `assessment.learning.read` and `UACRF_ASSESSMENT_LEARNING_REVIEW_ENABLED=true`, and is not routed through EDGE01 or consumed by S10. S07 verifies an approved review for the proposal revision, compares its SHA-256 digest with `owned_digest` in exactly one retained review outbox event, and revalidates supporting incident evaluation evidence with current owners. The digest uses the current Jackson serialization rather than RFC 8785, and the check does not verify the whole outbox payload digest; serialization changes or removal of the event can fail closed. Owner checks are sequential, and later changes can invalidate the result.
 
 Owner checks have a proposed two-second per-call timeout and a five-second overall current-context preparation budget under the nominal profile. Slow actual artifact verification can use durable asynchronous commands instead of holding transactions open. These are engineering targets, not measured service performance. Safe read retries must stay within the original operation deadline. Permission denied, stale revision, expired source and unavailable owner remain distinct internal outcomes.
 

@@ -174,6 +174,20 @@ class AssessmentRouteController {
     return forward(() -> assessment.getLearningRecord(authorization, id));
   }
 
+  @PostMapping("/v1/learning-records/{id}:review")
+  ResponseEntity<String> reviewLearningRecord(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @RequestBody String requestBody) {
+    return forward(() -> assessment.reviewLearningRecord(authorization, id, requestBody));
+  }
+
+  @GetMapping("/v1/learning-records/{id}/review")
+  ResponseEntity<String> getLearningReview(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> assessment.getLearningReview(authorization, id));
+  }
+
   private static ResponseEntity<String> forward(Supplier<ResponseEntity<String>> request) {
     try {
       return request.get();

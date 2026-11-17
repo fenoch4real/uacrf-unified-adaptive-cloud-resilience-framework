@@ -63,6 +63,7 @@ class IdentityAccessService {
           "assessment.incident.write",
           "assessment.learning.read",
           "assessment.learning.write",
+          "assessment.learning.review",
           "assessment.model.read",
           "assessment.model.write",
           "assessment.model.review",
@@ -119,6 +120,9 @@ class IdentityAccessService {
     }
     if (requestedCapabilities.contains("knowledge.item.review") && !"HUMAN".equals(actor.kind())) {
       throw denied("Knowledge review delegations are only available to human principals.");
+    }
+    if (requestedCapabilities.contains("assessment.learning.review") && !"HUMAN".equals(actor.kind())) {
+      throw denied("Learning review delegations are only available to human principals.");
     }
     if (requestedCapabilities.contains("advisory.run.create") && !"HUMAN".equals(actor.kind())) {
       throw denied("Advisory run creation is only available to human principals.");
@@ -1154,6 +1158,9 @@ class IdentityAccessService {
     if ("advisory.run.create".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "advisory.run.create requires global scope.");
     }
+    if ("assessment.learning.review".equals(capability) && !"*".equals(serviceScope)) {
+      throw unprocessable("INVALID_SCOPE", "assessment.learning.review requires global scope.");
+    }
     Instant now = Instant.now();
     if (!expiresAt.isAfter(now) || expiresAt.isAfter(now.plus(MAX_GRANT_LIFETIME))) {
       throw unprocessable("EXPIRY_OUT_OF_BOUNDS", "expires_at must be in the future and bounded.");
@@ -1176,7 +1183,7 @@ class IdentityAccessService {
         switch (capability) {
           case "owner.eligible" -> "HUMAN".equals(kind);
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
-          case "knowledge.item.review", "advisory.run.create" -> "HUMAN".equals(kind);
+          case "knowledge.item.review", "advisory.run.create", "assessment.learning.review" -> "HUMAN".equals(kind);
           default -> "HUMAN".equals(kind) || "SYSTEM".equals(kind);
         };
     if (!allowed) {

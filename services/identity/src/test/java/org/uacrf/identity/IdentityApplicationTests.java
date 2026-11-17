@@ -1022,6 +1022,53 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void learningReviewCapabilityRequiresHumanAndGlobalScope() throws Exception {
+    String capability = "assessment.learning.review";
+    String context = "?tenant_id=tenant-test&environment_id=environment-test";
+    String expiresAt = Instant.now().plusSeconds(86400)
+        .truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString();
+    String decision = "learning-review-test-decision";
+    try {
+      jdbc.update("INSERT INTO uacrf_identity.principal "
+          + "(id,issuer_uri,subject,display_name,kind,enabled,token_valid_after,revision) "
+          + "VALUES ('learning-review-system',?,'learning-review-system-subject','System',"
+          + "'SYSTEM',true,now() - interval '1 minute',1),"
+          + "('learning-review-agent',?,'learning-review-agent-subject','Agent',"
+          + "'AGENT',true,now() - interval '1 minute',1)", ISSUER, ISSUER);
+      String approver = token("keycloak-subject-approver");
+      String scoped = decisionBody("learning-review-scoped", "admin-test", capability, expiresAt)
+          .replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\"");
+      assertEquals(422, post("/v1/grant-decisions" + context, approver, scoped).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("learning-review-system-decision", "learning-review-system",
+              capability, expiresAt)).statusCode());
+      assertEquals(422, post("/v1/grant-decisions" + context, approver,
+          decisionBody("learning-review-agent-decision", "learning-review-agent",
+              capability, expiresAt)).statusCode());
+      assertEquals(201, post("/v1/grant-decisions" + context, approver,
+          decisionBody(decision, "admin-test", capability, expiresAt)).statusCode());
+      for (String principal : List.of("admin-test", "learning-review-system", "learning-review-agent")) {
+        jdbc.update("INSERT INTO uacrf_identity.membership "
+            + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+            + "VALUES (?,'tenant-test','environment-test',?,?,'*','2099-12-31T23:59:59Z',1)",
+            UUID.randomUUID(), principal, capability);
+      }
+      String request = "{\"audience\":\"S07\",\"capability_ids\":[\"assessment.learning.review\"]}";
+      assertEquals(200, post("/internal/v1/delegations", token("keycloak-subject-1"), request).statusCode());
+      assertEquals(403, post("/internal/v1/delegations",
+          token("learning-review-system-subject"), request).statusCode());
+      assertEquals(403, post("/internal/v1/delegations",
+          token("learning-review-agent-subject"), request).statusCode());
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE capability=? "
+          + "AND principal_id IN ('admin-test','learning-review-system','learning-review-agent')", capability);
+      jdbc.update("DELETE FROM uacrf_identity.grant_decision WHERE id=?", decision);
+      jdbc.update("DELETE FROM uacrf_identity.principal "
+          + "WHERE id IN ('learning-review-system','learning-review-agent')");
+    }
+  }
+
+  @Test
   void knowledgeCapabilitiesAreDelegableToS08OnlyForHumanMemberships() throws Exception {
     List<String> knowledgeCapabilities =
         List.of(

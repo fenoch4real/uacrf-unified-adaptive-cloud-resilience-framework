@@ -11,6 +11,7 @@ final class AssessmentRequests {
   enum Comparator { LTE, GTE }
   enum Mode { SHADOW, DRY_RUN, LIVE }
   enum ModelDecision { APPROVE, REJECT }
+  enum LearningDecision { APPROVE, REJECT }
   enum TargetMode { SHADOW, ADVISORY }
   record ObjectiveRef(@NotBlank @Size(max=200) String objectiveId, @Min(1) long revision,
       @NotBlank @Size(max=200) String digest) {}
@@ -60,4 +61,6 @@ final class AssessmentRequests {
       @NotEmpty @Size(max=100) List<@NotNull @Valid ActionItem> actionItems,
       @NotEmpty @Size(max=100) List<@NotBlank @Size(max=200) String> evidenceRefs,
       @Min(1) long expectedRevision, @NotBlank @Size(max=2000) String reason) {}
+  record ReviewLearningRecord(@Min(1) long expectedRevision, @NotNull LearningDecision decision,
+      @NotBlank @Size(max=2000) String reason) {}
 }

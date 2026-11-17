@@ -107,6 +107,19 @@ class AssessmentController {
       @Valid @RequestBody ProposeLearningRecord request) {
     return incidentLearning.proposeLearningRecord(DelegationPrincipal.from(jwt), request);
   }
+  @PostMapping("/v1/learning-records/{id}:review")
+  LearningReview reviewLearningRecord(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @Valid @RequestBody ReviewLearningRecord request) {
+    return incidentLearning.reviewLearningRecord(DelegationPrincipal.from(jwt), id, request);
+  }
+  @GetMapping("/v1/learning-records/{id}/review")
+  LearningReview learningReview(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return incidentLearning.getLearningReview(DelegationPrincipal.from(jwt), id);
+  }
+  @PostMapping("/internal/v1/learning-records/{id}:review-receipt")
+  LearningReviewReceipt learningReviewReceipt(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return incidentLearning.learningReviewReceipt(DelegationPrincipal.from(jwt), id);
+  }
   @GetMapping("/v1/learning-records/{id}")
   LearningRecord getLearningRecord(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return incidentLearning.getLearningRecord(DelegationPrincipal.from(jwt), id);

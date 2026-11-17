@@ -147,7 +147,7 @@ class ModelVersionService {
     List<String> outcomes = new ArrayList<>();
     for (String evaluationId : evaluationIds) {
       outcomes.add(verifiedEvaluationOutcome(actor, evaluationId));
-      assessment.revalidateEvaluationForModel(actor, evaluationId);
+      assessment.revalidateEvaluation(actor, evaluationId);
     }
     if (request.decision() == ModelDecision.APPROVE
         && outcomes.stream().noneMatch("CONFIRMED_SUCCESS"::equals)) {
@@ -181,7 +181,7 @@ class ModelVersionService {
     List<String> outcomes = new ArrayList<>();
     for (String evaluationId : item.evaluationResultIds()) {
       outcomes.add(verifiedEvaluationOutcome(actor, evaluationId));
-      assessment.revalidateEvaluationForModel(actor, evaluationId);
+      assessment.revalidateEvaluation(actor, evaluationId);
     }
     if (outcomes.stream().noneMatch("CONFIRMED_SUCCESS"::equals)) {
       throw conflict("PASSING_EVALUATION_REQUIRED", "Promotion requires a passing verified evaluation result.");

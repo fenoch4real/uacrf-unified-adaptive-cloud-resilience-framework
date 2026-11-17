@@ -145,7 +145,7 @@ class AssessmentService {
   }
   @Transactional(readOnly=true)
   Evaluation evaluation(DelegationPrincipal actor, String id) { permit(actor, "assessment.evaluation.read"); return findEvaluation(actor,id); }
-  void revalidateEvaluationForModel(DelegationPrincipal actor, String id) {
+  void revalidateEvaluation(DelegationPrincipal actor, String id) {
     Evaluation evaluation = findEvaluation(actor, id);
     DependencyVector vector = evaluation.dependencyVector();
     Case item = findCase(actor, evaluation.caseId(), false);

@@ -146,6 +146,15 @@ class AssessmentRouteClient {
         .uri(uriBuilder -> uriBuilder.path("/v1/learning-records/{id}").build(id)), authorization);
   }
 
+  ResponseEntity<String> reviewLearningRecord(String authorization, String id, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/learning-records/{id}:review", id, authorization, requestBody);
+  }
+
+  ResponseEntity<String> getLearningReview(String authorization, String id) {
+    return send(assessmentRestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/v1/learning-records/{id}/review").build(id)), authorization);
+  }
+
   private ResponseEntity<String> sendBody(
       HttpMethod method, String path, String variable, String authorization, String requestBody) {
     RestClient.RequestBodySpec request =
