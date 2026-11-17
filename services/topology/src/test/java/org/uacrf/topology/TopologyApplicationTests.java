@@ -209,6 +209,29 @@ class TopologyApplicationTests {
     assertThat(v2.get("edges").toString()).doesNotContain("unreachable-data","pending-data");
     assertThat(v2.get("nodes").toString()).contains("accepted-data");
     assertThat(v2.get("nodes").toString()).doesNotContain("unreachable-data","pending-data");
+    for (JsonNode selection:List.of(v1,v2)) {
+      JsonNode reconciliation=selection.get("inventory_reconciliation");
+      assertEquals("COMPARABLE",reconciliation.get("status").asString());
+      assertEquals(1,reconciliation.get("service_membership_count").asInt());
+      assertEquals(2,reconciliation.get("graph_workload_node_count").asInt());
+      assertEquals(1,reconciliation.get("matched_membership_count").asInt());
+      assertEquals(0,reconciliation.get("catalog_membership_missing_from_graph_count").asInt());
+      assertEquals(1,reconciliation.get("graph_workload_nodes_outside_service_membership_count").asInt());
+      assertThat(reconciliation.toString()).doesNotContain("other");
+      String snapshotJson=db.queryForObject("SELECT selection_snapshot::text FROM "
+          +"uacrf_topology.graph_domain_revision WHERE selection_digest=?",
+          String.class,selection.get("result_digest").asString());
+      JsonNode snapshot=json.readTree(snapshotJson);
+      assertEquals(reconciliation,snapshot.get("inventory_reconciliation"));
+      assertEquals(selection.get("result_digest").asString(),
+          GraphDigest.sha256(OwnerReceiptSignature.canonicalize(snapshotJson)));
+    }
+    String commandId=db.queryForObject("SELECT command_id::text FROM "
+        +"uacrf_topology.graph_domain_revision WHERE selection_digest=?",
+        String.class,v2.get("result_digest").asString());
+    JsonNode publicStatus=json.readTree(get("/v1/commands/"+commandId,bob).body());
+    assertEquals(v2.get("inventory_reconciliation"),
+        publicStatus.get("advisory_result").get("inventory_reconciliation"));
     String context=db.queryForObject("SELECT source_binding->>'query_id' FROM "
         +"uacrf_topology.graph_domain_revision WHERE selection_digest=?",
         String.class,v2.get("result_digest").asString());

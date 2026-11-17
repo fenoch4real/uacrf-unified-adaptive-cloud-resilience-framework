@@ -77,6 +77,7 @@ class GraphAsyncContractTests(unittest.TestCase):
                 "classification",
                 "selection_digest",
                 "changes",
+                "inventory_reconciliation",
             },
             set(result["properties"]),
         )
@@ -121,6 +122,60 @@ class GraphAsyncContractTests(unittest.TestCase):
             ["before", "after"],
             transition_requirements["data_read_target_changed"],
         )
+
+    def test_selection_inventory_reconciliation_is_additive_and_bounded(self):
+        names = {
+            "status",
+            "service_membership_count",
+            "graph_workload_node_count",
+            "matched_membership_count",
+            "catalog_membership_missing_from_graph_count",
+            "graph_workload_nodes_outside_service_membership_count",
+            "advisory_only",
+            "limitation",
+        }
+        for path in generator.API_FILES:
+            schemas = json.loads(path.read_text())["components"]["schemas"]
+            selection = schemas["GraphAdvisorySelection"]
+            result = schemas["GraphAdvisoryResult"]
+            prop = selection["properties"]["inventory_reconciliation"]
+            self.assertEqual(prop, result["properties"]["inventory_reconciliation"])
+            self.assertNotIn("inventory_reconciliation", result["required"])
+            selection_rule, difference_rule = result["allOf"][:2]
+            self.assertIn(
+                {"$ref": "#/components/schemas/GraphAdvisorySelection"},
+                selection_rule["then"]["allOf"],
+            )
+            self.assertIn(
+                {"required": ["inventory_reconciliation"]},
+                difference_rule["then"]["not"]["anyOf"],
+            )
+            reconciliation = schemas[prop["$ref"].split("/")[-1]]
+            self.assertFalse(reconciliation["additionalProperties"])
+            self.assertEqual(names, set(reconciliation["properties"]))
+            self.assertEqual(names, set(reconciliation["required"]))
+            properties = reconciliation["properties"]
+            self.assertEqual(["COMPARABLE", "INDETERMINATE"], properties["status"]["enum"])
+            for name in (
+                "service_membership_count",
+                "matched_membership_count",
+                "catalog_membership_missing_from_graph_count",
+                "graph_workload_nodes_outside_service_membership_count",
+            ):
+                self.assertEqual(["integer", "null"], properties[name]["type"])
+                self.assertEqual(0, properties[name]["minimum"])
+            self.assertEqual("integer", properties["graph_workload_node_count"]["type"])
+            self.assertEqual(0, properties["graph_workload_node_count"]["minimum"])
+            self.assertIn("pinned accepted graph", properties["graph_workload_node_count"]["description"])
+            self.assertIn("not an inventory defect", properties[
+                "graph_workload_nodes_outside_service_membership_count"
+            ]["description"])
+            self.assertEqual({"type": "boolean", "const": True}, properties["advisory_only"])
+            limitation = properties["limitation"]
+            self.assertEqual("string", limitation["type"])
+            self.assertIn("not a complete provider inventory", limitation["description"])
+            self.assertIn("not classified as defects", limitation["description"])
+            self.assertIn("no freshness or completeness claim", limitation["description"])
 
     def test_both_requests_keep_required_fields_and_bound_source_refs(self):
         for path in generator.API_FILES:

@@ -264,6 +264,8 @@ class TopologyGraphCommandService {
       advisory.put("nodes",result.get("nodes"));
       advisory.put("edges",result.get("edges"));
       advisory.put("unsupported_domains",result.get("unsupported_domains"));
+      if (result.containsKey("inventory_reconciliation"))
+        advisory.put("inventory_reconciliation",result.get("inventory_reconciliation"));
     } else {
       advisory.put("classification",result.get("classification"));
       advisory.put("selection_digest",result.get("selection_digest"));

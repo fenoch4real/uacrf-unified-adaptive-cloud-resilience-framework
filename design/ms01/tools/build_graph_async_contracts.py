@@ -191,6 +191,9 @@ def graph_advisory_result_schema():
                 "maxItems": 100,
                 "description": "Difference classification only; at most 100 changes.",
             },
+            "inventory_reconciliation": {
+                "$ref": "#/components/schemas/GraphInventoryReconciliation",
+            },
         },
         "required": [
             "kind",
@@ -207,6 +210,7 @@ def graph_advisory_result_schema():
                 },
                 "then": {
                     "required": ["nodes", "edges", "unsupported_domains"],
+                    "allOf": [{"$ref": "#/components/schemas/GraphAdvisorySelection"}],
                     "properties": {"completeness": {"const": "INCOMPLETE"}},
                     "not": {
                         "anyOf": [
@@ -235,6 +239,7 @@ def graph_advisory_result_schema():
                         "anyOf": [
                             {"required": ["nodes"]},
                             {"required": ["edges"]},
+                            {"required": ["inventory_reconciliation"]},
                         ]
                     },
                 },
@@ -247,6 +252,76 @@ def graph_advisory_result_schema():
             "returned by this endpoint. The result does not create graph edges, "
             "authorize an action, or establish that a recommendation was adopted."
         ),
+    }
+
+
+def graph_advisory_selection_schema():
+    return {
+        "type": "object",
+        "properties": {
+            "inventory_reconciliation": {
+                "$ref": "#/components/schemas/GraphInventoryReconciliation",
+            },
+        },
+        "description": (
+            "Additional, optional fields for an action-relevant subgraph selection."
+        ),
+    }
+
+
+def graph_inventory_reconciliation_schema():
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "status": {"enum": ["COMPARABLE", "INDETERMINATE"]},
+            "service_membership_count": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "Exact S02 service membership count when known; otherwise null.",
+            },
+            "graph_workload_node_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Exact workload node count in the pinned accepted graph.",
+            },
+            "matched_membership_count": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "Exact membership count matched to graph workload nodes when known; otherwise null.",
+            },
+            "catalog_membership_missing_from_graph_count": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "Exact membership count missing from the graph when known; otherwise null.",
+            },
+            "graph_workload_nodes_outside_service_membership_count": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": (
+                    "Exact graph workload node count outside service membership when known; "
+                    "this is not an inventory defect."
+                ),
+            },
+            "advisory_only": {"type": "boolean", "const": True},
+            "limitation": {
+                "type": "string",
+                "description": (
+                    "S02 membership is not a complete provider inventory; graph-only nodes "
+                    "are not classified as defects; no freshness or completeness claim is made."
+                ),
+            },
+        },
+        "required": [
+            "status",
+            "service_membership_count",
+            "graph_workload_node_count",
+            "matched_membership_count",
+            "catalog_membership_missing_from_graph_count",
+            "graph_workload_nodes_outside_service_membership_count",
+            "advisory_only",
+            "limitation",
+        ],
     }
 
 
@@ -582,6 +657,8 @@ def apply_contracts(document):
     update_request_schema(schemas, "canonical_027_request")
     update_request_schema(schemas, "canonical_028_request")
     schemas["GraphAdvisoryResult"] = graph_advisory_result_schema()
+    schemas["GraphAdvisorySelection"] = graph_advisory_selection_schema()
+    schemas["GraphInventoryReconciliation"] = graph_inventory_reconciliation_schema()
     schemas["GraphAdvisoryNode"] = graph_advisory_node_schema()
     schemas["GraphAdvisoryEdge"] = graph_advisory_edge_schema()
     schemas["GraphAdvisoryChange"] = graph_advisory_change_schema()

@@ -34,8 +34,8 @@
     },
     {
       "path": "INTERNAL_INTERFACES.md",
-      "bytes": 33575,
-      "sha256": "ad698410af6e282cab1a5f180a6f39d2fbc13bab6583c1a1bee5e492bc26e019"
+      "bytes": 34531,
+      "sha256": "8290f911e2447cb2952974e84c2d1577aacc59c75b646d1714f1b79c135fe7b3"
     },
     {
       "path": "README.md",
@@ -184,13 +184,13 @@
     },
     {
       "path": "contracts/source/api_reference/core.openapi.json",
-      "bytes": 357107,
-      "sha256": "70f6843226813d8b86497317f976b8cdf53fff738df6c684accb562f4735b772"
+      "bytes": 360144,
+      "sha256": "b5345aad1041d21e99756327313afbd4da1c7caf8da4a958c1a5749937a3917b"
     },
     {
       "path": "contracts/source/api_reference/openapi.json",
-      "bytes": 500814,
-      "sha256": "de47a2021a5b855f7a1e1b04d561fdb86dea52455b3c7e0c85b69d7ec06fb183"
+      "bytes": 503851,
+      "sha256": "d078faf3194b7695825e0a21cc6ab4b213e0984f8ee5be4cdb2d94f9ce025412"
     },
     {
       "path": "contracts/source/assurance_design/openapi.proposed.json",

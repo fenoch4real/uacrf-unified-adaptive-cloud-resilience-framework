@@ -333,6 +333,8 @@ class GraphCommandWorker {
     result.put("catalog_membership_supported",membershipSupported);
     result.put("root_workload_ids",rootIds);
     result.put("missing_workload_roots",missingRoots);
+    result.put("inventory_reconciliation",
+        inventoryReconciliation(mapValue(binding.get("service_snapshot")),graphNodes));
     result.put("nodes",selectedNodes.values().stream().map(node->
         Map.of("node_type",node.entityType(),"node_id",node.entityId())).toList());
     result.put("edges",selectedEdges.values().stream().map(edge->Map.of(
@@ -374,6 +376,37 @@ class GraphCommandWorker {
     String digest=selectionDigest(selectionSnapshot);
     result.put("result_digest",digest);
     return new Computation(result,selectionSnapshot,null,digest,digest);
+  }
+
+  static Map<String,Object> inventoryReconciliation(Map<String,Object> serviceSnapshot,
+      List<TopologyResponses.Node> graphNodes) {
+    Set<String> graphWorkloads=new java.util.HashSet<>();
+    for (TopologyResponses.Node node:graphNodes)
+      if ("agent_workload".equals(node.entityType())) graphWorkloads.add(node.entityId());
+
+    Object rawMembership=serviceSnapshot.get("owned_agent_workload_ids");
+    boolean comparable=rawMembership instanceof List<?> values
+        && values.stream().allMatch(String.class::isInstance);
+    Map<String,Object> report=new LinkedHashMap<>();
+    report.put("status",comparable?"COMPARABLE":"INDETERMINATE");
+    report.put("service_membership_count",null);
+    report.put("graph_workload_node_count",graphWorkloads.size());
+    report.put("matched_membership_count",null);
+    report.put("catalog_membership_missing_from_graph_count",null);
+    report.put("graph_workload_nodes_outside_service_membership_count",null);
+    if (comparable) {
+      List<?> membership=(List<?>)rawMembership;
+      Set<?> membershipSet=new java.util.HashSet<>(membership);
+      int matched=(int)membership.stream().filter(graphWorkloads::contains).count();
+      int outside=(int)graphWorkloads.stream().filter(id->!membershipSet.contains(id)).count();
+      report.put("service_membership_count",membership.size());
+      report.put("matched_membership_count",matched);
+      report.put("catalog_membership_missing_from_graph_count",membership.size()-matched);
+      report.put("graph_workload_nodes_outside_service_membership_count",outside);
+    }
+    report.put("advisory_only",true);
+    report.put("limitation","S02 membership is not a complete provider inventory; graph-only nodes are not classified as defects, and no freshness or completeness claim is made.");
+    return report;
   }
 
   private record NodeKey(String type,String id) {}

@@ -3864,6 +3864,9 @@
             },
             "maxItems": 100,
             "description": "Difference classification only; at most 100 changes."
+          },
+          "inventory_reconciliation": {
+            "$ref": "#/components/schemas/GraphInventoryReconciliation"
           }
         },
         "required": [
@@ -3890,6 +3893,11 @@
                 "nodes",
                 "edges",
                 "unsupported_domains"
+              ],
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/GraphAdvisorySelection"
+                }
               ],
               "properties": {
                 "completeness": {
@@ -3945,6 +3953,11 @@
                   {
                     "required": [
                       "edges"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "inventory_reconciliation"
                     ]
                   }
                 ]
@@ -4268,6 +4281,82 @@
               }
             }
           }
+        ]
+      },
+      "GraphAdvisorySelection": {
+        "type": "object",
+        "properties": {
+          "inventory_reconciliation": {
+            "$ref": "#/components/schemas/GraphInventoryReconciliation"
+          }
+        },
+        "description": "Additional, optional fields for an action-relevant subgraph selection."
+      },
+      "GraphInventoryReconciliation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": [
+              "COMPARABLE",
+              "INDETERMINATE"
+            ]
+          },
+          "service_membership_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Exact S02 service membership count when known; otherwise null."
+          },
+          "graph_workload_node_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Exact workload node count in the pinned accepted graph."
+          },
+          "matched_membership_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Exact membership count matched to graph workload nodes when known; otherwise null."
+          },
+          "catalog_membership_missing_from_graph_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Exact membership count missing from the graph when known; otherwise null."
+          },
+          "graph_workload_nodes_outside_service_membership_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "Exact graph workload node count outside service membership when known; this is not an inventory defect."
+          },
+          "advisory_only": {
+            "type": "boolean",
+            "const": true
+          },
+          "limitation": {
+            "type": "string",
+            "description": "S02 membership is not a complete provider inventory; graph-only nodes are not classified as defects; no freshness or completeness claim is made."
+          }
+        },
+        "required": [
+          "status",
+          "service_membership_count",
+          "graph_workload_node_count",
+          "matched_membership_count",
+          "catalog_membership_missing_from_graph_count",
+          "graph_workload_nodes_outside_service_membership_count",
+          "advisory_only",
+          "limitation"
         ]
       }
     }
