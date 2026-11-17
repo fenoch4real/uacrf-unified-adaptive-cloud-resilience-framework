@@ -34,6 +34,11 @@ final class AssessmentResponses {
       String proposedBy, Instant createdAt, String reviewedBy, String decision,
       List<String> evaluationResultIds, String reviewReason, Instant reviewedAt,
       String promotedBy, String targetMode, String promotionReason, Instant promotedAt) {}
+  record ModelEvaluationDeclaration(String id, String modelVersionId, String modelDigest,
+      String trainingDataDigest, String holdoutDataDigest, String resultRef, String resultDigest,
+      Instant trainingThrough, Instant holdoutFrom, Instant holdoutThrough, String reason,
+      String status, String declaredBy, Instant createdAt) {}
+  record ModelEvaluationDeclarationPage(List<ModelEvaluationDeclaration> items, String nextCursor) {}
   record Incident(String id, String workloadId, String sourceCaseId, Instant observedFrom,
       String description, List<String> evidenceRefs, String reason, long revision,
       String createdBy, Instant createdAt) {}

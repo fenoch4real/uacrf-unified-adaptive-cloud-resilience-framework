@@ -242,7 +242,7 @@ class EvidenceService {
     requireCapability(actor, "evidence.event.read");
     List<Map<String, Object>> rows =
         jdbc.queryForList(
-            "SELECT qualification_state, payload_digest, revision, reviewed_at, "
+            "SELECT qualification_state, payload_digest, revision, reviewed_at, observed_at, "
                 + HAS_EVIDENCE_CONFLICT + " AS has_conflict FROM " + SCHEMA
                 + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ?",
             actor.tenantId(),
@@ -255,7 +255,9 @@ class EvidenceService {
     String state = (String) row.get("qualification_state");
     boolean digestMatches = request.expectedDigest().equals(row.get("payload_digest").toString());
     Timestamp reviewedAt = (Timestamp) row.get("reviewed_at");
-    boolean withinCutoff = reviewedAt != null && !reviewedAt.toInstant().isAfter(request.cutoff());
+    boolean observationWithinCutoff = !((Timestamp) row.get("observed_at")).toInstant().isAfter(request.cutoff());
+    boolean withinCutoff = reviewedAt != null && !reviewedAt.toInstant().isAfter(request.cutoff())
+        && observationWithinCutoff;
     boolean conflict = Boolean.TRUE.equals(row.get("has_conflict"));
     boolean usable = "QUALIFIED".equals(state) && digestMatches && withinCutoff && !conflict;
     String reason =
@@ -266,7 +268,9 @@ class EvidenceService {
               case "SAMPLE_ONLY" -> "Sample data is never accepted evidence.";
               case "UNVERIFIED" -> "Evidence has not been independently reviewed.";
               case "REJECTED" -> "Evidence was rejected in review.";
-              default -> digestMatches ? "Qualification happened after the cutoff." : "Digest differs from the expected digest.";
+              default -> !digestMatches ? "Digest differs from the expected digest."
+                  : !observationWithinCutoff ? "Observation happened after the cutoff."
+                  : "Qualification happened after the cutoff.";
             };
     return new QualificationReceipt(
         id,
@@ -298,6 +302,7 @@ class EvidenceService {
     String reason = Boolean.TRUE.equals(row.get("has_conflict")) ? "Evidence has a retained source conflict."
         : !"QUALIFIED".equals(state) ? "Evidence is not qualified."
         : reviewedAt == null || reviewedAt.toInstant().isAfter(request.cutoff()) ? "Qualification happened after the cutoff."
+        : ((Timestamp) row.get("observed_at")).toInstant().isAfter(request.cutoff()) ? "Observation happened after the cutoff."
         : !sha256(payload).equals(digest) ? "Stored payload digest does not match."
         : parsed == null ? "Payload is not a valid measurement."
         : !parsed.metric().equals(request.metric()) ? "Payload metric does not match."

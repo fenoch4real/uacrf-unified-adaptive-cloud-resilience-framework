@@ -69,6 +69,34 @@ class AssessmentModelFeatureGateTests {
     assertEquals(409, response.statusCode());
     assertEquals("FEATURE_DISABLED", json.readTree(response.body()).get("code").asString());
     String candidate = seedVersion("candidate", "CANDIDATE");
+    HttpResponse<String> declaration = post("/internal/v1/model-evaluation-declarations",
+        "{\"model_version_id\":\"" + candidate + "\",\"training_data_digest\":\"" + "a".repeat(64)
+            + "\",\"holdout_data_digest\":\"" + "b".repeat(64)
+            + "\",\"result_ref\":\"result\",\"result_digest\":\"" + "c".repeat(64)
+            + "\",\"training_through\":\"2025-01-01T00:00:00Z\","
+            + "\"holdout_from\":\"2025-01-02T00:00:00Z\","
+            + "\"holdout_through\":\"2025-01-03T00:00:00Z\",\"reason\":\"test\"}");
+    assertEquals(409, declaration.statusCode());
+    assertEquals("FEATURE_DISABLED", json.readTree(declaration.body()).get("code").asString());
+    String declarationId = java.util.UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO uacrf_assessment.model_evaluation_declaration "
+            + "(tenant_id,environment_id,id,model_version_id,model_digest,training_data_digest,"
+            + "holdout_data_digest,result_ref,result_digest,training_through,holdout_from,holdout_through,"
+            + "reason,status,declared_by) VALUES ('t-model-gate','env-1',?,?,?,?,?,?,?,"
+            + "'2025-01-01T00:00:00Z','2025-01-02T00:00:00Z','2025-01-03T00:00:00Z',"
+            + "'reason','DECLARED_UNVERIFIED','user')",
+        declarationId, candidate, "a".repeat(64), "b".repeat(64), "c".repeat(64), "result", "d".repeat(64));
+    HttpResponse<String> declarationRead = http.send(HttpRequest.newBuilder(
+        URI.create("http://localhost:" + port + "/internal/v1/model-evaluation-declarations/" + declarationId))
+        .header("Authorization", TOKEN).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, declarationRead.statusCode());
+    assertEquals("DECLARED_UNVERIFIED", json.readTree(declarationRead.body()).get("status").asString());
+    HttpResponse<String> declarationsRead = http.send(HttpRequest.newBuilder(
+        URI.create("http://localhost:" + port + "/internal/v1/model-evaluation-declarations?model_version_id="
+            + candidate))
+        .header("Authorization", TOKEN).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, declarationsRead.statusCode());
+    assertEquals(declarationId, json.readTree(declarationsRead.body()).get("items").get(0).get("id").asString());
     HttpResponse<String> review = post("/v1/model-versions/" + candidate + ":review",
         "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"evaluation_result_ids\":[],"
             + "\"reason\":\"review\"}");

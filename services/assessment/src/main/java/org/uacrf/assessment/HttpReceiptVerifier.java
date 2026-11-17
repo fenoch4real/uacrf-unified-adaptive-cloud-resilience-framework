@@ -143,11 +143,24 @@ class HttpReceiptVerifier implements ReceiptVerifier {
 
   private static SourceCheck measurementReceipt(MeasurementResponse body, Measurement expected,
       AssessmentResponses.Case item) {
-    if (body == null || !Boolean.TRUE.equals(body.usableAsEvidence())
-        || !"QUALIFIED".equals(body.qualificationState()) || body.revision() == null || body.revision() < 1
+    if (body == null || body.usableAsEvidence() == null
+        || body.revision() == null || body.revision() < 1
         || body.payloadDigest() == null || !body.payloadDigest().matches("[0-9a-f]{64}")
         || text(body.evidenceId()) == null || text(body.purpose()) == null
-        || body.observedAt() == null || text(body.sourceKind()) == null || text(body.metric()) == null
+        || text(body.qualificationState()) == null || body.observedAt() == null
+        || text(body.sourceKind()) == null) {
+      return new SourceCheck("SOURCE_UNVERIFIED", null);
+    }
+    if (!body.usableAsEvidence()) {
+      if (!expected.sourceReceiptId().equals(body.evidenceId()) || !item.purpose().equals(body.purpose())) {
+        return new SourceCheck("SOURCE_MISMATCH", null);
+      }
+      MeasurementReceipt receipt = new MeasurementReceipt(body.evidenceId(), body.purpose(),
+          body.qualificationState(), false, body.payloadDigest(), body.revision(), body.observedAt(),
+          body.sourceKind(), body.metric(), body.value(), body.unit(), body.reason());
+      return new SourceCheck("SOURCE_UNVERIFIED", receipt);
+    }
+    if (!"QUALIFIED".equals(body.qualificationState()) || text(body.metric()) == null
         || body.value() == null || text(body.unit()) == null) {
       return new SourceCheck("SOURCE_UNVERIFIED", null);
     }

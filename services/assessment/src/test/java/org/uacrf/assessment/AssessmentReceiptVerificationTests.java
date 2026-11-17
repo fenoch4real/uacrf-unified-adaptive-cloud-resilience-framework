@@ -47,7 +47,8 @@ class AssessmentReceiptVerificationTests {
       "https://uacrf.local/s01", KEY_ID);
   private static final StubOwners OWNERS = new StubOwners();
   private static final List<String> ALL = List.of("assessment.case.read", "assessment.case.write",
-      "assessment.evaluation.run", "assessment.evaluation.read", "assessment.recommendation.read");
+      "assessment.evaluation.run", "assessment.evaluation.read", "assessment.recommendation.read",
+      "assessment.model.read", "assessment.model.write", "assessment.model.review");
   @Container private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(
       "postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81")
       .withDatabaseName("uacrf_assessment_receipts").withUsername("assessment_test").withPassword("assessment_test");
@@ -60,6 +61,7 @@ class AssessmentReceiptVerificationTests {
     p.add("uacrf.delegation.public-key-base64", () -> Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded()));
     p.add("uacrf.delegation.key-id", () -> KEY_ID);
     p.add("uacrf.assessment.receipts.enabled", () -> true);
+    p.add("uacrf.assessment.models.enabled", () -> true);
     p.add("uacrf.assessment.receipts.token-url", OWNERS::tokenUrl);
     p.add("uacrf.assessment.receipts.client-id", () -> "uacrf-s07-evaluator");
     p.add("uacrf.assessment.receipts.client-secret", () -> "test-s07-secret");
@@ -100,6 +102,59 @@ class AssessmentReceiptVerificationTests {
     assertEquals(1, OWNERS.delegationCount("t-receipts-match", "S06"));
     assertEquals(1, OWNERS.delegationCount("t-receipts-match", "S04"));
     assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
+  }
+
+  @Test void modelReviewAndPromotionReverifyRetainedOwnerEvidence() throws Exception {
+    String tenant = "t-model-freshness";
+    String proposer = token(tenant, "proposer");
+    String reviewer = token(tenant, "reviewer");
+    String promoter = token(tenant, "promoter");
+    String caseId = sealed(proposer);
+    String evaluation = body(evaluate(caseId, proposer,
+        evalJson("2026-01-01T01:00:00Z", measurement())), 201).get("id").asString();
+    String model = body(request("/v1/model-versions", proposer,
+        "{\"model_id\":\"freshness-model\",\"version\":\"1\","
+            + "\"artifact_ref\":\"artifact\",\"digest\":\"" + "b".repeat(64)
+            + "\",\"model_card_ref\":\"card\",\"evaluation_pack_ref\":\"pack\",\"reason\":\"test\"}"), 201)
+        .get("id").asString();
+    String reviewPath = "/v1/model-versions/" + model + ":review";
+    String review = "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"evaluation_result_ids\":[\""
+        + evaluation + "\"],\"reason\":\"test\"}";
+    for (String mode : List.of("CONFLICT", "CHANGED_DIGEST", "ERROR")) {
+      OWNERS.evidenceMode = mode;
+      assertEquals(409, request(reviewPath, reviewer, review).statusCode(), mode);
+    }
+    OWNERS.evidenceMode = "MATCH";
+    OWNERS.objectiveMode = "STALE";
+    assertEquals(409, request(reviewPath, reviewer, review).statusCode());
+    OWNERS.objectiveMode = "CHANGED_SET";
+    assertEquals(409, request(reviewPath, reviewer, review).statusCode());
+    OWNERS.objectiveMode = "MATCH";
+    OWNERS.graphMode = "INELIGIBLE";
+    assertEquals(409, request(reviewPath, reviewer, review).statusCode());
+    OWNERS.graphMode = "MATCH";
+    assertEquals("APPROVED", body(request(reviewPath, reviewer, review), 200).get("state").asString());
+
+    String promotePath = "/v1/model-versions/" + model + ":promote";
+    String promote = "{\"expected_revision\":2,\"target_mode\":\"SHADOW\",\"reason\":\"test\"}";
+    for (String mode : List.of("CONFLICT", "CHANGED_DIGEST", "ERROR")) {
+      OWNERS.evidenceMode = mode;
+      assertEquals(409, request(promotePath, promoter, promote).statusCode(), mode);
+    }
+    assertEquals("APPROVED", body(get("/v1/model-versions/" + model, proposer), 200).get("state").asString());
+    OWNERS.evidenceMode = "MATCH";
+    OWNERS.objectiveMode = "STALE";
+    assertEquals(409, request(promotePath, promoter, promote).statusCode());
+    OWNERS.objectiveMode = "MATCH";
+    OWNERS.graphMode = "INELIGIBLE";
+    assertEquals(409, request(promotePath, promoter, promote).statusCode());
+    OWNERS.graphMode = "MATCH";
+    HttpResponse<String> blocked = request(promotePath, promoter, promote);
+    assertEquals(409, blocked.statusCode());
+    assertThat(blocked.body()).contains("MODEL_EVALUATION_REQUIRED");
+    assertEquals("APPROVED", body(get("/v1/model-versions/" + model, proposer), 200).get("state").asString());
+    assertEquals("VERIFIED", body(get("/v1/evaluations/" + evaluation, proposer), 200)
+        .at("/dependency_vector/receipt_verification").asString());
   }
 
   @Test void staleObjectiveRevisionForcesInsufficientEvidence() throws Exception {
@@ -198,6 +253,36 @@ class AssessmentReceiptVerificationTests {
     assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
   }
 
+  @Test void retainsMatchingRejectedEvidenceReceiptWithoutTreatingItAsUsable() throws Exception {
+    String token = token("t-receipts-conflict");
+    String id = sealed(token);
+    OWNERS.evidenceMode = "CONFLICT";
+    JsonNode result = body(evaluate(id, token, evalJson("2026-01-01T01:00:00Z", measurement())), 201);
+    assertEquals("INSUFFICIENT_EVIDENCE", result.get("outcome").asString());
+    assertEquals("SOURCE_UNVERIFIED", result.at("/dependency_vector/receipt_reason_code").asString());
+    JsonNode receipt = result.at("/dependency_vector/measurement_receipts/0");
+    assertEquals("source-1", receipt.get("evidence_id").asString());
+    assertEquals(false, receipt.get("usable_as_evidence").asBoolean());
+    assertEquals("Evidence has a retained source conflict.", receipt.get("reason").asString());
+    JsonNode retained = body(get("/v1/evaluations/" + result.get("id").asString(), token), 200);
+    assertEquals("Evidence has a retained source conflict.",
+        retained.at("/dependency_vector/measurement_receipts/0/reason").asString());
+    assertEquals(0, body(get("/v1/recommendations?workload_id=w1", token), 200).size());
+
+    OWNERS.evidenceMode = "CONFLICT_NO_MEASUREMENT";
+    JsonNode absentMeasurement = body(evaluate(id, token,
+        evalJson("2026-01-01T01:00:00Z", measurement())), 201);
+    assertEquals("INSUFFICIENT_EVIDENCE", absentMeasurement.get("outcome").asString());
+    assertEquals("Evidence has a retained source conflict.",
+        absentMeasurement.at("/dependency_vector/measurement_receipts/0/reason").asString());
+
+    OWNERS.evidenceMode = "CONFLICT_WRONG_ID";
+    JsonNode mismatched = body(evaluate(id, token, evalJson("2026-01-01T01:00:00Z", measurement())), 201);
+    assertEquals("INSUFFICIENT_EVIDENCE", mismatched.get("outcome").asString());
+    assertEquals("SOURCE_MISMATCH", mismatched.at("/dependency_vector/receipt_reason_code").asString());
+    assertEquals(0, mismatched.at("/dependency_vector/measurement_receipts").size());
+  }
+
   @Test void verifiesEveryMeasurementAndEveryMode() throws Exception {
     String token = token("t-receipts-all-measurements");
     String id = sealed(token);
@@ -219,8 +304,11 @@ class AssessmentReceiptVerificationTests {
   }
 
   private String token(String tenant) {
-    DelegationPrincipal p = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-1", "*",
-        "https://idp.example.test", "user", ALL, List.of(), List.of());
+    return token(tenant, "user");
+  }
+  private String token(String tenant, String user) {
+    DelegationPrincipal p = new DelegationPrincipal("https://uacrf.local/s01|" + user, tenant, "env-1", "*",
+        "https://idp.example.test", user, ALL, List.of(), List.of());
     return "Bearer " + ISSUER.issue(p, "S07");
   }
   private String sealed(String token) throws Exception {
@@ -299,7 +387,8 @@ class AssessmentReceiptVerificationTests {
           String revision = "STALE".equals(objectiveMode) ? "2" : "1";
           respond(exchange, 200, "{\"workload_id\":\"w1\",\"purpose\":\"assessment\","
               + "\"objectives\":[{\"id\":\"o1\",\"revision\":" + revision
-              + ",\"content_digest\":\"od\"}],\"set_digest\":\"set-od\"}");
+              + ",\"content_digest\":\"od\"}],\"set_digest\":\""
+              + ("CHANGED_SET".equals(objectiveMode) ? "changed-set" : "set-od") + "\"}");
         });
         server.createContext("/internal/v1/graphs/", exchange -> {
           if (!"Bearer delegation-S06".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
@@ -322,12 +411,17 @@ class AssessmentReceiptVerificationTests {
           }
           if ("ERROR".equals(evidenceMode)) { respond(exchange, 500, "{}"); return; }
           boolean older = exchange.getRequestURI().getPath().contains("source-3:measurement");
-          respond(exchange, 200, "{\"evidence_id\":\"" + (older ? "source-3" : "source-1") + "\",\"purpose\":\"assessment\","
+          boolean conflict = evidenceMode.startsWith("CONFLICT");
+          respond(exchange, 200, "{\"evidence_id\":\"" + ("CONFLICT_WRONG_ID".equals(evidenceMode)
+                  ? "different-source" : older ? "source-3" : "source-1") + "\",\"purpose\":\"assessment\","
               + "\"qualification_state\":\"QUALIFIED\",\"usable_as_evidence\":"
-              + !"INELIGIBLE".equals(evidenceMode) + ",\"payload_digest\":\"" + "a".repeat(64)
+              + (!"INELIGIBLE".equals(evidenceMode) && !conflict) + ",\"payload_digest\":\""
+              + ("CHANGED_DIGEST".equals(evidenceMode) ? "b" : "a").repeat(64)
               + "\",\"revision\":2,\"observed_at\":\"2026-01-01T00:" + (older ? "58" : "59") + ":00Z\",\"source_kind\":\"a\","
               + "\"metric\":\"" + ("WRONG_METRIC".equals(evidenceMode) ? "other" : "latency")
-              + "\",\"value\":5,\"unit\":\"ms\",\"reason\":\"Qualified measurement.\"}");
+              + "\",\"value\":" + ("CONFLICT_NO_MEASUREMENT".equals(evidenceMode) ? "null" : "5")
+              + ",\"unit\":\"ms\",\"reason\":\""
+              + (conflict ? "Evidence has a retained source conflict." : "Qualified measurement.") + "\"}");
         });
         server.start();
       } catch (IOException error) { throw new IllegalStateException(error); }

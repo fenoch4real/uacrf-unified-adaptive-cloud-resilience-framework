@@ -145,6 +145,55 @@ class AssessmentService {
   }
   @Transactional(readOnly=true)
   Evaluation evaluation(DelegationPrincipal actor, String id) { permit(actor, "assessment.evaluation.read", false); return findEvaluation(actor,id); }
+  void revalidateEvaluationForModel(DelegationPrincipal actor, String id) {
+    Evaluation evaluation = findEvaluation(actor, id);
+    DependencyVector vector = evaluation.dependencyVector();
+    Case item = findCase(actor, evaluation.caseId(), false);
+    if (!"SEALED".equals(item.state()) || !Objects.equals(item.caseDigest(), vector.caseDigest())
+        || !Objects.equals(item.caseDigest(), hash(write(content(item))))
+        || !Objects.equals(item.objectiveRef(), vector.objectiveRef())
+        || !Objects.equals(item.graphRef(), vector.graphRef())
+        || vector.measurements() == null || vector.measurements().isEmpty()
+        || vector.measurementReceipts() == null
+        || vector.measurements().size() != vector.measurementReceipts().size()
+        || vector.objectiveReceipt() == null || vector.graphReceipt() == null) {
+      throw conflict("UNVERIFIED_EVALUATION", "Evaluation does not contain complete, consistent source evidence.");
+    }
+    List<Measurement> measurements = new ArrayList<>();
+    Map<String, MeasurementReceipt> retained = new HashMap<>();
+    for (Evidence evidence : vector.measurements()) {
+      if (evidence == null || evidence.measurement() == null
+          || evidence.measurement().sourceReceiptId() == null) {
+        throw conflict("UNVERIFIED_EVALUATION", "Evaluation contains incomplete measurement evidence.");
+      }
+      measurements.add(evidence.measurement());
+    }
+    for (MeasurementReceipt receipt : vector.measurementReceipts()) {
+      if (receipt == null || !receipt.usableAsEvidence() || receipt.evidenceId() == null
+          || receipt.payloadDigest() == null || retained.put(receipt.evidenceId(), receipt) != null) {
+        throw conflict("UNVERIFIED_EVALUATION", "Evaluation contains incomplete measurement receipts.");
+      }
+    }
+    ReceiptVerifier.Verification current = receiptVerifier.verify(
+        item, measurements, evaluation.observationCutoff(), actor.tenantId(), actor.environmentId());
+    if (!"VERIFIED".equals(current.status())) {
+      throw conflict("OWNER_REVALIDATION_FAILED",
+          "Current owner verification failed: " + (current.reasonCode() == null ? current.status() : current.reasonCode()) + ".");
+    }
+    if (!Objects.equals(vector.objectiveReceipt(), current.objectiveReceipt())
+        || !Objects.equals(vector.graphReceipt(), current.graphReceipt())
+        || current.measurementReceipts().size() != retained.size()) {
+      throw conflict("OWNER_REVALIDATION_FAILED", "Current owner receipts differ from the evaluation.");
+    }
+    for (MeasurementReceipt receipt : current.measurementReceipts()) {
+      MeasurementReceipt previous = retained.remove(receipt.evidenceId());
+      if (previous == null || !Objects.equals(previous.payloadDigest(), receipt.payloadDigest())
+          || previous.revision() != receipt.revision()) {
+        throw conflict("OWNER_REVALIDATION_FAILED", "Current measurement receipts differ from the evaluation.");
+      }
+    }
+    if (!retained.isEmpty()) throw conflict("OWNER_REVALIDATION_FAILED", "Current measurement receipts are incomplete.");
+  }
   @Transactional(readOnly=true)
   List<Recommendation> recommendations(DelegationPrincipal actor, String workloadId) {
     permit(actor, "assessment.recommendation.read", false);

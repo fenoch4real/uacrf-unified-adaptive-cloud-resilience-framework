@@ -21,12 +21,14 @@ class ModelVersionService {
   private static final String DB = "uacrf_assessment.";
   private final JdbcTemplate jdbc;
   private final ObjectMapper json;
+  private final AssessmentService assessment;
   private final boolean enabled;
 
-  ModelVersionService(JdbcTemplate jdbc, ObjectMapper json,
+  ModelVersionService(JdbcTemplate jdbc, ObjectMapper json, AssessmentService assessment,
       @Value("${uacrf.assessment.models.enabled:false}") boolean enabled) {
     this.jdbc = jdbc;
     this.json = json;
+    this.assessment = assessment;
     this.enabled = enabled;
   }
 
@@ -61,6 +63,71 @@ class ModelVersionService {
   }
 
   @Transactional
+  ModelEvaluationDeclaration declareEvaluation(DelegationPrincipal actor, DeclareModelEvaluation request) {
+    permit(actor, "assessment.model.write", true);
+    requireEnabled();
+    if (!request.trainingThrough().isBefore(request.holdoutFrom())
+        || request.holdoutFrom().isAfter(request.holdoutThrough())) {
+      throw invalid("Declared training must end before the holdout begins, and the holdout must not end earlier.");
+    }
+    ModelVersion model = find(actor, request.modelVersionId(), false);
+    String id = UUID.randomUUID().toString();
+    jdbc.update("INSERT INTO " + DB + "model_evaluation_declaration "
+            + "(tenant_id,environment_id,id,model_version_id,model_digest,training_data_digest,"
+            + "holdout_data_digest,result_ref,result_digest,training_through,holdout_from,holdout_through,"
+            + "reason,status,declared_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'DECLARED_UNVERIFIED',?)",
+        actor.tenantId(), actor.environmentId(), id, model.id(), model.digest(),
+        request.trainingDataDigest(), request.holdoutDataDigest(), request.resultRef(), request.resultDigest(),
+        request.trainingThrough().toString(), request.holdoutFrom().toString(),
+        request.holdoutThrough().toString(), request.reason(), actor.principalId());
+    event(actor, "MODEL_EVALUATION_DECLARATION", id, 1, "uacrf.s07.model-evaluation.declared.v1",
+        Map.of("model_version_id", model.id(), "status", "DECLARED_UNVERIFIED"));
+    return findEvaluationDeclaration(actor, id);
+  }
+
+  @Transactional(readOnly = true)
+  ModelEvaluationDeclaration getEvaluationDeclaration(DelegationPrincipal actor, String id) {
+    permit(actor, "assessment.model.read", false);
+    return findEvaluationDeclaration(actor, id);
+  }
+
+  @Transactional(readOnly = true)
+  ModelEvaluationDeclarationPage listEvaluationDeclarations(
+      DelegationPrincipal actor, String modelVersionId, int limit, String after) {
+    permit(actor, "assessment.model.read", false);
+    if (modelVersionId.isBlank() || modelVersionId.length() > 200 || limit < 1 || limit > 100
+        || (after != null && !after.matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))) {
+      throw invalid("A model version, a limit between 1 and 100 and a valid cursor are required.");
+    }
+    find(actor, modelVersionId, false);
+    List<ModelEvaluationDeclaration> rows = jdbc.query("SELECT * FROM " + DB
+            + "model_evaluation_declaration WHERE tenant_id=? AND environment_id=? "
+            + "AND model_version_id=? AND id>? ORDER BY id LIMIT ?",
+        (rs, row) -> modelEvaluationDeclarationRow(rs), actor.tenantId(), actor.environmentId(),
+        modelVersionId, after == null ? "" : after, limit + 1);
+    boolean more = rows.size() > limit;
+    List<ModelEvaluationDeclaration> items = List.copyOf(rows.subList(0, Math.min(rows.size(), limit)));
+    return new ModelEvaluationDeclarationPage(items, more ? items.getLast().id() : null);
+  }
+
+  private ModelEvaluationDeclaration findEvaluationDeclaration(DelegationPrincipal actor, String id) {
+    List<ModelEvaluationDeclaration> rows = jdbc.query("SELECT * FROM " + DB
+            + "model_evaluation_declaration WHERE tenant_id=? AND environment_id=? AND id=?",
+        (rs, row) -> modelEvaluationDeclarationRow(rs),
+        actor.tenantId(), actor.environmentId(), id);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
+  }
+
+  private ModelEvaluationDeclaration modelEvaluationDeclarationRow(ResultSet rs) throws SQLException {
+    return new ModelEvaluationDeclaration(rs.getString("id"), rs.getString("model_version_id"),
+        rs.getString("model_digest"), rs.getString("training_data_digest"), rs.getString("holdout_data_digest"),
+        rs.getString("result_ref"), rs.getString("result_digest"), Instant.parse(rs.getString("training_through")),
+        Instant.parse(rs.getString("holdout_from")), Instant.parse(rs.getString("holdout_through")),
+        rs.getString("reason"), rs.getString("status"), rs.getString("declared_by"), instant(rs, "created_at"));
+  }
+
+  @Transactional
   ModelVersion review(DelegationPrincipal actor, String id, ReviewModelVersion request) {
     permit(actor, "assessment.model.review", true);
     requireEnabled();
@@ -80,6 +147,7 @@ class ModelVersionService {
     List<String> outcomes = new ArrayList<>();
     for (String evaluationId : evaluationIds) {
       outcomes.add(verifiedEvaluationOutcome(actor, evaluationId));
+      assessment.revalidateEvaluationForModel(actor, evaluationId);
     }
     if (request.decision() == ModelDecision.APPROVE
         && outcomes.stream().noneMatch("CONFIRMED_SUCCESS"::equals)) {
@@ -110,6 +178,15 @@ class ModelVersionService {
       throw conflict("INDEPENDENT_PROMOTION_REQUIRED",
           "The proposer and reviewer cannot promote this model version.");
     }
+    List<String> outcomes = new ArrayList<>();
+    for (String evaluationId : item.evaluationResultIds()) {
+      outcomes.add(verifiedEvaluationOutcome(actor, evaluationId));
+      assessment.revalidateEvaluationForModel(actor, evaluationId);
+    }
+    if (outcomes.stream().noneMatch("CONFIRMED_SUCCESS"::equals)) {
+      throw conflict("PASSING_EVALUATION_REQUIRED", "Promotion requires a passing verified evaluation result.");
+    }
+    requireModelSpecificEvaluation();
     String lockKey = write(List.of(actor.tenantId(), actor.environmentId(), item.modelId(),
         request.targetMode().name()));
     jdbc.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", Object.class, lockKey);
@@ -134,6 +211,11 @@ class ModelVersionService {
     event(actor, id, item.revision() + 1, "uacrf.s07.model-version.promoted.v1",
         Map.of("model_id", item.modelId(), "target_mode", request.targetMode().name()));
     return find(actor, id, false);
+  }
+
+  private void requireModelSpecificEvaluation() {
+    throw conflict("MODEL_EVALUATION_REQUIRED",
+        "Model promotion is unavailable until model-specific evaluation and acceptance are implemented.");
   }
 
   private String verifiedEvaluationOutcome(DelegationPrincipal actor, String id) {
@@ -211,6 +293,11 @@ class ModelVersionService {
 
   private void event(DelegationPrincipal actor, String id, long revision, String eventType,
       Map<String, Object> metadata) {
+    event(actor, "MODEL_VERSION", id, revision, eventType, metadata);
+  }
+
+  private void event(DelegationPrincipal actor, String aggregateType, String id, long revision, String eventType,
+      Map<String, Object> metadata) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("owned_resource_id", id);
     payload.put("owned_revision", revision);
@@ -220,7 +307,7 @@ class ModelVersionService {
     jdbc.update("INSERT INTO " + DB + "outbox_event "
             + "(event_id,tenant_id,environment_id,aggregate_type,aggregate_id,aggregate_sequence,"
             + "event_type,payload,payload_digest) VALUES (?,?,?,?,?,?,?,?::jsonb,?)",
-        UUID.randomUUID(), actor.tenantId(), actor.environmentId(), "MODEL_VERSION", id, revision,
+        UUID.randomUUID(), actor.tenantId(), actor.environmentId(), aggregateType, id, revision,
         eventType, serialized, hash(serialized));
   }
 

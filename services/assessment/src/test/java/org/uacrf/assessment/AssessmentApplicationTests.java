@@ -10,8 +10,12 @@ import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -26,7 +30,26 @@ import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
+@Import(AssessmentApplicationTests.ModelReceiptFixture.class)
 class AssessmentApplicationTests {
+  @TestConfiguration
+  static class ModelReceiptFixture {
+    @Bean @Primary ReceiptVerifier receiptVerifierFixture() {
+      return (item, measurements, cutoff, tenant, environment) -> {
+        if (!tenant.startsWith("t-model-") || tenant.equals("t-model-disabled-receipts")) {
+          return ReceiptVerifier.Verification.skipped();
+        }
+        var objective = new AssessmentResponses.ObjectiveReceipt(item.workloadId(), "set-od",
+            item.objectiveRef().objectiveId(), item.objectiveRef().revision(), item.objectiveRef().digest());
+        var graph = new AssessmentResponses.GraphReceipt(item.graphRef().graphId(),
+            item.graphRef().revision(), item.graphRef().digest());
+        var receipts = measurements.stream().map(m -> new AssessmentResponses.MeasurementReceipt(
+            m.sourceReceiptId(), item.purpose(), "QUALIFIED", true, "a".repeat(64), 2,
+            m.observedAt(), m.sourceKind(), item.metric(), m.value(), m.unit(), "Qualified measurement.")).toList();
+        return ReceiptVerifier.Verification.verified(objective, graph, receipts);
+      };
+    }
+  }
   private static final String KEY_ID = "assessment-test-key";
   private static final KeyPair KEY_PAIR = keyPair();
   private static final JwtEncoder ENCODER = DelegationJwtEncoderFactory.create(KEY_PAIR, KEY_ID);
@@ -158,6 +181,100 @@ class AssessmentApplicationTests {
     assertEquals(1, body(get("/v1/model-versions?model_id=m-immutable", owner), 200).size());
     assertEquals(0, body(get("/v1/model-versions", token("t-model-other", "*", ALL)), 200).size());
   }
+  @Test void modelEvaluationDeclarationsRetainUnverifiedArtifactBoundLineage() throws Exception {
+    String tenant = "t-model-declaration";
+    String owner = token(tenant, "*", ALL);
+    JsonNode model = modelVersion(owner, "m-declaration", "1");
+    String modelId = model.get("id").asString();
+    String path = "/internal/v1/model-evaluation-declarations";
+    String payload = "{\"model_version_id\":\"" + modelId + "\","
+        + "\"training_data_digest\":\"" + "a".repeat(64) + "\","
+        + "\"holdout_data_digest\":\"" + "b".repeat(64) + "\","
+        + "\"result_ref\":\"result://offline\",\"result_digest\":\"" + "c".repeat(64) + "\","
+        + "\"training_through\":\"2026-01-01T00:00:00.000000001Z\","
+        + "\"holdout_from\":\"2026-01-01T00:00:00.000000002Z\","
+        + "\"holdout_through\":\"2026-01-02T00:00:00Z\",\"reason\":\"record provenance\"}";
+    assertEquals(403, post(path, token(tenant, "*", List.of("assessment.model.read")), payload).statusCode());
+    assertEquals(403, post(path, token(tenant, "w1", List.of("assessment.model.write")), payload).statusCode());
+    assertEquals(404, post(path, token("t-model-other", "*", ALL), payload).statusCode());
+    assertEquals(400, post(path, owner,
+        payload.replace("00:00:00.000000002Z", "00:00:00.000000001Z")).statusCode());
+    assertEquals(400, post(path, owner,
+        payload.replace("2026-01-02T00:00:00Z", "2025-12-31T23:59:59Z")).statusCode());
+    assertEquals(400, post(path, owner, payload.replace("c".repeat(64), "INVALID")).statusCode());
+    JsonNode declared = body(post(path, owner, payload), 201);
+    String id = declared.get("id").asString();
+    assertEquals("DECLARED_UNVERIFIED", declared.get("status").asString());
+    assertEquals(modelId, declared.get("model_version_id").asString());
+    assertEquals(model.get("digest").asString(), declared.get("model_digest").asString());
+    assertEquals("2026-01-01T00:00:00.000000002Z", declared.get("holdout_from").asString());
+    assertEquals("c".repeat(64), declared.get("result_digest").asString());
+    assertEquals(declared, body(get(path + "/" + id, owner), 200));
+    assertEquals(404, get(path + "/" + id, token("t-model-other", "*", ALL)).statusCode());
+    assertEquals(403, get(path + "/" + id, token(tenant, "*", List.of("assessment.model.write"))).statusCode());
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "UPDATE uacrf_assessment.model_evaluation_declaration SET status='VERIFIED' WHERE tenant_id=? AND id=?",
+        tenant, id));
+    assertThrows(DataIntegrityViolationException.class, () -> jdbc.update(
+        "DELETE FROM uacrf_assessment.model_evaluation_declaration WHERE tenant_id=? AND id=?", tenant, id));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id=? AND aggregate_id=? AND aggregate_type='MODEL_EVALUATION_DECLARATION' "
+        + "AND event_type='uacrf.s07.model-evaluation.declared.v1'", Integer.class, tenant, id));
+    String event = jdbc.queryForObject("SELECT payload::text FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id=? AND aggregate_id=?", String.class, tenant, id);
+    assertThat(event).doesNotContain("result://offline", "a".repeat(64), "b".repeat(64), "c".repeat(64));
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String evaluation = seedEvaluation(tenant, caseId, "VERIFIED", "CONFIRMED_SUCCESS");
+    body(post(reviewPath(modelId), token(tenant, "*", ALL, "reviewer"),
+        reviewJson(1, "APPROVE", "[\"" + evaluation + "\"]")), 200);
+    for (String mode : List.of("SHADOW", "ADVISORY")) {
+      HttpResponse<String> blocked = post("/v1/model-versions/" + modelId + ":promote",
+          token(tenant, "*", ALL, "promoter"), promoteJson(2, mode));
+      assertEquals(409, blocked.statusCode());
+      assertThat(blocked.body()).contains("MODEL_EVALUATION_REQUIRED");
+    }
+  }
+  @Test void modelEvaluationDeclarationListingIsBoundedAndScoped() throws Exception {
+    String tenant = "t-model-declaration-list";
+    String owner = token(tenant, "*", ALL);
+    String model = modelVersion(owner, "list-model", "1").get("id").asString();
+    String otherModel = modelVersion(owner, "other-model", "1").get("id").asString();
+    String collection = "/internal/v1/model-evaluation-declarations";
+    String payload = "{\"model_version_id\":\"" + model + "\","
+        + "\"training_data_digest\":\"" + "a".repeat(64) + "\","
+        + "\"holdout_data_digest\":\"" + "b".repeat(64) + "\","
+        + "\"result_ref\":\"result\",\"result_digest\":\"" + "c".repeat(64) + "\","
+        + "\"training_through\":\"2026-01-01T00:00:00Z\","
+        + "\"holdout_from\":\"2026-01-02T00:00:00Z\","
+        + "\"holdout_through\":\"2026-01-02T00:00:00Z\",\"reason\":\"test\"}";
+    String firstId = body(post(collection, owner, payload), 201).get("id").asString();
+    String secondId = body(post(collection, owner, payload), 201).get("id").asString();
+    body(post(collection, owner, payload.replace(model, otherModel)), 201);
+    String query = collection + "?model_version_id=" + model;
+    assertEquals(403, get(query, token(tenant, "*", List.of("assessment.model.write"))).statusCode());
+    assertEquals(404, get(query, token("t-model-declaration-foreign", "*", ALL)).statusCode());
+    assertEquals(400, get(collection, owner).statusCode());
+    assertEquals(400, get(query + "&limit=0", owner).statusCode());
+    assertEquals(400, get(query + "&limit=101", owner).statusCode());
+    assertEquals(400, get(query + "&after=invalid", owner).statusCode());
+    JsonNode first = body(get(query + "&limit=1", owner), 200);
+    assertEquals(1, first.get("items").size());
+    String cursor = first.get("next_cursor").asString();
+    assertEquals(first.get("items").get(0).get("id").asString(), cursor);
+    JsonNode second = body(get(query + "&limit=1&after=" + cursor, owner), 200);
+    assertEquals(1, second.get("items").size());
+    assertTrue(second.get("next_cursor").isNull());
+    assertEquals(Set.of(firstId, secondId), Set.of(cursor, second.get("items").get(0).get("id").asString()));
+    assertEquals("DECLARED_UNVERIFIED", second.get("items").get(0).get("status").asString());
+    assertEquals(0, body(get(query + "&after=" + second.get("items").get(0).get("id").asString(), owner),
+        200).get("items").size());
+    DelegationPrincipal otherEnvironment = new DelegationPrincipal(
+        "https://uacrf.local/s01|user", tenant, "env-2", "*", "https://idp.example.test", "user",
+        ALL, List.of(), List.of());
+    String envToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(otherEnvironment, "S07");
+    assertEquals(404, get(query, envToken).statusCode());
+  }
   @Test void reviewRequiresIndependentReviewerVerifiedReceiptsAndPassingEvaluation() throws Exception {
     String proposer = token("t-model-review", "*", ALL);
     String id = modelVersion(proposer, "m-review", "1.0").get("id").asString();
@@ -196,7 +313,37 @@ class AssessmentApplicationTests {
     assertEquals(409, post(reviewPath(id), reviewer,
         reviewJson(1, "REJECT", "[\"" + insufficient + "\"]")).statusCode());
   }
-  @Test void promotionIsIndependentExclusiveAndLimitedToAdvisoryModes() throws Exception {
+  @Test void disabledReceiptVerificationCannotAuthorizeModelReview() throws Exception {
+    String tenant = "t-model-disabled-receipts";
+    String proposer = token(tenant, "*", ALL);
+    String reviewer = token(tenant, "*", ALL, "reviewer");
+    String caseId = sealed(proposer, "[\"a\"]", "LTE");
+    String evaluation = seedEvaluation(tenant, caseId, "VERIFIED", "CONFIRMED_SUCCESS");
+    String model = modelVersion(proposer, "disabled-check", "1").get("id").asString();
+    HttpResponse<String> response = post(reviewPath(model), reviewer,
+        reviewJson(1, "APPROVE", "[\"" + evaluation + "\"]"));
+    assertEquals(409, response.statusCode());
+    assertThat(response.body()).contains("OWNER_REVALIDATION_FAILED", "SKIPPED");
+  }
+  @Test void workloadEvaluationCannotAuthorizeModelPromotion() throws Exception {
+    String tenant = "t-model-no-lineage";
+    String proposer = token(tenant, "*", ALL);
+    String reviewer = token(tenant, "*", ALL, "reviewer");
+    String promoter = token(tenant, "*", ALL, "promoter");
+    String caseId = sealed(proposer, "[\"a\"]", "LTE");
+    String evaluation = seedEvaluation(tenant, caseId, "VERIFIED", "CONFIRMED_SUCCESS");
+    String model = modelVersion(proposer, "missing-model-evaluation", "1").get("id").asString();
+    body(post(reviewPath(model), reviewer, reviewJson(1, "APPROVE", "[\"" + evaluation + "\"]")), 200);
+    HttpResponse<String> response = post("/v1/model-versions/" + model + ":promote",
+        promoter, promoteJson(2, "SHADOW"));
+    assertEquals(409, response.statusCode());
+    assertThat(response.body()).contains("MODEL_EVALUATION_REQUIRED");
+    assertEquals("APPROVED", body(get("/v1/model-versions/" + model, proposer), 200).get("state").asString());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id=? AND aggregate_id=? AND event_type='uacrf.s07.model-version.promoted.v1'",
+        Integer.class, tenant, model));
+  }
+  @Test void promotionKeepsLegacyActiveVersionAndEnforcesIndependenceAndMode() throws Exception {
     String proposer = token("t-model-promote", "*", ALL);
     String reviewer = token("t-model-promote", "*", ALL, "reviewer");
     String promoter = token("t-model-promote", "*", ALL, "promoter");
@@ -212,31 +359,30 @@ class AssessmentApplicationTests {
         promoteJson(3, "SHADOW")).statusCode());
     assertEquals(400, post("/v1/model-versions/" + first + ":promote", promoter,
         promoteJson(2, "LIVE")).statusCode());
-    JsonNode activeShadow = body(post("/v1/model-versions/" + first + ":promote", promoter,
-        promoteJson(2, "SHADOW")), 200);
-    assertEquals("ACTIVE", activeShadow.get("state").asString());
-    assertEquals("SHADOW", activeShadow.get("target_mode").asString());
-    JsonNode activeAdvisory = body(post("/v1/model-versions/" + second + ":promote", promoter,
-        promoteJson(2, "ADVISORY")), 200);
-    assertEquals("ACTIVE", activeAdvisory.get("state").asString());
-    String third = modelVersion(proposer, "m-promote", "3.0").get("id").asString();
-    body(post(reviewPath(third), reviewer, reviewJson(1, "APPROVE", "[\"" + passing + "\"]")), 200);
-    body(post("/v1/model-versions/" + third + ":promote", promoter,
-        promoteJson(2, "SHADOW")), 200);
-    assertEquals("SUPERSEDED", body(get("/v1/model-versions/" + first, proposer), 200)
-        .get("state").asString());
-    assertEquals("ACTIVE", body(get("/v1/model-versions/" + second, proposer), 200)
-        .get("state").asString());
-    assertEquals("ACTIVE", body(get("/v1/model-versions/" + third, proposer), 200)
-        .get("state").asString());
+    jdbc.update("INSERT INTO uacrf_assessment.model_version "
+            + "(tenant_id,environment_id,id,model_id,version,artifact_ref,digest,model_card_ref,"
+            + "evaluation_pack_ref,reason,state,revision,proposed_by,reviewed_by,decision,"
+            + "evaluation_result_ids,review_reason,reviewed_at,promoted_by,target_mode,promotion_reason,promoted_at) "
+            + "VALUES ('t-model-promote','env-1','legacy-active','m-promote','legacy','artifact',?,"
+            + "'card','pack','reason','ACTIVE',3,'proposer','reviewer','APPROVE',?::jsonb,"
+            + "'review',clock_timestamp(),'promoter','SHADOW','promotion',clock_timestamp())",
+        "a".repeat(64), "[\"" + passing + "\"]");
+    assertThat(post("/v1/model-versions/" + first + ":promote", promoter, promoteJson(2, "SHADOW")).body())
+        .contains("MODEL_EVALUATION_REQUIRED");
+    assertThat(post("/v1/model-versions/" + second + ":promote", promoter, promoteJson(2, "ADVISORY")).body())
+        .contains("MODEL_EVALUATION_REQUIRED");
+    assertEquals("APPROVED", body(get("/v1/model-versions/" + first, proposer), 200).get("state").asString());
+    assertEquals("APPROVED", body(get("/v1/model-versions/" + second, proposer), 200).get("state").asString());
+    assertEquals("ACTIVE", body(get("/v1/model-versions/legacy-active", proposer), 200).get("state").asString());
     assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.model_version "
         + "WHERE tenant_id='t-model-promote' AND model_id='m-promote' "
         + "AND target_mode='SHADOW' AND state='ACTIVE'", Integer.class));
-    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.model_version "
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.model_version "
         + "WHERE tenant_id='t-model-promote' AND model_id='m-promote' "
         + "AND target_mode='ADVISORY' AND state='ACTIVE'", Integer.class));
-    assertTrue(jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
-        + "WHERE tenant_id='t-model-promote' AND aggregate_type='MODEL_VERSION'", Integer.class) >= 10);
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event "
+        + "WHERE tenant_id='t-model-promote' AND event_type IN "
+        + "('uacrf.s07.model-version.promoted.v1','uacrf.s07.model-version.superseded.v1')", Integer.class));
   }
 
   @Test void incidentRequiresVerifiedMeasurementsAtOrBeforeObservationAndIsAttributable() throws Exception {
@@ -368,15 +514,23 @@ class AssessmentApplicationTests {
     int revision = jdbc.queryForObject("SELECT COALESCE(MAX(revision),0)+1 FROM "
         + "uacrf_assessment.evaluation WHERE tenant_id=? AND environment_id='env-1' AND case_id=?",
         Integer.class, tenant, caseId);
-    String vector = "{\"receipt_verification\":\"" + verification
-        + "\",\"objective_receipt\":{\"objective_id\":\"o1\"},\"graph_receipt\":{\"graph_id\":\"g1\"},"
-        + "\"measurement_receipts\":[{\"evidence_id\":\"r1\",\"payload_digest\":\""
-        + "a".repeat(64) + "\",\"usable_as_evidence\":true}]}";
+    String digest = jdbc.queryForObject("SELECT case_digest FROM uacrf_assessment.analysis_case "
+        + "WHERE tenant_id=? AND environment_id='env-1' AND id=?", String.class, tenant, caseId);
+    var objective = new AssessmentRequests.ObjectiveRef("o1", 1, "od");
+    var graph = new AssessmentRequests.GraphRef("g1", 1, "gd");
+    var measurement = new AssessmentRequests.Measurement("r1", "a",
+        Instant.parse("2025-12-31T23:59:00Z"), new java.math.BigDecimal("5"), "ms");
+    var vector = new AssessmentResponses.DependencyVector(digest, objective, graph, verification, null,
+        new AssessmentResponses.ObjectiveReceipt("w1", "set-od", "o1", 1, "od"),
+        new AssessmentResponses.GraphReceipt("g1", 1, "gd"),
+        List.of(new AssessmentResponses.Evidence(measurement, "USED")),
+        List.of(new AssessmentResponses.MeasurementReceipt("r1", "assessment", "QUALIFIED", true,
+            "a".repeat(64), 2, measurement.observedAt(), "a", "latency", measurement.value(), "ms", "Qualified measurement.")));
     jdbc.update("INSERT INTO uacrf_assessment.evaluation "
         + "(tenant_id,environment_id,id,case_id,revision,observation_cutoff,cutoff_epoch_second,"
         + "cutoff_nano,mode,outcome,dependency_vector,result_digest) "
         + "VALUES (?, 'env-1', ?, ?, ?, '2026-01-01T00:00:00Z', 1767225600,0,'SHADOW',? ,?::jsonb,?)",
-        tenant, id, caseId, revision, outcome, vector, "b".repeat(64));
+        tenant, id, caseId, revision, outcome, json.writeValueAsString(vector), "b".repeat(64));
     return id;
   }
   private static String modelJson(String model, String version) {

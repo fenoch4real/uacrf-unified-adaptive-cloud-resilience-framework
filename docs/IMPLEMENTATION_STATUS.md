@@ -397,6 +397,10 @@ retains evidence events and decides qualification.
 - `POST /internal/v1/qualifications/{id}:measurement` internally attests parsed
   measurement fields from the qualified, digest-checked owner payload at the cutoff;
   it does not return the raw payload.
+- Both receipt types require the observation and its independent qualification
+  to be no later than the requested cutoff (the boundary is inclusive). A
+  qualified observation timestamped after the cutoff is unusable, with an
+  explicit reason; PostgreSQL-backed tests cover both sides of the boundary.
 - Both receipt types fail closed with a conflict reason when a retained replay
   conflicts with the accepted ID, or a retained replay or stale sequence conflicts
   with its source and sequence. Unrelated stale sequences and digest mismatches
@@ -482,8 +486,54 @@ retains evidence events and decides qualification.
 
 - `services/assessment` (port 8089, audience S07, database/schema `uacrf_assessment`) provides fixed assessment cases, deterministic evaluation, and non-executable recommendations. EDGE01 routes the public operations under `/internal/assessment`; the private `/internal/v1/cases/{id}:receipt` endpoint is not routed.
 - When `UACRF_ASSESSMENT_RECEIPTS_ENABLED=true`, every evaluation obtains short-lived S01 delegations as the S07 service account and verifies each measurement against the qualified S04 owner payload, current S05 active objectives, and S06 projected graph eligibility. Verification failures force `INSUFFICIENT_EVIDENCE`, retain a reason code and received owner receipt facts in the dependency vector, and cannot produce a recommendation. Verification is off by default; disabled evaluations retain `receipt_verification: SKIPPED` and caller-supplied measurements are not verified. Before enabling it, grant the S07 SYSTEM principal `evidence.event.read`, `objectives.objective.read`, and `topology.graph.read` through normal S01 membership administration.
-- Immutable model-version governance is implemented at `/v1/model-versions`: candidate metadata is immutable and tenant/environment scoped; independent reviews require verified S04/S05/S06 evaluation receipts and a passing result for approval; independent promotions activate only SHADOW or ADVISORY versions and supersede the prior active version atomically. Outbox events are transactional. Normal S01 grants control the distinct `assessment.model.read`, `assessment.model.write`, and `assessment.model.review` capabilities; there are no automatic grants. Commands are disabled by default and can be enabled with `UACRF_ASSESSMENT_MODELS_ENABLED=true`.
-- Incident retention is implemented at `/v1/incidents`: creation requires a sealed case for the same workload and a VERIFIED evaluation no later than `observed_from`, with usable qualified S04 measurement receipts and retained S05/S06 receipts. Evidence references are limited to those measurements; rows are tenant/environment scoped, attributable, revisioned, and immutable. S01-managed `assessment.incident.read`, `assessment.incident.write`, and `assessment.learning.write` grants are not automatic.
+- S07 now retains structurally valid, explicitly unusable S04 measurement receipts
+  for the requested evidence ID and purpose, including the owner's reason and
+  nullable measurement fields. They remain `SOURCE_UNVERIFIED` and cannot produce
+  a recommendation. Mismatched IDs or purposes are not retained as matching
+  rejected receipts. An opt-in integration test runs real S04 and S07 processes
+  with separate PostgreSQL databases, test-signed delegations and simulated S01,
+  S05 and S06: qualification initially yields a verified evaluation, and a
+  later S04 replay conflict makes a new evaluation insufficient while preserving
+  the owner reason and the earlier snapshot. It also checks S04 audience and
+  tenant denial. Run it with
+  `./mvnw -Padvisory-cross-service-tests -pl services/evidence,services/assessment,integration-tests/advisory -am -Dtest=EvidenceAssessmentCrossServiceTests -Dsurefire.failIfNoSpecifiedTests=false package`.
+  This does not test real S01 grant issuance or real S05/S06, refresh prior
+  evaluations after a conflict, or eliminate conflicts arriving after a receipt.
+  Retained receipts remain point-in-time evidence.
+- Immutable model-version governance is implemented at `/v1/model-versions`: candidate metadata is immutable and tenant/environment scoped; independent reviews require verified S04/S05/S06 evaluation receipts and a passing workload result for approval. Outbox events are transactional. Normal S01 grants control the distinct `assessment.model.read`, `assessment.model.write`, and `assessment.model.review` capabilities; there are no automatic grants. Commands are disabled by default and can be enabled with `UACRF_ASSESSMENT_MODELS_ENABLED=true`.
+- Model review and promotion now reverify each referenced evaluation against current
+  S04/S05/S06 owner receipts and require the retained objective set, graph and
+  measurement digests/revisions to match. Disabled verification, stale or
+  unavailable owners, and incomplete snapshots fail closed; an unsuccessful
+  promotion does not supersede the active version. A real S04–S07 process test
+  confirms a later evidence conflict blocks both review and promotion, with
+  simulated S01/S05/S06. These remote checks are sequential point-in-time reads,
+  not atomic authorization; later changes do not automatically deactivate an
+  active version or change historical evaluations.
+- **Model promotion is blocked:** workload evaluations do not bind results to a
+  model artifact or prove model accuracy, calibration, or safe operation. Even
+  with both feature flags enabled and fresh owner receipts, SHADOW and ADVISORY
+  promotion returns `MODEL_EVALUATION_REQUIRED` until model-specific evaluation
+  and acceptance are implemented. Existing active rows are not changed or
+  automatically deactivated. `APPROVED` and any pre-existing `ACTIVE` status are
+  governance metadata, not evidence of model readiness or permission to execute.
+  PostgreSQL and separate S04–S07 process tests cover the gate; S01/S05/S06 are
+  simulated in the process test.
+- Internal model-evaluation declarations retain immutable, tenant/environment-scoped
+  lineage bound to the stored model-version digest, with attribution and a
+  transactional outbox event. Creation requires `assessment.model.write`,
+  global service scope and the model feature flag; reads require
+  `assessment.model.read` and remain available when the flag is disabled.
+  Declared SHA-256 digests and time windows are validated syntactically, with
+  nanosecond precision retained, but artifacts are not fetched or verified.
+  `DECLARED_UNVERIFIED` does not prove model performance, data separation or
+  readiness and cannot unblock promotion. These endpoints are internal only.
+  `GET /internal/v1/model-evaluation-declarations?model_version_id=...`
+  lists declarations for one model version in ID order, with `limit` (default
+  50, maximum 100) and `after` set to the previous `next_cursor`. Each page is
+  a separate read, not a snapshot: declarations inserted before the cursor can
+  be missed until the listing is restarted.
+- Incident retention is implemented at `/v1/incidents`: creation requires a sealed case for the same workload and a VERIFIED evaluation no later than `observed_from`, with usable qualified S04 measurement receipts and retained S05/S06 receipts. Evidence references are limited to those measurements; rows are tenant/environment scoped, attributable, revisioned, and immutable. This currently uses historical receipts rather than revalidating their present eligibility. S01-managed `assessment.incident.read`, `assessment.incident.write`, and `assessment.learning.write` grants are not automatic.
 - Learning records are immutable proposals at `/v1/learning-records`, linked to an incident with a revision fence and evidence limited to that incident. Their transactional `uacrf.s07.learning.proposed.v1` outbox event records attribution and PROPOSED state. There is no learning decision, approval, adoption, or automatic production policy/model change.
 - Remaining work: implement forecasts and forecast execution, add learning proposal review/adoption and the outbox publisher, and integrate S10 consumption. Model governance, incident retention, and proposal retention are implemented; they do not enable model execution or production policy changes.
 

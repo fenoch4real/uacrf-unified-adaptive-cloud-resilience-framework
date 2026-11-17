@@ -56,6 +56,22 @@ class AssessmentController {
   ModelVersion modelVersion(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return modelVersions.get(DelegationPrincipal.from(jwt), id);
   }
+  @PostMapping("/internal/v1/model-evaluation-declarations") @ResponseStatus(HttpStatus.CREATED)
+  ModelEvaluationDeclaration declareModelEvaluation(@AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody DeclareModelEvaluation request) {
+    return modelVersions.declareEvaluation(DelegationPrincipal.from(jwt), request);
+  }
+  @GetMapping("/internal/v1/model-evaluation-declarations")
+  ModelEvaluationDeclarationPage modelEvaluationDeclarations(@AuthenticationPrincipal Jwt jwt,
+      @RequestParam("model_version_id") String modelVersionId,
+      @RequestParam(value="limit", defaultValue="50") int limit,
+      @RequestParam(value="after", required=false) String after) {
+    return modelVersions.listEvaluationDeclarations(DelegationPrincipal.from(jwt), modelVersionId, limit, after);
+  }
+  @GetMapping("/internal/v1/model-evaluation-declarations/{id}")
+  ModelEvaluationDeclaration modelEvaluationDeclaration(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return modelVersions.getEvaluationDeclaration(DelegationPrincipal.from(jwt), id);
+  }
   @PostMapping("/v1/model-versions/{id}:review")
   ModelVersion reviewModelVersion(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
       @Valid @RequestBody ReviewModelVersion request) {

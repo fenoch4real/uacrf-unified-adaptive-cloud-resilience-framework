@@ -154,6 +154,37 @@ class EvidenceApplicationTests {
   }
 
   @Test
+  void receiptsRejectObservationsAfterCutoffAndAcceptTheInclusiveBoundary() throws Exception {
+    String submit = bearer("submitter", "tenant-cutoff", SUBMITTER);
+    String reviewer = bearer("reviewer", "tenant-cutoff", REVIEWER);
+    String payload = "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\"}";
+    String escaped = json.writeValueAsString(payload);
+    java.time.Instant observed = java.time.Instant.now().plusSeconds(120)
+        .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+    String original = evidence("future-observation", "PROVIDER", "future-source", 1,
+        escaped.substring(1, escaped.length() - 1), sha(payload))
+        .replace("2026-01-01T00:00:00Z", observed.toString());
+    assertEquals(202, post("/internal/v1/observations", submit, original).statusCode());
+    assertEquals(200, post("/v1/evidence/future-observation/reviews", reviewer,
+        "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
+
+    String qualification = "/internal/v1/qualifications/future-observation:receipt";
+    String measurement = "/internal/v1/qualifications/future-observation:measurement";
+    String before = observed.minusNanos(1).toString();
+    String beforeReceipt = receiptBody(sha(payload)).replace("2999-01-01T00:00:00Z", before);
+    assertThat(post(qualification, reviewer, beforeReceipt).body())
+        .contains("\"usable_as_evidence\":false", "\"within_cutoff\":false", "Observation happened after the cutoff.");
+    assertThat(post(measurement, reviewer, measurementRequest("latency", before)).body())
+        .contains("\"usable_as_evidence\":false", "Observation happened after the cutoff.");
+
+    String atReceipt = receiptBody(sha(payload)).replace("2999-01-01T00:00:00Z", observed.toString());
+    assertThat(post(qualification, reviewer, atReceipt).body())
+        .contains("\"usable_as_evidence\":true", "\"within_cutoff\":true");
+    assertThat(post(measurement, reviewer, measurementRequest("latency", observed.toString())).body())
+        .contains("\"usable_as_evidence\":true");
+  }
+
+  @Test
   void malformedAndAmbiguousPayloadsAreIneligible() throws Exception {
     String submit = bearer("submitter", "tenant-malformed", SUBMITTER);
     String reviewer = bearer("reviewer", "tenant-malformed", REVIEWER);

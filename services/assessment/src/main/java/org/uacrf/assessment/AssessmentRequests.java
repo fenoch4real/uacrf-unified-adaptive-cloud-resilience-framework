@@ -33,6 +33,13 @@ final class AssessmentRequests {
       @NotBlank @Size(max=1000) String modelCardRef,
       @NotBlank @Size(max=1000) String evaluationPackRef,
       @NotBlank @Size(max=2000) String reason) {}
+  record DeclareModelEvaluation(@NotBlank @Size(max=200) String modelVersionId,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{64}$") String trainingDataDigest,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{64}$") String holdoutDataDigest,
+      @NotBlank @Size(max=1000) String resultRef,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{64}$") String resultDigest,
+      @NotNull Instant trainingThrough, @NotNull Instant holdoutFrom,
+      @NotNull Instant holdoutThrough, @NotBlank @Size(max=2000) String reason) {}
   record ReviewModelVersion(@Min(1) long expectedRevision, @NotNull ModelDecision decision,
       @Size(max=100) List<@NotBlank @Size(max=200) String> evaluationResultIds,
       @NotBlank @Size(max=2000) String reason) {}
