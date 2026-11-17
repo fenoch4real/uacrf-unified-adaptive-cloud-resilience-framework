@@ -727,6 +727,18 @@ retains evidence events and decides qualification.
 
 ## M3 / S09 advisory gateway foundation
 
+- The development API contract now specifies durable asynchronous admission:
+  `POST /v1/orchestration-runs` returns 202 with a `Location` only after the run,
+  idempotency record, and dispatch-scheduling outbox entry commit atomically.
+  Idempotency is scoped to the authenticated principal, tenant, environment,
+  operation and key; a same-request replay returns the retained run's current
+  state, while changed content conflicts. Source verification remains outside
+  locks, and admission requires the context to remain unchanged. This is
+  contract-only: no connected handler, run/idempotency/outbox repository or
+  current-context commit guard is wired; provider dispatch remains gated and the
+  operation remains
+  `PENDING_CONNECTED_VERIFICATION`. The MS01 design check passes 24 consistency
+  checks; target runtime acceptance remains not evaluated.
 - `services/advisory` contains an internal provider-neutral invocation contract
   and a disabled gateway. This is a library foundation, not a deployable service;
   no provider adapter, runtime journal, or orchestration is wired. An unknown

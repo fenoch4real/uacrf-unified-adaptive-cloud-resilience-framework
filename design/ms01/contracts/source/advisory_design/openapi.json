@@ -8,7 +8,7 @@
     "/v1/orchestration-runs": {
       "post": {
         "summary": "Start a bounded advisory run from verified registered inputs.",
-        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Actual source verification occurs outside locks and commit requires the unchanged current context.",
+        "description": "Development lifecycle under integration verification. No action, safety, recovery or billing authority. Source verification occurs outside locks; admission commits only if the verified context is unchanged. The run, idempotency record and dispatch-scheduling outbox entry are committed atomically before 202 is returned. Idempotency is scoped to the authenticated principal, tenant, environment and operation: the same key with the same validated request returns the existing run, while reuse with a different request returns 409. Replay never creates a second run or dispatch. Provider dispatch is asynchronous and separately gated.",
         "x-implementation-status": "PENDING_CONNECTED_VERIFICATION",
         "parameters": [
           {
@@ -24,8 +24,18 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Retained synchronous advisory result.",
+          "202": {
+            "description": "The run, idempotency record and dispatch-scheduling outbox entry are durably committed. New runs start in RUNNING state; an idempotent replay returns the same run's current state. Status and results are available at Location.",
+            "headers": {
+              "Location": {
+                "description": "URI of the retained run resource.",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -75,7 +85,7 @@
             }
           },
           "409": {
-            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "description": "The idempotency key was reused with a different validated request, or the verified context changed before a new admission; no additional run or dispatch event is created.",
             "content": {
               "application/json": {
                 "schema": {
@@ -95,7 +105,7 @@
             }
           },
           "503": {
-            "description": "Malformed, unauthorized, undisclosable, changed, invalid or unavailable context; no fabricated result.",
+            "description": "A required owner or dependency was unavailable before admission; no run, idempotency record or outbox entry is committed.",
             "content": {
               "application/json": {
                 "schema": {

@@ -129,8 +129,8 @@
     },
     {
       "path": "contracts/source/advisory_design/openapi.json",
-      "bytes": 46323,
-      "sha256": "03d3cd3da73241326fa1c403bdcc18a1c051eb319deef4e37de568bf7d7cc702"
+      "bytes": 47341,
+      "sha256": "c6387b00c63ab8fb21d88f3ce4857b9da19b2036c434b379a52368c77d58770d"
     },
     {
       "path": "contracts/source/advisory_design/openapi.proposed.json",
