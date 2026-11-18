@@ -2690,9 +2690,10 @@
           "query_id": {
             "enum": [
               "action-relevant-dependencies.v1",
-              "action-relevant-dependencies.v2"
+              "action-relevant-dependencies.v2",
+              "action-relevant-dependencies.v3"
             ],
-            "description": "Versioned allowlist ID. v1 covers bounded dependency selection; v2 additionally selects READS_FROM relationships for data-read classification. Neither query is complete framework-wide action-relevant selection."
+            "description": "Versioned allowlist ID. v1 covers bounded dependency selection; v2 additionally selects READS_FROM relationships for data-read classification; v3 preserves v2 and adds the point-in-time current S05 active objectives for the S07 case workload as owner-derived context only. A changed S05 set forces classification to indeterminate and is not interpreted as graph widening or narrowing. None is complete framework-wide action-relevant selection."
           },
           "query_parameters_ref": {
             "type": "string",
@@ -3867,6 +3868,14 @@
           },
           "inventory_reconciliation": {
             "$ref": "#/components/schemas/GraphInventoryReconciliation"
+          },
+          "slo_objectives": {
+            "$ref": "#/components/schemas/GraphSloObjectiveSnapshot",
+            "description": "Selection only; v3 carries the point-in-time current S05 active-objective set for the S07 case workload as owner-derived context, not graph edges."
+          },
+          "objective_set_change": {
+            "$ref": "#/components/schemas/GraphObjectiveSetChange",
+            "description": "Classification only; a changed objective-set digest forces an indeterminate result and is not converted into graph widening or narrowing."
           }
         },
         "required": [
@@ -3920,6 +3929,11 @@
                     "required": [
                       "changes"
                     ]
+                  },
+                  {
+                    "required": [
+                      "objective_set_change"
+                    ]
                   }
                 ]
               }
@@ -3958,6 +3972,11 @@
                   {
                     "required": [
                       "inventory_reconciliation"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "slo_objectives"
                     ]
                   }
                 ]
@@ -4288,9 +4307,12 @@
         "properties": {
           "inventory_reconciliation": {
             "$ref": "#/components/schemas/GraphInventoryReconciliation"
+          },
+          "slo_objectives": {
+            "$ref": "#/components/schemas/GraphSloObjectiveSnapshot"
           }
         },
-        "description": "Additional, optional fields for an action-relevant subgraph selection."
+        "description": "Additional, optional fields for an action-relevant subgraph selection. The S05 objective snapshot is exposed only for query v3."
       },
       "GraphInventoryReconciliation": {
         "type": "object",
@@ -4358,6 +4380,114 @@
           "advisory_only",
           "limitation"
         ]
+      },
+      "GraphSloObjectiveSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "workload_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "purpose": {
+            "enum": [
+              "topology.graph.subgraph-selection",
+              "topology.graph.difference-classification"
+            ]
+          },
+          "objectives": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+                },
+                "metric": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_.-]{0,99}$"
+                },
+                "comparator": {
+                  "enum": [
+                    "GTE",
+                    "LTE"
+                  ]
+                },
+                "target": {
+                  "type": "number"
+                },
+                "unit": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_./%-]{1,30}$"
+                },
+                "window_seconds": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "content_digest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "id",
+                "metric",
+                "comparator",
+                "target",
+                "unit",
+                "window_seconds",
+                "revision",
+                "content_digest"
+              ]
+            }
+          },
+          "set_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "workload_id",
+          "purpose",
+          "objectives",
+          "set_digest"
+        ],
+        "description": "Bounded point-in-time S05 owner receipt. The set digest binds workload ID and the metric-ordered objective IDs, revisions and content digests; it is not a graph relationship or a measurement evaluation."
+      },
+      "GraphObjectiveSetChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "workload_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"
+          },
+          "authorized_set_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "current_set_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "changed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "workload_id",
+          "authorized_set_digest",
+          "current_set_digest",
+          "changed"
+        ],
+        "description": "Digest comparison of S05 active-objective context. If changed, the classification is indeterminate; objective semantics are not interpreted as graph deltas."
       }
     }
   },
@@ -7952,7 +8082,7 @@
       "post": {
         "operationId": "canonical_027",
         "summary": "Classify differences between authorized and current graph context.",
-        "description": "Server derives tenant, environment and actor from verified identity. Check current operation and target permissions, disclosure and source eligibility. Clients cannot grant authority or declare qualified/recovered status. Typed delta of immaterial, narrowing, widening, target-changing, fallback-changing, validation-changing, or indeterminate.  expected_revision=0 means create only; positive revisions must match the current target. Request references and artifact digests must be verified, time intervals ordered, expired grants and authority rejected (historical times remain valid for replay and expiry review) and path/body IDs consistent. Same scoped key and same canonical request returns the same command ID; a different request with that key returns 409. Admission returns 202 only after command/outbox commit. External work runs outside database locks. Read status through GET /v1/commands/{id}. No successful domain outcome is asserted by admission. Classification is an advisory comparison of authorized versus current graph context; it changes no graph revision or relationships. The current S07 case is checked by its owner and bounded S04 qualification summaries are optional supporting context; this request does not bind an S02 service revision. The S07 receipt retains its business purpose; the S01 delegation binds the topology operation purpose to the exact case ID, without requiring those purpose values to match. S04 observed time is retained but `QUALIFIED` is not freshness certification; where freshness matters and no query policy threshold exists, report INCOMPLETE or INDETERMINATE. S01 delegation and owner-read purpose is the closed ID topology.graph.difference-classification. Results are advisory only, never create graph edges, and do not authorize execution. This request has no immutable service-revision reference; selection_digest must resolve to a retained S06 selection for the same service and authorized graph revision. Missing or mismatched selection context is rejected; supported deltas are classified only within the retained selection scope, with broader coverage remaining incomplete or indeterminate. The difference revision target is keyed by service_id and authorized_graph_revision_id; current graph, retained selection, case, and evidence context is retained in the source binding, and each subsequent comparison advances expected_revision for that target.",
+        "description": "Server derives tenant, environment and actor from verified identity. Check current operation and target permissions, disclosure and source eligibility. Clients cannot grant authority or declare qualified/recovered status. Typed delta of immaterial, narrowing, widening, target-changing, fallback-changing, validation-changing, or indeterminate.  expected_revision=0 means create only; positive revisions must match the current target. Request references and artifact digests must be verified, time intervals ordered, expired grants and authority rejected (historical times remain valid for replay and expiry review) and path/body IDs consistent. Same scoped key and same canonical request returns the same command ID; a different request with that key returns 409. Admission returns 202 only after command/outbox commit. External work runs outside database locks. Read status through GET /v1/commands/{id}. No successful domain outcome is asserted by admission. Classification is an advisory comparison of authorized versus current graph context; it changes no graph revision or relationships. The current S07 case is checked by its owner and bounded S04 qualification summaries are optional supporting context; this request does not bind an S02 service revision. The S07 receipt retains its business purpose; the S01 delegation binds the topology operation purpose to the exact case ID, without requiring those purpose values to match. For a retained v3 selection, S06 re-reads the point-in-time current S05 active-objective set for the same case workload; if its digest changed, classification is indeterminate. S04 observed time is retained but `QUALIFIED` is not freshness certification; where freshness matters and no query policy threshold exists, report INCOMPLETE or INDETERMINATE. S01 delegation and owner-read purpose is the closed ID topology.graph.difference-classification. Results are advisory only, never create graph edges, and do not authorize execution. This request has no immutable service-revision reference; selection_digest must resolve to a retained S06 selection for the same service and authorized graph revision. Missing or mismatched selection context is rejected; supported deltas are classified only within the retained selection scope, with broader coverage remaining incomplete or indeterminate. The difference revision target is keyed by service_id and authorized_graph_revision_id; current graph, retained selection, case, and evidence context is retained in the source binding, and each subsequent comparison advances expected_revision for that target.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -8094,7 +8224,7 @@
       "post": {
         "operationId": "canonical_028",
         "summary": "Select an action-relevant subgraph.",
-        "description": "Server derives tenant, environment and actor from verified identity. Check current operation and target permissions, disclosure and source eligibility. Clients cannot grant authority or declare qualified/recovered status. Allowlisted query identifier, bounded tenant and environment scope, digest, witness paths, and graph revision.  expected_revision=0 means create only; positive revisions must match the current target. Request references and artifact digests must be verified, time intervals ordered, expired grants and authority rejected (historical times remain valid for replay and expiry review) and path/body IDs consistent. Same scoped key and same canonical request returns the same command ID; a different request with that key returns 409. Admission returns 202 only after command/outbox commit. External work runs outside database locks. Read status through GET /v1/commands/{id}. No successful domain outcome is asserted by admission. The user-approved action-relevant scope spans bounded dependencies, failure domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and recovery paths. This initial query supports bounded dependency selection only; coverage of the broader framework selection is incomplete. The user-approved action-relevant scope spans bounded dependencies, failure domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and recovery paths. Query v1 supports bounded dependency selection; query v2 additionally selects READS_FROM relationships for data-read classification. Coverage of the broader framework selection remains incomplete. The exact S02 service revision and current S07 case are checked by their owners; bounded S04 qualification summaries are optional supporting context. The S07 receipt retains its business purpose; the S01 delegation binds the topology operation purpose to the exact case ID, without requiring those purpose values to match. S04 observed time is retained but `QUALIFIED` is not freshness certification; where freshness matters and no query policy threshold exists, report INCOMPLETE or INDETERMINATE. S01 delegation and owner-read purpose is the closed ID topology.graph.subgraph-selection. Results are advisory only, never create graph edges, and do not authorize execution. For the supported dependency slice, S06 intersects the S02 snapshot's owned_agent_workload_ids with agent_workload nodes in the exact accepted graph revision and follows only existing accepted S06 edges. Catalog membership never creates graph nodes or edges. Missing revision, membership mapping, or graph roots is reported as incomplete; broader UACRF ontology coverage remains incomplete. The selection revision target is keyed by service_id and query_id; changing graph, catalog, case, or evidence context is retained in the source binding and advances expected_revision for that target.",
+        "description": "Server derives tenant, environment and actor from verified identity. Check current operation and target permissions, disclosure and source eligibility. Clients cannot grant authority or declare qualified/recovered status. Allowlisted query identifier, bounded tenant and environment scope, digest, witness paths, and graph revision.  expected_revision=0 means create only; positive revisions must match the current target. Request references and artifact digests must be verified, time intervals ordered, expired grants and authority rejected (historical times remain valid for replay and expiry review) and path/body IDs consistent. Same scoped key and same canonical request returns the same command ID; a different request with that key returns 409. Admission returns 202 only after command/outbox commit. External work runs outside database locks. Read status through GET /v1/commands/{id}. No successful domain outcome is asserted by admission. The user-approved action-relevant scope spans bounded dependencies, failure domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and recovery paths. This initial query supports bounded dependency selection only; coverage of the broader framework selection is incomplete. The user-approved action-relevant scope spans bounded dependencies, failure domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and recovery paths. Query v1 supports bounded dependency selection; query v2 additionally selects READS_FROM relationships for data-read classification. Coverage of the broader framework selection remains incomplete. The user-approved action-relevant scope spans bounded dependencies, failure domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and recovery paths. Query v1 supports bounded dependency selection; query v2 additionally selects READS_FROM relationships for data-read classification; query v3 preserves v2 and adds the current S05 active objectives for the S07 case workload as owner-derived context only. A changed objective-set digest makes classification indeterminate; objective changes are not treated as graph widening or narrowing. Coverage of the broader framework selection remains incomplete. The user-approved action-relevant scope spans bounded dependencies, failure domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and recovery paths. Query v1 supports bounded dependency selection; query v2 additionally selects READS_FROM relationships for data-read classification; query v3 preserves v2 and adds the point-in-time current S05 active objectives for the S07 case workload as owner-derived context only. A changed objective-set digest makes classification indeterminate; objective changes are not treated as graph widening or narrowing. Coverage of the broader framework selection remains incomplete. The exact S02 service revision and current S07 case are checked by their owners; bounded S04 qualification summaries are optional supporting context. Query v3 additionally reads the point-in-time current S05 active-objective set for the case workload through a resource-scoped delegation; this owner-derived context is not a graph relationship. The S07 receipt retains its business purpose; the S01 delegation binds the topology operation purpose to the exact case ID, without requiring those purpose values to match. S04 observed time is retained but `QUALIFIED` is not freshness certification; where freshness matters and no query policy threshold exists, report INCOMPLETE or INDETERMINATE. S01 delegation and owner-read purpose is the closed ID topology.graph.subgraph-selection. Results are advisory only, never create graph edges, and do not authorize execution. For the supported dependency slice, S06 intersects the S02 snapshot's owned_agent_workload_ids with agent_workload nodes in the exact accepted graph revision and follows only existing accepted S06 edges. Catalog membership never creates graph nodes or edges. Missing revision, membership mapping, or graph roots is reported as incomplete; broader UACRF ontology coverage remains incomplete. The selection revision target is keyed by service_id and query_id; changing graph, catalog, case, or evidence context is retained in the source binding and advances expected_revision for that target.",
         "parameters": [
           {
             "name": "Idempotency-Key",

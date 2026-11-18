@@ -52,7 +52,7 @@ class EvidenceService {
           "topology.graph.difference-classification");
   private static final String COLUMNS =
       "id, source_class, source_ref, sequence, observed_at, kind, service_id, schema_version, "
-          + "payload_digest, submitted_by, "
+          + "payload_digest, payload_byte_length, submitted_by, "
           + "qualification_state, revision, reviewed_by, review_reason";
   private static final String HAS_EVIDENCE_CONFLICT =
       "EXISTS (SELECT 1 FROM " + SCHEMA + "quarantined_evidence q "
@@ -94,16 +94,21 @@ class EvidenceService {
             actor.environmentId(),
             request.sourceRef());
     String state = request.sourceClass() == SourceClass.SAMPLE_LOCAL ? "SAMPLE_ONLY" : "UNVERIFIED";
-    if (!sha256(request.payload()).equals(request.payloadDigest())) {
-      return quarantine(actor, request, "DIGEST_MISMATCH");
+    byte[] payloadBytes = request.payload().getBytes(StandardCharsets.UTF_8);
+    String actualPayloadDigest = sha256(payloadBytes);
+    long payloadByteLength = payloadBytes.length;
+    if (!actualPayloadDigest.equals(request.payloadDigest())) {
+      return quarantine(
+          actor, request, "DIGEST_MISMATCH", actualPayloadDigest, payloadByteLength);
     }
     if (request.sourceClass() == SourceClass.PROVIDER && !validProviderObservation(request)) {
-      return quarantine(actor, request, "SOURCE_SCHEMA_INVALID");
+      return quarantine(
+          actor, request, "SOURCE_SCHEMA_INVALID", actualPayloadDigest, payloadByteLength);
     }
     List<Map<String, Object>> existing =
         jdbc.queryForList(
             "SELECT payload_digest, payload, source_ref, sequence, source_class, kind, service_id, "
-                + "schema_version, qualification_state, "
+                + "schema_version, payload_byte_length, qualification_state, "
                 + "observed_at = ? AS observed_at_matches FROM "
                 + SCHEMA + "evidence_event WHERE tenant_id = ? AND environment_id = ? AND id = ?",
             Timestamp.from(request.observedAt()),
@@ -120,20 +125,28 @@ class EvidenceService {
               && request.kind().equals(row.get("kind"))
               && java.util.Objects.equals(request.serviceId(), row.get("service_id"))
               && java.util.Objects.equals(request.schemaVersion(), row.get("schema_version"))
+              && payloadByteLength == ((Number) row.get("payload_byte_length")).longValue()
               && Boolean.TRUE.equals(row.get("observed_at_matches"))
               && request.sequence() == ((Number) row.get("sequence")).longValue();
       return same
-          ? new SubmitResult(request.id(), "DUPLICATE", "Already accepted.", (String) row.get("qualification_state"))
-          : quarantine(actor, request, "REPLAY_CONFLICT");
+          ? new SubmitResult(
+              request.id(),
+              "DUPLICATE",
+              "Already accepted.",
+              (String) row.get("qualification_state"),
+              actualPayloadDigest,
+              request.payloadDigest(),
+              payloadByteLength)
+          : quarantine(actor, request, "REPLAY_CONFLICT", actualPayloadDigest, payloadByteLength);
     }
     if (request.sequence() <= last) {
-      return quarantine(actor, request, "STALE_SEQUENCE");
+      return quarantine(actor, request, "STALE_SEQUENCE", actualPayloadDigest, payloadByteLength);
     }
     jdbc.update(
         "INSERT INTO " + SCHEMA + "evidence_event (tenant_id, environment_id, id, source_class, "
             + "source_ref, sequence, observed_at, kind, service_id, schema_version, payload, "
-            + "payload_digest, submitted_by, qualification_state, revision) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+            + "payload_digest, payload_byte_length, submitted_by, qualification_state, revision) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
         actor.tenantId(),
         actor.environmentId(),
         request.id(),
@@ -146,6 +159,7 @@ class EvidenceService {
         request.schemaVersion(),
         request.payload(),
         request.payloadDigest(),
+        payloadByteLength,
         actor.principalId(),
         state);
     jdbc.update(
@@ -166,16 +180,30 @@ class EvidenceService {
             "sequence", request.sequence(),
             "kind", request.kind(),
             "payload_digest", request.payloadDigest(),
+            "payload_byte_length", payloadByteLength,
             "qualification_state", state));
-    return new SubmitResult(request.id(), "ACCEPTED", "Accepted.", state);
+    return new SubmitResult(
+        request.id(),
+        "ACCEPTED",
+        "Accepted.",
+        state,
+        actualPayloadDigest,
+        request.payloadDigest(),
+        payloadByteLength);
   }
 
-  private SubmitResult quarantine(DelegationPrincipal actor, SubmitEvidence request, String reason) {
+  private SubmitResult quarantine(
+      DelegationPrincipal actor,
+      SubmitEvidence request,
+      String reason,
+      String actualPayloadDigest,
+      long payloadByteLength) {
     jdbc.update(
         "INSERT INTO " + SCHEMA + "quarantined_evidence (quarantine_id, tenant_id, environment_id, "
             + "evidence_id, source_ref, sequence, reason, payload, claimed_digest, "
-            + "source_class, observed_at, kind, submitted_by, service_id, schema_version) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "source_class, observed_at, kind, submitted_by, service_id, schema_version, "
+            + "payload_byte_length, actual_payload_digest) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         UUID.randomUUID(),
         actor.tenantId(),
         actor.environmentId(),
@@ -190,8 +218,17 @@ class EvidenceService {
         request.kind(),
         actor.principalId(),
         request.serviceId(),
-        request.schemaVersion());
-    return new SubmitResult(request.id(), "QUARANTINED", reason, null);
+        request.schemaVersion(),
+        payloadByteLength,
+        actualPayloadDigest);
+    return new SubmitResult(
+        request.id(),
+        "QUARANTINED",
+        reason,
+        null,
+        actualPayloadDigest,
+        request.payloadDigest(),
+        payloadByteLength);
   }
 
   private boolean validProviderObservation(SubmitEvidence request) {
@@ -630,6 +667,7 @@ class EvidenceService {
         rs.getString("service_id"),
         rs.getString("schema_version"),
         rs.getString("payload_digest"),
+        rs.getLong("payload_byte_length"),
         rs.getString("submitted_by"),
         rs.getString("qualification_state"),
         rs.getLong("revision"),
@@ -710,9 +748,12 @@ class EvidenceService {
   }
 
   private static String sha256(String value) {
+    return sha256(value.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static String sha256(byte[] value) {
     try {
-      return HexFormat.of()
-          .formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value));
     } catch (NoSuchAlgorithmException error) {
       throw new IllegalStateException("SHA-256 is required by the runtime.", error);
     }

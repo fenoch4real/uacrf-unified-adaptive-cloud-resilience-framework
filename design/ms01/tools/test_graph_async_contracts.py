@@ -78,6 +78,8 @@ class GraphAsyncContractTests(unittest.TestCase):
                 "selection_digest",
                 "changes",
                 "inventory_reconciliation",
+                "slo_objectives",
+                "objective_set_change",
             },
             set(result["properties"]),
         )
@@ -85,6 +87,22 @@ class GraphAsyncContractTests(unittest.TestCase):
         self.assertEqual(1000, result["properties"]["nodes"]["maxItems"])
         self.assertEqual(5000, result["properties"]["edges"]["maxItems"])
         self.assertEqual(100, result["properties"]["changes"]["maxItems"])
+        self.assertEqual(
+            "#/components/schemas/GraphSloObjectiveSnapshot",
+            result["properties"]["slo_objectives"]["$ref"],
+        )
+        self.assertEqual(
+            "#/components/schemas/GraphObjectiveSetChange",
+            result["properties"]["objective_set_change"]["$ref"],
+        )
+        self.assertEqual(
+            100,
+            generator.graph_slo_objective_snapshot_schema()["properties"]["objectives"]["maxItems"],
+        )
+        self.assertIn(
+            "indeterminate",
+            generator.graph_objective_set_change_schema()["description"],
+        )
 
         node = generator.graph_advisory_node_schema()
         edge = generator.graph_advisory_edge_schema()
@@ -216,6 +234,9 @@ class GraphAsyncContractTests(unittest.TestCase):
             query_description = selection["properties"]["query_id"]["description"]
             self.assertIn("v1 covers bounded dependency selection", query_description)
             self.assertIn("v2 additionally selects READS_FROM", query_description)
+            self.assertIn("v3 preserves v2", query_description)
+            self.assertIn("active objectives", query_description)
+            self.assertIn("forces classification to indeterminate", query_description)
             self.assertIn(
                 r"^catalog://service/[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}/revision/[1-9][0-9]{0,15}$",
                 selection["properties"]["query_parameters_ref"]["pattern"],

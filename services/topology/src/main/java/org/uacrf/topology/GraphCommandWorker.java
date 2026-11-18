@@ -30,6 +30,7 @@ class GraphCommandWorker {
       Set.of("IN_FAILURE_DOMAIN","MEMBER_OF_FAILURE_DOMAIN");
   private static final String V1_QUERY="action-relevant-dependencies.v1";
   private static final String V2_QUERY="action-relevant-dependencies.v2";
+  private static final String V3_QUERY="action-relevant-dependencies.v3";
   // These are the only existing S06 labels mapped to canonical READS_FROM endpoint roles.
   private static final Map<String,String> READ_SOURCE_TYPES=Map.of(
       "service","Service","agent_workload","ApplicationComponent");
@@ -116,7 +117,11 @@ class GraphCommandWorker {
     if ("SUBGRAPH_SELECTION".equals(claim.operation())) {
       String queryId=claim.binding().get("query_id") instanceof String value?value:V1_QUERY;
       return graphMatches(claim,"graph_revision_id","graph_digest")
-          && Set.of(V1_QUERY,V2_QUERY).contains(queryId);
+          && Set.of(V1_QUERY,V2_QUERY,V3_QUERY).contains(queryId)
+          && (!V3_QUERY.equals(queryId)
+              || validObjectiveSnapshot(claim.binding().get("slo_objective_snapshot"),
+                  mapValue(claim.binding().get("case_receipt")).get("workload_id"),
+                  "topology.graph.subgraph-selection"));
     }
     if (!graphMatches(claim,"authorized_graph_revision_id","authorized_graph_digest")
         || !graphMatches(claim,"current_graph_revision_id","current_graph_digest")) return false;
@@ -125,14 +130,26 @@ class GraphCommandWorker {
     String selectionDigest=(String)claim.binding().get("selection_digest");
     String snapshotQuery=snapshot.get("query_id") instanceof String value?value:V1_QUERY;
     String boundQuery=selectionBinding.get("query_id") instanceof String value?value:snapshotQuery;
+    boolean validObjectiveContext=!V3_QUERY.equals(snapshotQuery)
+        || (validObjectiveSnapshot(selectionBinding.get("slo_objective_snapshot"),
+                mapValue(selectionBinding.get("case_receipt")).get("workload_id"),
+                "topology.graph.subgraph-selection")
+            && validObjectiveSnapshot(snapshot.get("slo_objectives"),
+                mapValue(selectionBinding.get("case_receipt")).get("workload_id"),
+                "topology.graph.subgraph-selection")
+            && snapshot.get("slo_objectives").equals(selectionBinding.get("slo_objective_snapshot"))
+            && validObjectiveSnapshot(claim.binding().get("current_slo_objective_snapshot"),
+                mapValue(claim.binding().get("case_receipt")).get("workload_id"),
+                "topology.graph.difference-classification"));
     return selectionDigest!=null
         && selectionDigest.equals(selectionDigest(snapshot))
         && claim.binding().get("authorized_graph_revision_id").equals(snapshot.get("graph_revision_id"))
         && claim.binding().get("service_id").equals(snapshot.get("service_id"))
         && snapshotQuery.equals(boundQuery)
-        && Set.of(V1_QUERY,V2_QUERY).contains(snapshotQuery)
+        && Set.of(V1_QUERY,V2_QUERY,V3_QUERY).contains(snapshotQuery)
         && selectionBinding.get("service_snapshot") instanceof Map<?,?> serviceSnapshot
-        && claim.binding().get("service_id").equals(serviceSnapshot.get("service_id"));
+        && claim.binding().get("service_id").equals(serviceSnapshot.get("service_id"))
+        && validObjectiveContext;
   }
 
   private boolean graphMatches(Claim claim,String idKey,String digestKey) {
@@ -280,7 +297,7 @@ class GraphCommandWorker {
       }
     }
     String queryId=binding.get("query_id") instanceof String value?value:V1_QUERY;
-    if (V2_QUERY.equals(queryId)) {
+    if (V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId)) {
       for (TopologyResponses.Node node:List.copyOf(selectedNodes.values())) {
         if (!CANONICAL_READ_CONSUMERS.contains(READ_SOURCE_TYPES.get(node.entityType()))) continue;
         NodeKey source=new NodeKey(node.entityType(),node.entityId());
@@ -308,7 +325,7 @@ class GraphCommandWorker {
       }
     }
 
-    List<String> unsupported=List.of(
+    List<String> unsupported=new java.util.ArrayList<>(List.of(
         "SLOs and versioned measurement definitions",
         "customer journeys, journey steps, and customer segments",
         "S02 service-revision snapshots do not bind journey membership, capability links, customer segments, or related catalog associations",
@@ -316,7 +333,9 @@ class GraphCommandWorker {
         "controls and enforcement points",
         "approved fallbacks, recovery paths, certification, expiry, and recertification",
         "API, data-store, queue, feature-pipeline, team, provider, essential-function, and outcome graph objects",
-        "bounded S04 summaries with an operation-specific freshness threshold");
+        "bounded S04 summaries with an operation-specific freshness threshold"));
+    if (V3_QUERY.equals(queryId))
+      unsupported.set(0,"SLO graph relationships and objective-to-measurement links");
     Map<String,Object> result=new LinkedHashMap<>();
     result.put("kind","ACTION_RELEVANT_SUBGRAPH");
     result.put("outcome","INCOMPLETE"); result.put("complete",false); result.put("advisory_only",true);
@@ -349,8 +368,12 @@ class GraphCommandWorker {
         "service-rooted, catalog-revision-bound agent-workload mapping",
         "accepted S06 DEPENDS_ON edges within the pinned graph revision",
         "bounded region, cloud-resource, identity, model, and failure-domain context where represented"));
-    if (V2_QUERY.equals(queryId))
+    if (V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId))
       supportedDomains.add("accepted READS_FROM edges from reachable service and agent-workload sources to shared-resource targets");
+    if (V3_QUERY.equals(queryId)) {
+      supportedDomains.add("the point-in-time S05 active-objective set for the S07 case workload, retained as owner-derived context only");
+      result.put("slo_objectives",binding.get("slo_objective_snapshot"));
+    }
     result.put("supported_domains",supportedDomains);
     result.put("unsupported_domains",unsupported);
     result.put("verified_s04_summaries",evidenceSnapshot instanceof Map<?,?> snapshot
@@ -425,6 +448,12 @@ class GraphCommandWorker {
         ?retainedQuery:V1_QUERY;
     retainedSelectionBinding.putIfAbsent("query_id",queryId);
     Map<String,Object> selectionBinding=retainedSelectionBinding;
+    if (V3_QUERY.equals(queryId)) {
+      selectionBinding=new LinkedHashMap<>(retainedSelectionBinding);
+      selectionBinding.put("case_receipt",claim.binding().get("case_receipt"));
+      selectionBinding.put("slo_objective_snapshot",
+          claim.binding().get("current_slo_objective_snapshot"));
+    }
     String currentGraphId=(String)claim.binding().get("current_graph_revision_id");
     String currentGraphDigest=(String)claim.binding().get("current_graph_digest");
     Computation current=select(claim,selectionBinding,currentGraphId,currentGraphDigest,
@@ -457,7 +486,7 @@ class GraphCommandWorker {
     Set<EdgeValue> addedFailureDomains=new java.util.TreeSet<>(newFailureDomains);
     addedFailureDomains.removeAll(oldFailureDomains);
 
-    ReadDelta readDelta=V2_QUERY.equals(queryId)
+    ReadDelta readDelta=(V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId))
         ?compareReadEdges(edges(authorizedSnapshot,"READS_FROM"),
             edges(current.selectionSnapshot(),"READS_FROM"))
         :ReadDelta.empty();
@@ -488,6 +517,19 @@ class GraphCommandWorker {
     List<Map<String,Object>> changes=List.copyOf(allChanges.stream()
         .limit(MAX_RESULT_CHANGES).toList());
 
+    Map<String,Object> objectiveSetChange=null;
+    boolean objectivesChanged=false;
+    if (V3_QUERY.equals(queryId)) {
+      Map<String,Object> authorizedObjectives=mapValue(authorizedSnapshot.get("slo_objectives"));
+      Map<String,Object> currentObjectives=mapValue(current.selectionSnapshot().get("slo_objectives"));
+      String authorizedSetDigest=(String)authorizedObjectives.get("set_digest");
+      String currentSetDigest=(String)currentObjectives.get("set_digest");
+      objectivesChanged=!authorizedSetDigest.equals(currentSetDigest);
+      objectiveSetChange=Map.of("workload_id",authorizedObjectives.get("workload_id"),
+          "authorized_set_digest",authorizedSetDigest,"current_set_digest",currentSetDigest,
+          "changed",objectivesChanged);
+    }
+
     String classification;
     boolean mixedReadDelta=readDelta.mixed();
     if (mixedReadDelta) {
@@ -504,6 +546,7 @@ class GraphCommandWorker {
     } else {
       classification="indeterminate";
     }
+    if (objectivesChanged) classification="indeterminate";
     boolean coverageUnknown=Boolean.TRUE.equals(authorizedSnapshot.get("truncated"))
         || Boolean.TRUE.equals(current.selectionSnapshot().get("truncated"))
         || !Boolean.TRUE.equals(authorizedSnapshot.get("catalog_membership_supported"))
@@ -512,6 +555,7 @@ class GraphCommandWorker {
         || !asList(current.selectionSnapshot().get("missing_workload_roots")).isEmpty()
         || !evidenceComplete(authorizedSnapshot.get("s04_summary_coverage"))
         || !evidenceComplete(current.selectionSnapshot().get("s04_summary_coverage"))
+        || objectivesChanged
         || changesTruncated;
     String completeness=classification.equals("indeterminate") || coverageUnknown
         ?"INDETERMINATE":"INCOMPLETE";
@@ -530,6 +574,7 @@ class GraphCommandWorker {
     result.put("selection_digest",claim.binding().get("selection_digest"));
     result.put("selection_revision",claim.binding().get("selection_revision"));
     result.put("current_selection_digest",current.selectionDigest());
+    if (objectiveSetChange!=null) result.put("objective_set_change",objectiveSetChange);
     result.put("dependency_additions",addedDependencies.stream().map(EdgeValue::asMap).toList());
     result.put("dependency_removals",removedDependencies.stream().map(EdgeValue::asMap).toList());
     result.put("dependency_target_changes",dependencyTargetChanges);
@@ -543,29 +588,36 @@ class GraphCommandWorker {
         "a changed DEPENDS_ON target or MEMBER_OF_FAILURE_DOMAIN membership classifies as target-changing",
         "legacy IN_FAILURE_DOMAIN membership is interpreted as MEMBER_OF_FAILURE_DOMAIN",
         "no supported delta or mixed unpaired additions/removals classify as indeterminate"));
-    if (V2_QUERY.equals(queryId)) {
+    if (V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId)) {
       supportedRules.add("added READS_FROM edges classify as widening");
       supportedRules.add("removed READS_FROM edges classify as narrowing");
       supportedRules.add("a same-source READS_FROM target replacement classifies as target-changing");
       supportedRules.add("mixed or unpaired READS_FROM additions and removals classify as indeterminate");
     }
+    if (V3_QUERY.equals(queryId))
+      supportedRules.add("a changed S05 active-objective set classifies as indeterminate; objective changes are not converted into graph changes");
     result.put("supported_rules",supportedRules);
-    if (V2_QUERY.equals(queryId)) {
+    if (V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId)) {
       result.put("read_additions",readAdditions.stream().map(EdgeValue::asMap).toList());
       result.put("read_removals",readRemovals.stream().map(EdgeValue::asMap).toList());
       result.put("read_target_changes",readTargetChanges);
     }
-    result.put("unsupported_domains",unsupportedDomains());
+    List<String> unsupported=unsupportedDomains();
+    if (V3_QUERY.equals(queryId)) {
+      unsupported=new java.util.ArrayList<>(unsupported);
+      unsupported.set(0,"SLO graph relationships and objective-to-measurement links");
+    }
+    result.put("unsupported_domains",unsupported);
     result.put("authorized_evidence_coverage",authorizedSnapshot.get("s04_summary_coverage"));
     result.put("current_evidence_coverage",current.selectionSnapshot().get("s04_summary_coverage"));
     result.put("freshness_limitation",
         "S04 supplies no evidence-expiration policy. observed_at is retained metadata; QUALIFIED does not certify freshness.");
-    result.put("coverage_limitation",V2_QUERY.equals(queryId)
+    result.put("coverage_limitation",(V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId))
         ?"The supported graph delta is only a bounded dependency/read/failure-domain advisory; all listed ontology and freshness domains remain unimplemented."
         :"The supported graph delta is only a bounded dependency/failure-domain advisory; all listed ontology and freshness domains remain unimplemented.");
     result.put("summary","Supported graph delta classified as "+classification
         +" with "+changes.size()+" bounded change entries; overall coverage is "+completeness+".");
-    result.put("reason_code",classification.equals("indeterminate")
+    result.put("reason_code",objectivesChanged?"OBJECTIVE_SET_CHANGED":classification.equals("indeterminate")
         ?"NO_DETERMINATE_SUPPORTED_DELTA":coverageUnknown
         ?"SUPPORTED_DELTA_WITH_INCOMPLETE_COVERAGE":"SUPPORTED_DELTA_WITH_INCOMPLETE_ONTOLOGY");
     Map<String,Object> comparisonSnapshot=new LinkedHashMap<>();
@@ -588,7 +640,8 @@ class GraphCommandWorker {
     comparisonSnapshot.put("changes_truncated",changesTruncated);
     comparisonSnapshot.put("authorized_evidence_coverage",authorizedSnapshot.get("s04_summary_coverage"));
     comparisonSnapshot.put("current_evidence_coverage",current.selectionSnapshot().get("s04_summary_coverage"));
-    if (V2_QUERY.equals(queryId)) {
+    if (objectiveSetChange!=null) comparisonSnapshot.put("objective_set_change",objectiveSetChange);
+    if (V2_QUERY.equals(queryId) || V3_QUERY.equals(queryId)) {
       comparisonSnapshot.put("read_additions",readAdditions.stream().map(EdgeValue::asMap).toList());
       comparisonSnapshot.put("read_removals",readRemovals.stream().map(EdgeValue::asMap).toList());
       comparisonSnapshot.put("read_target_changes",readTargetChanges);
@@ -704,6 +757,18 @@ class GraphCommandWorker {
         "approved fallbacks, recovery paths, certification, expiry, and recertification",
         "API, data-store, queue, feature-pipeline, team, provider, essential-function, and outcome graph objects",
         "bounded S04 summaries with an operation-specific freshness threshold");
+  }
+
+  private boolean validObjectiveSnapshot(Object value,Object expectedWorkload,String purpose) {
+    if (!(value instanceof Map<?,?> snapshot)
+        || !snapshot.keySet().equals(Set.of("workload_id","purpose","objectives","set_digest"))
+        || !java.util.Objects.equals(snapshot.get("workload_id"),expectedWorkload)
+        || !purpose.equals(snapshot.get("purpose"))
+        || !(snapshot.get("objectives") instanceof List<?> objectives)
+        || objectives.size()>100
+        || !(snapshot.get("set_digest") instanceof String digest)
+        || !digest.matches("[a-f0-9]{64}")) return false;
+    return true;
   }
 
   private String selectionDigest(Map<String,Object> value) {

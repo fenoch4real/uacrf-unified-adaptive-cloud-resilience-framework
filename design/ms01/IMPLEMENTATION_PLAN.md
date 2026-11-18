@@ -24,6 +24,52 @@ Implement the objective-import preview/read/resolve/propose/history path and pro
 
 Completion requires service-only, agent-only and mixed dependency views; current-source failure handling; duplicated/out-of-order events; graph content verification; and a UI walkthrough that can complete the setup with retained results. S14 can lag without losing domain facts, while downstream action eligibility must detect stale required context.
 
+### M2 focused runtime validation strategy
+
+This gate validates the S01-S05-S06 objective-context path only. It is an API-only distributed-service test, not M2 acceptance: Kafka event processing, artifact storage, browser journeys, S03/S04/S07 live owners, cloud-provider conformance, and the remaining M2 workflows are outside its scope and remain open.
+
+**Critical journeys**
+
+1. **Authorized objective context:** create an active S05 objective and an accepted S06 graph, then submit an action-relevant selection through S06. Exercise S06's real HTTP delegation exchange with S01 and its objective-receipt request to S05. Verify the selected result contains the exact objective-set digest and objective, adds no graph edge, and survives a command-status read-back. Also verify the same flow rejects a missing or invalid caller token.
+2. **Changed objective set:** persist a selection against one S05 objective-set digest, change the active objective set through S05's public lifecycle, then classify against the changed context. Verify S06 returns an indeterminate/non-actionable result rather than reusing the stale digest, and read the result back from S06 persistence. Verify a caller with an invalid or expired token cannot obtain the result.
+3. **Delegation and scope denial:** run one valid scoped selection and verify its persisted terminal result, then repeat with a missing token, wrong purpose, or absent S01 membership. Verify the denied request creates no successful S06 command and does not retrieve an S05 receipt.
+
+Each journey is a multi-step setup/action/assert/read-back/cleanup flow with unique data. The three journeys will be runnable as separate test files. Each file must include a positive path, an authentication/authority failure assertion, and a persistence assertion.
+
+**Primary validation stack and dependency strategy**
+
+- Run S01, S05, and S06 as separate Spring Boot application processes with random local HTTP ports. The tests call their HTTP APIs; no S01, S05, or S06 service/owner client is mocked.
+- Use Docker-backed Testcontainers for three isolated PostgreSQL databases and Neo4j for S06. PostgreSQL is required; H2 is not an acceptable substitute for this gate. Generate an ephemeral RSA delegation key pair for the run, seed only test identities and memberships, and never use production credentials.
+- Use deterministic test-only HTTP stubs for S02 service-owner receipts, S04 evidence summaries, and S07 case receipts. They must validate the expected request purpose/scope and return protocol-shaped, test-key-signed receipts. Label these boundaries as stubs in test evidence; they do not prove those owners' live conformance.
+- Kafka and artifact storage are not dependencies of these three synchronous journeys and will not be started or represented as tested.
+- Use the repository Maven wrapper and JUnit/Java HTTP clients. The targeted gate must run through the existing Maven test command, not a separate untracked test runner.
+
+**Fallback matrix and environment**
+
+| Axis | Primary | Fallback | Gate behavior and coverage gap |
+| --- | --- | --- | --- |
+| Infrastructure | Docker Testcontainers with PostgreSQL and Neo4j | None for this gate | If the Docker daemon or required images are unavailable, record the exact failure and mark the gate blocked/unverified; do not silently substitute H2 or mocks for S01/S05/S06 persistence. |
+| Browser | Not applicable: this gate exercises JSON APIs and renders no HTML | Not applicable | Browser rendering, UX01/EDGE01 routing, accessibility, and browser behavior remain unverified and require the separate M1/M8 browser acceptance. |
+
+Required environment: Java 25, the root `./mvnw`, a functional Docker daemon, outbound access or locally cached pinned images, and loopback ports for the service processes and test stubs. Docker and browser capability are independent; this API-only scope does not use Playwright, regardless of Node.js availability.
+
+**Test data and acceptance**
+
+- Generate a UUID namespace per test and use unique tenant, environment, principal, workload, objective, graph, and command identifiers. Seed all required state explicitly; do not rely on pre-existing local data.
+- Use isolated per-service databases and disposable containers. Delete test-owned domain rows during teardown where supported; container teardown is the final isolation boundary. Generate keys in-memory and discard them after the run.
+- PASS for each journey requires the expected HTTP status and response shape, the exact S01 delegation target/purpose and S05 objective digest, a read-back proving persisted state, an authorization-denial check, and clean teardown. A changed objective digest must never produce an actionable result.
+- Preserve test logs, per-test results, exact command and exit code, startup/readiness observations, and the set of real versus stubbed boundaries. Any non-zero test exit code is a failure.
+
+**Legacy test assets and validation review**
+
+- `legacyTestAssets`: existing service-local JUnit/API and Testcontainers suites discovered under the service `src/test/java` trees; no existing S01-S05-S06 cross-service suite or browser E2E suite was identified.
+- `source`: discovered. `migrationDecision`: N/A; retain the service-local suites as regression coverage and add the distinct cross-service journeys without rewriting them.
+- The final reviewer must verify that S01, S05, and S06 are real HTTP applications backed by their own databases; only S02/S04/S07 are stubs; all three journey files contain multi-step positive, denial, and persistence checks; Docker was independently attempted; exit codes and gaps are reported; and no focused-gate result is described as full M2 completion.
+
+**Test infrastructure and execution rule**
+
+The test harness will own container lifecycle, ephemeral signing keys, service process startup/readiness/log capture, test-scoped data, signed stub receipts, and cleanup. Readiness is checked independently for each application before a journey runs. Every implementation or validation task that changes these paths must run its affected module tests and report pass/fail/skip counts; a test failure or unavailable required Docker tier leaves this gate incomplete. The runtime report must state that this focused API gate does not exercise Kafka, artifact storage, browser UX, or full M2 acceptance.
+
 ## M3 Establish assessment knowledge and advisory agents
 
 Build S07, S08 and S09. Migrate deterministic evaluations, observed risk, non-executable recommendations, approved retrieval, case seals and the tested advisory lifecycle. Replace the former database joins with source-owner APIs/receipts and local fingerprints. Preserve bounded source reads, output/dissent history, current source disclosure, independent human arbitration and the remote runtime journal.

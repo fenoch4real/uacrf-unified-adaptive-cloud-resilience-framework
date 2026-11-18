@@ -36,13 +36,14 @@ class TopologyProofClient {
   private static final int MAX_RESPONSE_BYTES = 16 * 1024;
   private static final int MAX_SNAPSHOT_RESPONSE_BYTES = 4 * 1024 * 1024;
   private static final int MAX_SERVICE_WORKLOAD_ROOTS = 10_000;
+  private static final int MAX_ACTIVE_OBJECTIVES = 100;
   private static final Set<String> RECEIPT_FIELDS = Set.of("protocol", "key_id", "receipt_id", "issuer_service", "audience_service", "tenant_id", "environment_id", "actor_id", "resource_type", "resource_id", "resource_version", "resource_revision", "content_digest", "authority_epoch", "eligible", "purpose", "issued_at", "valid_until", "signature");
   private static final Set<String> SUMMARY_FIELDS = Set.of("evidence_id", "source_class", "source_ref", "sequence", "observed_at", "kind", "qualification_state", "revision", "payload_digest");
   private static final String ID = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$";
   private final ObjectMapper json;
   private final JsonMapper responseJson;
   private final HttpClient http;
-  private final String identityUrl, catalogUrl, evidenceUrl, assessmentUrl, keyId;
+  private final String identityUrl, catalogUrl, evidenceUrl, assessmentUrl, objectivesUrl, keyId;
   private final RSAPublicKey publicKey;
 
   TopologyProofClient(ObjectMapper json,
@@ -50,9 +51,10 @@ class TopologyProofClient {
       @Value("${uacrf.topology.catalog-url:http://localhost:8083}") String catalogUrl,
       @Value("${uacrf.topology.evidence-url:http://localhost:8086}") String evidenceUrl,
       @Value("${uacrf.topology.assessment-url:http://localhost:8089}") String assessmentUrl,
+      @Value("${uacrf.topology.objectives-url:http://localhost:8087}") String objectivesUrl,
       @Value("${uacrf.topology.s02-key-id:}") String keyId,
       @Value("${uacrf.topology.s02-public-key-base64:}") String publicKey) {
-    this.json=json; this.identityUrl=ownerUrl(identityUrl); this.catalogUrl=ownerUrl(catalogUrl); this.evidenceUrl=ownerUrl(evidenceUrl); this.assessmentUrl=ownerUrl(assessmentUrl); this.keyId=keyId;
+    this.json=json; this.identityUrl=ownerUrl(identityUrl); this.catalogUrl=ownerUrl(catalogUrl); this.evidenceUrl=ownerUrl(evidenceUrl); this.assessmentUrl=ownerUrl(assessmentUrl); this.objectivesUrl=ownerUrl(objectivesUrl); this.keyId=keyId;
     if (!keyId.isBlank()) DelegationKeyMaterial.validateKeyId(keyId);
     this.publicKey=publicKey.isBlank()?null:DelegationKeyMaterial.decodePublicKey(publicKey);
     this.responseJson=JsonMapper.builder()
@@ -185,6 +187,93 @@ class TopologyProofClient {
       if (!(kind instanceof String value) || value.isBlank() || value.length()>200 || !unique.add(value)) throw failure();
     if (!Instant.now().isBefore(deadline)) throw failure();
     return Map.copyOf(receipt);
+  }
+
+  Map<String,Object> prepareObjectiveSnapshot(
+      Jwt jwt, String workloadId, String purpose, Instant deadline) {
+    if (!validId(workloadId)) throw failure();
+    String token=exchange(jwt,"S05","agent_workload",workloadId,purpose,deadline);
+    String encodedWorkload=UriUtils.encodePathSegment(workloadId,StandardCharsets.UTF_8);
+    Map<String,Object> response=post(objectivesUrl+"/internal/v1/workloads/"+encodedWorkload
+        +"/objectives:receipt",token,Map.of("purpose",purpose),deadline);
+    return validateObjectiveSnapshot(response,workloadId,purpose,deadline);
+  }
+
+  private Map<String,Object> validateObjectiveSnapshot(
+      Map<String,Object> response, String workloadId, String purpose, Instant deadline) {
+    if (!response.keySet().equals(Set.of("workload_id","purpose","objectives","set_digest"))
+        || !workloadId.equals(response.get("workload_id"))
+        || !purpose.equals(response.get("purpose"))
+        || !(response.get("objectives") instanceof List<?> rawObjectives)
+        || rawObjectives.size()>MAX_ACTIVE_OBJECTIVES
+        || !(response.get("set_digest") instanceof String setDigest)
+        || !setDigest.matches("^[a-f0-9]{64}$")) throw failure();
+
+    List<Map<String,Object>> objectives=new java.util.ArrayList<>();
+    String previousMetric=null;
+    Set<String> ids=new java.util.HashSet<>();
+    StringBuilder digestMaterial=new StringBuilder(workloadId);
+    Set<String> fields=Set.of(
+        "id","metric","comparator","target","unit","window_seconds","revision","content_digest");
+    for (Object raw:rawObjectives) {
+      if (!(raw instanceof Map<?,?> objective) || !objective.keySet().equals(fields)
+          || !(objective.get("id") instanceof String id) || !id.matches(ID)
+          || !ids.add(id)
+          || !(objective.get("metric") instanceof String metric)
+          || !metric.matches("^[a-z][a-z0-9_.-]{0,99}$")
+          || (previousMetric!=null && previousMetric.compareTo(metric)>=0)
+          || !(objective.get("comparator") instanceof String comparator)
+          || !Set.of("GTE","LTE").contains(comparator)
+          || !(objective.get("target") instanceof Number target)
+          || decimal(target)==null
+          || !(objective.get("unit") instanceof String unit)
+          || !unit.matches("^[A-Za-z0-9_./%-]{1,30}$")
+          || !positiveInteger(objective.get("window_seconds"),Integer.MAX_VALUE)
+          || !positiveInteger(objective.get("revision"),Long.MAX_VALUE)
+          || !(objective.get("content_digest") instanceof String contentDigest)
+          || !contentDigest.matches("^[a-f0-9]{64}$")) throw failure();
+      long objectiveRevision=((Number)objective.get("revision")).longValue();
+      Map<String,Object> validated=new LinkedHashMap<>();
+      validated.put("id",id);
+      validated.put("metric",metric);
+      validated.put("comparator",comparator);
+      validated.put("target",decimal(target));
+      validated.put("unit",unit);
+      validated.put("window_seconds",((Number)objective.get("window_seconds")).intValue());
+      validated.put("revision",objectiveRevision);
+      validated.put("content_digest",contentDigest);
+      objectives.add(Map.copyOf(validated));
+      digestMaterial.append('|').append(id).append(':').append(objectiveRevision)
+          .append(':').append(contentDigest);
+      previousMetric=metric;
+    }
+    if (!setDigest.equals(sha256(digestMaterial.toString()))
+        || !Instant.now().isBefore(deadline)) throw stale();
+    Map<String,Object> snapshot=new LinkedHashMap<>();
+    snapshot.put("workload_id",workloadId);
+    snapshot.put("purpose",purpose);
+    snapshot.put("objectives",List.copyOf(objectives));
+    snapshot.put("set_digest",setDigest);
+    return Map.copyOf(snapshot);
+  }
+
+  private static BigDecimal decimal(Object value) {
+    if (!(value instanceof Number number)) return null;
+    try {
+      return new BigDecimal(number.toString());
+    } catch (NumberFormatException error) {
+      return null;
+    }
+  }
+
+  private static boolean positiveInteger(Object value,long maximum) {
+    if (!(value instanceof Number number)) return false;
+    try {
+      long result=new BigDecimal(number.toString()).longValueExact();
+      return result>0 && result<=maximum;
+    } catch (NumberFormatException | ArithmeticException error) {
+      return false;
+    }
   }
 
   private Map<String,Object> owner(Jwt jwt, DelegationPrincipal actor, String purpose, String id, String version, Map<String,Object> prior, Instant deadline) {

@@ -278,6 +278,66 @@ class TopologyApplicationTests {
     assertEquals("action-relevant-dependencies.v1",recomputedQuery);
   }
 
+  @Test void v3SelectionBindsCaseWorkloadObjectivesAndMakesChangedSetIndeterminate() throws Exception {
+    String alice=token("alice","slo-context","*",ALL), bob=token("bob","slo-context","*",ALL);
+    createAndApprove(alice,bob,proposal("slo-context-root","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"slo-context-root");
+    JsonNode authorized=json.readTree(post("/v1/graphs:accept",bob,accept(0)).body());
+    stubCommandProofs("svc","1",TopologyProofClient.SUBGRAPH_SELECTION);
+    String sloRequest=selectionRequest(authorized.get("id").asString(),"SLO context",
+        "action-relevant-dependencies.v3",0);
+    assertEquals(409,postCommand("/v1/graphs/subgraphs:select",bob,"slo-context-unmatched",
+        sloRequest).statusCode());
+    org.mockito.Mockito.verify(proofs,org.mockito.Mockito.never())
+        .prepareObjectiveSnapshot(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.any());
+    whenCaseReceiptForWorkload(TopologyProofClient.SUBGRAPH_SELECTION,"agent");
+    org.mockito.Mockito.when(proofs.prepareObjectiveSnapshot(org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.eq("agent"),
+        org.mockito.ArgumentMatchers.eq(TopologyProofClient.SUBGRAPH_SELECTION),
+        org.mockito.ArgumentMatchers.any()))
+        .thenReturn(objectiveSnapshot("agent",TopologyProofClient.SUBGRAPH_SELECTION,"a".repeat(64)));
+
+    JsonNode selection=runSelection(bob,"slo-context-selection",sloRequest);
+    assertEquals("a".repeat(64),selection.get("slo_objectives").get("set_digest").asString());
+    assertThat(selection.get("supported_domains").toString())
+        .contains("owner-derived context only");
+    assertThat(selection.get("edges").toString()).doesNotContain("GOVERNED_BY_SLO");
+    String selectionCommandId=db.queryForObject("SELECT command_id::text FROM "
+        +"uacrf_topology.graph_domain_revision WHERE selection_digest=?",
+        String.class,selection.get("result_digest").asString());
+    JsonNode publicSelection=json.readTree(get("/v1/commands/"+selectionCommandId,bob).body());
+    assertEquals(selection.get("slo_objectives"),
+        publicSelection.get("advisory_result").get("slo_objectives"));
+
+    createAndApprove(alice,bob,proposal("slo-context-read","agent_workload","agent",
+        "READS_FROM","shared_resource","data-store","AUTHORED",""),"slo-context-read");
+    JsonNode current=json.readTree(post("/v1/graphs:accept",bob,accept(1)).body());
+    whenCaseReceiptForWorkload(TopologyProofClient.DIFFERENCE_CLASSIFICATION,"agent");
+    org.mockito.Mockito.when(proofs.prepareObjectiveSnapshot(org.mockito.ArgumentMatchers.any(),
+        org.mockito.ArgumentMatchers.eq("agent"),
+        org.mockito.ArgumentMatchers.eq(TopologyProofClient.DIFFERENCE_CLASSIFICATION),
+        org.mockito.ArgumentMatchers.any()))
+        .thenReturn(objectiveSnapshot("agent",TopologyProofClient.DIFFERENCE_CLASSIFICATION,"b".repeat(64)));
+
+    JsonNode receipt=json.readTree(postCommand("/v1/graphs/differences:classify",bob,
+        "slo-context-classification",classifyRequest("svc",authorized.get("id").asString(),
+            current.get("id").asString(),selection.get("result_digest").asString(),0)).body());
+    JsonNode result=runClassification(bob,receipt);
+    assertEquals("indeterminate",result.get("classification").asString());
+    assertEquals(true,result.get("objective_set_change").get("changed").asBoolean());
+    assertThat(result.get("read_additions").toString()).contains("data-store");
+    assertThat(result.get("supported_rules").toString()).contains("changed S05 active-objective set");
+    JsonNode publicClassification=json.readTree(get("/v1/commands/"
+        +receipt.get("command_id").asString(),bob).body());
+    assertEquals(result.get("objective_set_change"),
+        publicClassification.get("advisory_result").get("objective_set_change"));
+    String recomputedQuery=db.queryForObject("SELECT comparison_snapshot->'current_selection_snapshot'->>'query_id' "
+        +"FROM uacrf_topology.graph_domain_revision WHERE command_id=?::uuid",
+        String.class,receipt.get("command_id").asString());
+    assertEquals("action-relevant-dependencies.v3",recomputedQuery);
+  }
+
   @Test void selectionRevisionFenceAllowsMatchingPositiveAndRejectsStaleRevision() throws Exception {
     String alice=token("alice","selection-revisions","*",ALL), bob=token("bob","selection-revisions","*",ALL);
     createAndApprove(alice,bob,proposal("revision-edge","service","svc","DEPENDS_ON",
@@ -703,10 +763,17 @@ class TopologyApplicationTests {
         .contains(status);
   }
   private void whenCaseReceipt(String purpose) {
+    whenCaseReceiptForWorkload(purpose,"workload-1");
+  }
+  private void whenCaseReceiptForWorkload(String purpose,String workloadId) {
     org.mockito.Mockito.when(proofs.prepareCaseReceipt(org.mockito.ArgumentMatchers.any(),
         org.mockito.ArgumentMatchers.eq("case-1"),org.mockito.ArgumentMatchers.eq(purpose),org.mockito.ArgumentMatchers.any()))
         .thenReturn(Map.of("case_id","case-1","purpose","incident","case_digest","d".repeat(64),
-            "workload_id","workload-1","required_source_kinds",List.of("metrics")));
+            "workload_id",workloadId,"required_source_kinds",List.of("metrics")));
+  }
+  private static Map<String,Object> objectiveSnapshot(String workloadId,String purpose,String digest) {
+    return Map.of("workload_id",workloadId,"purpose",purpose,"objectives",List.of(),
+        "set_digest",digest);
   }
   private HttpResponse<String> postCommand(String path,String token,String key,String body) throws Exception {
     HttpRequest.Builder request=HttpRequest.newBuilder(URI.create("http://localhost:"+port+path))

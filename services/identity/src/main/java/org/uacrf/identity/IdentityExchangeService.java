@@ -74,6 +74,7 @@ class IdentityExchangeService {
       downstreamCapability = switch (audience + "/" + resourceType) {
         case "S02/service" -> "catalog.service.read";
         case "S04/evidence_event" -> "evidence.topology.summary";
+        case "S05/agent_workload" -> "objectives.objective.read";
         case "S07/assessment_case" -> "assessment.case.read";
         default -> throw invalid("The audience and resource type are not supported for this purpose.");
       };

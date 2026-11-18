@@ -28,6 +28,7 @@
     <module>services/evidence</module>
     <module>services/objectives</module>
     <module>services/topology</module>
+    <module>integration-tests/m2-live</module>
     <module>services/assessment</module>
     <module>services/knowledge</module>
     <module>services/advisory</module>

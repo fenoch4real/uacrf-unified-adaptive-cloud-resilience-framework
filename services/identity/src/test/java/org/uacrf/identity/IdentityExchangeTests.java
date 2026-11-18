@@ -113,13 +113,14 @@ class IdentityExchangeTests {
   }
 
   @Test
-  void narrowsGraphOperationDelegationsToCurrentCaseAndServiceReceipts() {
+  void narrowsGraphOperationDelegationsToOwnerReceipts() {
     for (String purpose : List.of(
         "topology.graph.subgraph-selection", "topology.graph.difference-classification")) {
       Jwt assertion = incoming("S06", "topology.graph.read", now.minusSeconds(1), now.plusSeconds(20));
       for (var target : List.of(
           List.of("S07", "assessment_case", "case-1", "assessment.case.read"),
           List.of("S02", "service", "service-1", "catalog.service.read"),
+          List.of("S05", "agent_workload", "workload-1", "objectives.objective.read"),
           List.of("S04", "evidence_event", "evidence-1", "evidence.topology.summary"))) {
         Jwt result = decodeOutput(
             service.exchange(assertion, request(target.get(0), target.get(1), target.get(2), purpose))
@@ -170,7 +171,8 @@ class IdentityExchangeTests {
         "topology.graph.subgraph-selection", "topology.graph.difference-classification")) {
       for (var invalidTarget : List.of(
             List.of("S02", "agent_workload"), List.of("S04", "service"),
-            List.of("S07", "service"), List.of("S02", "assessment_case"))) {
+            List.of("S07", "service"), List.of("S02", "assessment_case"),
+            List.of("S05", "service"), List.of("S05", "assessment_case"))) {
         assertInvalid(assertion, request(invalidTarget.get(0), invalidTarget.get(1), "resource-1", purpose));
       }
     }

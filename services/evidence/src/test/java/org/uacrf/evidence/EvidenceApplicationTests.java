@@ -166,6 +166,52 @@ class EvidenceApplicationTests {
   }
 
   @Test
+  void observationPayloadMetadataTracksUtf8BytesForAcceptedAndQuarantinedPayloads() throws Exception {
+    String submit = bearer("raw-byte-submitter", "tenant-byte-metadata", SUBMITTER);
+    String payload = "{\"message\":\"é☃\"}";
+    long byteLength = payload.getBytes(StandardCharsets.UTF_8).length;
+    String actualDigest = sha(payload);
+
+    HttpResponse<String> accepted =
+        post(
+            "/internal/v1/observations",
+            submit,
+            evidence("byte-meta-accepted", "SAMPLE_LOCAL", "byte-source", 1, payload, actualDigest));
+    assertEquals(202, accepted.statusCode());
+    var acceptedResult = json.readTree(accepted.body());
+    assertEquals(actualDigest, acceptedResult.get("actual_payload_digest").asString());
+    assertEquals(actualDigest, acceptedResult.get("claimed_payload_digest").asString());
+    assertEquals(byteLength, acceptedResult.get("payload_byte_length").asLong());
+    var retained =
+        json.readTree(get("/v1/evidence/byte-meta-accepted", submit).body());
+    assertEquals(actualDigest, retained.get("payload_digest").asString());
+    assertEquals(byteLength, retained.get("payload_byte_length").asLong());
+
+    String claimedDigest = "0".repeat(64);
+    HttpResponse<String> quarantined =
+        post(
+            "/internal/v1/observations",
+            submit,
+            evidence("byte-meta-quarantined", "SAMPLE_LOCAL", "byte-source", 2, payload, claimedDigest));
+    assertEquals(202, quarantined.statusCode());
+    var quarantineResult = json.readTree(quarantined.body());
+    assertEquals("QUARANTINED", quarantineResult.get("status").asString());
+    assertEquals(actualDigest, quarantineResult.get("actual_payload_digest").asString());
+    assertEquals(claimedDigest, quarantineResult.get("claimed_payload_digest").asString());
+    assertEquals(byteLength, quarantineResult.get("payload_byte_length").asLong());
+    Map<String, Object> quarantineRow =
+        jdbc.queryForMap(
+            "SELECT payload_byte_length, actual_payload_digest, claimed_digest "
+                + "FROM uacrf_evidence.quarantined_evidence "
+                + "WHERE tenant_id=? AND evidence_id=?",
+            "tenant-byte-metadata",
+            "byte-meta-quarantined");
+    assertEquals(byteLength, ((Number) quarantineRow.get("payload_byte_length")).longValue());
+    assertEquals(actualDigest, quarantineRow.get("actual_payload_digest").toString().trim());
+    assertEquals(claimedDigest, quarantineRow.get("claimed_digest").toString().trim());
+  }
+
+  @Test
   void qualificationPolicyLifecycleIsScopedVersionedAndMetadataOnly() throws Exception {
     String tenant = "tenant-policy";
     String service = "svc-policy";
@@ -612,8 +658,15 @@ class EvidenceApplicationTests {
         .contains("\"usable_as_evidence\":false").contains("cutoff");
     assertEquals(404, post(path, bearer("reader", "other-tenant", REVIEWER), request).statusCode());
     assertEquals(403, post(path, bearer("reader", "tenant-measurement", List.of()), request).statusCode());
-    jdbc.update("UPDATE uacrf_evidence.evidence_event SET payload=? WHERE tenant_id=? AND id=?",
-        "{\"metric\":\"latency\",\"value\":999,\"unit\":\"ms\"}", "tenant-measurement", "measurement-1");
+    String alteredPayload = "{\"metric\":\"latency\",\"value\":999,\"unit\":\"ms\"}";
+    jdbc.update(
+        "UPDATE uacrf_evidence.evidence_event "
+            + "SET payload=?, payload_byte_length=octet_length(convert_to(?, 'UTF8')) "
+            + "WHERE tenant_id=? AND id=?",
+        alteredPayload,
+        alteredPayload,
+        "tenant-measurement",
+        "measurement-1");
     assertThat(post(path, reviewer, request).body()).contains("\"usable_as_evidence\":false").contains("digest");
   }
 
@@ -931,6 +984,21 @@ class EvidenceApplicationTests {
       var source = new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword());
       Flyway.configure().dataSource(source).target("1").load().migrate();
       var oldDb = new JdbcTemplate(source);
+      String legacyPayload = "legacy naïve ☃";
+      oldDb.update(
+          "INSERT INTO uacrf_evidence.evidence_event "
+              + "(tenant_id, environment_id, id, source_class, source_ref, sequence, observed_at, "
+              + "kind, payload, payload_digest, submitted_by, qualification_state, revision) "
+              + "VALUES (?, ?, ?, 'SAMPLE_LOCAL', ?, 1, '2026-01-01T00:00:00Z', ?, ?, ?, ?, "
+              + "'SAMPLE_ONLY', 1)",
+          "tenant-legacy",
+          "env-1",
+          "legacy-evidence",
+          "legacy-source",
+          "measurement.latency",
+          legacyPayload,
+          sha(legacyPayload),
+          "legacy-submitter");
       oldDb.update(
           "INSERT INTO uacrf_evidence.inbox_event "
               + "(tenant_id, environment_id, event_id, source_service, event_type, aggregate_id, "
@@ -949,7 +1017,44 @@ class EvidenceApplicationTests {
               + "reason, payload, claimed_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           UUID.randomUUID(), "tenant-legacy", "env-1", "old-evidence", "old-source", 1,
           "REPLAY_CONFLICT", "old-payload", sha("old-payload"));
+      oldDb.update(
+          "INSERT INTO uacrf_evidence.quarantined_evidence "
+              + "(quarantine_id, tenant_id, environment_id, evidence_id, source_ref, sequence, "
+              + "reason, payload, claimed_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          UUID.randomUUID(),
+          "tenant-legacy",
+          "env-1",
+          "legacy-digest-mismatch",
+          "old-source",
+          2,
+          "DIGEST_MISMATCH",
+          legacyPayload,
+          "0".repeat(64));
       Flyway.configure().dataSource(source).load().migrate();
+      assertEquals(
+          legacyPayload.getBytes(StandardCharsets.UTF_8).length,
+          oldDb.queryForObject(
+              "SELECT payload_byte_length FROM uacrf_evidence.evidence_event "
+                  + "WHERE tenant_id='tenant-legacy' AND id='legacy-evidence'",
+              Long.class));
+      assertEquals(
+          "old-payload".getBytes(StandardCharsets.UTF_8).length,
+          oldDb.queryForObject(
+              "SELECT payload_byte_length FROM uacrf_evidence.quarantined_evidence "
+                  + "WHERE tenant_id='tenant-legacy' AND evidence_id='old-evidence'",
+              Long.class));
+      assertEquals(
+          sha("old-payload"),
+          oldDb.queryForObject(
+              "SELECT trim(actual_payload_digest) FROM uacrf_evidence.quarantined_evidence "
+                  + "WHERE tenant_id='tenant-legacy' AND evidence_id='old-evidence'",
+              String.class));
+      assertThat(
+              oldDb.queryForObject(
+                  "SELECT actual_payload_digest FROM uacrf_evidence.quarantined_evidence "
+                      + "WHERE tenant_id='tenant-legacy' AND evidence_id='legacy-digest-mismatch'",
+                  String.class))
+          .isNull();
       assertEquals(
           1,
           oldDb.queryForObject(

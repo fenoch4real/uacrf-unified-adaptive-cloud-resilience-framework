@@ -37,6 +37,7 @@ UNSUCCESSFUL_TERMINAL_STATUSES = [
 GRAPH_SELECTION_QUERY_IDS = [
     "action-relevant-dependencies.v1",
     "action-relevant-dependencies.v2",
+    "action-relevant-dependencies.v3",
 ]
 
 
@@ -194,6 +195,20 @@ def graph_advisory_result_schema():
             "inventory_reconciliation": {
                 "$ref": "#/components/schemas/GraphInventoryReconciliation",
             },
+            "slo_objectives": {
+                "$ref": "#/components/schemas/GraphSloObjectiveSnapshot",
+                "description": (
+                    "Selection only; v3 carries the point-in-time current S05 active-objective set "
+                    "for the S07 case workload as owner-derived context, not graph edges."
+                ),
+            },
+            "objective_set_change": {
+                "$ref": "#/components/schemas/GraphObjectiveSetChange",
+                "description": (
+                    "Classification only; a changed objective-set digest forces an "
+                    "indeterminate result and is not converted into graph widening or narrowing."
+                ),
+            },
         },
         "required": [
             "kind",
@@ -217,6 +232,7 @@ def graph_advisory_result_schema():
                             {"required": ["classification"]},
                             {"required": ["selection_digest"]},
                             {"required": ["changes"]},
+                            {"required": ["objective_set_change"]},
                         ]
                     },
                 },
@@ -240,6 +256,7 @@ def graph_advisory_result_schema():
                             {"required": ["nodes"]},
                             {"required": ["edges"]},
                             {"required": ["inventory_reconciliation"]},
+                            {"required": ["slo_objectives"]},
                         ]
                     },
                 },
@@ -262,9 +279,84 @@ def graph_advisory_selection_schema():
             "inventory_reconciliation": {
                 "$ref": "#/components/schemas/GraphInventoryReconciliation",
             },
+            "slo_objectives": {
+                "$ref": "#/components/schemas/GraphSloObjectiveSnapshot",
+            },
         },
         "description": (
-            "Additional, optional fields for an action-relevant subgraph selection."
+            "Additional, optional fields for an action-relevant subgraph selection. "
+            "The S05 objective snapshot is exposed only for query v3."
+        ),
+    }
+
+
+def graph_slo_objective_snapshot_schema():
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "workload_id": {
+                "type": "string",
+                "pattern": r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$",
+            },
+            "purpose": {
+                "enum": [
+                    "topology.graph.subgraph-selection",
+                    "topology.graph.difference-classification",
+                ],
+            },
+            "objectives": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "id": {"type": "string", "pattern": r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$"},
+                        "metric": {"type": "string", "pattern": r"^[a-z][a-z0-9_.-]{0,99}$"},
+                        "comparator": {"enum": ["GTE", "LTE"]},
+                        "target": {"type": "number"},
+                        "unit": {"type": "string", "pattern": r"^[A-Za-z0-9_./%-]{1,30}$"},
+                        "window_seconds": {"type": "integer", "minimum": 1},
+                        "revision": {"type": "integer", "minimum": 1},
+                        "content_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+                    },
+                    "required": [
+                        "id", "metric", "comparator", "target", "unit", "window_seconds",
+                        "revision", "content_digest",
+                    ],
+                },
+            },
+            "set_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        },
+        "required": ["workload_id", "purpose", "objectives", "set_digest"],
+        "description": (
+            "Bounded point-in-time S05 owner receipt. The set digest binds workload ID and the "
+            "metric-ordered objective IDs, revisions and content digests; it is not "
+            "a graph relationship or a measurement evaluation."
+        ),
+    }
+
+
+def graph_objective_set_change_schema():
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "workload_id": {
+                "type": "string",
+                "pattern": r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$",
+            },
+            "authorized_set_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "current_set_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "changed": {"type": "boolean"},
+        },
+        "required": [
+            "workload_id", "authorized_set_digest", "current_set_digest", "changed",
+        ],
+        "description": (
+            "Digest comparison of S05 active-objective context. If changed, the "
+            "classification is indeterminate; objective semantics are not interpreted as graph deltas."
         ),
     }
 
@@ -537,8 +629,11 @@ def update_request_schema(schemas, name):
         "description": (
             "Versioned allowlist ID. v1 covers bounded dependency selection; v2 "
             "additionally selects READS_FROM relationships for data-read "
-            "classification. Neither query is complete framework-wide "
-            "action-relevant selection."
+            "classification; v3 preserves v2 and adds the point-in-time current S05 active "
+            "objectives for the S07 case workload as owner-derived context only. "
+            "A changed S05 set forces classification to indeterminate and is not "
+            "interpreted as graph widening or narrowing. None is complete "
+            "framework-wide action-relevant selection."
         ),
     }
     request["properties"]["query_parameters_ref"] = {
@@ -596,7 +691,10 @@ def update_graph_operation(document, path, operation_id, purpose, scope_descript
     if path == "/v1/graphs/subgraphs:select":
         proof_checks = (
             "The exact S02 service revision and current S07 case are checked by their "
-            "owners; bounded S04 qualification summaries are optional supporting context."
+            "owners; bounded S04 qualification summaries are optional supporting context. "
+            "Query v3 additionally reads the point-in-time current S05 active-objective set for the "
+            "case workload through a resource-scoped delegation; this owner-derived "
+            "context is not a graph relationship."
         )
     else:
         proof_checks = (
@@ -604,7 +702,9 @@ def update_graph_operation(document, path, operation_id, purpose, scope_descript
             "summaries are optional supporting context; this request does not bind an "
             "S02 service revision. The S07 receipt retains its business purpose; the "
             "S01 delegation binds the topology operation purpose to the exact case ID, "
-            "without requiring those purpose values to match."
+            "without requiring those purpose values to match. For a retained v3 "
+            "selection, S06 re-reads the point-in-time current S05 active-objective set for the same "
+            "case workload; if its digest changed, classification is indeterminate."
         )
     if path == "/v1/graphs/subgraphs:select":
         proof_checks += (
@@ -659,6 +759,8 @@ def apply_contracts(document):
     schemas["GraphAdvisoryResult"] = graph_advisory_result_schema()
     schemas["GraphAdvisorySelection"] = graph_advisory_selection_schema()
     schemas["GraphInventoryReconciliation"] = graph_inventory_reconciliation_schema()
+    schemas["GraphSloObjectiveSnapshot"] = graph_slo_objective_snapshot_schema()
+    schemas["GraphObjectiveSetChange"] = graph_objective_set_change_schema()
     schemas["GraphAdvisoryNode"] = graph_advisory_node_schema()
     schemas["GraphAdvisoryEdge"] = graph_advisory_edge_schema()
     schemas["GraphAdvisoryChange"] = graph_advisory_change_schema()
@@ -680,7 +782,11 @@ def apply_contracts(document):
         "The user-approved action-relevant scope spans bounded dependencies, failure "
         "domains, SLOs, journeys, customer segments, impacts, controls, fallbacks, and "
         "recovery paths. Query v1 supports bounded dependency selection; query v2 "
-        "additionally selects READS_FROM relationships for data-read classification. "
+        "additionally selects READS_FROM relationships for data-read classification; "
+        "query v3 preserves v2 and adds the point-in-time current S05 active objectives for the "
+        "S07 case workload as owner-derived context only. A changed objective-set "
+        "digest makes classification indeterminate; objective changes are not treated "
+        "as graph widening or narrowing. "
         "Coverage of the broader framework selection remains incomplete.",
     )
     return document

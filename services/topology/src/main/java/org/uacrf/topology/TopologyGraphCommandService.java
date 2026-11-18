@@ -26,8 +26,10 @@ class TopologyGraphCommandService {
   private static final String S = "uacrf_topology.";
   private static final String SELECTION = "SUBGRAPH_SELECTION";
   private static final String DIFFERENCE = "DIFFERENCE_CLASSIFICATION";
+  private static final String SLO_CONTEXT_QUERY = "action-relevant-dependencies.v3";
   private static final Set<String> QUERIES = Set.of(
-      "action-relevant-dependencies.v1", "action-relevant-dependencies.v2");
+      "action-relevant-dependencies.v1", "action-relevant-dependencies.v2",
+      SLO_CONTEXT_QUERY);
   private static final Pattern CATALOG_REF = Pattern.compile(
       "^catalog://service/([A-Za-z0-9][A-Za-z0-9_.:-]{0,199})/revision/([1-9][0-9]{0,15})$");
   private final JdbcTemplate db;
@@ -76,6 +78,12 @@ class TopologyGraphCommandService {
         request.queryParametersDigest(),TopologyProofClient.SUBGRAPH_SELECTION,deadline);
     Map<String,Object> caseReceipt=proofs.prepareCaseReceipt(jwt,request.caseId(),
         TopologyProofClient.SUBGRAPH_SELECTION,deadline);
+    Map<String,Object> objectiveSnapshot=null;
+    if (SLO_CONTEXT_QUERY.equals(request.queryId())) {
+      requireCaseWorkloadInService(service.membershipSupported(),service.workloadIds(),caseReceipt);
+      objectiveSnapshot=proofs.prepareObjectiveSnapshot(jwt,(String)caseReceipt.get("workload_id"),
+          TopologyProofClient.SUBGRAPH_SELECTION,deadline);
+    }
     Map<String,Object> evidence=evidenceSnapshot(actor,jwt,request.graphRevisionId(),
         TopologyProofClient.SUBGRAPH_SELECTION,deadline);
     Map<String,Object> binding=new LinkedHashMap<>();
@@ -91,6 +99,7 @@ class TopologyGraphCommandService {
     binding.put("service_workload_ids",service.workloadIds());
     binding.put("service_membership_supported",service.membershipSupported());
     binding.put("case_receipt",caseReceipt);
+    if (objectiveSnapshot!=null) binding.put("slo_objective_snapshot",objectiveSnapshot);
     binding.put("evidence_snapshot",evidence);
     binding.put("maximum_nodes",request.maximumNodes());
     binding.put("query_id",request.queryId());
@@ -121,6 +130,23 @@ class TopologyGraphCommandService {
     Instant deadline=Instant.now().plusSeconds(5);
     Map<String,Object> caseReceipt=proofs.prepareCaseReceipt(jwt,request.caseId(),
         TopologyProofClient.DIFFERENCE_CLASSIFICATION,deadline);
+    Map<String,Object> currentObjectiveSnapshot=null;
+    String retainedQuery=selection.snapshot().get("query_id") instanceof String value?value:"";
+    if (SLO_CONTEXT_QUERY.equals(retainedQuery)) {
+      Map<String,Object> sourceBinding=selection.sourceBinding();
+      Map<String,Object> originalCaseReceipt=sourceBinding.get("case_receipt") instanceof Map<?,?> raw
+          ?castMap(raw):Map.of();
+      if (!request.caseId().equals(originalCaseReceipt.get("case_id")))
+        throw conflict("CASE_CONTEXT_CHANGED","Classification must use the case bound to the retained S06 selection.");
+      if (!java.util.Objects.equals(originalCaseReceipt.get("workload_id"),caseReceipt.get("workload_id")))
+        throw conflict("CASE_WORKLOAD_CHANGED","The current case workload differs from the retained S06 selection.");
+      List<String> workloadIds=sourceBinding.get("service_workload_ids") instanceof List<?> values
+          ?values.stream().filter(String.class::isInstance).map(String.class::cast).toList():List.of();
+      requireCaseWorkloadInService(Boolean.TRUE.equals(sourceBinding.get("service_membership_supported")),
+          workloadIds,caseReceipt);
+      currentObjectiveSnapshot=proofs.prepareObjectiveSnapshot(jwt,
+          (String)caseReceipt.get("workload_id"),TopologyProofClient.DIFFERENCE_CLASSIFICATION,deadline);
+    }
     Map<String,Object> authorizedEvidence=selection.snapshot().get("evidence_snapshot") instanceof Map<?,?> raw
         ?castMap(raw):Map.of("complete",false,"summaries",List.of(),"reason_code","SELECTION_EVIDENCE_UNAVAILABLE");
     Map<String,Object> currentEvidence=evidenceSnapshot(actor,jwt,
@@ -140,6 +166,8 @@ class TopologyGraphCommandService {
     binding.put("selection_snapshot",selection.snapshot());
     binding.put("selection_source_binding",selection.sourceBinding());
     binding.put("case_receipt",caseReceipt);
+    if (currentObjectiveSnapshot!=null)
+      binding.put("current_slo_objective_snapshot",currentObjectiveSnapshot);
     binding.put("authorized_evidence_snapshot",authorizedEvidence);
     binding.put("current_evidence_snapshot",currentEvidence);
     String targetKey=targetKey(Map.ofEntries(
@@ -266,11 +294,15 @@ class TopologyGraphCommandService {
       advisory.put("unsupported_domains",result.get("unsupported_domains"));
       if (result.containsKey("inventory_reconciliation"))
         advisory.put("inventory_reconciliation",result.get("inventory_reconciliation"));
+      if (result.containsKey("slo_objectives"))
+        advisory.put("slo_objectives",result.get("slo_objectives"));
     } else {
       advisory.put("classification",result.get("classification"));
       advisory.put("selection_digest",result.get("selection_digest"));
       advisory.put("changes",result.get("changes"));
       advisory.put("unsupported_domains",result.get("unsupported_domains"));
+      if (result.containsKey("objective_set_change"))
+        advisory.put("objective_set_change",result.get("objective_set_change"));
     }
     return advisory;
   }
@@ -394,6 +426,13 @@ class TopologyGraphCommandService {
   }
   private String selectionDigest(Map<String,Object> snapshot) {
     return GraphDigest.sha256(OwnerReceiptSignature.canonicalize(json.writeValueAsString(snapshot)));
+  }
+  private void requireCaseWorkloadInService(
+      boolean membershipSupported, List<String> workloadIds, Map<String,Object> caseReceipt) {
+    Object workloadId=caseReceipt.get("workload_id");
+    if (!membershipSupported || !(workloadId instanceof String id) || !workloadIds.contains(id))
+      throw conflict("OBJECTIVE_WORKLOAD_NOT_IN_SERVICE",
+          "The case workload is not present in the exact S02 service membership snapshot.");
   }
   @SuppressWarnings("unchecked")
   private static Map<String,Object> castMap(Map<?,?> raw) {

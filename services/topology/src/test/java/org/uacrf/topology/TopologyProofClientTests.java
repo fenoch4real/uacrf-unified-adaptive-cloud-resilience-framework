@@ -3,6 +3,7 @@ package org.uacrf.topology;
 import static org.junit.jupiter.api.Assertions.*;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
+import java.math.BigDecimal;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
@@ -31,6 +32,7 @@ class TopologyProofClientTests {
   private final AtomicInteger revision=new AtomicInteger(2);
   private final AtomicReference<Object> serviceResponseVersion=new AtomicReference<>(7);
   private final AtomicReference<Map<String,Object>> serviceSnapshot=new AtomicReference<>();
+  private final AtomicReference<Map<String,Object>> objectivesReceipt=new AtomicReference<>();
   private HttpServer server;
   private KeyPair key;
   private TopologyProofClient client;
@@ -51,8 +53,18 @@ class TopologyProofClientTests {
       send(exchange,Map.of("access_token",request.get("audience")+":"+request.get("resource_id")+":"+request.get("purpose")));
     });
     server.createContext("/internal/v1/workloads/",exchange->{
-      String id=exchange.getRequestURI().getPath().split("/")[4].replace(":receipt","");
+      String[] path=exchange.getRequestURI().getPath().split("/");
+      String id=path[4];
       Map<String,Object> request=read(exchange.getRequestBody().readAllBytes());
+      if (exchange.getRequestURI().getPath().endsWith("/objectives:receipt")) {
+        assertEquals("workload-1",id);
+        assertEquals("Bearer S05:"+id+":"+request.get("purpose"),
+            exchange.getRequestHeaders().getFirst("Authorization"));
+        assertEquals(Map.of("purpose",request.get("purpose")),request);
+        send(exchange,objectivesReceipt.get());
+        return;
+      }
+      id=id.replace(":receipt","");
       assertEquals("Bearer S02:"+id+":"+request.get("purpose"),exchange.getRequestHeaders().getFirst("Authorization"));
       send(exchange,receipt(id,(String)request.get("requested_version"),(String)request.get("purpose"),Instant.parse((String)request.get("operation_deadline")),revision.get()));
     });
@@ -90,8 +102,9 @@ class TopologyProofClientTests {
     });
     server.start();
     serviceSnapshot.set(serviceSnapshot(List.of("agent-a","agent-b")));
+    objectivesReceipt.set(objectivesReceipt());
     String base="http://127.0.0.1:"+server.getAddress().getPort();
-    client=new TopologyProofClient(json,base,base,base,base,"key-1",Base64.getEncoder().encodeToString(key.getPublic().getEncoded()));
+    client=new TopologyProofClient(json,base,base,base,base,base,"key-1",Base64.getEncoder().encodeToString(key.getPublic().getEncoded()));
     jwt=Jwt.withTokenValue("original").header("alg","RS256").subject("principal-1").claim("tenant_id","tenant").claim("environment_id","env").claim("actor_issuer","issuer").claim("actor_subject","human-subject").claim("service_scope","*").claim("capabilities",List.of("topology.proposal.write")).issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(30)).build();
   }
   @AfterEach void stop() { if(server!=null) server.stop(0); }
@@ -188,6 +201,48 @@ class TopologyProofClientTests {
     }
   }
 
+  private Map<String,Object> objectivesReceipt() {
+    Map<String,Object> objective=Map.of("id","objective-1","metric","availability",
+        "comparator","GTE","target",new BigDecimal("99.9"),"unit","percent",
+        "window_seconds",300,"revision",2,"content_digest","c".repeat(64));
+    String setDigest=sha256("workload-1|objective-1:2:"+"c".repeat(64));
+    return Map.of("workload_id","workload-1","purpose",TopologyProofClient.SUBGRAPH_SELECTION,
+        "objectives",List.of(objective),"set_digest",setDigest);
+  }
+
+  private String sha256(String value) {
+    try {
+      return java.util.HexFormat.of().formatHex(
+          java.security.MessageDigest.getInstance("SHA-256")
+              .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  @Test void verifiesBoundedS05ActiveObjectiveReceiptAndSetDigest() {
+    Map<String,Object> snapshot=client.prepareObjectiveSnapshot(jwt,"workload-1",
+        TopologyProofClient.SUBGRAPH_SELECTION,Instant.now().plusSeconds(5));
+    assertEquals("workload-1",snapshot.get("workload_id"));
+    assertEquals("availability",((Map<?,?>)((List<?>)snapshot.get("objectives")).getFirst()).get("metric"));
+    assertThatExchange("S05","agent_workload","workload-1",
+        TopologyProofClient.SUBGRAPH_SELECTION);
+    Map<String,Object> changed=new LinkedHashMap<>(objectivesReceipt.get());
+    changed.put("set_digest","d".repeat(64));
+    objectivesReceipt.set(changed);
+    assertThrows(TopologyException.class,()->client.prepareObjectiveSnapshot(jwt,"workload-1",
+        TopologyProofClient.SUBGRAPH_SELECTION,Instant.now().plusSeconds(5)));
+  }
+
+  @Test void rejectsObjectiveSnapshotsAboveTheBound() {
+    Map<String,Object> oversized=new LinkedHashMap<>(objectivesReceipt.get());
+    Map<?,?> objective=(Map<?,?>)((List<?>)objectivesReceipt.get().get("objectives")).getFirst();
+    oversized.put("objectives",java.util.Collections.nCopies(101,objective));
+    objectivesReceipt.set(oversized);
+    assertThrows(TopologyException.class,()->client.prepareObjectiveSnapshot(jwt,"workload-1",
+        TopologyProofClient.SUBGRAPH_SELECTION,Instant.now().plusSeconds(5)));
+  }
+
   private void assertThatExchange(String audience,String type,String id,String purpose) {
     assertTrue(exchanges.stream().anyMatch(value->audience.equals(value.get("audience"))
         && type.equals(value.get("resource_type")) && id.equals(value.get("resource_id"))
@@ -207,7 +262,7 @@ class TopologyProofClientTests {
     assertThrows(TopologyException.class,()->client.validateReceipt(wrongKey,actor,TopologyProofClient.PROPOSE,"w1","v1",deadline,Instant.now()));
   }
   @Test void rejectsUnsecuredNonLoopbackOwner() {
-    assertThrows(IllegalArgumentException.class,()->new TopologyProofClient(json,"http://remote.example","http://localhost:8083","http://localhost:8086","http://localhost:8089","", ""));
+    assertThrows(IllegalArgumentException.class,()->new TopologyProofClient(json,"http://remote.example","http://localhost:8083","http://localhost:8086","http://localhost:8089","http://localhost:8087","", ""));
   }
   @Test void rejectsOversizedInternalResponses() {
     oversized.set(true);

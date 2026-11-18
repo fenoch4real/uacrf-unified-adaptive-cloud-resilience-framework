@@ -5,6 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
@@ -90,6 +93,71 @@ class AwsCollectorTests {
         .extracting(ProviderCollector.Observation::id)
         .containsExactlyElementsOf(
             batch.observations().stream().map(ProviderCollector.Observation::id).toList());
+  }
+
+  @Test
+  void resumesConfigPaginationWithContinuousSequencesAndStableObservationIds() {
+    List<SelectResourceConfigResponse> pages =
+        List.of(
+            SelectResourceConfigResponse.builder()
+                .results(
+                    "{\"resourceId\":\"bucket-1\",\"resourceType\":\"AWS::S3::Bucket\","
+                        + "\"awsRegion\":\"eu-west-1\","
+                        + "\"configurationItemCaptureTime\":\"2026-11-17T17:00:00Z\"}")
+                .nextToken("page-2")
+                .build(),
+            SelectResourceConfigResponse.builder()
+                .results(
+                    "{\"resourceId\":\"bucket-2\",\"resourceType\":\"AWS::S3::Bucket\","
+                        + "\"awsRegion\":\"eu-west-1\","
+                        + "\"configurationItemCaptureTime\":\"2026-11-17T17:01:00Z\"}")
+                .build());
+    AtomicInteger pageIndex = new AtomicInteger();
+    List<String> requestedTokens = new ArrayList<>();
+    AwsCollector collector =
+        new AwsCollector(
+            (region, roleArn, externalId) ->
+                new AwsCollector.InventorySession() {
+                  @Override
+                  public SelectResourceConfigResponse select(String expression, String nextToken) {
+                    requestedTokens.add(nextToken);
+                    return pages.get(pageIndex.getAndIncrement());
+                  }
+
+                  @Override
+                  public void close() {}
+                },
+            new ObjectMapper());
+
+    ProviderCollector.Batch first =
+        collector.collect(
+            new ProviderCollector.Request(
+                "connection-1", SOURCE_REF, ROLE_ARN, EXTERNAL_ID, null, 0, null, null));
+    ProviderCollector.Batch second =
+        collector.collect(
+            new ProviderCollector.Request(
+                "connection-1",
+                SOURCE_REF,
+                ROLE_ARN,
+                EXTERNAL_ID,
+                first.nextCheckpoint(),
+                first.observations().getLast().sequence(),
+                null,
+                null));
+
+    assertThat(requestedTokens).containsExactly(null, "page-2");
+    assertThat(first.status()).isEqualTo(ProviderCollector.Batch.Status.COLLECTED);
+    assertThat(first.nextCheckpoint()).isEqualTo("page-2");
+    assertThat(first.observations())
+        .extracting(ProviderCollector.Observation::sequence)
+        .containsExactly(1L);
+    assertThat(second.status()).isEqualTo(ProviderCollector.Batch.Status.COLLECTED);
+    assertThat(second.nextCheckpoint()).isNull();
+    assertThat(second.observations())
+        .extracting(ProviderCollector.Observation::sequence)
+        .containsExactly(2L);
+    assertThat(second.observations().getFirst().id())
+        .isNotEqualTo(first.observations().getFirst().id());
   }
 
   @Test

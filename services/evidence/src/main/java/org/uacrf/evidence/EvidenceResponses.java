@@ -7,7 +7,14 @@ final class EvidenceResponses {
 
   record Page<T>(List<T> items, String nextCursor) {}
 
-  record SubmitResult(String id, String status, String reason, String qualificationState) {}
+  record SubmitResult(
+      String id,
+      String status,
+      String reason,
+      String qualificationState,
+      String actualPayloadDigest,
+      String claimedPayloadDigest,
+      long payloadByteLength) {}
 
   record Evidence(
       String id,
@@ -19,6 +26,7 @@ final class EvidenceResponses {
       String serviceId,
       String schemaVersion,
       String payloadDigest,
+      long payloadByteLength,
       String submittedBy,
       String qualificationState,
       long revision,
