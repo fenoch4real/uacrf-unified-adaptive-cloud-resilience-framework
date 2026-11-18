@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -40,6 +42,41 @@ class SampleFixturesTests {
     assertThat(dictionary.relationships).hasSize(55);
     assertThat(result.problems()).isEmpty();
     assertThat(validator.coverageGaps(result)).isEmpty();
+  }
+
+  @Test
+  void historicalMermaidRelationshipExamplesUseDictionaryEndpoints() throws IOException {
+    DataDictionary dictionary = DataDictionary.load(SampleFixtures.DICTIONARY);
+    Path mermaid = SampleFixtures.DICTIONARY.resolveSibling("mermaid");
+    Pattern nodePattern = Pattern.compile("^\\s*(N\\d+)\\[\"([^<\"]+)<br/>", Pattern.MULTILINE);
+    Pattern edgePattern = Pattern.compile("^\\s*(N\\d+)\\s*-->\\|([^|]+)\\|\\s*(N\\d+)", Pattern.MULTILINE);
+    String previews = Files.readString(mermaid.resolve("README.md"));
+    for (String file :
+        List.of("02_evidence_to_outcome.mmd", "03_failure_propagation.mmd", "04_recovery_propagation.mmd")) {
+      String text = Files.readString(mermaid.resolve(file));
+      if (!file.equals("03_failure_propagation.mmd")) {
+        assertThat(previews).as("%s preview", file).contains("```mermaid\n" + text + "```");
+      }
+      Map<String, String> nodes = new java.util.HashMap<>();
+      Matcher nodeMatcher = nodePattern.matcher(text);
+      while (nodeMatcher.find()) {
+        nodes.put(nodeMatcher.group(1), nodeMatcher.group(2));
+      }
+      Matcher edgeMatcher = edgePattern.matcher(text);
+      int edges = 0;
+      while (edgeMatcher.find()) {
+        edges++;
+        DataDictionary.RelationshipDef relationship = dictionary.relationships.get(edgeMatcher.group(2));
+        assertThat(relationship).as("%s: %s", file, edgeMatcher.group()).isNotNull();
+        assertThat(dictionary.resolve(relationship.source()))
+            .as("%s: %s source", file, edgeMatcher.group())
+            .contains(nodes.get(edgeMatcher.group(1)));
+        assertThat(dictionary.resolve(relationship.target()))
+            .as("%s: %s target", file, edgeMatcher.group())
+            .contains(nodes.get(edgeMatcher.group(3)));
+      }
+      assertThat(edges).as("%s relationship examples", file).isPositive();
+    }
   }
 
   @Test
@@ -83,6 +120,40 @@ class SampleFixturesTests {
     assertThat(deliveries.stream().map(d -> d.get("expect")).distinct().toList())
         .contains("ACCEPTED", "DUPLICATE", "QUARANTINED:DIGEST_MISMATCH", "QUARANTINED:REPLAY_CONFLICT", "QUARANTINED:STALE_SEQUENCE");
     assertThat(cast(estate.get("connection")).get("provider")).isEqualTo("SAMPLE_LOCAL");
+  }
+
+  @Test
+  void sampleInventoryDeliveriesMatchCollectorObservationsAndKeepSimulatedPagesSeparate() {
+    Map<String, Object> estate = ConnectionsSamples.multiCloudEstate();
+    List<Map<String, Object>> deliveries = castList(estate.get("deliveries"));
+    Map<String, List<String>> expectedFields =
+        Map.of(
+            "aws.config.resources",
+            List.of("resourceId", "resourceType", "awsRegion", "configurationItemCaptureTime"),
+            "azure.resourcegraph.rows",
+            List.of("id", "name", "type", "location", "subscriptionId", "resourceGroup"),
+            "gcp.assetinventory.assets",
+            List.of("name", "assetType", "updateTime"));
+    for (Map.Entry<String, List<String>> entry : expectedFields.entrySet()) {
+      List<Map<String, Object>> observations =
+          deliveries.stream()
+              .map(ConnectionsSamples::observationOf)
+              .filter(observation -> entry.getKey().equals(observation.get("kind")))
+              .toList();
+      assertThat(observations).as(entry.getKey()).isNotEmpty();
+      for (Map<String, Object> observation : observations) {
+        Map<String, Object> payload =
+            MAPPER.readValue((String) observation.get("payload"), new TypeReference<>() {});
+        assertThat(payload.keySet()).containsExactlyInAnyOrderElementsOf(entry.getValue());
+        if (entry.getKey().equals("aws.config.resources")) {
+          assertThat(payload.get("configurationItemCaptureTime")).isEqualTo(observation.get("observed_at"));
+        }
+      }
+    }
+
+    Map<String, Object> pages = cast(estate.get("simulated_inventory_response_pages"));
+    assertThat(pages.keySet()).containsExactlyInAnyOrder("aws", "azure", "gcp");
+    assertThat(Json.compact(pages)).contains("nextToken", "$skipToken", "nextPageToken");
   }
 
   private static Map<String, Object> graph(DataDictionary dictionary) {

@@ -59,6 +59,8 @@ measured against the target services and their executed tests.
   AWS, Azure, and Google Cloud parameters, access requirements, and validation limits.
 - [Synthetic sample data](sample-data/README.md) —
   provider-shaped inventory, metrics, and graph fixtures for work without live cloud access.
+- [Technical-approach reference assets](design/technical-approach/diagrams/README.md) —
+  historical illustrations, Mermaid sources, and the graph data dictionary, with their limitations.
 - [UI prototype](design/ui-prototype/ui_workloads/index.html) and [setup guide](design/ui-prototype/ui_workloads/START_HERE.html) —
   illustrative screens and local-only flows.
 - [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —

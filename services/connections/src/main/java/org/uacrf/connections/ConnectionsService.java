@@ -37,10 +37,13 @@ class ConnectionsService {
       "No conformance-tested read-only collector exists for this provider yet.";
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
+  private final InventoryNormalizer inventoryNormalizer;
 
-  ConnectionsService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+  ConnectionsService(
+      JdbcTemplate jdbc, ObjectMapper objectMapper, InventoryNormalizer inventoryNormalizer) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
+    this.inventoryNormalizer = inventoryNormalizer;
   }
 
   @Transactional
@@ -487,6 +490,54 @@ class ConnectionsService {
             decodeCursor(cursor),
             pageSize + 1);
     return page(rows, pageSize, Observation::id);
+  }
+
+  @Transactional(readOnly = true)
+  Page<NormalizedInventoryObservation> listNormalizedInventory(
+      DelegationPrincipal actor, String connectionId, int pageSize, String cursor) {
+    requireCapability(actor, "connections.connection.read");
+    Connection connection = find(actor, connectionId);
+    List<Observation> rows =
+        jdbc.query(
+            "SELECT id, source_ref, sequence, observed_at, observed_at_epoch_second, "
+                + "observed_at_nano, kind, payload, payload_digest FROM "
+                + SCHEMA
+                + "observation WHERE tenant_id = ? AND environment_id = ? AND connection_id = ? "
+                + "AND kind IN ('aws.config.resources', 'azure.resourcegraph.rows', "
+                + "'gcp.assetinventory.assets') AND id > ? ORDER BY id LIMIT ?",
+            (rs, row) ->
+                new Observation(
+                    rs.getString("id"),
+                    rs.getString("source_ref"),
+                    rs.getLong("sequence"),
+                    observationTime(rs),
+                    rs.getString("kind"),
+                    rs.getString("payload"),
+                    rs.getString("payload_digest")),
+            actor.tenantId(),
+            actor.environmentId(),
+            connectionId,
+            decodeCursor(cursor),
+            pageSize + 1);
+    Page<Observation> result = page(rows, pageSize, Observation::id);
+    List<NormalizedInventoryObservation> normalized =
+        result.items().stream()
+            .map(
+                observation -> {
+                  if (!sha256(observation.payload()).equals(observation.payloadDigest())) {
+                    throw new IllegalStateException("Retained inventory payload digest does not match.");
+                  }
+                  return inventoryNormalizer.normalize(
+                      connection.provider(),
+                      observation.id(),
+                      observation.sourceRef(),
+                      observation.kind(),
+                      observation.payload(),
+                      observation.payloadDigest(),
+                      observation.observedAt());
+                })
+            .toList();
+    return new Page<>(normalized, result.nextCursor());
   }
 
   private static String observationTime(java.sql.ResultSet rs) throws java.sql.SQLException {

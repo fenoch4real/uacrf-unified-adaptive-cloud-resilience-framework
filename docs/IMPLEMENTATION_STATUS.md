@@ -12,7 +12,7 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Milestone and capability tracker
 
-**Status snapshot: 2026-11-17.** This roll-up summarizes the evidence and gaps
+**Status snapshot: 2026-11-18.** This roll-up summarizes the evidence and gaps
 recorded in the detailed sections below; it is not a percentage-complete
 estimate.
 
@@ -98,6 +98,27 @@ without accounting for the weaker old behavior. The focused connections and
 delegation suites passed 20 tests; the MS01 architecture check passed 24
 checks. This does not qualify cloud collectors or replace S04 qualification.
 
+## S03 inventory-observation projection
+
+S03 and its internal EDGE01 route now expose a paginated, authorized on-read
+projection for AWS Config, Azure Resource Graph, and GCP Asset Inventory
+observations. It maps native IDs and types, available location, observation time,
+and raw-observation provenance without storing another copy of provider data.
+It preserves `SAMPLE_LOCAL` provenance; GCP resource location remains unknown
+with the current payload. It is not a deduplicated current inventory, shared
+resource taxonomy, qualified evidence, relationship discovery, graph promotion,
+or a connected UI. The cloud providers remain `UNACCEPTED`.
+
+The historical technical-approach Mermaid examples now use the dictionary's
+relationship endpoint roles; sample-data tests check those examples. The
+archival PNG/SVG illustrations have not all been reconciled with the dictionary
+or regenerated and must not be used as authoritative relationship definitions.
+Two Mermaid previews are available as a potentially more readable alternative; their source
+and embedded Markdown remain synchronized by a test. Visual rendering has not
+been verified in a Mermaid previewer. The focused sample-data, S03, and EDGE01
+tests passed 21 tests with no failures or skips, including PostgreSQL-backed
+sample intake and projection; these are not live cloud conformance.
+
 ## S03 leased collection and cloud-provider inventory
 
 The opt-in collection runner claims active source bindings through persisted
@@ -147,8 +168,13 @@ check did not authenticate the three collector processes; no live inventory
 was queried. A separate opt-in live-check path and conformance evidence remain
 to be implemented; the `UNACCEPTED` binding/scheduling gate must not be bypassed.
 Existing resources can be used; an empty estate cannot demonstrate resource
-collection or pagination. Samples are fictional and do not establish parity
-with the current collectors or real cloud capabilities.
+collection or pagination. The fictional multi-cloud inventory fixture now
+delivers one observation per resource using the fields emitted by the current
+AWS, Azure and GCP collectors; simulated provider response pages are retained
+separately. This field-shape alignment does not establish live provider parity,
+real cloud capabilities, or a connected UI flow. The sample-data suite passed
+5 tests, and the focused PostgreSQL-backed S03 multi-cloud fixture ingestion
+test passed with no failures, errors, or skips.
 
 ## Current handoff
 

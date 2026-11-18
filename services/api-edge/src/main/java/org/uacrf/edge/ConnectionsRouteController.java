@@ -83,6 +83,15 @@ class ConnectionsRouteController {
     return forward(() -> connections.listObservations(authorization, id, pageSize, cursor));
   }
 
+  @GetMapping("/v1/connections/{id}/inventory-observations")
+  ResponseEntity<String> listInventoryObservations(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id,
+      @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return forward(() -> connections.listInventoryObservations(authorization, id, pageSize, cursor));
+  }
+
   @GetMapping("/v1/connections/{id}/quarantine")
   ResponseEntity<String> listQuarantine(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

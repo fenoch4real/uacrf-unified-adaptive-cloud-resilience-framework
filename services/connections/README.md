@@ -10,6 +10,35 @@ quarantined as `REPLAY_CONFLICT`, even if it might have been identical. Their re
 the retained, rounded timestamp. New observations retain and return their exact original instant.
 Quarantine is not qualification; S04 remains the evidence authority.
 
+## Read-only inventory projection
+
+`GET /v1/connections/{id}/inventory-observations` returns a paginated, on-read
+projection of retained AWS Config, Azure Resource Graph, and GCP Asset Inventory
+observations. The internal EDGE01 route is
+`/internal/connections/v1/connections/{id}/inventory-observations`. Both use
+the existing `connections.connection.read` capability and tenant/environment
+scope. `pageSize` is 1-100 (default 25); `cursor` and `next_cursor` work as
+on the existing observations list. Non-inventory and quarantined records are
+not returned.
+
+Each item has `normalizer_version`, `source_class`, `provider`, `native_id`,
+`native_type`, nullable `location`, `raw_observation_id`, `source_ref`,
+`raw_kind`, `raw_payload_digest`, and `observed_at`. AWS and Azure locations
+come from their payloads when present; GCP location is unknown because the
+current asset payload does not supply it. The source reference's GCP region
+is not a resource location. Native types and IDs remain provider-specific;
+they are not a cross-provider taxonomy or globally unique resource key. An
+item is one observation, not a deduplicated current-state inventory.
+
+The original payload remains available on the existing observations endpoint;
+the projection stores no second copy. Payload digest mismatches, malformed
+inventory payloads, and connection/provider mismatches fail the request instead
+of producing fabricated values. `SAMPLE_LOCAL` remains visible as `source_class`;
+the provider name describes the simulated payload, not a live account.
+Projection does not qualify evidence, discover relationships, promote graph
+nodes, accept providers, or connect an inventory UI. Existing retention and
+qualification policies are unchanged.
+
 Deploy V3 before the updated service and avoid mixed old/new ingestion instances: older instances
 neither retain exact times nor acquire the new ID lock. Rollback to older intake also loses these
 replay and concurrency guarantees.

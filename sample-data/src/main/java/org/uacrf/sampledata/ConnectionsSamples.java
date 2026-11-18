@@ -165,6 +165,10 @@ final class ConnectionsSamples {
     List<Map<String, Object>> deliveries = new ArrayList<>();
     Map<String, Integer> statusSequence = new LinkedHashMap<>(Map.of("aws", 0, "azure", 0, "gcp", 0));
     Map<String, Integer> inventorySequence = new LinkedHashMap<>(Map.of("aws", 0, "azure", 0, "gcp", 0));
+    Map<String, List<Object>> inventoryResponsePages = new LinkedHashMap<>();
+    for (String provider : List.of("aws", "azure", "gcp")) {
+      inventoryResponsePages.put(provider, new ArrayList<>());
+    }
 
     for (int index = 1; index <= SAMPLES; index++) {
       for (Map.Entry<String, CloudService> entry : CLOUD_SERVICES.entrySet()) {
@@ -190,10 +194,14 @@ final class ConnectionsSamples {
               error[0], error[1], ref(provider, PRODUCT.get(provider), "collection-status"), index, 20)));
         }
         if (index == 1 || index == SAMPLES) {
-          for (String[] page : inventoryPages(provider, index)) {
-            int sequence = inventorySequence.merge(provider, 1, Integer::sum);
-            deliveries.add(delivery("ACCEPTED", cloudObservation(provider, "inventory", sequence, page[0],
-                page[1], ref(provider, inventoryProduct(provider), "inventory"), index, 40)));
+          for (InventoryPage page : inventoryPages(provider, index)) {
+            inventoryResponsePages.get(provider).add(m("snapshot", index, "response", page.response()));
+            for (Map<String, Object> item : page.items()) {
+              int sequence = inventorySequence.merge(provider, 1, Integer::sum);
+              deliveries.add(delivery("ACCEPTED", cloudObservation(provider, "inventory", sequence,
+                  inventoryKind(provider), compact(item), ref(provider, inventoryProduct(provider), "inventory"),
+                  index, 40)));
+            }
           }
         }
       }
@@ -251,6 +259,7 @@ final class ConnectionsSamples {
             "provider", "SAMPLE_LOCAL", "read_only_identity_ref", "sample/readonly-collector",
             "owner_id", "owner-platform", "expected_revision", 0),
         "provider_capability_matrix", capabilityMatrix(),
+        "simulated_inventory_response_pages", inventoryResponsePages,
         "bindings", bindings,
         "deliveries", deliveries);
   }
@@ -405,8 +414,19 @@ final class ConnectionsSamples {
     };
   }
 
-  private static List<String[]> inventoryPages(String provider, int snapshot) {
-    List<String[]> pages = new ArrayList<>();
+  private record InventoryPage(Map<String, Object> response, List<Map<String, Object>> items) {}
+
+  private static String inventoryKind(String provider) {
+    return switch (provider) {
+      case "aws" -> "aws.config.resources";
+      case "azure" -> "azure.resourcegraph.rows";
+      case "gcp" -> "gcp.assetinventory.assets";
+      default -> throw new IllegalArgumentException("Unknown sample provider: " + provider);
+    };
+  }
+
+  private static List<InventoryPage> inventoryPages(String provider, int snapshot) {
+    List<InventoryPage> pages = new ArrayList<>();
     switch (provider) {
       case "aws" -> {
         String[][] resources = {
@@ -420,16 +440,22 @@ final class ConnectionsSamples {
           {"AWS::EC2::VPC", "vpc-0a1b2c3d4e5f60718", "checkout-vpc"},
           {"AWS::Route53::HostedZone", "Z0123456789ABCDEFGHIJ", "meridian-sample.example"}};
         for (int page = 0; page < 3; page++) {
-          List<Object> identifiers = new ArrayList<>();
+          List<Object> results = new ArrayList<>();
+          List<Map<String, Object>> items = new ArrayList<>();
           for (int i = page * 3; i < page * 3 + 3; i++) {
-            identifiers.add(m("resourceType", resources[i][0], "resourceId", resources[i][1],
-                "resourceName", resources[i][2]));
+            Map<String, Object> item =
+                m("resourceId", resources[i][1], "resourceType", resources[i][0],
+                    "awsRegion", REGION.get("aws"),
+                    "configurationItemCaptureTime",
+                    START.plus(STEP.multipliedBy(snapshot)).plusSeconds(40).toString());
+            items.add(item);
+            results.add(compact(item));
           }
-          Map<String, Object> body = m("resourceIdentifiers", identifiers);
+          Map<String, Object> body = m("results", results);
           if (page < 2) {
             body.put("nextToken", "sample-token-" + snapshot + "-" + (page + 1));
           }
-          pages.add(new String[] {"aws.config.resources", compact(body)});
+          pages.add(new InventoryPage(body, items));
         }
       }
       case "azure" -> {
@@ -440,20 +466,20 @@ final class ConnectionsSamples {
           {"microsoft.containerservice/managedclusters", "identity-aks", "rg-meridian-identity"},
           {"microsoft.network/virtualnetworks", "vnet-identity", "rg-meridian-identity"},
           {"microsoft.managedidentity/userassignedidentities", "id-notify", "rg-meridian-notify"}};
-        List<Object> columns = l(m("name", "id", "type", "string"), m("name", "type", "type", "string"),
-            m("name", "location", "type", "string"));
         for (int page = 0; page < 2; page++) {
-          List<Object> rows = new ArrayList<>();
+          List<Map<String, Object>> rows = new ArrayList<>();
           for (int i = page * 3; i < page * 3 + 3; i++) {
-            rows.add(l("/subscriptions/" + AZURE_SUBSCRIPTION + "/resourceGroups/" + resources[i][2]
-                + "/providers/" + resources[i][0] + "/" + resources[i][1], resources[i][0], REGION.get("azure")));
+            rows.add(m("id", "/subscriptions/" + AZURE_SUBSCRIPTION + "/resourceGroups/" + resources[i][2]
+                    + "/providers/" + resources[i][0] + "/" + resources[i][1],
+                "name", resources[i][1], "type", resources[i][0], "location", REGION.get("azure"),
+                "subscriptionId", AZURE_SUBSCRIPTION, "resourceGroup", resources[i][2]));
           }
           Map<String, Object> body = m("totalRecords", resources.length, "count", rows.size(),
-              "resultTruncated", page == 0 ? "true" : "false", "data", m("columns", columns, "rows", rows));
+              "resultTruncated", page == 0 ? "true" : "false", "data", rows);
           if (page == 0) {
             body.put("$skipToken", "sample-skip-" + snapshot + "-1");
           }
-          pages.add(new String[] {"azure.resourcegraph.rows", compact(body)});
+          pages.add(new InventoryPage(body, rows));
         }
       }
       default -> {
@@ -466,7 +492,7 @@ final class ConnectionsSamples {
           {"firestore.googleapis.com/Database", "//firestore.googleapis.com/projects/" + GCP_PROJECT + "/databases/(default)"},
           {"aiplatform.googleapis.com/FeatureOnlineStore", "//aiplatform.googleapis.com/projects/" + GCP_PROJECT + loc + "/featureOnlineStores/ranker-features"}};
         for (int page = 0; page < 2; page++) {
-          List<Object> list = new ArrayList<>();
+          List<Map<String, Object>> list = new ArrayList<>();
           for (int i = page * 3; i < page * 3 + 3; i++) {
             list.add(m("name", assets[i][1], "assetType", assets[i][0], "updateTime", windowStart(1)));
           }
@@ -474,7 +500,7 @@ final class ConnectionsSamples {
           if (page == 0) {
             body.put("nextPageToken", "sample-page-" + snapshot + "-1");
           }
-          pages.add(new String[] {"gcp.assetinventory.assets", compact(body)});
+          pages.add(new InventoryPage(body, list));
         }
       }
     }

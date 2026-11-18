@@ -87,6 +87,16 @@ class ConnectionsController {
         DelegationPrincipal.from(jwt), id, ConnectionsService.validatePageSize(pageSize), cursor);
   }
 
+  @GetMapping("/v1/connections/{id}/inventory-observations")
+  Page<NormalizedInventoryObservation> listInventoryObservations(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return connections.listNormalizedInventory(
+        DelegationPrincipal.from(jwt), id, ConnectionsService.validatePageSize(pageSize), cursor);
+  }
+
   @GetMapping("/v1/connections/{id}/quarantine")
   Page<Quarantined> listQuarantine(
       @AuthenticationPrincipal Jwt jwt,

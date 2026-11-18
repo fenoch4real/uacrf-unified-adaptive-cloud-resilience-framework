@@ -350,6 +350,54 @@ class ConnectionsApplicationTests {
   }
 
   @Test
+  void projectsSampleInventoryWithRawProvenanceAndScopedPagination() throws Exception {
+    Ingested run = ingest("sample-multicloud-estate.json", "tenant-inventory", "env-inventory");
+    String endpoint = "/v1/connections/" + run.connectionId() + "/inventory-observations";
+    HttpResponse<String> response = get(endpoint + "?pageSize=100", run.bearer());
+    assertEquals(200, response.statusCode(), response.body());
+    JsonNode items = mapper.readTree(response.body()).get("items");
+    assertEquals(42, items.size());
+    assertThat(response.body()).contains("\"provider\":\"AWS\"", "\"provider\":\"AZURE\"", "\"provider\":\"GCP\"");
+    for (JsonNode item : items) {
+      assertEquals("SAMPLE_LOCAL", item.get("source_class").asString());
+      assertEquals("inventory-observation.v1", item.get("normalizer_version").asString());
+      String id = item.get("raw_observation_id").asString();
+      var retained =
+          jdbc.queryForMap(
+              "SELECT source_ref, kind, payload, payload_digest FROM uacrf_connections.observation "
+                  + "WHERE tenant_id = ? AND environment_id = ? AND connection_id = ? AND id = ?",
+              "tenant-inventory", "env-inventory", run.connectionId(), id);
+      assertEquals(retained.get("source_ref"), item.get("source_ref").asString());
+      assertEquals(retained.get("kind"), item.get("raw_kind").asString());
+      assertEquals(retained.get("payload_digest"), item.get("raw_payload_digest").asString());
+      JsonNode raw = mapper.readTree((String) retained.get("payload"));
+      String provider = item.get("provider").asString();
+      assertEquals(raw.get(provider.equals("AWS") ? "resourceId" : provider.equals("AZURE") ? "id" : "name").asString(), item.get("native_id").asString());
+      if (provider.equals("GCP")) {
+        assertThat(item.get("location").isNull()).isTrue();
+      }
+    }
+
+    JsonNode first = mapper.readTree(get(endpoint + "?pageSize=1", run.bearer()).body());
+    String cursor = first.get("next_cursor").asString();
+    JsonNode second = mapper.readTree(get(endpoint + "?pageSize=1&cursor=" + cursor, run.bearer()).body());
+    assertThat(first.get("items").get(0).get("raw_observation_id").asString())
+        .isNotEqualTo(second.get("items").get(0).get("raw_observation_id").asString());
+    String otherTenant =
+        bearer(actor("tenant-other", "env-inventory", RW, List.of("owner-platform")), "S03");
+    assertEquals(404, get(endpoint, otherTenant).statusCode());
+    String noRead =
+        bearer(actor("tenant-inventory", "env-inventory", List.of("connections.observation.write"), List.of("owner-platform")), "S03");
+    assertEquals(403, get(endpoint, noRead).statusCode());
+    jdbc.update(
+        "UPDATE uacrf_connections.observation SET payload = ? WHERE tenant_id = ? "
+            + "AND environment_id = ? AND connection_id = ? AND id = ?",
+        "{}", "tenant-inventory", "env-inventory", run.connectionId(),
+        first.get("items").get(0).get("raw_observation_id").asString());
+    assertEquals(500, get(endpoint, run.bearer()).statusCode());
+  }
+
+  @Test
   void ingestsTheSampleEstateAndQuarantinesItsDeliberateFaults() throws Exception {
     Ingested run = ingest("sample-local-estate.json", "tenant-sample", "env-sample");
     String connectionId = run.connectionId();

@@ -33,6 +33,19 @@ final class ConnectionsResponses {
       String payload,
       String payloadDigest) {}
 
+  record NormalizedInventoryObservation(
+      String normalizerVersion,
+      String sourceClass,
+      String provider,
+      String nativeId,
+      String nativeType,
+      String location,
+      String rawObservationId,
+      String sourceRef,
+      String rawKind,
+      String rawPayloadDigest,
+      String observedAt) {}
+
   record Quarantined(
       String id, String observationId, String sourceRef, long sequence, String reason, String receivedAt) {}
 

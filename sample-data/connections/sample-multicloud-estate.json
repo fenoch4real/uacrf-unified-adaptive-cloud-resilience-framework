@@ -41,6 +41,233 @@
       "rate_limit_signal" : "RESOURCE_EXHAUSTED"
     }
   },
+  "simulated_inventory_response_pages" : {
+    "aws" : [ {
+      "snapshot" : 1,
+      "response" : {
+        "results" : [ "{\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}", "{\"resourceId\":\"checkout-eks\",\"resourceType\":\"AWS::EKS::Cluster\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}", "{\"resourceId\":\"checkout-eks/ng-general\",\"resourceType\":\"AWS::EKS::Nodegroup\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}" ],
+        "nextToken" : "sample-token-1-1"
+      }
+    }, {
+      "snapshot" : 1,
+      "response" : {
+        "results" : [ "{\"resourceId\":\"db-ORDERS7XQ2\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}", "{\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}", "{\"resourceId\":\"orders-events\",\"resourceType\":\"AWS::SQS::Queue\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}" ],
+        "nextToken" : "sample-token-1-2"
+      }
+    }, {
+      "snapshot" : 1,
+      "response" : {
+        "results" : [ "{\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceType\":\"AWS::KMS::Key\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}", "{\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceType\":\"AWS::EC2::VPC\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}", "{\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceType\":\"AWS::Route53::HostedZone\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}" ]
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "results" : [ "{\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}", "{\"resourceId\":\"checkout-eks\",\"resourceType\":\"AWS::EKS::Cluster\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}", "{\"resourceId\":\"checkout-eks/ng-general\",\"resourceType\":\"AWS::EKS::Nodegroup\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}" ],
+        "nextToken" : "sample-token-12-1"
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "results" : [ "{\"resourceId\":\"db-ORDERS7XQ2\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}", "{\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}", "{\"resourceId\":\"orders-events\",\"resourceType\":\"AWS::SQS::Queue\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}" ],
+        "nextToken" : "sample-token-12-2"
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "results" : [ "{\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceType\":\"AWS::KMS::Key\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}", "{\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceType\":\"AWS::EC2::VPC\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}", "{\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceType\":\"AWS::Route53::HostedZone\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}" ]
+      }
+    } ],
+    "azure" : [ {
+      "snapshot" : 1,
+      "response" : {
+        "totalRecords" : 6,
+        "count" : 3,
+        "resultTruncated" : "true",
+        "data" : [ {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway",
+          "name" : "app-identity-gateway",
+          "type" : "microsoft.web/sites",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity",
+          "name" : "asp-identity",
+          "type" : "microsoft.web/serverfarms",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify",
+          "name" : "sb-meridian-notify",
+          "type" : "microsoft.servicebus/namespaces",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-notify"
+        } ],
+        "$skipToken" : "sample-skip-1-1"
+      }
+    }, {
+      "snapshot" : 1,
+      "response" : {
+        "totalRecords" : 6,
+        "count" : 3,
+        "resultTruncated" : "false",
+        "data" : [ {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks",
+          "name" : "identity-aks",
+          "type" : "microsoft.containerservice/managedclusters",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity",
+          "name" : "vnet-identity",
+          "type" : "microsoft.network/virtualnetworks",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify",
+          "name" : "id-notify",
+          "type" : "microsoft.managedidentity/userassignedidentities",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-notify"
+        } ]
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "totalRecords" : 6,
+        "count" : 3,
+        "resultTruncated" : "true",
+        "data" : [ {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway",
+          "name" : "app-identity-gateway",
+          "type" : "microsoft.web/sites",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity",
+          "name" : "asp-identity",
+          "type" : "microsoft.web/serverfarms",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify",
+          "name" : "sb-meridian-notify",
+          "type" : "microsoft.servicebus/namespaces",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-notify"
+        } ],
+        "$skipToken" : "sample-skip-12-1"
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "totalRecords" : 6,
+        "count" : 3,
+        "resultTruncated" : "false",
+        "data" : [ {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks",
+          "name" : "identity-aks",
+          "type" : "microsoft.containerservice/managedclusters",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity",
+          "name" : "vnet-identity",
+          "type" : "microsoft.network/virtualnetworks",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-identity"
+        }, {
+          "id" : "/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify",
+          "name" : "id-notify",
+          "type" : "microsoft.managedidentity/userassignedidentities",
+          "location" : "westeurope",
+          "subscriptionId" : "11111111-2222-3333-4444-555555555555",
+          "resourceGroup" : "rg-meridian-notify"
+        } ]
+      }
+    } ],
+    "gcp" : [ {
+      "snapshot" : 1,
+      "response" : {
+        "assets" : [ {
+          "name" : "//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service",
+          "assetType" : "run.googleapis.com/Service",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987",
+          "assetType" : "aiplatform.googleapis.com/Endpoint",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke",
+          "assetType" : "container.googleapis.com/Cluster",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        } ],
+        "nextPageToken" : "sample-page-1-1"
+      }
+    }, {
+      "snapshot" : 1,
+      "response" : {
+        "assets" : [ {
+          "name" : "//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc",
+          "assetType" : "compute.googleapis.com/Network",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)",
+          "assetType" : "firestore.googleapis.com/Database",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features",
+          "assetType" : "aiplatform.googleapis.com/FeatureOnlineStore",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        } ]
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "assets" : [ {
+          "name" : "//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service",
+          "assetType" : "run.googleapis.com/Service",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987",
+          "assetType" : "aiplatform.googleapis.com/Endpoint",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke",
+          "assetType" : "container.googleapis.com/Cluster",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        } ],
+        "nextPageToken" : "sample-page-12-1"
+      }
+    }, {
+      "snapshot" : 12,
+      "response" : {
+        "assets" : [ {
+          "name" : "//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc",
+          "assetType" : "compute.googleapis.com/Network",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)",
+          "assetType" : "firestore.googleapis.com/Database",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        }, {
+          "name" : "//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features",
+          "assetType" : "aiplatform.googleapis.com/FeatureOnlineStore",
+          "updateTime" : "2026-11-12T09:00:00Z"
+        } ]
+      }
+    } ]
+  },
   "bindings" : [ {
     "id" : "bind-aws-checkout-web",
     "source_ref" : "sample:aws/eu-west-1/cloudwatch/checkout-web",
@@ -186,8 +413,8 @@
       "sequence" : 1,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "aws.config.resources",
-      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceName\":\"checkout-alb\"},{\"resourceType\":\"AWS::EKS::Cluster\",\"resourceId\":\"checkout-eks\",\"resourceName\":\"checkout-eks\"},{\"resourceType\":\"AWS::EKS::Nodegroup\",\"resourceId\":\"checkout-eks/ng-general\",\"resourceName\":\"ng-general\"}],\"nextToken\":\"sample-token-1-1\"}",
-      "payload_digest" : "d3ce963f695bf916debea30c41f7e132e1ab0d65e0cc3543cd362ab4de3cda33"
+      "payload" : "{\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "ecc1a07b371dc41030e842e12241b2ccaf46e5fbc9ba1197d84d0b6f4f138b5e"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -197,8 +424,8 @@
       "sequence" : 2,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "aws.config.resources",
-      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2\",\"resourceName\":\"orders-db\"},{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceName\":\"orders-db-replica\"},{\"resourceType\":\"AWS::SQS::Queue\",\"resourceId\":\"orders-events\",\"resourceName\":\"orders-events\"}],\"nextToken\":\"sample-token-1-2\"}",
-      "payload_digest" : "36cd3caae33b4c774174692b5e0e03ebee58cbc8a862ac9d1847f5e9eabcaa07"
+      "payload" : "{\"resourceId\":\"checkout-eks\",\"resourceType\":\"AWS::EKS::Cluster\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "6ac06d150f0c587f92b872b2762ad7344ea3e0b5202a57264ec8df285c168631"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -208,8 +435,74 @@
       "sequence" : 3,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "aws.config.resources",
-      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::KMS::Key\",\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceName\":\"orders-data-key\"},{\"resourceType\":\"AWS::EC2::VPC\",\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceName\":\"checkout-vpc\"},{\"resourceType\":\"AWS::Route53::HostedZone\",\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceName\":\"meridian-sample.example\"}]}",
-      "payload_digest" : "68d50064a108755a44c841c689f13219d04f7905f3fec3c9e07c3d9145566810"
+      "payload" : "{\"resourceId\":\"checkout-eks/ng-general\",\"resourceType\":\"AWS::EKS::Nodegroup\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "2754b50125aed8d8c6c2d53780b161b180d909f068d9ad25e4d2de59e2690b32"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0004",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"db-ORDERS7XQ2\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "283b23069b29234abe25ea1e8296f9096eeae4773e9071d65340c8e12e603ddf"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0005",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "a63f910c83623153bae9314cbd5f8c4e707dc78cc1652a92214b3d104722edb8"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0006",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"orders-events\",\"resourceType\":\"AWS::SQS::Queue\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "9abbe840d5f45dc4d6148cb60c4ef7d19b50d95fc0a913d05b8909a3b2556da9"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0007",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 7,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceType\":\"AWS::KMS::Key\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "e600c753ee4be172b7e6b265d7b3bcf4a710ed9d96c48a25131fe2307596b03b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0008",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceType\":\"AWS::EC2::VPC\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "e06f6b3627d01446cfacba493426e929b2da97f9e1b9edf3d45d68f7509ce730"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0009",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceType\":\"AWS::Route53::HostedZone\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T09:05:40Z\"}",
+      "payload_digest" : "43dd5c3133e4f54f7705033efd436dc7c25e8f1cd0f89fa7b27d45df0524bed6"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -219,8 +512,8 @@
       "sequence" : 1,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "azure.resourcegraph.rows",
-      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"true\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway\",\"microsoft.web/sites\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity\",\"microsoft.web/serverfarms\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify\",\"microsoft.servicebus/namespaces\",\"westeurope\"]]},\"$skipToken\":\"sample-skip-1-1\"}",
-      "payload_digest" : "8afbc74c3537b7b6613ece6b0dd3cab84ca40508e884fbb71347a3ff1d1312df"
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway\",\"name\":\"app-identity-gateway\",\"type\":\"microsoft.web/sites\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "231789b5703ef4f25cc4c8675f1619e6a7922d9dd3aad85625ebefded9d7a688"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -230,8 +523,52 @@
       "sequence" : 2,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "azure.resourcegraph.rows",
-      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"false\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks\",\"microsoft.containerservice/managedclusters\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity\",\"microsoft.network/virtualnetworks\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify\",\"microsoft.managedidentity/userassignedidentities\",\"westeurope\"]]}}",
-      "payload_digest" : "8c9095b1fa073f35d584c409e289551778f5a06b18137ce13ce263ace2b6ab9f"
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity\",\"name\":\"asp-identity\",\"type\":\"microsoft.web/serverfarms\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "2fa68409aade86b83ed058be8c05961d4bd8156e288cf3e3cd50fbf1f66bec43"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0003",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify\",\"name\":\"sb-meridian-notify\",\"type\":\"microsoft.servicebus/namespaces\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-notify\"}",
+      "payload_digest" : "c6bf37daa4200c21fb130b660b7f25c4a2ea7ed1854ef05f1ad17caeae1f2854"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0004",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks\",\"name\":\"identity-aks\",\"type\":\"microsoft.containerservice/managedclusters\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "df65d83cf10dfaded0c1db379e8607a27ad3d8a9548c4dcce24f60fe0d9d0fd8"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0005",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity\",\"name\":\"vnet-identity\",\"type\":\"microsoft.network/virtualnetworks\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "ae5b5463d1b9d640710616a8085bc88f3b9647cf6071f1a85ed0c62ea4c18123"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0006",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify\",\"name\":\"id-notify\",\"type\":\"microsoft.managedidentity/userassignedidentities\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-notify\"}",
+      "payload_digest" : "bd99fe74c23a34941fb87c5716fc9d496bf4f94b17aefd68ed80f2ab7cc3bb0b"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -241,8 +578,8 @@
       "sequence" : 1,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "gcp.assetinventory.assets",
-      "payload" : "{\"assets\":[{\"name\":\"//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service\",\"assetType\":\"run.googleapis.com/Service\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987\",\"assetType\":\"aiplatform.googleapis.com/Endpoint\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke\",\"assetType\":\"container.googleapis.com/Cluster\",\"updateTime\":\"2026-11-12T09:00:00Z\"}],\"nextPageToken\":\"sample-page-1-1\"}",
-      "payload_digest" : "ba8f654d2c281fedd7b954cc9527a503926fafdb91d635e09c7be030694a3e46"
+      "payload" : "{\"name\":\"//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service\",\"assetType\":\"run.googleapis.com/Service\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "e3d8f626304dd7bb2a85d93aa2e675c11aff34fc96284a1dda4950cb0970d248"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -252,8 +589,52 @@
       "sequence" : 2,
       "observed_at" : "2026-11-12T09:05:40Z",
       "kind" : "gcp.assetinventory.assets",
-      "payload" : "{\"assets\":[{\"name\":\"//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc\",\"assetType\":\"compute.googleapis.com/Network\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)\",\"assetType\":\"firestore.googleapis.com/Database\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features\",\"assetType\":\"aiplatform.googleapis.com/FeatureOnlineStore\",\"updateTime\":\"2026-11-12T09:00:00Z\"}]}",
-      "payload_digest" : "31e9aa9db5892fd6b7ab6e5e42ec6e73344d4abf210546eb5f333bd82151edcc"
+      "payload" : "{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987\",\"assetType\":\"aiplatform.googleapis.com/Endpoint\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "70f66b85d903452609e051201c4d06e811c93a1932d60d9fb1858a2d9f80a324"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0003",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 3,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke\",\"assetType\":\"container.googleapis.com/Cluster\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "5813b7017dd98c29cdc7c4717aa77aa831b311c65572ac733bfdd9ffab80f950"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0004",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 4,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc\",\"assetType\":\"compute.googleapis.com/Network\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "73004dc534947536ec99b4c8c738c23677a714ce37ac09acce9518cbc23e9a1c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0005",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 5,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)\",\"assetType\":\"firestore.googleapis.com/Database\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "0a66ba2267e345dbbcdd14697b80069e021eac7d6fba6fbb52a962e5488f015d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0006",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 6,
+      "observed_at" : "2026-11-12T09:05:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features\",\"assetType\":\"aiplatform.googleapis.com/FeatureOnlineStore\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "950837f3c7c80d86cba262ffed6cbe0b198188bd98c54a794b43a49ea04f7e13"
     }
   }, {
     "expect" : "ACCEPTED",
@@ -1127,79 +1508,233 @@
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-aws-inventory-0004",
+      "id" : "obs-aws-inventory-0010",
       "source_ref" : "sample:aws/eu-west-1/config/inventory",
-      "sequence" : 4,
+      "sequence" : 10,
       "observed_at" : "2026-11-12T10:00:40Z",
       "kind" : "aws.config.resources",
-      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceName\":\"checkout-alb\"},{\"resourceType\":\"AWS::EKS::Cluster\",\"resourceId\":\"checkout-eks\",\"resourceName\":\"checkout-eks\"},{\"resourceType\":\"AWS::EKS::Nodegroup\",\"resourceId\":\"checkout-eks/ng-general\",\"resourceName\":\"ng-general\"}],\"nextToken\":\"sample-token-12-1\"}",
-      "payload_digest" : "b9a84de7d092dbc6329653409f6639a54fd11ecdac11e8e95191fe7ff0d21bae"
+      "payload" : "{\"resourceId\":\"app/checkout-alb/50dc6c495c0c9188\",\"resourceType\":\"AWS::ElasticLoadBalancingV2::LoadBalancer\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "3fce132c8ac488af773f828da22cbfe1f2694db4ef8c572d95e28fe71a56e82c"
     }
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-aws-inventory-0005",
+      "id" : "obs-aws-inventory-0011",
       "source_ref" : "sample:aws/eu-west-1/config/inventory",
-      "sequence" : 5,
+      "sequence" : 11,
       "observed_at" : "2026-11-12T10:00:40Z",
       "kind" : "aws.config.resources",
-      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2\",\"resourceName\":\"orders-db\"},{\"resourceType\":\"AWS::RDS::DBInstance\",\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceName\":\"orders-db-replica\"},{\"resourceType\":\"AWS::SQS::Queue\",\"resourceId\":\"orders-events\",\"resourceName\":\"orders-events\"}],\"nextToken\":\"sample-token-12-2\"}",
-      "payload_digest" : "1e2afcab2ed58bce2a9aa35aa1b305f81ca17d4f5d6ea6f88cebb331ab2ac00b"
+      "payload" : "{\"resourceId\":\"checkout-eks\",\"resourceType\":\"AWS::EKS::Cluster\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "504a46e5d1aa473419ee58d4e06d51ff854125b39501f2a6f01899f1770ed0c8"
     }
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-aws-inventory-0006",
+      "id" : "obs-aws-inventory-0012",
       "source_ref" : "sample:aws/eu-west-1/config/inventory",
-      "sequence" : 6,
+      "sequence" : 12,
       "observed_at" : "2026-11-12T10:00:40Z",
       "kind" : "aws.config.resources",
-      "payload" : "{\"resourceIdentifiers\":[{\"resourceType\":\"AWS::KMS::Key\",\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceName\":\"orders-data-key\"},{\"resourceType\":\"AWS::EC2::VPC\",\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceName\":\"checkout-vpc\"},{\"resourceType\":\"AWS::Route53::HostedZone\",\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceName\":\"meridian-sample.example\"}]}",
-      "payload_digest" : "68d50064a108755a44c841c689f13219d04f7905f3fec3c9e07c3d9145566810"
+      "payload" : "{\"resourceId\":\"checkout-eks/ng-general\",\"resourceType\":\"AWS::EKS::Nodegroup\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "5dcf2f15acfa7d2b2bb70712950409ad59288661d1344c920c978fa89ff2f4f4"
     }
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-azure-inventory-0003",
+      "id" : "obs-aws-inventory-0013",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 13,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"db-ORDERS7XQ2\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "c615300c405a31fd4edf759ebb4a43b5198ca2257c475c93669ccff93b250820"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0014",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 14,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"db-ORDERS7XQ2-replica\",\"resourceType\":\"AWS::RDS::DBInstance\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "83b3a3ef81d169e4ce8b89f44ff8a0334379b93d141444da570c68e4e8e5e5c7"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0015",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 15,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"orders-events\",\"resourceType\":\"AWS::SQS::Queue\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "c1f02b71c5f6e1a6b88889ecab2675e811f357beaf3552c95e9b6f691741a7ba"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0016",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 16,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"1234abcd-12ab-34cd-56ef-1234567890ab\",\"resourceType\":\"AWS::KMS::Key\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "62f09388ecf109d895602873896114098c8baa768500492d260409483565c523"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0017",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 17,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"vpc-0a1b2c3d4e5f60718\",\"resourceType\":\"AWS::EC2::VPC\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "4bde1a259b8ec3b4b0971fabc10f8988d63261e395b9af68f7ac53418596f80d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-aws-inventory-0018",
+      "source_ref" : "sample:aws/eu-west-1/config/inventory",
+      "sequence" : 18,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "aws.config.resources",
+      "payload" : "{\"resourceId\":\"Z0123456789ABCDEFGHIJ\",\"resourceType\":\"AWS::Route53::HostedZone\",\"awsRegion\":\"eu-west-1\",\"configurationItemCaptureTime\":\"2026-11-12T10:00:40Z\"}",
+      "payload_digest" : "ea6530beb27d4fe9fe479f8559359f66dac21bef7eb29e45ed91a5ecd19cb24a"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0007",
       "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
-      "sequence" : 3,
+      "sequence" : 7,
       "observed_at" : "2026-11-12T10:00:40Z",
       "kind" : "azure.resourcegraph.rows",
-      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"true\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway\",\"microsoft.web/sites\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity\",\"microsoft.web/serverfarms\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify\",\"microsoft.servicebus/namespaces\",\"westeurope\"]]},\"$skipToken\":\"sample-skip-12-1\"}",
-      "payload_digest" : "1faf0e813dc19131372941c9dad5ba4950543bd628208652cb4048321cad5589"
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/sites/app-identity-gateway\",\"name\":\"app-identity-gateway\",\"type\":\"microsoft.web/sites\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "231789b5703ef4f25cc4c8675f1619e6a7922d9dd3aad85625ebefded9d7a688"
     }
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-azure-inventory-0004",
+      "id" : "obs-azure-inventory-0008",
       "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
-      "sequence" : 4,
+      "sequence" : 8,
       "observed_at" : "2026-11-12T10:00:40Z",
       "kind" : "azure.resourcegraph.rows",
-      "payload" : "{\"totalRecords\":6,\"count\":3,\"resultTruncated\":\"false\",\"data\":{\"columns\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"type\",\"type\":\"string\"},{\"name\":\"location\",\"type\":\"string\"}],\"rows\":[[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks\",\"microsoft.containerservice/managedclusters\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity\",\"microsoft.network/virtualnetworks\",\"westeurope\"],[\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify\",\"microsoft.managedidentity/userassignedidentities\",\"westeurope\"]]}}",
-      "payload_digest" : "8c9095b1fa073f35d584c409e289551778f5a06b18137ce13ce263ace2b6ab9f"
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.web/serverfarms/asp-identity\",\"name\":\"asp-identity\",\"type\":\"microsoft.web/serverfarms\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "2fa68409aade86b83ed058be8c05961d4bd8156e288cf3e3cd50fbf1f66bec43"
     }
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-gcp-inventory-0003",
-      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
-      "sequence" : 3,
+      "id" : "obs-azure-inventory-0009",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 9,
       "observed_at" : "2026-11-12T10:00:40Z",
-      "kind" : "gcp.assetinventory.assets",
-      "payload" : "{\"assets\":[{\"name\":\"//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service\",\"assetType\":\"run.googleapis.com/Service\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987\",\"assetType\":\"aiplatform.googleapis.com/Endpoint\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke\",\"assetType\":\"container.googleapis.com/Cluster\",\"updateTime\":\"2026-11-12T09:00:00Z\"}],\"nextPageToken\":\"sample-page-12-1\"}",
-      "payload_digest" : "39e67cd3420ef1f27b0b487b68334b7f2c2f97b314c7ad5225fe995fefbd895d"
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.servicebus/namespaces/sb-meridian-notify\",\"name\":\"sb-meridian-notify\",\"type\":\"microsoft.servicebus/namespaces\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-notify\"}",
+      "payload_digest" : "c6bf37daa4200c21fb130b660b7f25c4a2ea7ed1854ef05f1ad17caeae1f2854"
     }
   }, {
     "expect" : "ACCEPTED",
     "observation" : {
-      "id" : "obs-gcp-inventory-0004",
+      "id" : "obs-azure-inventory-0010",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.containerservice/managedclusters/identity-aks\",\"name\":\"identity-aks\",\"type\":\"microsoft.containerservice/managedclusters\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "df65d83cf10dfaded0c1db379e8607a27ad3d8a9548c4dcce24f60fe0d9d0fd8"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0011",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-identity/providers/microsoft.network/virtualnetworks/vnet-identity\",\"name\":\"vnet-identity\",\"type\":\"microsoft.network/virtualnetworks\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-identity\"}",
+      "payload_digest" : "ae5b5463d1b9d640710616a8085bc88f3b9647cf6071f1a85ed0c62ea4c18123"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-azure-inventory-0012",
+      "source_ref" : "sample:azure/westeurope/resourcegraph/inventory",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "azure.resourcegraph.rows",
+      "payload" : "{\"id\":\"/subscriptions/11111111-2222-3333-4444-555555555555/resourceGroups/rg-meridian-notify/providers/microsoft.managedidentity/userassignedidentities/id-notify\",\"name\":\"id-notify\",\"type\":\"microsoft.managedidentity/userassignedidentities\",\"location\":\"westeurope\",\"subscriptionId\":\"11111111-2222-3333-4444-555555555555\",\"resourceGroup\":\"rg-meridian-notify\"}",
+      "payload_digest" : "bd99fe74c23a34941fb87c5716fc9d496bf4f94b17aefd68ed80f2ab7cc3bb0b"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0007",
       "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
-      "sequence" : 4,
+      "sequence" : 7,
       "observed_at" : "2026-11-12T10:00:40Z",
       "kind" : "gcp.assetinventory.assets",
-      "payload" : "{\"assets\":[{\"name\":\"//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc\",\"assetType\":\"compute.googleapis.com/Network\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)\",\"assetType\":\"firestore.googleapis.com/Database\",\"updateTime\":\"2026-11-12T09:00:00Z\"},{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features\",\"assetType\":\"aiplatform.googleapis.com/FeatureOnlineStore\",\"updateTime\":\"2026-11-12T09:00:00Z\"}]}",
-      "payload_digest" : "31e9aa9db5892fd6b7ab6e5e42ec6e73344d4abf210546eb5f333bd82151edcc"
+      "payload" : "{\"name\":\"//run.googleapis.com/projects/meridian-sample-441/locations/europe-west1/services/inventory-service\",\"assetType\":\"run.googleapis.com/Service\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "e3d8f626304dd7bb2a85d93aa2e675c11aff34fc96284a1dda4950cb0970d248"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0008",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 8,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/endpoints/5551200987\",\"assetType\":\"aiplatform.googleapis.com/Endpoint\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "70f66b85d903452609e051201c4d06e811c93a1932d60d9fb1858a2d9f80a324"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0009",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 9,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//container.googleapis.com/projects/meridian-sample-441/locations/europe-west1/clusters/ml-gke\",\"assetType\":\"container.googleapis.com/Cluster\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "5813b7017dd98c29cdc7c4717aa77aa831b311c65572ac733bfdd9ffab80f950"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0010",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 10,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//compute.googleapis.com/projects/meridian-sample-441/global/networks/ml-vpc\",\"assetType\":\"compute.googleapis.com/Network\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "73004dc534947536ec99b4c8c738c23677a714ce37ac09acce9518cbc23e9a1c"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0011",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 11,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//firestore.googleapis.com/projects/meridian-sample-441/databases/(default)\",\"assetType\":\"firestore.googleapis.com/Database\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "0a66ba2267e345dbbcdd14697b80069e021eac7d6fba6fbb52a962e5488f015d"
+    }
+  }, {
+    "expect" : "ACCEPTED",
+    "observation" : {
+      "id" : "obs-gcp-inventory-0012",
+      "source_ref" : "sample:gcp/europe-west1/assetinventory/inventory",
+      "sequence" : 12,
+      "observed_at" : "2026-11-12T10:00:40Z",
+      "kind" : "gcp.assetinventory.assets",
+      "payload" : "{\"name\":\"//aiplatform.googleapis.com/projects/meridian-sample-441/locations/europe-west1/featureOnlineStores/ranker-features\",\"assetType\":\"aiplatform.googleapis.com/FeatureOnlineStore\",\"updateTime\":\"2026-11-12T09:00:00Z\"}",
+      "payload_digest" : "950837f3c7c80d86cba262ffed6cbe0b198188bd98c54a794b43a49ea04f7e13"
     }
   }, {
     "expect" : "DUPLICATE",

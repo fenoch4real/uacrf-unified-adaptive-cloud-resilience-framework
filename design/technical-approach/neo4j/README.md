@@ -1,4 +1,4 @@
-> Historical graph-fragment reference. This folder records its original alignment-revision-5 scope. For current design decisions, read the [alignment-revision-22 Technical Approach](../UACRF_Technical_Approach_Design_v1_0_alignment_revision_22.docx), [MS01 microservices architecture](../../Microservices_Architecture/MS01/README.md) and [current UI prototype](../../UI/ui_workloads/index.html).
+> Historical graph-fragment reference. This folder records its original alignment-revision-5 scope. For current design decisions, see the [MS01 microservices architecture](../../ms01/README.md) and [implementation status](../../../docs/IMPLEMENTATION_STATUS.md). The revision-22 Technical Approach is maintained privately under `private-docs/`, when available.
 
 # Neo4j integration boundary
 
