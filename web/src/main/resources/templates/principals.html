@@ -16,7 +16,68 @@
     <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong>
   </p>
+  <p role="status" th:if="${principalMessage != null}" th:text="${principalMessage}"></p>
   <p role="alert" th:if="${principalError != null}" th:text="${principalError}"></p>
+  <p role="alert" th:if="${principalAdmissionError != null}" th:text="${principalAdmissionError}"></p>
+  <p role="alert" th:if="${principalAdmissionAuthorityError != null}"
+     th:text="${principalAdmissionAuthorityError}"></p>
+  <p role="alert" th:if="${identityProvidersError != null}" th:text="${identityProvidersError}"></p>
+  <p th:if="${canAdmitPrincipal and trustedProviders != null and #lists.isEmpty(trustedProviders) and identityProvidersError == null}">
+    No trusted identity providers are available in this context.
+  </p>
+  <section th:if="${canAdmitPrincipal and trustedProviders != null and !#lists.isEmpty(trustedProviders)}"
+           aria-labelledby="principal-admission-heading">
+    <h2 id="principal-admission-heading">Admit trusted directory principal</h2>
+    <p>
+      S01 verifies the subject with the selected trusted provider. Admission creates an identity
+      record only; it does not grant memberships or capabilities.
+    </p>
+    <form method="post" th:action="@{/principals}" th:object="${principalAdmissionForm}"
+          aria-labelledby="principal-admission-heading">
+      <input type="hidden" th:field="*{idempotencyKey}">
+      <input th:if="${requestCursor != null}" type="hidden" name="cursor" th:value="${requestCursor}">
+      <fieldset>
+        <legend>Directory identity</legend>
+        <label for="id">Principal ID</label>
+        <input id="id" type="text" th:field="*{id}" readonly required
+               th:attr="aria-invalid=${#fields.hasErrors('id') ? 'true' : null},
+                        aria-describedby=${#fields.hasErrors('id') ? 'principal-id-help principal-id-error' : 'principal-id-help'}">
+        <p id="principal-id-help">A new local identifier for the admitted principal.</p>
+        <p id="principal-id-error" th:if="${#fields.hasErrors('id')}" th:errors="*{id}"></p>
+        <label for="providerId">Trusted identity provider</label>
+        <select id="providerId" th:field="*{providerId}" required
+                th:attr="aria-invalid=${#fields.hasErrors('providerId') ? 'true' : null},
+                         aria-describedby=${#fields.hasErrors('providerId') ? 'provider-error' : null}">
+          <option value="">Choose a trusted provider</option>
+          <option th:each="provider : ${trustedProviders}"
+                  th:value="${provider.id}"
+                  th:text="|${provider.displayName} (${provider.id})|">Provider</option>
+        </select>
+        <p id="provider-error" th:if="${#fields.hasErrors('providerId')}"
+           th:errors="*{providerId}"></p>
+        <label for="directorySubjectRef">Directory subject reference</label>
+        <input id="directorySubjectRef" type="text" th:field="*{directorySubjectRef}"
+               maxlength="200" pattern="\S+" autocomplete="off" autocapitalize="none"
+               spellcheck="false" required
+               th:attr="aria-invalid=${#fields.hasErrors('directorySubjectRef') ? 'true' : null},
+                        aria-describedby=${#fields.hasErrors('directorySubjectRef') ? 'directory-subject-help directory-subject-error' : 'directory-subject-help'}">
+        <p id="directory-subject-help">
+          Enter the subject reference from the provider's directory, not a display name.
+        </p>
+        <p id="directory-subject-error" th:if="${#fields.hasErrors('directorySubjectRef')}"
+           th:errors="*{directorySubjectRef}"></p>
+        <label for="admissionReason">Reason for admission</label>
+        <textarea id="admissionReason" th:field="*{reason}" maxlength="2000"
+                  required
+                  th:attr="aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},
+                           aria-describedby=${#fields.hasErrors('reason') ? 'admission-reason-help admission-reason-error' : 'admission-reason-help'}"></textarea>
+        <p id="admission-reason-help">This reason is retained in the identity audit record.</p>
+        <p id="admission-reason-error" th:if="${#fields.hasErrors('reason')}"
+           th:errors="*{reason}"></p>
+      </fieldset>
+      <button type="submit">Admit principal</button>
+    </form>
+  </section>
   <p th:if="${#lists.isEmpty(principals) and principalError == null}">
     No principals were returned for this context.
   </p>

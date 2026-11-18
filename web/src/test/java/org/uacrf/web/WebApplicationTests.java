@@ -203,6 +203,23 @@ class WebApplicationTests {
                         true,
                         2)),
                 "principal-cursor"));
+    when(identity.listIdentityProviders("test-access-token", sessionContext()))
+        .thenReturn(
+            new IdentityAccessClient.IdentityProviderList(
+                List.of(
+                    new IdentityAccessClient.IdentityProvider(
+                        "keycloak-local", "Local Keycloak", "TRUSTED"),
+                    new IdentityAccessClient.IdentityProvider(
+                        "disabled-source", "Disabled source", "REVOKED"))));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-admin",
+                "Local Administrator",
+                "HUMAN",
+                null,
+                "GLOBAL_GRANTS_ONLY",
+                List.of("identity.directory.read", "identity.principal.manage")));
 
     mockMvc
         .perform(
@@ -213,9 +230,168 @@ class WebApplicationTests {
         .andExpect(content().string(containsString("Test Principal")))
         .andExpect(content().string(containsString("Owner eligible")))
         .andExpect(content().string(containsString("Next page of principals")))
+        .andExpect(content().string(containsString("Admit trusted directory principal")))
+        .andExpect(content().string(containsString("keycloak-local")))
+        .andExpect(content().string(not(containsString("disabled-source"))))
+        .andExpect(content().string(containsString("it does not grant memberships or capabilities")))
         .andExpect(content().string(containsString("role=\"region\"")))
         .andExpect(content().string(not(containsString("test-access-token"))));
     verify(identity).listPrincipals("test-access-token", sessionContext(), null);
+    verify(identity).listIdentityProviders("test-access-token", sessionContext());
+  }
+
+  @Test
+  void hidesPrincipalAdmissionFromDirectoryReadersWithoutManageCapability() throws Exception {
+    when(identity.listPrincipals("test-access-token", sessionContext(), null))
+        .thenReturn(new IdentityAccessClient.PrincipalPage(List.of(), null));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-approver",
+                "Local Approver",
+                "HUMAN",
+                null,
+                "GLOBAL_GRANTS_ONLY",
+                List.of("identity.directory.read")));
+
+    mockMvc
+        .perform(
+            get("/principals")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Principal directory")))
+        .andExpect(content().string(not(containsString("Admit trusted directory principal"))))
+        .andExpect(content().string(not(containsString("No trusted identity providers"))));
+
+    verify(identity, never()).listIdentityProviders("test-access-token", sessionContext());
+  }
+
+  @Test
+  void admitsTrustedDirectoryPrincipalWithoutGrantingMemberships() throws Exception {
+    String principalId = "principal-new";
+    when(
+            identity.admitPrincipal(
+                "test-access-token",
+                sessionContext(),
+                principalId,
+                "keycloak-local",
+                "directory-subject-new",
+                "Approved directory onboarding",
+                "00000000-0000-4000-8000-000000000202"))
+        .thenReturn(
+            new IdentityAccessClient.PrincipalAdmissionReceipt(
+                principalId, 1, "CREATED", "NONE"));
+
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/principals")
+                    .with(browserLogin())
+                    .with(csrf())
+                    .session(sessionWithSelectedContext())
+                    .param("id", principalId)
+                    .param("providerId", "keycloak-local")
+                    .param("directorySubjectRef", "directory-subject-new")
+                    .param("reason", "Approved directory onboarding")
+                    .param("idempotencyKey", "00000000-0000-4000-8000-000000000202"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/principals"))
+            .andReturn();
+
+    assertThat(result.getFlashMap().get("principalMessage"))
+        .asString()
+        .contains("principal-new")
+        .contains("This operation added no memberships or capabilities");
+    verify(identity)
+        .admitPrincipal(
+            "test-access-token",
+            sessionContext(),
+            principalId,
+            "keycloak-local",
+            "directory-subject-new",
+            "Approved directory onboarding",
+            "00000000-0000-4000-8000-000000000202");
+  }
+
+  @Test
+  void rendersAccessibleFieldErrorWhenDirectorySubjectIsBlank() throws Exception {
+    when(identity.listPrincipals("test-access-token", sessionContext(), null))
+        .thenReturn(new IdentityAccessClient.PrincipalPage(List.of(), null));
+    when(identity.listIdentityProviders("test-access-token", sessionContext()))
+        .thenReturn(
+            new IdentityAccessClient.IdentityProviderList(
+                List.of(new IdentityAccessClient.IdentityProvider(
+                    "keycloak-local", "Local Keycloak", "TRUSTED"))));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-admin",
+                "Local Administrator",
+                "HUMAN",
+                null,
+                "GLOBAL_GRANTS_ONLY",
+                List.of("identity.directory.read", "identity.principal.manage")));
+
+    mockMvc
+        .perform(
+            post("/principals")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("id", "principal-new")
+                .param("providerId", "keycloak-local")
+                .param("directorySubjectRef", "")
+                .param("reason", "Approved directory onboarding")
+                .param("idempotencyKey", "00000000-0000-4000-8000-000000000202"))
+        .andExpect(status().isBadRequest())
+        .andExpect(
+            content()
+                .string(
+                    containsString("Review the field errors and try again.")))
+        .andExpect(content().string(containsString("aria-invalid=\"true\"")))
+        .andExpect(
+            content()
+                .string(
+                    containsString(
+                        "aria-describedby=\"directory-subject-help directory-subject-error\"")))
+        .andExpect(content().string(containsString("id=\"directory-subject-error\"")))
+        .andExpect(content().string(containsString("must not be blank")));
+
+    verify(identity, never())
+        .admitPrincipal(
+            "test-access-token",
+            sessionContext(),
+            "principal-new",
+            "keycloak-local",
+            "",
+            "Approved directory onboarding",
+            "00000000-0000-4000-8000-000000000202");
+  }
+
+  @Test
+  void requiresCsrfForDirectoryPrincipalAdmission() throws Exception {
+    mockMvc
+        .perform(
+            post("/principals")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext())
+                .param("id", "principal-new")
+                .param("providerId", "keycloak-local")
+                .param("directorySubjectRef", "directory-subject-new")
+                .param("reason", "Approved directory onboarding")
+                .param("idempotencyKey", "00000000-0000-4000-8000-000000000202"))
+        .andExpect(status().isForbidden());
+
+    verify(identity, never())
+        .admitPrincipal(
+            "test-access-token",
+            sessionContext(),
+            "principal-new",
+            "keycloak-local",
+            "directory-subject-new",
+            "Approved directory onboarding",
+            "00000000-0000-4000-8000-000000000202");
   }
 
   @Test
@@ -1829,6 +2005,82 @@ class WebApplicationTests {
               assertThat(principal.ownerEligible()).isTrue();
             });
     experienceServer.verify();
+  }
+
+  @Test
+  void listsIdentityProvidersAndAdmitsPrincipalThroughUx01() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://experience.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server
+        .expect(
+            requestTo(
+                "http://experience.test/v1/identity-providers?tenant_id=tenant-test"
+                    + "&environment_id=environment-test"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+        .andRespond(
+            withSuccess(
+                """
+                {
+                  "items":[
+                    {"id":"keycloak-local","display_name":"Local Keycloak","status":"TRUSTED"},
+                    {"id":"old-provider","display_name":"Old Provider","status":"REVOKED"}
+                  ]
+                }
+                """,
+                MediaType.APPLICATION_JSON));
+    server
+        .expect(
+            requestTo(
+                "http://experience.test/v1/principals?tenant_id=tenant-test"
+                    + "&environment_id=environment-test"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+        .andExpect(header("Idempotency-Key", "00000000-0000-4000-8000-000000000202"))
+        .andExpect(
+            org.springframework.test.web.client.match.MockRestRequestMatchers.content()
+                .json(
+                    """
+                    {
+                      "id":"principal-new",
+                      "provider_id":"keycloak-local",
+                      "directory_subject_ref":"directory-subject-new",
+                      "reason":"Approved directory onboarding",
+                      "expected_revision":0
+                    }
+                    """))
+        .andRespond(
+            org.springframework.test.web.client.response.MockRestResponseCreators.withStatus(
+                    org.springframework.http.HttpStatus.CREATED)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(
+                    """
+                    {
+                      "id":"principal-new",
+                      "revision":1,
+                      "result":"CREATED",
+                      "runtime_effect":"NONE"
+                    }
+                    """));
+
+    IdentityAccessClient client = new IdentityAccessClient(builder.build());
+    IdentityAccessClient.IdentityProviderList providers =
+        client.listIdentityProviders("test-access-token", sessionContext());
+    IdentityAccessClient.PrincipalAdmissionReceipt receipt =
+        client.admitPrincipal(
+            "test-access-token",
+            sessionContext(),
+            "principal-new",
+            "keycloak-local",
+            "directory-subject-new",
+            "Approved directory onboarding",
+            "00000000-0000-4000-8000-000000000202");
+
+    assertThat(providers.items())
+        .extracting(IdentityAccessClient.IdentityProvider::status)
+        .containsExactly("TRUSTED", "REVOKED");
+    assertThat(receipt.result()).isEqualTo("CREATED");
+    server.verify();
   }
 
   @Test

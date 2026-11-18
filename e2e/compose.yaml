@@ -63,6 +63,12 @@ services:
       IDENTITY_BOOTSTRAP_APPROVER_PRINCIPAL_ID: local-approver
       IDENTITY_BOOTSTRAP_APPROVER_SUBJECT: 00000000-0000-4000-8000-000000000002
       IDENTITY_BOOTSTRAP_APPROVER_DISPLAY_NAME: Local Approver
+      IDENTITY_DIRECTORY_ENABLED: "true"
+      IDENTITY_DIRECTORY_ISSUER: http://localhost:8180/realms/uacrf
+      IDENTITY_DIRECTORY_TOKEN_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/token
+      IDENTITY_DIRECTORY_USERS_URI: http://keycloak:8080/admin/realms/uacrf/users
+      IDENTITY_DIRECTORY_CLIENT_ID: uacrf-s01-directory
+      IDENTITY_DIRECTORY_CLIENT_SECRET: ${KEYCLOAK_DIRECTORY_CLIENT_SECRET:?}
     depends_on:
       identity-db:
         condition: service_healthy

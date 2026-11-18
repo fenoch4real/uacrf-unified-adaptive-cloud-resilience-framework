@@ -61,6 +61,27 @@ class IdentityProxyClient {
         });
   }
 
+  ResponseEntity<String> admitPrincipal(
+      String authorization,
+      String tenantId,
+      String environmentId,
+      String idempotencyKey,
+      String requestBody) {
+    return restClient
+        .post()
+        .uri(
+            uriBuilder -> {
+              var uri = uriBuilder.path("/v1/principals");
+              context(uri, tenantId, environmentId);
+              return uri.build();
+            })
+        .header(HttpHeaders.AUTHORIZATION, authorization)
+        .header("Idempotency-Key", idempotencyKey)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(requestBody)
+        .exchange((request, response) -> toResponse(response));
+  }
+
   ResponseEntity<String> memberships(
       String authorization, int limit, String cursor, String tenantId, String environmentId) {
     return get(

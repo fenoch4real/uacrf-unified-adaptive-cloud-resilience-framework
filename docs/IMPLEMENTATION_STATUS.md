@@ -15,7 +15,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete the authorized browser workflow and broader edge coverage; verify deployment identity and end-to-end acceptance. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized membership/catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, S05 objectives, S06 topology and projection | In progress | Qualify real cloud collectors; broaden freshness and ontology coverage; complete live multi-service acceptance and implement the first reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -173,8 +173,17 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   revocation consumer yet, so already-issued S02 delegations may remain usable
   until expiry; cross-service owner-gap reporting is also pending. Trusted-
   provider principal admission and approval-gated membership creation are
-  implemented in S01 but do not yet have browser workflows. Ownership-transfer
-  handlers remain pending.
+  implemented in S01. UX01 now provides a CSRF-protected admission form that
+  offers only S01-trusted providers and forwards the context-scoped,
+  idempotent request through EDGE01. S01 remains authoritative for directory
+  subject verification; admission creates no memberships or capabilities.
+  UX01 tests cover provider filtering, validation, CSRF, request forwarding,
+  and receipt handling. The isolated browser suite verifies S01 admission
+  against the local Keycloak directory, confirms the admission receipt reports
+  no runtime effect, and verifies that a directory reader without
+  `identity.principal.manage` sees no form and receives an S01 denial on a
+  CSRF-valid direct submission. Approval-gated membership creation still has
+  no browser workflow. Ownership-transfer handlers remain pending.
 - Keycloak is now available as a loopback-only local Compose service with an
   imported development realm. Its UX01 client emits the S01 audience and fixed
   `local-dev` / `local` scope claims; the `uacrf-s01-context` scope also maps
@@ -210,15 +219,19 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   selection and current-access evaluation through UX01, EDGE01, and S01. Its
   isolated Compose runner creates disposable PostgreSQL and Keycloak services,
   generates credentials and signing keys outside the repository, and removes
-  only its uniquely named containers, network, and volume. All nine browser
+  only its uniquely named containers, network, and volume. All ten browser
   tests pass across three files: administrator and approver access with
-  reloads and read-only principal directory views, invalid-password rejection
-  for both users, unauthenticated-route redirection, local-session logout, and
-  denial of journey owner selection and a direct creation submission without
-  catalog-write authority. The latest run also verifies missing and invalid
-  CSRF tokens cannot select a context or end the session, while valid context
-  selection and logout still succeed. This covers two routes over local HTTP,
-  not a complete cross-origin or HTTPS review. S01 returned only the
+  reloads, trusted-directory admission by the authorized administrator,
+  read-only principal-directory access and S01 denial of a CSRF-valid direct
+  admission submission by the approver, invalid-password rejection for both
+  users, unauthenticated-route redirection, local-session logout, and denial
+  of journey owner selection and a direct creation submission without
+  catalog-write authority. The newly admitted principal is absent from the
+  context-scoped principal list because admission adds no membership. The
+  suite also verifies missing and invalid CSRF tokens cannot select a context
+  or end the session, while valid context selection and logout still succeed.
+  These checks use local HTTP and do not constitute a complete cross-origin
+  or HTTPS review. S01 returned only the
   administrator's seven
   intended identity-management capabilities or the approver's two separately
   seeded capabilities; catalog write access remains denied. S02 is not running
@@ -268,13 +281,12 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   The selected-context membership page reads S01's active membership pages and
   submits revision-checked, idempotent revocations with an audit reason; S01
   remains authoritative and prevents removal of the final identity
-  administrator. A read-only principal directory now displays S01's paginated
-  records in the selected context. The directory remains read-only in the UI;
-  no principal-admission or principal-disable control is exposed. Trusted
-  principal admission and approval-gated membership creation are implemented
-  at S01 but are not yet available through the browser. Re-enabling,
-  ownership-transfer handlers, and the rest of the customer workflow remain
-  unimplemented.
+  administrator. The principal directory displays S01's paginated records in
+  the selected context and conditionally offers principal admission from
+  trusted providers. Admission creates no memberships or capabilities.
+  Principal disabling and approval-gated membership creation are not exposed
+  through the browser. Re-enabling, ownership-transfer handlers, and the rest
+  of the customer workflow remain unimplemented.
 - Local delegation configuration now uses RS256; place the private key only in
   S01 and configure the matching public key and key ID in S01 and S02, as
   described in [`.env.example`](../.env.example). Managed key storage and
@@ -349,14 +361,14 @@ provider credentials or making release claims.
   SHA-256 hashes, except for the two generated QA outputs. This establishes
   consistency only for available artifacts; exhaustive discovery from the
   absent legacy source and live database introspection remain unavailable.
-- Keep the principal-admission and membership browser workflows gated. The
-  trusted-provider principal-admission and approval-gated membership handlers
-  exist at S01, but the proposed identity OpenAPI still marks
-  `POST /v1/principals` outside the canonical operation set. Do not promote
-  that route until source and release-boundary evidence supports the decision.
-  The proposed principal-status route supports disable; re-enabling and
-  distributed revocation remain gated by fresh source verification and
-  current-authority propagation.
+- Keep the approval-gated membership browser workflow gated. UX01 now exposes
+  trusted-provider principal admission through the existing S01
+  `POST /v1/principals` route via EDGE01; this does not add the route to the
+  canonical operation inventory. Keep the route outside that inventory until
+  source and release-boundary evidence supports the decision. The proposed
+  principal-status route supports disable; re-enabling and distributed
+  revocation remain gated by fresh source verification and current-authority
+  propagation.
 - Threat model and tenant/event compatibility review written
   (`docs/THREAT_MODEL.md`); its open items (key custody, deploy-time signature
   verification, CSRF review, runtime log/event leakage tests, rate limits, and
@@ -1067,8 +1079,10 @@ revocation prevents new S02 delegation issuance. A scripted live run over real K
 decision, delegated catalog write, revocation blocking delegation). It exposed
 and fixed a Spring wiring failure in `KeycloakTrustedDirectory` that unit tests
 could not see. The browser suite additionally verifies denial of journey
-creation without catalog-write authority and read-only principal-directory
-access for the administrator and approver. The authorized catalog browser
+creation without catalog-write authority, trusted-directory admission by the
+administrator, and denial of a CSRF-valid admission submission by the
+read-only approver. This validates the local Keycloak/S01 browser path but not
+production identity-provider configuration. The authorized catalog browser
 workflow remains blocked by the owner-selection grant policy and must not
-bypass the independent grant or gated identity workflows. Preserve
+bypass the independent grant or gated membership workflow. Preserve
 one-owner-per-domain and no-cross-database-access boundaries.

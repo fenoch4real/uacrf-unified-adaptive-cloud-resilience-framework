@@ -103,6 +103,41 @@ class IdentityAccessControllerTests {
   }
 
   @Test
+  void forwardsPrincipalAdmissionWithContextAndIdempotencyKey() {
+    String requestBody =
+        "{\"id\":\"principal-a\",\"provider_id\":\"keycloak-local\","
+            + "\"directory_subject_ref\":\"directory-subject-a\","
+            + "\"reason\":\"Onboard approved directory user\",\"expected_revision\":0}";
+    ResponseEntity<String> upstream = ResponseEntity.status(HttpStatus.CREATED).body(
+        "{\"id\":\"principal-a\",\"revision\":1,\"result\":\"CREATED\",\"runtime_effect\":\"NONE\"}");
+    when(
+            identity.admitPrincipal(
+                "Bearer user-token",
+                "tenant-a",
+                "environment-a",
+                "request-a",
+                requestBody))
+        .thenReturn(upstream);
+
+    ResponseEntity<String> response =
+        controller.admitPrincipal(
+            "Bearer user-token",
+            "tenant-a",
+            "environment-a",
+            "request-a",
+            requestBody);
+
+    assertThat(response).isSameAs(upstream);
+    verify(identity)
+        .admitPrincipal(
+            "Bearer user-token",
+            "tenant-a",
+            "environment-a",
+            "request-a",
+            requestBody);
+  }
+
+  @Test
   void forwardsDelegationRequestToIdentity() {
     String requestBody = "{\"audience\":\"S02\"}";
     ResponseEntity<String> upstream = ResponseEntity.ok("{\"expires_in\":30}");

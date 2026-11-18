@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -108,6 +109,38 @@ class IdentityAccessClient {
     return response;
   }
 
+  IdentityProviderList listIdentityProviders(String accessToken, BrowserContext context) {
+    IdentityProviderList response =
+        restClient
+            .get()
+            .uri(
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v1/identity-providers")
+                        .queryParam("tenant_id", context.tenantId())
+                        .queryParam("environment_id", context.environmentId())
+                        .build())
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .body(IdentityProviderList.class);
+    if (response == null
+        || response.items() == null
+        || response.items().stream()
+            .anyMatch(
+                provider ->
+                    provider == null
+                        || provider.id() == null
+                        || provider.id().isBlank()
+                        || provider.displayName() == null
+                        || provider.displayName().isBlank()
+                        || provider.status() == null
+                        || provider.status().isBlank())) {
+      throw new IllegalStateException("UX01 returned an incomplete identity-provider list.");
+    }
+    return response;
+  }
+
   PrincipalPage listPrincipals(String accessToken, BrowserContext context, String cursor) {
     PrincipalPage response =
         restClient
@@ -144,6 +177,42 @@ class IdentityAccessClient {
                         || (principal.ownerEligible()
                             && (!"HUMAN".equals(principal.kind()) || !principal.enabled())))) {
       throw new IllegalStateException("UX01 returned an incomplete principal page.");
+    }
+    return response;
+  }
+
+  PrincipalAdmissionReceipt admitPrincipal(
+      String accessToken,
+      BrowserContext context,
+      String id,
+      String providerId,
+      String directorySubjectRef,
+      String reason,
+      String idempotencyKey) {
+    PrincipalAdmissionReceipt response =
+        restClient
+            .post()
+            .uri(
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v1/principals")
+                        .queryParam("tenant_id", context.tenantId())
+                        .queryParam("environment_id", context.environmentId())
+                        .build())
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .header("Idempotency-Key", idempotencyKey)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                new PrincipalAdmissionRequest(
+                    id, providerId, directorySubjectRef, reason, 0))
+            .retrieve()
+            .body(PrincipalAdmissionReceipt.class);
+    if (response == null
+        || !id.equals(response.id())
+        || response.revision() != 1
+        || !("CREATED".equals(response.result()) || "REPLAYED".equals(response.result()))
+        || !"NONE".equals(response.runtimeEffect())) {
+      throw new IllegalStateException("UX01 returned an invalid principal-admission receipt.");
     }
     return response;
   }
@@ -273,6 +342,13 @@ class IdentityAccessClient {
       @JsonProperty("owner_eligible") boolean ownerEligible,
       long revision) {}
 
+  record IdentityProviderList(List<IdentityProvider> items) {}
+
+  record IdentityProvider(
+      String id,
+      @JsonProperty("display_name") String displayName,
+      String status) {}
+
   record PrincipalPage(
       @JsonProperty("items") List<Principal> items,
       @JsonProperty("next_cursor") String nextCursor) {}
@@ -284,6 +360,19 @@ class IdentityAccessClient {
       boolean enabled,
       @JsonProperty("owner_eligible") boolean ownerEligible,
       long revision) {}
+
+  record PrincipalAdmissionRequest(
+      String id,
+      @JsonProperty("provider_id") String providerId,
+      @JsonProperty("directory_subject_ref") String directorySubjectRef,
+      String reason,
+      @JsonProperty("expected_revision") long expectedRevision) {}
+
+  record PrincipalAdmissionReceipt(
+      String id,
+      long revision,
+      String result,
+      @JsonProperty("runtime_effect") String runtimeEffect) {}
 
   record MembershipPage(
       @JsonProperty("items") List<Membership> items,

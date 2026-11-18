@@ -65,5 +65,4 @@ export async function expectPrincipalDirectory(page) {
     await expect(row.getByRole('cell', { name: 'Enabled', exact: true })).toBeVisible();
     await expect(row.getByRole('cell', { name: 'No', exact: true })).toBeVisible();
   }
-  await expect(page.getByRole('button', { name: /admit|create|disable/i })).toHaveCount(0);
 }

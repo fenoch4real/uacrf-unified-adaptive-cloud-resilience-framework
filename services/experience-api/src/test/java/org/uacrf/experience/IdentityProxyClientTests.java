@@ -128,6 +128,66 @@ class IdentityProxyClientTests {
   }
 
   @Test
+  void forwardsPrincipalAdmissionBodyContextAndIdempotencyKey() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server
+        .expect(
+            requestTo(
+                "http://edge.test/v1/principals?tenant_id=tenant-a"
+                    + "&environment_id=environment-a"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer user-token"))
+        .andExpect(header("Idempotency-Key", "request-a"))
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {
+                      "id":"principal-a",
+                      "provider_id":"keycloak-local",
+                      "directory_subject_ref":"directory-subject-a",
+                      "reason":"Onboard approved directory user",
+                      "expected_revision":0
+                    }
+                    """))
+        .andRespond(
+            withStatus(HttpStatus.CREATED)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(
+                    """
+                {
+                  "id":"principal-a",
+                  "revision":1,
+                  "result":"CREATED",
+                  "runtime_effect":"NONE"
+                }
+                """));
+
+    IdentityProxyClient client = client(builder.build());
+
+    var response =
+        client.admitPrincipal(
+            "Bearer user-token",
+            "tenant-a",
+            "environment-a",
+            "request-a",
+            """
+            {
+              "id":"principal-a",
+              "provider_id":"keycloak-local",
+              "directory_subject_ref":"directory-subject-a",
+              "reason":"Onboard approved directory user",
+              "expected_revision":0
+            }
+            """);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
+    server.verify();
+  }
+
+  @Test
   void forwardsDelegationRequestOnlyToTheFixedIdentityEndpoint() {
     RestClient.Builder edgeBuilder = RestClient.builder().baseUrl("http://edge.test");
     RestClient.Builder identityBuilder = RestClient.builder().baseUrl("http://identity.test");

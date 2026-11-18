@@ -60,6 +60,20 @@ class IdentityAccessController {
         authorization, () -> identity.principals(authorization, limit, cursor, tenantId, environmentId));
   }
 
+  @PostMapping("/v1/principals")
+  ResponseEntity<String> admitPrincipal(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestParam(name = "tenant_id", required = false) String tenantId,
+      @RequestParam(name = "environment_id", required = false) String environmentId,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(
+        authorization,
+        () ->
+            identity.admitPrincipal(
+                authorization, tenantId, environmentId, idempotencyKey, requestBody));
+  }
+
   @GetMapping("/v1/memberships")
   ResponseEntity<String> memberships(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
