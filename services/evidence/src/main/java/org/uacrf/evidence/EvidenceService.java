@@ -26,12 +26,22 @@ import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonParser;
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.JsonToken;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 class EvidenceService {
   private static final String SCHEMA = "uacrf_evidence.";
+  private static final ObjectMapper STRICT_JSON =
+      JsonMapper.builder()
+          .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+          .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+          .build();
   private static final String TOPOLOGY_SUMMARY_CAPABILITY = "evidence.topology.summary";
   private static final Set<String> TOPOLOGY_PURPOSES =
       Set.of(
@@ -41,7 +51,8 @@ class EvidenceService {
           "topology.graph.subgraph-selection",
           "topology.graph.difference-classification");
   private static final String COLUMNS =
-      "id, source_class, source_ref, sequence, observed_at, kind, payload_digest, submitted_by, "
+      "id, source_class, source_ref, sequence, observed_at, kind, service_id, schema_version, "
+          + "payload_digest, submitted_by, "
           + "qualification_state, revision, reviewed_by, review_reason";
   private static final String HAS_EVIDENCE_CONFLICT =
       "EXISTS (SELECT 1 FROM " + SCHEMA + "quarantined_evidence q "
@@ -52,10 +63,13 @@ class EvidenceService {
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
+  private final EvidenceContractSchemas contractSchemas;
 
-  EvidenceService(JdbcTemplate jdbc, ObjectMapper objectMapper) {
+  EvidenceService(
+      JdbcTemplate jdbc, ObjectMapper objectMapper, EvidenceContractSchemas contractSchemas) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
+    this.contractSchemas = contractSchemas;
   }
 
   @Transactional
@@ -83,9 +97,13 @@ class EvidenceService {
     if (!sha256(request.payload()).equals(request.payloadDigest())) {
       return quarantine(actor, request, "DIGEST_MISMATCH");
     }
+    if (request.sourceClass() == SourceClass.PROVIDER && !validProviderObservation(request)) {
+      return quarantine(actor, request, "SOURCE_SCHEMA_INVALID");
+    }
     List<Map<String, Object>> existing =
         jdbc.queryForList(
-            "SELECT payload_digest, payload, source_ref, sequence, source_class, kind, qualification_state, "
+            "SELECT payload_digest, payload, source_ref, sequence, source_class, kind, service_id, "
+                + "schema_version, qualification_state, "
                 + "observed_at = ? AS observed_at_matches FROM "
                 + SCHEMA + "evidence_event WHERE tenant_id = ? AND environment_id = ? AND id = ?",
             Timestamp.from(request.observedAt()),
@@ -100,6 +118,8 @@ class EvidenceService {
               && request.sourceRef().equals(row.get("source_ref"))
               && request.sourceClass().name().equals(row.get("source_class"))
               && request.kind().equals(row.get("kind"))
+              && java.util.Objects.equals(request.serviceId(), row.get("service_id"))
+              && java.util.Objects.equals(request.schemaVersion(), row.get("schema_version"))
               && Boolean.TRUE.equals(row.get("observed_at_matches"))
               && request.sequence() == ((Number) row.get("sequence")).longValue();
       return same
@@ -111,8 +131,9 @@ class EvidenceService {
     }
     jdbc.update(
         "INSERT INTO " + SCHEMA + "evidence_event (tenant_id, environment_id, id, source_class, "
-            + "source_ref, sequence, observed_at, kind, payload, payload_digest, submitted_by, "
-            + "qualification_state, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+            + "source_ref, sequence, observed_at, kind, service_id, schema_version, payload, "
+            + "payload_digest, submitted_by, qualification_state, revision) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
         actor.tenantId(),
         actor.environmentId(),
         request.id(),
@@ -121,6 +142,8 @@ class EvidenceService {
         request.sequence(),
         Timestamp.from(request.observedAt()),
         request.kind(),
+        request.serviceId(),
+        request.schemaVersion(),
         request.payload(),
         request.payloadDigest(),
         actor.principalId(),
@@ -151,8 +174,8 @@ class EvidenceService {
     jdbc.update(
         "INSERT INTO " + SCHEMA + "quarantined_evidence (quarantine_id, tenant_id, environment_id, "
             + "evidence_id, source_ref, sequence, reason, payload, claimed_digest, "
-            + "source_class, observed_at, kind, submitted_by) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "source_class, observed_at, kind, submitted_by, service_id, schema_version) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         UUID.randomUUID(),
         actor.tenantId(),
         actor.environmentId(),
@@ -165,8 +188,42 @@ class EvidenceService {
         request.sourceClass().name(),
         Timestamp.from(request.observedAt()),
         request.kind(),
-        actor.principalId());
+        actor.principalId(),
+        request.serviceId(),
+        request.schemaVersion());
     return new SubmitResult(request.id(), "QUARANTINED", reason, null);
+  }
+
+  private boolean validProviderObservation(SubmitEvidence request) {
+    if (request.serviceId() == null || request.schemaVersion() == null) {
+      return false;
+    }
+    String schemaKind =
+        request.kind().startsWith("measurement.")
+            ? "METRIC"
+            : request.kind().startsWith("configuration.")
+                ? "CONFIGURATION"
+                : request.kind().startsWith("agent.") ? "AGENT_EXECUTION" : null;
+    if (schemaKind == null) {
+      return false;
+    }
+    try {
+      JsonNode data = STRICT_JSON.readTree(request.payload());
+      if (data == null || !data.isObject()) {
+        return false;
+      }
+      ObjectNode observation = objectMapper.createObjectNode();
+      observation.put("schema_version", request.schemaVersion());
+      observation.put("service_id", request.serviceId());
+      observation.put("source_id", request.sourceRef());
+      observation.put("source_event_id", request.id());
+      observation.put("occurred_at", request.observedAt().toString());
+      observation.put("kind", schemaKind);
+      observation.set("data", data);
+      return contractSchemas.validObservation(observation);
+    } catch (JacksonException | IllegalArgumentException error) {
+      return false;
+    }
   }
 
   @Transactional
@@ -403,7 +460,11 @@ class EvidenceService {
       if (parser.nextToken() != JsonToken.START_OBJECT) return null;
       String metric = null;
       String unit = null;
+      String measurementKind = null;
+      String measurementRef = null;
       BigDecimal value = null;
+      BigDecimal percentile = null;
+      boolean percentileIsNull = false;
       var fields = new HashSet<String>();
       while (parser.nextToken() != JsonToken.END_OBJECT) {
         if (parser.currentToken() != JsonToken.PROPERTY_NAME) return null;
@@ -414,10 +475,46 @@ class EvidenceService {
         else if ("unit".equals(name) && token == JsonToken.VALUE_STRING) unit = parser.getText();
         else if ("value".equals(name) && (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT))
           value = parser.getDecimalValue();
+        else if (("window_start".equals(name) || "window_end".equals(name))
+            && token == JsonToken.VALUE_STRING) {
+          parser.getText();
+        }
+        else if ("measurement_kind".equals(name) && token == JsonToken.VALUE_STRING)
+          measurementKind = parser.getText();
+        else if ("measurement_ref".equals(name) && token == JsonToken.VALUE_STRING)
+          measurementRef = parser.getText();
+        else if ("percentile".equals(name) && token == JsonToken.VALUE_NULL)
+          percentileIsNull = true;
+        else if ("percentile".equals(name)
+            && (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT))
+          percentile = parser.getDecimalValue();
         else return null;
       }
-      if (parser.nextToken() != null || fields.size() != 3 || metric == null || metric.isBlank()
+      if (parser.nextToken() != null
+          || !fields.containsAll(Set.of("metric", "value", "unit"))
+          || !(fields.size() == 3 || fields.size() == 5 || fields.size() == 8)
+          || fields.contains("window_start") != fields.contains("window_end")
+          || metric == null
+          || metric.isBlank()
           || unit == null || unit.isBlank() || value == null) return null;
+      boolean hasExtendedMeasurement =
+          fields.contains("measurement_kind")
+              || fields.contains("measurement_ref")
+              || fields.contains("percentile");
+      if (hasExtendedMeasurement
+          && (!fields.containsAll(Set.of("measurement_kind", "measurement_ref", "percentile"))
+              || measurementKind == null
+              || !Set.of("THRESHOLD", "PERCENTILE", "RATIO", "RECOVERY_TIME", "OUTCOME")
+                  .contains(measurementKind)
+              || measurementRef == null
+              || measurementRef.isBlank()
+              || ("PERCENTILE".equals(measurementKind)
+                  ? percentile == null
+                      || percentile.signum() <= 0
+                      || percentile.compareTo(BigDecimal.valueOf(100)) > 0
+                  : !percentileIsNull))) {
+        return null;
+      }
       return new ParsedMeasurement(metric, value, unit);
     } catch (JacksonException | ArithmeticException | IllegalArgumentException error) {
       return null;
@@ -530,6 +627,8 @@ class EvidenceService {
         rs.getLong("sequence"),
         rs.getTimestamp("observed_at").toInstant().toString(),
         rs.getString("kind"),
+        rs.getString("service_id"),
+        rs.getString("schema_version"),
         rs.getString("payload_digest"),
         rs.getString("submitted_by"),
         rs.getString("qualification_state"),

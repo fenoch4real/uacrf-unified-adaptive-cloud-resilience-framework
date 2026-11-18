@@ -16,6 +16,8 @@ final class EvidenceResponses {
       long sequence,
       String observedAt,
       String kind,
+      String serviceId,
+      String schemaVersion,
       String payloadDigest,
       String submittedBy,
       String qualificationState,

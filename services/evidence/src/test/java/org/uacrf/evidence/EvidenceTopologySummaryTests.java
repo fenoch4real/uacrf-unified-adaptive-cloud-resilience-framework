@@ -44,7 +44,7 @@ class EvidenceTopologySummaryTests {
   @BeforeEach
   void setUp() {
     jdbc = mock(JdbcTemplate.class);
-    service = new EvidenceService(jdbc, null);
+    service = new EvidenceService(jdbc, null, mock(EvidenceContractSchemas.class));
     row = evidenceRow();
     when(jdbc.queryForList(anyString(), any(Object[].class))).thenAnswer(invocation -> List.of(row));
   }

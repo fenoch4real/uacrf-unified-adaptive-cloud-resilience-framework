@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.time.Duration;
+import java.time.Instant;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,6 +72,7 @@ class ConnectionsApplicationTests {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private DataSource dataSource;
   @Autowired private ObjectMapper mapper;
+  @Autowired private CollectionCheckpointStore collectionCheckpoints;
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
@@ -99,8 +102,22 @@ class ConnectionsApplicationTests {
   @Test
   void cloudProvidersStayVisiblyUnacceptedAndCannotBeBound() throws Exception {
     String bearer = bearer(actor("tenant-a", "env-a", RW, List.of("owner-1")), "S03");
-    assertEquals(201, post("/v1/connections", bearer, "k-aws", connection("conn-aws", "AWS", 0)).statusCode());
-    assertThat(get("/v1/connections/conn-aws", bearer).body()).contains("\"status\":\"UNACCEPTED\"");
+    String awsConnection = connection("conn-aws", "AWS", 0);
+    assertEquals(201, post("/v1/connections", bearer, "k-aws", awsConnection).statusCode());
+    String awsDetails = get("/v1/connections/conn-aws", bearer).body();
+    assertThat(awsDetails)
+        .contains("\"status\":\"UNACCEPTED\"")
+        .contains("\"aws_external_id\":\"uacrf-");
+    String externalIdPrefix = "\"aws_external_id\":\"";
+    int externalIdStart = awsDetails.indexOf(externalIdPrefix) + externalIdPrefix.length();
+    String externalId = awsDetails.substring(externalIdStart, awsDetails.indexOf('"', externalIdStart));
+    assertEquals(201, post("/v1/connections", bearer, "k-aws", awsConnection).statusCode());
+    assertThat(get("/v1/connections/conn-aws", bearer).body()).contains(externalId);
+
+    String invalidRole =
+        connection("conn-aws-invalid", "AWS", 0).replace(
+            "arn:aws:iam::123456789012:role/readonly", "role/readonly");
+    assertEquals(400, post("/v1/connections", bearer, "k-aws-invalid", invalidRole).statusCode());
 
     HttpResponse<String> bind =
         post(
@@ -125,6 +142,95 @@ class ConnectionsApplicationTests {
 
     HttpResponse<String> page = get("/v1/connections/conn-bind/source-bindings?pageSize=1", bearer);
     assertThat(page.body()).contains("\"id\":\"b-1\"").doesNotContain("b-2").doesNotContain("\"next_cursor\":null");
+  }
+
+  @Test
+  void collectionLeasesAreExclusiveAndRetainTheCheckpointForRetry() throws Exception {
+    String tenant = "tenant-collection-lease";
+    String bearer = bearer(actor(tenant, "env-lease", RW, List.of("owner-1")), "S03");
+    assertEquals(
+        201,
+        post(
+                "/v1/connections",
+                bearer,
+                "lease-connection",
+                connection("conn-lease", "SAMPLE_LOCAL", 0))
+            .statusCode());
+    assertEquals(
+        201,
+        post(
+                "/v1/connections/conn-lease/source-bindings",
+                bearer,
+                "lease-binding",
+                "{\"id\":\"binding-lease\",\"source_ref\":\"source-lease\",\"expected_revision\":0}")
+            .statusCode());
+
+    List<CollectionCheckpointStore.LeasedSource> firstClaims =
+        collectionCheckpoints.claimDue(1000, Duration.ofMinutes(2));
+    CollectionCheckpointStore.LeasedSource lease =
+        firstClaims.stream()
+            .filter(
+                source ->
+                    source.tenantId().equals(tenant)
+                        && source.connectionId().equals("conn-lease"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(lease.lastSequence()).isZero();
+    assertThat(
+            collectionCheckpoints.claimDue(1000, Duration.ofMinutes(2)))
+        .noneMatch(
+            source ->
+                source.tenantId().equals(tenant)
+                    && source.connectionId().equals("conn-lease"));
+
+    Instant collectedAt = Instant.parse("2026-11-17T17:00:00Z");
+    ProviderCollector.Observation observation =
+        new ProviderCollector.Observation(
+            "pending-obs",
+            1,
+            collectedAt,
+            "aws.config.resources",
+            "{\"resource\":\"fixture\"}");
+    collectionCheckpoints.storePending(lease, List.of(observation), "next-page", collectedAt);
+    collectionCheckpoints.complete(
+        lease,
+        "FAILED",
+        "Collection attempt failed; retry scheduled.",
+        lease.checkpoint(),
+        lease.lastCollectedAt(),
+        Instant.now().minusMillis(1),
+        false);
+    CollectionCheckpointStore.LeasedSource retry =
+        collectionCheckpoints.claimDue(1000, Duration.ofMinutes(2)).stream()
+            .filter(
+                source ->
+                    source.tenantId().equals(tenant)
+                        && source.connectionId().equals("conn-lease"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(retry.leaseToken()).isNotEqualTo(lease.leaseToken());
+    assertThat(retry.checkpoint()).isNull();
+    assertThat(retry.lastSequence()).isZero();
+    assertThat(retry.pendingObservations()).containsExactly(observation);
+    assertThat(retry.pendingNextCheckpoint()).isEqualTo("next-page");
+    assertThat(retry.pendingCollectedAt()).isEqualTo(collectedAt);
+
+    collectionCheckpoints.complete(
+        retry,
+        "COLLECTED",
+        "Batch submitted to observation intake.",
+        retry.pendingNextCheckpoint(),
+        retry.pendingCollectedAt(),
+        Instant.now().plusSeconds(60),
+        true);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT pending_observations IS NULL AND pending_collected_at IS NULL "
+                    + "AND checkpoint = 'next-page' FROM uacrf_connections.collection_checkpoint "
+                    + "WHERE tenant_id = ? AND connection_id = 'conn-lease'",
+                Boolean.class,
+                tenant))
+        .isTrue();
   }
 
   @Test
@@ -568,8 +674,10 @@ class ConnectionsApplicationTests {
   }
 
   private static String connection(String id, String provider, long revision) {
-    return "{\"id\":\"%s\",\"name\":\"Sample source\",\"provider\":\"%s\",\"read_only_identity_ref\":\"role/readonly\",\"owner_id\":\"owner-1\",\"expected_revision\":%d}"
-        .formatted(id, provider, revision);
+    String identityRef =
+        provider.equals("AWS") ? "arn:aws:iam::123456789012:role/readonly" : "role/readonly";
+    return "{\"id\":\"%s\",\"name\":\"Sample source\",\"provider\":\"%s\",\"read_only_identity_ref\":\"%s\",\"owner_id\":\"owner-1\",\"expected_revision\":%d}"
+        .formatted(id, provider, identityRef, revision);
   }
 
   private HttpResponse<String> post(String path, String bearer, String key, String body) throws Exception {

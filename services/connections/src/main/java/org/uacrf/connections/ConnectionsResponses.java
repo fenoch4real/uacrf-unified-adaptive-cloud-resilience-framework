@@ -17,7 +17,8 @@ final class ConnectionsResponses {
       String ownerId,
       String status,
       String statusReason,
-      long revision) {}
+      long revision,
+      String awsExternalId) {}
 
   record Binding(String id, String connectionId, String sourceRef, String serviceRef, long revision) {}
 

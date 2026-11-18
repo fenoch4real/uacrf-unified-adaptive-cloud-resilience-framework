@@ -45,6 +45,13 @@ class IdentityAccessService {
           "evidence.event.write",
           "evidence.inbox.write",
           "evidence.qualification.review",
+          "evidence.qualification.policy.read",
+          "evidence.qualification.policy.write",
+          "evidence.qualification.policy.review",
+          "evidence.qualification.waiver.read",
+          "evidence.qualification.waiver.write",
+          "evidence.qualification.waiver.review",
+          "evidence.qualification.waiver.revoke",
           "objectives.objective.read",
           "objectives.objective.write",
           "objectives.objective.review",
@@ -137,6 +144,10 @@ class IdentityAccessService {
     }
     if (requestedCapabilities.contains("authorization.policy.review") && !"HUMAN".equals(actor.kind())) {
       throw denied("Policy review delegations are only available to human principals.");
+    }
+    if (requestedCapabilities.contains("evidence.qualification.policy.review")
+        && !"HUMAN".equals(actor.kind())) {
+      throw denied("Qualification policy review delegations are only available to human principals.");
     }
     if (requestedCapabilities.contains("advisory.run.create") && !"HUMAN".equals(actor.kind())) {
       throw denied("Advisory run creation is only available to human principals.");
@@ -1222,6 +1233,14 @@ class IdentityAccessService {
     if ("authorization.policy.review".equals(capability) && "*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "authorization.policy.review requires an exact service scope.");
     }
+    if ("evidence.qualification.policy.review".equals(capability) && "*".equals(serviceScope)) {
+      throw unprocessable(
+          "INVALID_SCOPE", "evidence.qualification.policy.review requires an exact service scope.");
+    }
+    if (capability.startsWith("evidence.qualification.waiver.") && "*".equals(serviceScope)) {
+      throw unprocessable(
+          "INVALID_SCOPE", "Qualification waiver capabilities require an exact service scope.");
+    }
     if ("objectives.review-authority.check".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "objectives.review-authority.check requires global scope.");
     }
@@ -1249,7 +1268,9 @@ class IdentityAccessService {
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
           case "objectives.review-authority.check" -> "SYSTEM".equals(kind);
           case "knowledge.item.review", "advisory.run.create", "assessment.learning.review",
-              "objectives.objective.review", "authorization.policy.review" -> "HUMAN".equals(kind);
+              "objectives.objective.review", "authorization.policy.review",
+              "evidence.qualification.policy.review", "evidence.qualification.waiver.review" ->
+                  "HUMAN".equals(kind);
           default -> "HUMAN".equals(kind) || "SYSTEM".equals(kind);
         };
     if (!allowed) {

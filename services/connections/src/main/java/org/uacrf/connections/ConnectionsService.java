@@ -12,6 +12,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,6 +25,9 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 class ConnectionsService {
   private static final String SCHEMA = "uacrf_connections.";
+  private static final Pattern AWS_ROLE_ARN =
+      Pattern.compile(
+          "^arn:aws(?:-[a-z0-9-]+)?:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$");
   private static final String UNACCEPTED_REASON =
       "No conformance-tested read-only collector exists for this provider yet.";
   private final JdbcTemplate jdbc;
@@ -44,7 +48,13 @@ class ConnectionsService {
     if (request.expectedRevision() != 0) {
       throw conflict("CREATE_REVISION_MISMATCH", "A new connection must use expected_revision 0.");
     }
+    if (request.provider() == Provider.AWS
+        && !AWS_ROLE_ARN.matcher(request.readOnlyIdentityRef()).matches()) {
+      throw invalid("AWS read_only_identity_ref must be an IAM role ARN.");
+    }
     boolean accepted = request.provider() == Provider.SAMPLE_LOCAL;
+    String awsExternalId =
+        request.provider() == Provider.AWS ? "uacrf-" + UUID.randomUUID() : null;
     return executeOnce(
         actor,
         "POST /v1/connections",
@@ -58,8 +68,8 @@ class ConnectionsService {
                 "INSERT INTO "
                     + SCHEMA
                     + "connection (tenant_id, environment_id, id, name, provider, "
-                    + "read_only_identity_ref, owner_id, status, status_reason, revision) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                    + "read_only_identity_ref, owner_id, status, status_reason, revision, "
+                    + "aws_external_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
                 actor.tenantId(),
                 actor.environmentId(),
                 request.id(),
@@ -68,7 +78,8 @@ class ConnectionsService {
                 request.readOnlyIdentityRef(),
                 request.ownerId(),
                 accepted ? "ACTIVE" : "UNACCEPTED",
-                accepted ? "Local sample collector is available." : UNACCEPTED_REASON));
+                accepted ? "Local sample collector is available." : UNACCEPTED_REASON,
+                awsExternalId));
   }
 
   @Transactional(readOnly = true)
@@ -77,7 +88,7 @@ class ConnectionsService {
     List<Connection> rows =
         jdbc.query(
             "SELECT id, name, provider, read_only_identity_ref, owner_id, status, status_reason, "
-                + "revision FROM "
+                + "revision, aws_external_id FROM "
                 + SCHEMA
                 + "connection WHERE tenant_id = ? AND environment_id = ? AND id > ? "
                 + "ORDER BY id LIMIT ?",
@@ -114,18 +125,30 @@ class ConnectionsService {
         request.id(),
         "SOURCE_BINDING",
         "connections.source-binding.created",
-        () ->
-            jdbc.update(
-                "INSERT INTO "
-                    + SCHEMA
-                    + "source_binding (tenant_id, environment_id, id, connection_id, source_ref, "
-                    + "service_ref, revision) VALUES (?, ?, ?, ?, ?, ?, 1)",
-                actor.tenantId(),
-                actor.environmentId(),
-                request.id(),
-                connectionId,
-                request.sourceRef(),
-                request.serviceRef()));
+        () -> {
+          int inserted =
+              jdbc.update(
+                  "INSERT INTO "
+                      + SCHEMA
+                      + "source_binding (tenant_id, environment_id, id, connection_id, source_ref, "
+                      + "service_ref, revision) VALUES (?, ?, ?, ?, ?, ?, 1)",
+                  actor.tenantId(),
+                  actor.environmentId(),
+                  request.id(),
+                  connectionId,
+                  request.sourceRef(),
+                  request.serviceRef());
+          jdbc.update(
+              "INSERT INTO "
+                  + SCHEMA
+                  + "collection_checkpoint (tenant_id, environment_id, connection_id, source_ref) "
+                  + "VALUES (?, ?, ?, ?)",
+              actor.tenantId(),
+              actor.environmentId(),
+              connectionId,
+              request.sourceRef());
+          return inserted;
+        });
   }
 
   @Transactional(readOnly = true)
@@ -157,7 +180,7 @@ class ConnectionsService {
     List<Connection> rows =
         jdbc.query(
             "SELECT id, name, provider, read_only_identity_ref, owner_id, status, status_reason, "
-                + "revision FROM "
+                + "revision, aws_external_id FROM "
                 + SCHEMA
                 + "connection WHERE tenant_id = ? AND environment_id = ? AND id = ?",
             (rs, row) -> connectionRow(rs),
@@ -180,7 +203,8 @@ class ConnectionsService {
         rs.getString("owner_id"),
         rs.getString("status"),
         rs.getString("status_reason"),
-        rs.getLong("revision"));
+        rs.getLong("revision"),
+        rs.getString("aws_external_id"));
   }
 
   private Receipt executeOnce(

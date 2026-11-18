@@ -26,6 +26,8 @@ final class EvidenceRequests {
       @Min(1) long sequence,
       @NotNull java.time.Instant observedAt,
       @NotBlank @Pattern(regexp = "^[a-z][a-z0-9_.-]{0,99}$") String kind,
+      @Size(max = 200) @Pattern(regexp = "^\\S+$") String serviceId,
+      @Pattern(regexp = "^(UACRF_OBSERVATION_V1|UACRF_OBSERVATION_V2)$") String schemaVersion,
       @NotBlank @Size(max = 16384) String payload,
       @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String payloadDigest) {}
 

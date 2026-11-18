@@ -1,6 +1,9 @@
 package org.uacrf.connections;
 
+import org.springframework.stereotype.Component;
+
 /** IMPLEMENT HERE: the real Azure collector. Constants are placeholders to replace. */
+@Component
 final class AzureCollector implements ProviderCollector {
   /** IMPLEMENT: tenant and subscription of a Reader-role service principal or workload identity. */
   static final String TENANT_ID = "<AZURE_TENANT_ID>";

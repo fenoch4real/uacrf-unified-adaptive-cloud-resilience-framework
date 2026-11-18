@@ -16,7 +16,7 @@ estimate.
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Ownership transfer for journeys and services is implemented and tested, but the live fixture verifies denial only; re-enabling principals remains unavailable pending verification and independent review. |
-| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, S05 objectives, S06 topology and projection | In progress | Qualify real cloud collectors; broaden freshness and ontology coverage; complete live multi-service acceptance and implement the first reporting capabilities. |
+| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | Complete live conformance for the AWS Config inventory collector (AWS connections remain unaccepted); implement other cloud collectors and telemetry; finish S04 raw-byte metadata; broaden freshness and ontology coverage; complete live multi-service acceptance and implement the first reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
@@ -93,6 +93,31 @@ as `REPLAY_CONFLICT`. Avoid mixed old/new ingestion instances and rollback
 without accounting for the weaker old behavior. The focused connections and
 delegation suites passed 20 tests; the MS01 architecture check passed 24
 checks. This does not qualify cloud collectors or replace S04 qualification.
+
+## S03 leased collection and AWS Config inventory
+
+The opt-in collection runner claims active source bindings through persisted
+per-source leases and checkpoints. Before submission it durably saves each
+observation batch, so retries after partial or uncertain intake replay the
+same IDs, payloads, timestamps, and sequence values instead of recollecting.
+It uses a dedicated OAuth client identity and a short-lived S01 delegation
+limited to `connections.observation.write`; it stores no signing key and
+remains disabled by default.
+
+AWS connection registration validates an IAM role ARN and creates a unique
+per-connection ExternalId, which authorized connection reads expose for
+configuring the target role trust policy. The implemented first source is
+`aws/<region>/config/inventory`: the collector assumes that role through STS
+and queries one AWS Config `SelectResourceConfig` page (up to 100 results) per
+run, retaining `NextToken` in the checkpoint. Observations use the Config
+capture time and stable IDs derived from source and sequence. AWS connections
+remain `UNACCEPTED` until live read-only conformance; the runner therefore
+does not schedule them. CloudWatch metrics have no source/metric-definition
+contract yet, and Azure and GCP collectors remain unimplemented. No live AWS
+credentials were provided, so real provider conformance is outstanding.
+The focused connections/delegation reactor passed 28 tests (20 connections
+tests and 8 delegation-auth tests), with no failures, errors, or skips; this is
+local test evidence, not live AWS conformance.
 
 ## Current handoff
 
@@ -494,6 +519,20 @@ Observation intake is built (`POST /v1/connections/{id}/observations`, needs
 ACCEPTED, DUPLICATE or QUARANTINED (`DIGEST_MISMATCH`, `REPLAY_CONFLICT`,
 `STALE_SEQUENCE`); unbound sources get 409. Sequence gaps are accepted.
 
+The opt-in collection runner claims active source bindings through persisted
+per-source checkpoints and expiring leases, invokes only registered
+`ProviderCollector`s, and submits bounded batches through the existing S03
+intake. It uses a dedicated OAuth client-credentials identity and obtains a
+narrow S01 delegation for `connections.observation.write`; a checkpoint
+advances only after all intake results are durably accepted, duplicated, or
+quarantined. Failed and unimplemented collections retain the prior checkpoint
+for retry, and provider-supplied retry times are honored. The runner is disabled
+by default. AWS, Azure, and GCP remain
+UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
+data. The full connections module suite passes 17 tests, including runner,
+PostgreSQL lease, and outbox publisher tests. Real provider collection and
+deployment identity configuration remain unverified.
+
 Sample data lives in `sample-data/` and is generated and validated by Java
 (`./mvnw -pl sample-data test`, add `-Duacrf.sample.regenerate=true` to rewrite).
 It holds a local estate, a multi-cloud (AWS, Azure, Google Cloud)
@@ -513,15 +552,14 @@ constants, and returns `NOT_IMPLEMENTED` (never fake data):
 | Azure | `AzureCollector` | `TENANT_ID`, `SUBSCRIPTION_ID`, `METRICS_API`, `INVENTORY_API` | `azure.monitor.metrics`, `azure.resourcegraph.rows` |
 | Google Cloud | `GcpCollector` | `PROJECT_ID`, `SERVICE_ACCOUNT`, `METRICS_API`, `INVENTORY_API` | `gcp.monitoring.timeseries`, `gcp.assetinventory.assets` |
 
-Still to do around them: a scheduler that calls `collect` per bound source and
-submits batches through the existing intake; credential handling (no secrets in
-the repo); lifting a provider from `UNACCEPTED` only after the live read-only
-conformance suite passes for pagination, permission denial, source outage, rate
-limits, checkpoint recovery and out-of-order delivery. The sample-data fixture
-shows each case. S05 and S06 now have initial service slices; see their sections
+Still to do around them: credential resolution (no secrets in the repo);
+lifting a provider from `UNACCEPTED` only after the live read-only conformance
+suite passes for pagination, permission denial, source outage, rate limits,
+checkpoint recovery and out-of-order delivery. The sample-data fixture shows
+each case. S05 and S06 now have initial service slices; see their sections
 below for implemented scope and remaining gaps.
 
-## M2 / S04 evidence and qualification (first slice)
+## M2 / S04 evidence, qualification, and waiver workflows
 
 `services/evidence` (port 8086, audience `S04`, schema and database `uacrf_evidence`)
 retains evidence events and decides qualification.
@@ -537,6 +575,34 @@ retains evidence events and decides qualification.
 - Provider evidence starts `UNVERIFIED`; `POST /v1/evidence/{id}/reviews` needs
   `evidence.qualification.review`, a reviewer who is not the submitter, and the
   expected revision.
+- Provider observations are assembled into the canonical versioned observation
+  envelope and checked against the shared Draft 2020-12 contract before
+  retention. Accepted and quarantined provider records retain `service_id` and
+  `schema_version`; schema failures are quarantined as `SOURCE_SCHEMA_INVALID`.
+  The payload digest remains over the exact stored payload string. This is
+  contract validation, not live provider conformance; sample-local evidence
+  remains sample-only.
+- Qualification-policy proposals and decisions are validated against the
+  proposed OpenAPI request schemas and stored as immutable, tenant- and
+  environment-scoped revisions with idempotent writes, authorized reads and
+  history. S01 exposes explicit read/write/review grants; review grants are
+  restricted to HUMAN principals at an exact service scope. Policy approval and
+  `current_eligible` are governance metadata only and never qualify evidence or
+  authorize an action.
+- Qualification-gap waivers now support proposal, scoped list/read, independent
+  review, and revocation. A proposal must name an explicitly waivable requirement
+  on the current, approved, unexpired policy revision and carries a bounded
+  observation window, gap types, expiry and reason. Approval requires a compact
+  RS256 assertion bound to the retained waiver digest and a reviewer-specific,
+  operator-provisioned S04 public-key trust set; trust revisions, key identity
+  and assertion digests are retained. Waiver records, decisions, revocations and
+  idempotency receipts are immutable. S01 exposes separate waiver read/write/
+  review/revoke grants, all at exact service scope, with review restricted to
+  HUMAN principals. `current_eligible` reflects current policy, waiver expiry,
+  revocation and trust state only; waivers do not qualify evidence or authorize
+  actions. Configure public trust material with
+  `UACRF_QUALIFICATION_WAIVER_TRUST_SET_JSON`; signer private keys remain outside
+  S04 and source control.
 - `POST /internal/v1/qualifications/{id}:receipt` returns whether evidence is usable
   for a purpose given an expected digest and cutoff.
 - `POST /internal/v1/qualifications/{id}:measurement` internally attests parsed
@@ -581,11 +647,13 @@ retains evidence events and decides qualification.
   future consumers must block ambiguous context and address conflicts arriving
   after a check before making decisions.
 - S01 registers `evidence.event.read|write`, `evidence.inbox.write` and
-  `evidence.qualification.review`.
+  `evidence.qualification.review`, plus
+  `evidence.qualification.policy.read|write|review`.
 - Wired into Dockerfile, compose, CI, release, ownership check and image smoke test.
 - EDGE01 routes only `GET /v1/evidence`, `GET /v1/evidence/{id}` and
   `POST /v1/evidence/{id}/reviews` under `/internal/evidence`; the `/internal/v1`
-  S04 endpoints are deliberately not routed publicly.
+  intake/qualification endpoints and all qualification-policy routes are
+  deliberately not routed through the edge.
 - S03 `OutboxPublisher` (off by default, `UACRF_OUTBOX_PUBLISHER_ENABLED`) delivers
   pending `outbox_event` rows to the S04 inbox. It signs in to Keycloak with the
   client-credentials grant, asks S01 for a 30-second S04 delegation limited to
@@ -598,8 +666,12 @@ retains evidence events and decides qualification.
   `KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET`). Still needed before enabling the publisher:
   admit that service account as a SYSTEM principal through the S01 admission flow,
   grant it `evidence.inbox.write` through an approved grant, and set
-  `UACRF_S03_CLIENT_SECRET` for S03. Not yet built: source schemas, policies, gap
-  waivers, raw-byte metadata.
+`UACRF_S03_CLIENT_SECRET` for S03. Remaining S04 work includes raw-byte
+metadata. The focused evidence reactor passed 23 tests (19 evidence HTTP
+integration tests and four topology-summary tests); the identity HTTP suite
+passed 23 tests, with no failures, errors or skips. This is focused local test
+evidence, not full-reactor or live multi-service acceptance; operator trust
+provisioning and live S01-to-S04 grant/delegation conformance remain outstanding.
 
 ## M2 / S05 objectives (first slice)
 
@@ -1110,20 +1182,14 @@ retains evidence events and decides qualification.
 
 ## Next implementation step
 
-Public S01 identity reads and writes now pass through EDGE01, while delegation
-issuance stays on UX01's private server-to-server path to S01. The local image
-smoke test verifies EDGE01 owner reachability plus cross-database credential
-rejection. An authenticated local OIDC-to-context-selection-to-S01 access
-browser flow has passed; the identity integration test also verifies that
-revocation prevents new S02 delegation issuance. A scripted live run over real Keycloak, S01, EDGE01 and S02 passed
-(bootstrap approver, directory admission, independent grant decision, single-use
-decision, delegated catalog write, revocation blocking delegation). It exposed
-and fixed a Spring wiring failure in `KeycloakTrustedDirectory` that unit tests
-could not see. The browser suite additionally verifies denial of journey
-creation without catalog-write authority, trusted-directory admission by the
-administrator, and denial of a CSRF-valid admission submission by the
-read-only approver. This validates the local Keycloak/S01 browser path but not
-production identity-provider configuration. The authorized catalog browser
-workflow remains blocked by the owner-selection grant policy and must not
-bypass the independent grant or gated membership workflow. Preserve
-one-owner-per-domain and no-cross-database-access boundaries.
+M1 now has tested journey and service ownership-transfer paths, but authorized
+live catalog mutation acceptance remains blocked by the unchanged
+owner-selection grant policy. Do not bypass the independent grant or gated
+membership workflow. The next unblocked M2 slice is a real read-only provider
+collector connected to S03's opt-in leased runner. Before enabling collection,
+provision a dedicated S03 system client with only
+`connections.observation.write` and configure its secret outside the
+repository. Keep each cloud provider UNACCEPTED until its live conformance
+suite verifies pagination, permission denial, outages, rate limits, checkpoint
+recovery and out-of-order delivery. Preserve one-owner-per-domain and
+no-cross-database-access boundaries.

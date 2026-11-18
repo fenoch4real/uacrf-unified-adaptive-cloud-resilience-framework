@@ -11,10 +11,14 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.Signature;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -66,12 +70,469 @@ class EvidenceApplicationTests {
         "uacrf.delegation.public-key-base64",
         () -> Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded()));
     properties.add("uacrf.delegation.key-id", () -> KEY_ID);
+    properties.add("uacrf.qualification-waiver.trust-set-json", EvidenceApplicationTests::waiverTrustSet);
   }
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
   private final HttpClient http = HttpClient.newHttpClient();
+
+  @Test
+  void providerObservationsAreValidatedAgainstTheSharedVersionedSchema() throws Exception {
+    String submit = bearer("schema-submitter", "tenant-schema", SUBMITTER);
+    String metricData =
+        "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\","
+            + "\"window_start\":\"2025-12-31T23:00:00Z\","
+            + "\"window_end\":\"2026-01-01T00:00:00Z\"}";
+    HttpResponse<String> accepted =
+        post(
+            "/internal/v1/observations",
+            submit,
+            schemaObservation(
+                "schema-valid",
+                "schema-source",
+                1,
+                "measurement.latency",
+                "svc-schema",
+                "UACRF_OBSERVATION_V1",
+                metricData));
+    assertEquals(202, accepted.statusCode());
+    assertThat(accepted.body()).contains("\"status\":\"ACCEPTED\"");
+    assertThat(get("/v1/evidence/schema-valid", submit).body())
+        .contains("\"service_id\":\"svc-schema\"")
+        .contains("\"schema_version\":\"UACRF_OBSERVATION_V1\"");
+
+    String configurationData =
+        "{\"resource_id\":\"r1\",\"configuration_digest\":\""
+            + "a".repeat(64)
+            + "\",\"source_version\":\"1\",\"source_checked_at\":\"2026-01-01T00:00:00Z\","
+            + "\"change_type\":\"SNAPSHOT\"}";
+    HttpResponse<String> rejected =
+        post(
+            "/internal/v1/observations",
+            submit,
+            schemaObservation(
+                "schema-invalid",
+                "schema-source",
+                2,
+                "configuration.snapshot",
+                "svc-schema",
+                "UACRF_OBSERVATION_V2",
+                configurationData));
+    assertEquals(202, rejected.statusCode());
+    assertThat(rejected.body()).contains("QUARANTINED").contains("SOURCE_SCHEMA_INVALID");
+    assertEquals(
+        1,
+        jdbc.queryForObject(
+            "SELECT count(*) FROM uacrf_evidence.quarantined_evidence "
+                + "WHERE tenant_id='tenant-schema' AND evidence_id='schema-invalid'",
+            Integer.class));
+
+    String v2Data =
+        "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\","
+            + "\"window_start\":\"2025-12-31T23:00:00Z\","
+            + "\"window_end\":\"2026-01-01T00:00:00Z\","
+            + "\"measurement_kind\":\"THRESHOLD\",\"measurement_ref\":\"latency-slo\","
+            + "\"percentile\":null}";
+    HttpResponse<String> v2Accepted =
+        post(
+            "/internal/v1/observations",
+            submit,
+            schemaObservation(
+                "schema-valid-v2",
+                "schema-source",
+                3,
+                "measurement.latency",
+                "svc-schema",
+                "UACRF_OBSERVATION_V2",
+                v2Data));
+    assertEquals(202, v2Accepted.statusCode());
+    String reviewer = bearer("schema-reviewer", "tenant-schema", REVIEWER);
+    assertEquals(
+        200,
+        post(
+                "/v1/evidence/schema-valid-v2/reviews",
+                reviewer,
+                "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}")
+            .statusCode());
+    HttpResponse<String> v2Measurement =
+        post(
+            "/internal/v1/qualifications/schema-valid-v2:measurement",
+            reviewer,
+            measurementRequest("latency", "2999-01-01T00:00:00Z"));
+    assertEquals(200, v2Measurement.statusCode());
+    assertThat(v2Measurement.body()).contains("\"usable_as_evidence\":true", "\"metric\":\"latency\"");
+  }
+
+  @Test
+  void qualificationPolicyLifecycleIsScopedVersionedAndMetadataOnly() throws Exception {
+    String tenant = "tenant-policy";
+    String service = "svc-policy";
+    String writer =
+        bearer(
+            "policy-writer",
+            tenant,
+            List.of(
+                "evidence.event.write",
+                "evidence.qualification.policy.read",
+                "evidence.qualification.policy.write"));
+    String reviewer =
+        token(
+            "policy-reviewer",
+            tenant,
+            service,
+            List.of("evidence.qualification.policy.read", "evidence.qualification.policy.review"));
+    String request =
+        """
+        {"id":"policy-1","service_id":"svc-policy","purpose":"assessment",
+         "expected_revision":0,"expires_at":"2999-01-01T00:00:00Z",
+         "definition":{"requirements":[{"id":"configuration","mandatory":true,
+           "max_age_seconds":3600,"trusted_source_ids":["source-1"],
+           "selector":{"kind":"CONFIGURATION","resource_id":"resource-1"}}]},
+         "reason":"Initial qualification criteria"}
+        """;
+    HttpResponse<String> proposed =
+        postWithIdempotencyKey("/v1/qualification-policies", writer, request, "policy-create-1");
+    assertEquals(200, proposed.statusCode(), proposed.body());
+    assertThat(proposed.body()).contains("\"decision\":\"DRAFT\"").contains("\"current_eligible\":false");
+    String receiptId = json.readTree(proposed.body()).get("receipt_id").asString();
+    HttpResponse<String> replay =
+        postWithIdempotencyKey("/v1/qualification-policies", writer, request, "policy-create-1");
+    assertEquals(200, replay.statusCode(), replay.body());
+    assertEquals(receiptId, json.readTree(replay.body()).get("receipt_id").asString());
+    assertEquals(
+        409,
+        postWithIdempotencyKey(
+                "/v1/qualification-policies",
+                writer,
+                request.replace("Initial qualification criteria", "Changed qualification criteria"),
+                "policy-create-1")
+            .statusCode());
+
+    assertEquals(
+        400,
+        postWithIdempotencyKey(
+                "/v1/qualification-policies",
+                writer,
+                request.replace("\"max_age_seconds\":3600", "\"max_age_seconds\":0"),
+                "policy-invalid")
+            .statusCode());
+    assertEquals(
+        403,
+        postWithIdempotencyKey(
+                "/v1/qualification-policies/policy-1:decide",
+                writer,
+                "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"reviewed\"}",
+                "policy-decide-ungranted")
+            .statusCode());
+
+    HttpResponse<String> approved =
+        postWithIdempotencyKey(
+            "/v1/qualification-policies/policy-1:decide",
+            reviewer,
+            "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"Independently reviewed\"}",
+            "policy-decide-1");
+    assertEquals(200, approved.statusCode(), approved.body());
+    assertThat(approved.body()).contains("\"decision\":\"APPROVED\"").contains("\"current_eligible\":true");
+    HttpResponse<String> decisionReplay =
+        postWithIdempotencyKey(
+            "/v1/qualification-policies/policy-1:decide",
+            reviewer,
+            "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"Independently reviewed\"}",
+            "policy-decide-1");
+    assertEquals(200, decisionReplay.statusCode(), decisionReplay.body());
+    assertEquals(
+        json.readTree(approved.body()).get("receipt_id").asString(),
+        json.readTree(decisionReplay.body()).get("receipt_id").asString());
+    assertEquals(
+        200,
+        get("/v1/qualification-policies?service_id=svc-policy", reviewer).statusCode());
+    assertThat(get("/v1/qualification-policies?service_id=svc-other", reviewer).body())
+        .contains("PERMISSION_DENIED");
+    String revisionTwo =
+        request
+            .replace("\"expected_revision\":0", "\"expected_revision\":1")
+            .replace("Initial qualification criteria", "Revised qualification criteria");
+    HttpResponse<String> revised =
+        postWithIdempotencyKey(
+            "/v1/qualification-policies", writer, revisionTwo, "policy-revision-2");
+    assertEquals(200, revised.statusCode(), revised.body());
+    assertThat(revised.body())
+        .contains("\"revision\":2")
+        .contains("\"decision\":\"DRAFT\"")
+        .contains("\"current_eligible\":false");
+    assertThat(get("/v1/qualification-policies/policy-1?revision=1", reviewer).body())
+        .contains("\"decision\":\"APPROVED\"")
+        .contains("\"current_eligible\":false");
+    assertThat(get("/v1/qualification-policies/policy-1/history", reviewer).body())
+        .contains("AUTHORIZED_VISIBLE_SCOPE_ONLY")
+        .contains("\"revision\":1")
+        .contains("\"revision\":2")
+        .contains("\"decision\":\"APPROVED\"");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        org.springframework.dao.DataAccessException.class,
+        () ->
+            jdbc.update(
+                "UPDATE uacrf_evidence.qualification_policy_revision SET proposal_reason=? "
+                    + "WHERE tenant_id=? AND id=? AND revision=1",
+                "mutated",
+                tenant,
+                "policy-1"));
+
+    String observation =
+        schemaObservation(
+            "policy-does-not-qualify",
+            "source-1",
+            1,
+            "measurement.latency",
+            service,
+            "UACRF_OBSERVATION_V1",
+            "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\","
+                + "\"window_start\":\"2025-12-31T23:00:00Z\","
+                + "\"window_end\":\"2026-01-01T00:00:00Z\"}");
+    assertEquals(202, post("/internal/v1/observations", writer, observation).statusCode());
+    assertEquals(
+        "UNVERIFIED",
+        jdbc.queryForObject(
+            "SELECT qualification_state FROM uacrf_evidence.evidence_event "
+                + "WHERE tenant_id=? AND id=?",
+            String.class,
+            tenant,
+            "policy-does-not-qualify"));
+  }
+
+  @Test
+  void qualificationWaiverRequiresScopedCurrentSignedReviewAndSupportsRevocation() throws Exception {
+    String tenant = "tenant-waiver";
+    String service = "svc-waiver";
+    String proposerId = "waiver-writer";
+    String reviewerId = "waiver-reviewer";
+    String proposer =
+        tokenWithPrincipalId(
+            proposerId,
+            tenant,
+            service,
+            List.of(
+                "evidence.event.write",
+                "evidence.qualification.policy.read",
+                "evidence.qualification.policy.write",
+                "evidence.qualification.policy.review",
+                "evidence.qualification.waiver.read",
+                "evidence.qualification.waiver.write",
+                "evidence.qualification.waiver.review",
+                "evidence.qualification.waiver.revoke"));
+    String reviewer =
+        tokenWithPrincipalId(
+            reviewerId,
+            tenant,
+            service,
+            List.of(
+                "evidence.qualification.policy.review",
+                "evidence.qualification.waiver.read",
+                "evidence.qualification.waiver.review",
+                "evidence.qualification.waiver.revoke"));
+    String policyRequest =
+        """
+        {"id":"waiver-policy","service_id":"svc-waiver","purpose":"assessment",
+         "expected_revision":0,"expires_at":"2999-01-01T00:00:00Z",
+         "definition":{"requirements":[{"id":"availability","mandatory":true,
+           "max_age_seconds":3600,"trusted_source_ids":["source-1"],
+           "selector":{"kind":"CONFIGURATION","resource_id":"resource-1"},"waivable":true},
+           {"id":"nonwaivable","mandatory":true,"max_age_seconds":3600,
+            "trusted_source_ids":["source-1"],
+            "selector":{"kind":"CONFIGURATION","resource_id":"resource-2"},"waivable":false}]},
+         "reason":"Approved qualification criteria"}
+        """;
+    assertEquals(
+        200,
+        postWithIdempotencyKey(
+                "/v1/qualification-policies", proposer, policyRequest, "waiver-policy-propose")
+            .statusCode());
+    assertEquals(
+        200,
+        postWithIdempotencyKey(
+                "/v1/qualification-policies/waiver-policy:decide",
+                reviewer,
+                "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"Reviewed\"}",
+                "waiver-policy-approve")
+            .statusCode());
+
+    Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    String waiverRequest =
+        """
+        {"id":"waiver-1","policy_id":"waiver-policy","policy_revision":1,
+         "requirement_id":"availability","observation_window_start":"%s",
+         "observation_window_end":"%s","expires_at":"%s","gap_types":["MISSING"],
+         "reason":"Provider outage documented","expected_revision":0}
+        """
+            .formatted(now.minusSeconds(120), now, now.plusSeconds(900));
+    HttpResponse<String> deniedWaiver =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers",
+            proposer,
+            waiverRequest
+                .replace("\"waiver-1\"", "\"waiver-denied\"")
+                .replace("\"availability\"", "\"nonwaivable\""),
+            "waiver-propose-not-waivable");
+    assertEquals(409, deniedWaiver.statusCode(), deniedWaiver.body());
+    assertThat(deniedWaiver.body()).contains("REQUIREMENT_NOT_WAIVABLE");
+    HttpResponse<String> draft =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers", proposer, waiverRequest, "waiver-propose");
+    assertEquals(200, draft.statusCode(), draft.body());
+    assertThat(draft.body())
+        .contains("\"state\":\"DRAFT\"")
+        .contains("\"current_eligible\":false")
+        .contains("\"signing_material\"");
+    String draftReceiptId = json.readTree(draft.body()).get("receipt_id").asString();
+    HttpResponse<String> replay =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers", proposer, waiverRequest, "waiver-propose");
+    assertEquals(draftReceiptId, json.readTree(replay.body()).get("receipt_id").asString());
+    assertEquals(
+        409,
+        postWithIdempotencyKey(
+                "/v1/qualification-waivers",
+                proposer,
+                waiverRequest.replace("Provider outage documented", "Changed content"),
+                "waiver-propose")
+            .statusCode());
+    assertEquals(
+        403,
+        get(
+                "/v1/qualification-waivers/waiver-1",
+                tokenWithPrincipalId(
+                    "waiver-other-service",
+                    tenant,
+                    "svc-other",
+                    List.of("evidence.qualification.waiver.read")))
+            .statusCode());
+
+    String proposerReview =
+        """
+        {"expected_revision":1,"decision":"APPROVE","reason":"Self review",
+         "signed_assertion":"not-a-valid-assertion"}
+        """;
+    assertEquals(
+        409,
+        postWithIdempotencyKey(
+                "/v1/qualification-waivers/waiver-1:decide",
+                proposer,
+                proposerReview,
+                "waiver-self-review")
+            .statusCode());
+    String digest =
+        json.readTree(draft.body())
+            .get("waiver")
+            .get("signing_material")
+            .get("digest")
+            .asString();
+    String invalidAssertion =
+        signedWaiverAssertion(
+            tenant,
+            reviewerId,
+            "waiver-1",
+            digest.charAt(0) == '0' ? "1" + digest.substring(1) : "0" + digest.substring(1));
+    String decisionRequest =
+        "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"Independent review\","
+            + "\"signed_assertion\":\""
+            + invalidAssertion
+            + "\"}";
+    assertEquals(
+        422,
+        postWithIdempotencyKey(
+                "/v1/qualification-waivers/waiver-1:decide",
+                reviewer,
+                decisionRequest,
+                "waiver-approval-invalid")
+            .statusCode());
+
+    String overflowingLifetimeAssertion =
+        signedWaiverAssertion(
+            tenant,
+            reviewerId,
+            "waiver-1",
+            digest,
+            Long.MIN_VALUE,
+            Long.MIN_VALUE,
+            Long.MAX_VALUE);
+    String overflowingDecision =
+        "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"Invalid time claims\","
+            + "\"signed_assertion\":\""
+            + overflowingLifetimeAssertion
+            + "\"}";
+    assertEquals(
+        422,
+        postWithIdempotencyKey(
+                "/v1/qualification-waivers/waiver-1:decide",
+                reviewer,
+                overflowingDecision,
+                "waiver-approval-overflow")
+            .statusCode());
+
+    String signedAssertion = signedWaiverAssertion(tenant, reviewerId, "waiver-1", digest);
+    decisionRequest =
+        "{\"expected_revision\":1,\"decision\":\"APPROVE\",\"reason\":\"Independent review\","
+            + "\"signed_assertion\":\""
+            + signedAssertion
+            + "\"}";
+    HttpResponse<String> approved =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers/waiver-1:decide",
+            reviewer,
+            decisionRequest,
+            "waiver-approval");
+    assertEquals(200, approved.statusCode(), approved.body());
+    assertThat(approved.body())
+        .contains("\"state\":\"APPROVED\"")
+        .contains("\"current_eligible\":true")
+        .contains("\"reviewer_id\":\"waiver-reviewer\"");
+    HttpResponse<String> approvalReplay =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers/waiver-1:decide",
+            reviewer,
+            decisionRequest,
+            "waiver-approval");
+    assertEquals(
+        json.readTree(approved.body()).get("receipt_id").asString(),
+        json.readTree(approvalReplay.body()).get("receipt_id").asString());
+    assertThat(
+            get(
+                    "/v1/qualification-waivers?service_id=svc-waiver&policy_id=waiver-policy",
+                    reviewer)
+                .body())
+        .contains("\"coverage\":\"AUTHORIZED_VISIBLE_SCOPE_ONLY\"")
+        .contains("\"id\":\"waiver-1\"");
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        org.springframework.dao.DataAccessException.class,
+        () ->
+            jdbc.update(
+                "UPDATE uacrf_evidence.qualification_waiver SET reason=? "
+                    + "WHERE tenant_id=? AND environment_id='env-1' AND id=?",
+                "mutated",
+                tenant,
+                "waiver-1"));
+
+    HttpResponse<String> revoked =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers/waiver-1:revoke",
+            proposer,
+            "{\"expected_revision\":2,\"reason\":\"Evidence gap resolved\"}",
+            "waiver-revoke");
+    assertEquals(200, revoked.statusCode(), revoked.body());
+    assertThat(revoked.body()).contains("\"state\":\"REVOKED\"", "\"current_eligible\":false");
+    HttpResponse<String> revokeReplay =
+        postWithIdempotencyKey(
+            "/v1/qualification-waivers/waiver-1:revoke",
+            proposer,
+            "{\"expected_revision\":2,\"reason\":\"Evidence gap resolved\"}",
+            "waiver-revoke");
+    assertEquals(
+        json.readTree(revoked.body()).get("receipt_id").asString(),
+        json.readTree(revokeReplay.body()).get("receipt_id").asString());
+  }
 
   @Test
   void sampleEvidenceStaysSampleOnlyAndCannotBeQualified() throws Exception {
@@ -93,7 +554,8 @@ class EvidenceApplicationTests {
   void providerEvidenceNeedsIndependentReviewAndReceiptTracksDigestAndCutoff() throws Exception {
     String submit = bearer("submitter", "tenant-p", SUBMITTER);
     String review = bearer("reviewer", "tenant-p", REVIEWER);
-    assertThat(post("/internal/v1/observations", submit, evidence("e2", "PROVIDER", "src-2", 1, "p2", null)).body())
+    String payload = providerMetricPayload("p2");
+    assertThat(post("/internal/v1/observations", submit, evidence("e2", "PROVIDER", "src-2", 1, payload, sha(payload))).body())
         .contains("UNVERIFIED");
 
     String decision = "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}";
@@ -103,7 +565,7 @@ class EvidenceApplicationTests {
     assertEquals(200, post("/v1/evidence/e2/reviews", review, decision).statusCode());
     assertThat(post("/v1/evidence/e2/reviews", review, decision.replace("1}", "2}")).body()).contains("ALREADY_REVIEWED");
 
-    assertThat(post("/internal/v1/qualifications/e2:receipt", review, receiptBody(sha("p2"))).body())
+    assertThat(post("/internal/v1/qualifications/e2:receipt", review, receiptBody(sha(payload))).body())
         .contains("\"usable_as_evidence\":true");
     assertThat(post("/internal/v1/qualifications/e2:receipt", review, receiptBody(sha("other"))).body())
         .contains("\"usable_as_evidence\":false").contains("\"digest_matches\":false");
@@ -111,7 +573,7 @@ class EvidenceApplicationTests {
             post(
                     "/internal/v1/qualifications/e2:receipt",
                     review,
-                    receiptBody(sha("p2")).replace("2999-01-01", "2000-01-01"))
+                    receiptBody(sha(payload)).replace("2999-01-01", "2000-01-01"))
                 .body())
         .contains("\"within_cutoff\":false");
   }
@@ -120,12 +582,14 @@ class EvidenceApplicationTests {
   void measurementReceiptBindsQualifiedPayloadAndHidesOtherTenants() throws Exception {
     String submit = bearer("submitter", "tenant-measurement", SUBMITTER);
     String reviewer = bearer("reviewer", "tenant-measurement", REVIEWER);
-    String payload = "{\"metric\":\"latency\",\"value\":1.250,\"unit\":\"ms\"}";
-    String escapedPayload = json.writeValueAsString(payload);
+    String payload =
+        "{\"metric\":\"latency\",\"value\":1.250,\"unit\":\"ms\","
+            + "\"window_start\":\"2025-12-31T23:00:00Z\","
+            + "\"window_end\":\"2026-01-01T00:00:00Z\"}";
     String request = measurementRequest("latency", "2999-01-01T00:00:00Z");
     String path = "/internal/v1/qualifications/measurement-1:measurement";
     assertEquals(202, post("/internal/v1/observations", submit,
-        evidence("measurement-1", "PROVIDER", "measurement-source", 1, escapedPayload.substring(1, escapedPayload.length() - 1), sha(payload))).statusCode());
+        evidence("measurement-1", "PROVIDER", "measurement-source", 1, payload, sha(payload))).statusCode());
     assertThat(post(path, reviewer, request).body()).contains("\"usable_as_evidence\":false");
     assertEquals(200, post("/v1/evidence/measurement-1/reviews", reviewer,
         "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
@@ -157,14 +621,17 @@ class EvidenceApplicationTests {
   void measurementReceiptRejectsEvidenceWithANonMeasurementKind() throws Exception {
     String submit = bearer("submitter", "tenant-measurement-kind", SUBMITTER);
     String reviewer = bearer("reviewer", "tenant-measurement-kind", REVIEWER);
-    String payload = "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\"}";
-    String escapedPayload = json.writeValueAsString(payload);
+    String payload =
+        "{\"resource_id\":\"r1\",\"configuration_digest\":\""
+            + "a".repeat(64)
+            + "\",\"source_version\":\"1\",\"source_checked_at\":\"2026-01-01T00:00:00Z\","
+            + "\"change_type\":\"SNAPSHOT\"}";
     String evidence = evidence(
         "configuration-as-measurement",
         "PROVIDER",
         "configuration-source",
         1,
-        escapedPayload.substring(1, escapedPayload.length() - 1),
+        payload,
         sha(payload))
         .replace("measurement.latency", "configuration.snapshot");
 
@@ -192,13 +659,16 @@ class EvidenceApplicationTests {
   void receiptsRejectObservationsAfterCutoffAndAcceptTheInclusiveBoundary() throws Exception {
     String submit = bearer("submitter", "tenant-cutoff", SUBMITTER);
     String reviewer = bearer("reviewer", "tenant-cutoff", REVIEWER);
-    String payload = "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\"}";
-    String escaped = json.writeValueAsString(payload);
+    String payload =
+        "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\","
+            + "\"window_start\":\"2025-12-31T23:00:00Z\","
+            + "\"window_end\":\"2026-01-01T00:00:00Z\"}";
     java.time.Instant observed = java.time.Instant.now().plusSeconds(120)
         .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
-    String original = evidence("future-observation", "PROVIDER", "future-source", 1,
-        escaped.substring(1, escaped.length() - 1), sha(payload))
-        .replace("2026-01-01T00:00:00Z", observed.toString());
+    String original =
+        withObservedAt(
+            evidence("future-observation", "PROVIDER", "future-source", 1, payload, sha(payload)),
+            observed.toString());
     assertEquals(202, post("/internal/v1/observations", submit, original).statusCode());
     assertEquals(200, post("/v1/evidence/future-observation/reviews", reviewer,
         "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
@@ -232,15 +702,14 @@ class EvidenceApplicationTests {
         "{\"metric\":\"latency\",\"value\":1,\"unit\":\"ms\",\"extra\":1}");
     for (int i = 0; i < payloads.size(); i++) {
       String payload = payloads.get(i);
-      String escaped = json.writeValueAsString(payload);
       String id = "malformed-" + i;
-      assertEquals(202, post("/internal/v1/observations", submit,
-          evidence(id, "PROVIDER", "malformed-source", i + 1, escaped.substring(1, escaped.length() - 1), sha(payload))).statusCode());
-      assertEquals(200, post("/v1/evidence/" + id + "/reviews", reviewer,
-          "{\"decision\":\"QUALIFY\",\"reason\":\"verified\",\"expected_revision\":1}").statusCode());
-      assertThat(post("/internal/v1/qualifications/" + id + ":measurement", reviewer,
-          measurementRequest("latency", "2999-01-01T00:00:00Z")).body())
-          .contains("\"usable_as_evidence\":false").contains("valid measurement");
+      HttpResponse<String> quarantined =
+          post(
+              "/internal/v1/observations",
+              submit,
+              evidence(id, "PROVIDER", "malformed-source", i + 1, payload, sha(payload)));
+      assertEquals(202, quarantined.statusCode());
+      assertThat(quarantined.body()).contains("QUARANTINED", "SOURCE_SCHEMA_INVALID");
     }
   }
 
@@ -263,11 +732,14 @@ class EvidenceApplicationTests {
   void conflictingEvidenceReplayBlocksQualificationAndMeasurementReceipts() throws Exception {
     String submit = bearer("submitter", "tenant-evidence-conflict", SUBMITTER);
     String reviewer = bearer("reviewer", "tenant-evidence-conflict", REVIEWER);
-    String payload = "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\"}";
-    String escaped = json.writeValueAsString(payload);
-    String original = evidence("e-conflict", "PROVIDER", "conflict-source", 1,
-        escaped.substring(1, escaped.length() - 1), sha(payload))
-        .replace("2026-01-01T00:00:00Z", "2026-01-01T00:00:00.123456789Z");
+    String payload =
+        "{\"metric\":\"latency\",\"value\":1.25,\"unit\":\"ms\","
+            + "\"window_start\":\"2025-12-31T23:00:00Z\","
+            + "\"window_end\":\"2026-01-01T00:00:00Z\"}";
+    String original =
+        withObservedAt(
+            evidence("e-conflict", "PROVIDER", "conflict-source", 1, payload, sha(payload)),
+            "2026-01-01T00:00:00.123456789Z");
     String receipt = "/internal/v1/qualifications/e-conflict:receipt";
     String measurement = "/internal/v1/qualifications/e-conflict:measurement";
     assertThat(post("/internal/v1/observations", submit, original).body()).contains("ACCEPTED");
@@ -278,7 +750,7 @@ class EvidenceApplicationTests {
         .contains("\"usable_as_evidence\":true");
     assertThat(post("/internal/v1/observations", submit, original).body()).contains("DUPLICATE");
 
-    String changedTime = original.replace("2026-01-01T00:00:00.123456789Z", "2026-01-02T00:00:00Z");
+    String changedTime = withObservedAt(original, "2026-01-02T00:00:00Z");
     String changedKind = original.replace("measurement.latency", "measurement.other");
     assertThat(post("/internal/v1/observations", submit, changedTime).body()).contains("REPLAY_CONFLICT");
     assertThat(post("/internal/v1/observations", submit, changedKind).body()).contains("REPLAY_CONFLICT");
@@ -317,11 +789,12 @@ class EvidenceApplicationTests {
     assertThat(post("/internal/v1/observations", submit,
         evidence("bad-digest", "PROVIDER", "sequence-source", 2, "bad", "0".repeat(64))).body())
         .contains("DIGEST_MISMATCH");
-    assertThat(post(receipt, reviewer, receiptBody(sha("payload"))).body()).contains("\"usable_as_evidence\":true");
+    String payloadDigest = sha(providerMetricPayload("payload"));
+    assertThat(post(receipt, reviewer, receiptBody(payloadDigest)).body()).contains("\"usable_as_evidence\":true");
     assertThat(post("/internal/v1/observations", submit,
         evidence("different-id", "PROVIDER", "sequence-source", 2, "different", null)).body())
         .contains("STALE_SEQUENCE");
-    assertThat(post(receipt, reviewer, receiptBody(sha("payload"))).body())
+    assertThat(post(receipt, reviewer, receiptBody(payloadDigest)).body())
         .contains("\"usable_as_evidence\":false", "conflict");
   }
 
@@ -525,9 +998,70 @@ class EvidenceApplicationTests {
     assertEquals(403, post("/internal/v1/inbox/events", readOnly, event("ev9", 1, "q", null)).statusCode());
   }
 
-  private static String evidence(String id, String sourceClass, String source, long sequence, String payload, String digest) {
-    return "{\"id\":\"%s\",\"source_class\":\"%s\",\"source_ref\":\"%s\",\"sequence\":%d,\"observed_at\":\"2026-01-01T00:00:00Z\",\"kind\":\"measurement.latency\",\"payload\":\"%s\",\"payload_digest\":\"%s\"}"
-        .formatted(id, sourceClass, source, sequence, payload, digest == null ? sha(payload) : digest);
+  private String evidence(String id, String sourceClass, String source, long sequence, String payload, String digest)
+      throws Exception {
+    String storedPayload = payload;
+    if ("PROVIDER".equals(sourceClass) && digest == null) {
+      storedPayload = providerMetricPayload(payload);
+    }
+    return ("{\"id\":\"%s\",\"source_class\":\"%s\",\"source_ref\":\"%s\","
+            + "\"sequence\":%d,\"observed_at\":\"2026-01-01T00:00:00Z\","
+            + "\"kind\":\"measurement.latency\",\"service_id\":%s,\"schema_version\":%s,"
+            + "\"payload\":%s,\"payload_digest\":\"%s\"}")
+        .formatted(
+            id,
+            sourceClass,
+            source,
+            sequence,
+            "PROVIDER".equals(sourceClass) ? "\"svc-test\"" : "null",
+            "PROVIDER".equals(sourceClass) ? "\"UACRF_OBSERVATION_V1\"" : "null",
+            json.writeValueAsString(storedPayload),
+            digest == null ? sha(storedPayload) : digest);
+  }
+
+  private static String providerMetricPayload(String seed) {
+    long value = Math.abs((long) seed.hashCode());
+    return "{\"metric\":\"latency\",\"value\":" + value + ",\"unit\":\"ms\","
+        + "\"window_start\":\"2025-12-31T23:00:00Z\","
+        + "\"window_end\":\"2026-01-01T00:00:00Z\"}";
+  }
+
+  private static String withObservedAt(String requestBody, String observedAt) {
+    String field = "\"observed_at\":\"";
+    int start = requestBody.indexOf(field);
+    if (start < 0) {
+      throw new IllegalArgumentException("The observation request is missing observed_at.");
+    }
+    start += field.length();
+    int end = requestBody.indexOf('"', start);
+    if (end < 0) {
+      throw new IllegalArgumentException("The observation request has a malformed observed_at.");
+    }
+    return requestBody.substring(0, start) + observedAt + requestBody.substring(end);
+  }
+
+  private String schemaObservation(
+      String id,
+      String source,
+      long sequence,
+      String kind,
+      String serviceId,
+      String schemaVersion,
+      String payload)
+      throws Exception {
+    return ("{\"id\":\"%s\",\"source_class\":\"PROVIDER\",\"source_ref\":\"%s\","
+            + "\"sequence\":%d,\"observed_at\":\"2026-01-01T00:00:00Z\",\"kind\":\"%s\","
+            + "\"service_id\":\"%s\",\"schema_version\":\"%s\",\"payload\":%s,"
+            + "\"payload_digest\":\"%s\"}")
+        .formatted(
+            id,
+            source,
+            sequence,
+            kind,
+            serviceId,
+            schemaVersion,
+            json.writeValueAsString(payload),
+            sha(payload));
   }
 
   private static String event(String id, long sequence, String payload, String digest) {
@@ -537,6 +1071,75 @@ class EvidenceApplicationTests {
 
   private static String receiptBody(String digest) {
     return "{\"purpose\":\"assessment\",\"expected_digest\":\"%s\",\"cutoff\":\"2999-01-01T00:00:00Z\"}".formatted(digest);
+  }
+
+  private static String waiverTrustSet() {
+    return """
+        {"revision":1,"issuer":"https://waiver-authority.example.test","audience":"uacrf-evidence",
+         "keys":[{"kid":"waiver-test-key","algorithm":"RS256","public_key_base64":"%s",
+           "tenant_id":"tenant-waiver","environment_id":"env-1","service_id":"svc-waiver",
+           "reviewer_id":"waiver-reviewer"}]}
+        """
+        .formatted(Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded()));
+  }
+
+  private String signedWaiverAssertion(
+      String tenant, String reviewerId, String waiverId, String waiverDigest) throws Exception {
+    Instant issuedAt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    return signedWaiverAssertion(
+        tenant,
+        reviewerId,
+        waiverId,
+        waiverDigest,
+        issuedAt.getEpochSecond(),
+        issuedAt.getEpochSecond(),
+        issuedAt.plusSeconds(300).getEpochSecond());
+  }
+
+  private String signedWaiverAssertion(
+      String tenant,
+      String reviewerId,
+      String waiverId,
+      String waiverDigest,
+      long issuedAt,
+      long notBefore,
+      long expiresAt)
+      throws Exception {
+    Map<String, Object> claims = new TreeMap<>();
+    claims.put("iss", "https://waiver-authority.example.test");
+    claims.put("aud", "uacrf-evidence");
+    claims.put("sub", reviewerId);
+    claims.put("jti", UUID.randomUUID().toString());
+    claims.put("tenant_id", tenant);
+    claims.put("environment_id", "env-1");
+    claims.put("iat", issuedAt);
+    claims.put("nbf", notBefore);
+    claims.put("exp", expiresAt);
+    claims.put("purpose", "qualification-waiver");
+    claims.put("waiver_id", waiverId);
+    claims.put("waiver_digest", waiverDigest);
+    claims.put("approved_by", reviewerId);
+    String header =
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(
+                "{\"alg\":\"RS256\",\"kid\":\"waiver-test-key\","
+                        .concat("\"typ\":\"uacrf.qualification-waiver+jws\"}")
+                    .getBytes(StandardCharsets.UTF_8));
+    String payload =
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(
+                org.uacrf.security.OwnerReceiptSignature
+                    .canonicalize(json.writeValueAsString(claims))
+                    .getBytes(StandardCharsets.UTF_8));
+    String signingInput = header + "." + payload;
+    Signature signer = Signature.getInstance("SHA256withRSA");
+    signer.initSign((java.security.PrivateKey) KEY_PAIR.getPrivate());
+    signer.update(signingInput.getBytes(StandardCharsets.US_ASCII));
+    return signingInput
+        + "."
+        + Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign());
   }
 
   private static String sha(String value) {
@@ -552,6 +1155,18 @@ class EvidenceApplicationTests {
         HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
             .header("Authorization", bearer)
             .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build(),
+        HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postWithIdempotencyKey(
+      String path, String bearer, String body, String idempotencyKey) throws Exception {
+    return http.send(
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .header("Authorization", bearer)
+            .header("Content-Type", "application/json")
+            .header("Idempotency-Key", idempotencyKey)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build(),
         HttpResponse.BodyHandlers.ofString());
@@ -581,6 +1196,24 @@ class EvidenceApplicationTests {
             List.of());
     return "Bearer "
         + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(), "https://uacrf.local/s01", KEY_ID).issue(principal, "S04");
+  }
+
+  private static String tokenWithPrincipalId(
+      String principalId, String tenant, String scope, List<String> capabilities) {
+    DelegationPrincipal principal =
+        new DelegationPrincipal(
+            principalId,
+            tenant,
+            "env-1",
+            scope,
+            "https://idp.example.test",
+            principalId,
+            capabilities,
+            List.of(),
+            List.of());
+    return "Bearer "
+        + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(), "https://uacrf.local/s01", KEY_ID)
+            .issue(principal, "S04");
   }
 
   private static KeyPair generateKeyPair() {

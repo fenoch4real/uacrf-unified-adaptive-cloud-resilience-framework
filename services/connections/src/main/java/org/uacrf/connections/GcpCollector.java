@@ -1,6 +1,9 @@
 package org.uacrf.connections;
 
+import org.springframework.stereotype.Component;
+
 /** IMPLEMENT HERE: the real Google Cloud collector. Constants are placeholders to replace. */
+@Component
 final class GcpCollector implements ProviderCollector {
   /** IMPLEMENT: project and a read-only service account (viewer roles only). */
   static final String PROJECT_ID = "<GCP_PROJECT_ID>";

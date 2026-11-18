@@ -16,16 +16,34 @@ interface ProviderCollector {
   /** Pulls one bounded window for a bound source; {@code checkpoint} is null on first collection. */
   Batch collect(Request request);
 
-  record Request(String connectionId, String sourceRef, String checkpoint, Instant from, Instant to) {}
+  record Request(
+      String connectionId,
+      String sourceRef,
+      String readOnlyIdentityRef,
+      String readOnlyExternalId,
+      String checkpoint,
+      long lastSequence,
+      Instant from,
+      Instant to) {}
 
   record Observation(String id, long sequence, Instant observedAt, String kind, String payload) {}
 
   /**
    * Outcome of one pull. A collector must map provider conditions explicitly: pagination into
    * {@code nextCheckpoint}, rate limits into RATE_LIMITED, permission denial into PERMISSION_DENIED
-   * and outages into SOURCE_UNAVAILABLE, so intake can record them rather than lose them.
+   * and outages into SOURCE_UNAVAILABLE, so intake can record them rather than lose them. When a
+   * provider supplies a retry time, {@code retryAt} prevents the runner from polling before it.
    */
-  record Batch(Status status, List<Observation> observations, String nextCheckpoint, String detail) {
+  record Batch(
+      Status status,
+      List<Observation> observations,
+      String nextCheckpoint,
+      String detail,
+      Instant retryAt) {
+    Batch(Status status, List<Observation> observations, String nextCheckpoint, String detail) {
+      this(status, observations, nextCheckpoint, detail, null);
+    }
+
     enum Status {
       COLLECTED,
       RATE_LIMITED,
