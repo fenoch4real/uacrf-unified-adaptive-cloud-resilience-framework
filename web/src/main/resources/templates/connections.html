@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connections | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Connections</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/access">Back to current access</a></p>
+  <p>Unaccepted provider connections cannot be scheduled for collection.</p>
+  <p role="status" th:if="${connectionError != null}" th:text="${connectionError}"></p>
+  <p th:if="${connectionError == null and #lists.isEmpty(connections)}">No connections are available.</p>
+  <ul>
+    <li th:each="connection : ${connections}">
+      <h2><a th:href="@{/connections/{id}/inventory(id=${connection.id})}" th:text="${connection.name}">Connection</a></h2>
+      <p>Provider: <span th:text="${connection.provider}">Provider</span>;
+        status: <span th:text="${connection.status}">Status</span></p>
+      <p th:if="${connection.provider == 'SAMPLE_LOCAL'}">Synthetic sample; not live provider data.</p>
+      <p th:if="${connection.statusReason != null}" th:text="${connection.statusReason}"></p>
+    </li>
+  </ul>
+  <nav aria-label="Connection pages" th:if="${nextCursor != null}">
+    <a th:href="@{/connections(cursor=${nextCursor})}">Next connections</a>
+  </nav>
+</main>
+</body>
+</html>

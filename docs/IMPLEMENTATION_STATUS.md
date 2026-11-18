@@ -106,8 +106,17 @@ observations. It maps native IDs and types, available location, observation time
 and raw-observation provenance without storing another copy of provider data.
 It preserves `SAMPLE_LOCAL` provenance; GCP resource location remains unknown
 with the current payload. It is not a deduplicated current inventory, shared
-resource taxonomy, qualified evidence, relationship discovery, graph promotion,
-or a connected UI. The cloud providers remain `UNACCEPTED`.
+resource taxonomy, qualified evidence, relationship discovery, or graph promotion.
+The cloud providers remain `UNACCEPTED`.
+
+The browser application now lists connections and renders their inventory
+observations through a context-bound S03 read delegation and EDGE01. Sample
+connections are visibly identified as synthetic, unknown locations remain
+unknown, and pagination and raw-observation provenance are shown. The full
+web module passed 82 tests, including mocked delegation, route rendering and
+HTTP-client contract checks. The browser does not automatically ingest the
+sample fixture; a sample importer and a browser-to-S03 end-to-end test remain
+open. No live cloud provider was queried.
 
 The historical technical-approach Mermaid examples now use the dictionary's
 relationship endpoint roles; sample-data tests check those examples. The
@@ -172,7 +181,7 @@ collection or pagination. The fictional multi-cloud inventory fixture now
 delivers one observation per resource using the fields emitted by the current
 AWS, Azure and GCP collectors; simulated provider response pages are retained
 separately. This field-shape alignment does not establish live provider parity,
-real cloud capabilities, or a connected UI flow. The sample-data suite passed
+real cloud capabilities, or an end-to-end browser flow. The sample-data suite passed
 5 tests, and the focused PostgreSQL-backed S03 multi-cloud fixture ingestion
 test passed with no failures, errors, or skips.
 

@@ -112,6 +112,7 @@ services:
       UACRF_OIDC_JWK_SET_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/certs
       UACRF_OIDC_USERINFO_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/userinfo
       UACRF_EXPERIENCE_BASE_URL: http://experience-api:8081
+      UACRF_CONNECTIONS_BASE_URL: http://api-edge:8080/internal/connections
       UACRF_SESSION_COOKIE_SECURE: "false"
     depends_on:
       - experience-api

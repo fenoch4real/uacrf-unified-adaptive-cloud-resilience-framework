@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oauth2Client;
@@ -45,6 +46,7 @@ class WebApplicationTests {
   @Autowired private MockMvc mockMvc;
   @MockitoBean private IdentityAccessClient identity;
   @MockitoBean private CatalogClient catalog;
+  @MockitoBean private ConnectionsClient connections;
 
   @Test
   void offersAnOidcSignInWithoutRequiringAuthentication() throws Exception {
@@ -865,6 +867,87 @@ class WebApplicationTests {
             List.of("catalog.journey.read"),
             "tenant-test",
             "environment-test");
+  }
+
+  @Test
+  void listsConnectionsUsingContextBoundReadDelegation() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.list("s03-delegation", null))
+        .thenReturn(new ConnectionsClient.ConnectionPage(
+            List.of(new ConnectionsClient.Connection("sample-estate", "Sample estate", "SAMPLE_LOCAL", "ACTIVE", null)),
+            "next-page"));
+
+    mockMvc.perform(get("/connections").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Sample estate")))
+        .andExpect(content().string(containsString("SAMPLE_LOCAL")))
+        .andExpect(content().string(containsString("/connections/sample-estate/inventory")))
+        .andExpect(content().string(containsString("/connections?cursor=next-page")))
+        .andExpect(content().string(not(containsString("s03-delegation"))));
+    verify(identity).createDelegation(
+        "test-access-token", "S03", null, List.of("connections.connection.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
+  void showsSampleInventoryProvenanceAndUnknownLocation() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenReturn(new ConnectionsClient.Connection("sample-estate", "Sample estate", "SAMPLE_LOCAL", "ACTIVE", null));
+    when(connections.listInventory("s03-delegation", "sample-estate", "current", "SAMPLE_LOCAL"))
+        .thenReturn(new ConnectionsClient.InventoryPage(
+            List.of(new ConnectionsClient.InventoryObservation(
+                "inventory-observation.v1", "SAMPLE_LOCAL", "GCP", "asset-<script>",
+                "compute.googleapis.com/Network", null, "obs-1", "sample:gcp/source",
+                "gcp.assetinventory.assets", "abc", "2026-11-12T09:05:40Z")),
+            "next-page"));
+
+    mockMvc.perform(get("/connections/sample-estate/inventory").param("cursor", "current")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Synthetic sample")))
+        .andExpect(content().string(containsString("GCP")))
+        .andExpect(content().string(containsString("Unknown")))
+        .andExpect(content().string(containsString("asset-&lt;script&gt;")))
+        .andExpect(content().string(containsString("obs-1")))
+        .andExpect(content().string(containsString("cursor=next-page")))
+        .andExpect(content().string(not(containsString("s03-delegation"))));
+  }
+
+  @Test
+  void inventoryRequiresSelectedContextAndDoesNotReadWhenDelegationFails() throws Exception {
+    mockMvc.perform(get("/connections/sample-estate/inventory").with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/contexts"));
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenThrow(new ResourceAccessException("identity unavailable"));
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("inventory access was not authorized")));
+    verifyNoInteractions(connections);
+  }
+
+  @Test
+  void inventoryDenialDoesNotReachConnections() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(org.springframework.http.HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Inventory access was not authorized (HTTP 403)")))
+        .andExpect(content().string(not(containsString("Synthetic sample"))));
+    verifyNoInteractions(connections);
   }
 
   @Test

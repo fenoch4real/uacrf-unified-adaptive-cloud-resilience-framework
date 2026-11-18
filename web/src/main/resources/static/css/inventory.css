@@ -1,0 +1,8 @@
+main {
+  max-inline-size: 80rem;
+  overflow-wrap: anywhere;
+}
+
+.inventory-list > li {
+  margin-block-end: 2rem;
+}

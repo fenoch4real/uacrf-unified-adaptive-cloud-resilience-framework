@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory observations | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Inventory observations</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/connections">Back to connections</a></p>
+  <p role="status" th:if="${inventoryError != null}" th:text="${inventoryError}"></p>
+  <section th:if="${connection != null}">
+    <h2 th:text="${connection.name}">Connection</h2>
+    <p>Connection provider: <span th:text="${connection.provider}">Provider</span>;
+      status: <span th:text="${connection.status}">Status</span></p>
+    <p th:if="${connection.statusReason != null}" th:text="${connection.statusReason}"></p>
+    <p th:if="${connection.provider == 'SAMPLE_LOCAL'}">Synthetic sample: these observations are not live provider data or qualified evidence.</p>
+    <p>These are individual retained observations, not a deduplicated current inventory or qualified evidence.</p>
+    <p th:if="${#lists.isEmpty(inventory)}">No inventory observations are available for this connection.</p>
+    <ul class="inventory-list">
+      <li th:each="item : ${inventory}">
+        <h3 th:text="${item.nativeId}">Native resource identifier</h3>
+        <dl>
+          <dt>Provider</dt><dd th:text="${item.provider}">Provider</dd>
+          <dt>Native type</dt><dd th:text="${item.nativeType}">Type</dd>
+          <dt>Location</dt><dd th:text="${item.location != null ? item.location : 'Unknown'}">Unknown</dd>
+          <dt>Observed at</dt><dd th:text="${item.observedAt}">Time</dd>
+          <dt>Source class</dt><dd th:text="${item.sourceClass}">Source</dd>
+          <dt>Source reference</dt><dd th:text="${item.sourceRef}">Reference</dd>
+          <dt>Raw observation ID</dt><dd th:text="${item.rawObservationId}">Observation</dd>
+          <dt>Raw observation kind</dt><dd th:text="${item.rawKind}">Kind</dd>
+          <dt>Raw payload digest</dt><dd th:text="${item.rawPayloadDigest}">Digest</dd>
+          <dt>Projection version</dt><dd th:text="${item.normalizerVersion}">Version</dd>
+        </dl>
+      </li>
+    </ul>
+    <nav aria-label="Inventory pages" th:if="${nextCursor != null}">
+      <a th:href="@{/connections/{id}/inventory(id=${connection.id},cursor=${nextCursor})}">Next observations</a>
+    </nav>
+  </section>
+</main>
+</body>
+</html>

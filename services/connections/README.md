@@ -36,8 +36,19 @@ inventory payloads, and connection/provider mismatches fail the request instead
 of producing fabricated values. `SAMPLE_LOCAL` remains visible as `source_class`;
 the provider name describes the simulated payload, not a live account.
 Projection does not qualify evidence, discover relationships, promote graph
-nodes, accept providers, or connect an inventory UI. Existing retention and
-qualification policies are unchanged.
+nodes, or accept providers. Existing retention and qualification policies are unchanged.
+
+The browser application provides a read-only connections list and inventory
+observation view from **Current access**. It uses a selected tenant/environment
+and a short-lived S03 delegation for `connections.connection.read`; the token
+stays server-side. Configure `UACRF_CONNECTIONS_BASE_URL` to the EDGE01
+internal connections base URL (default `http://localhost:8080/internal/connections`;
+use the EDGE01 service address in a container). The page shows source class,
+native identifiers, location when known, and raw observation references.
+It visibly labels `SAMPLE_LOCAL` as synthetic and does not qualify or promote it.
+The [sample fixture](../../sample-data/README.md) is not loaded automatically:
+it must first be ingested through authorized S03 APIs. A browser-driven sample
+import and a fully integrated browser-to-S03 test remain outstanding.
 
 Deploy V3 before the updated service and avoid mixed old/new ingestion instances: older instances
 neither retain exact times nor acquire the new ID lock. Rollback to older intake also loses these

@@ -36,6 +36,12 @@ Each delivery carries an `expect` value (`ACCEPTED`, `DUPLICATE` or
 `QUARANTINED:<reason>`) that the S03 integration tests assert after posting the
 deliveries in order.
 
+The browser's read-only connections and inventory views can display observations
+once they have been ingested through authorized S03 APIs. The application does
+not automatically load this fixture, and a browser-driven importer is not yet
+implemented. Seeing these views does not establish a live provider connection
+or evidence qualification.
+
 ## Regenerating
 
 The tests fail when a committed file differs from what the generators produce,

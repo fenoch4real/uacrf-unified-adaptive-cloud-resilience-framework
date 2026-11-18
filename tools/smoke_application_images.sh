@@ -631,6 +631,7 @@ cat > "$smoke_root/web.env" <<'EOF'
 UACRF_OIDC_ISSUER_URI=http://keycloak:8080/realms/uacrf
 UACRF_EXPERIENCE_BASE_URL=http://experience-api:8081
 UACRF_CATALOG_BASE_URL=http://api-edge:8080/internal/catalog
+UACRF_CONNECTIONS_BASE_URL=http://api-edge:8080/internal/connections
 EOF
 
 for network in "$service_network" "$identity_network" "$catalog_network" "$connections_network" "$evidence_network" "$objectives_network" "$topology_network" "$assessment_network" "$decision_governance_network"; do

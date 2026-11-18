@@ -62,7 +62,8 @@ The owner services define request and response types in service-specific `*Reque
 
 S03's [inventory-observation projection](../services/connections/README.md#read-only-inventory-projection)
 is an authorized, on-read view of retained observations, not qualified evidence or a
-deduplicated resource inventory. EDGE01 forwards its internal route.
+deduplicated resource inventory. EDGE01 forwards its internal route; the browser application
+uses a context-bound S03 read delegation to list connections and their inventory observations.
 
 For S06 command status, `TopologyController.commandStatus` returns the compact map produced by `TopologyGraphCommandService.status`: `command_id`, `status`, `terminal`, `domain_completion`, and conditionally `advisory_result`. The declared `TopologyResponses.CommandStatus` record has a different field set and is not used by this handler. The public advisory result exposes bounded selection nodes/edges or bounded classification changes; the internal `s04_summary_coverage` map and evidence summaries are not part of the status response.
 
