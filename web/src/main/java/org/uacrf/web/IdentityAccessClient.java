@@ -254,6 +254,86 @@ class IdentityAccessClient {
     return response;
   }
 
+  GrantDecisionReceipt createGrantDecision(
+      String accessToken,
+      BrowserContext context,
+      String id,
+      String principalId,
+      String capability,
+      String serviceScope,
+      Instant expiresAt,
+      String reason) {
+    GrantDecisionReceipt response =
+        restClient
+            .post()
+            .uri(
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v1/grant-decisions")
+                        .queryParam("tenant_id", context.tenantId())
+                        .queryParam("environment_id", context.environmentId())
+                        .build())
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(new GrantDecisionRequest(id, principalId, capability, serviceScope, expiresAt, reason))
+            .retrieve()
+            .body(GrantDecisionReceipt.class);
+    if (response == null
+        || !id.equals(response.id())
+        || response.revision() != 1
+        || !List.of("CREATED", "REPLAYED").contains(response.result())
+        || !"NONE".equals(response.runtimeEffect())) {
+      throw new IllegalStateException("UX01 returned an invalid grant-decision receipt.");
+    }
+    return response;
+  }
+
+  MembershipMutationReceipt createMembership(
+      String accessToken,
+      BrowserContext context,
+      String id,
+      String principalId,
+      String capability,
+      String serviceScope,
+      Instant expiresAt,
+      String reason,
+      String authorizationRef,
+      String idempotencyKey) {
+    MembershipMutationReceipt response =
+        restClient
+            .post()
+            .uri(
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v1/memberships")
+                        .queryParam("tenant_id", context.tenantId())
+                        .queryParam("environment_id", context.environmentId())
+                        .build())
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .header("Idempotency-Key", idempotencyKey)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(
+                new CreateMembershipRequest(
+                    id,
+                    principalId,
+                    capability,
+                    serviceScope,
+                    expiresAt,
+                    reason,
+                    0,
+                    authorizationRef))
+            .retrieve()
+            .body(MembershipMutationReceipt.class);
+    if (response == null
+        || !id.equals(response.id())
+        || response.revision() != 1
+        || !List.of("CREATED", "REPLAYED").contains(response.result())
+        || !"NONE".equals(response.runtimeEffect())) {
+      throw new IllegalStateException("UX01 returned an invalid membership-creation receipt.");
+    }
+    return response;
+  }
+
   MembershipMutationReceipt revokeMembership(
       String accessToken,
       BrowserContext context,
@@ -388,6 +468,30 @@ class IdentityAccessClient {
 
   record MembershipRevocationRequest(
       @JsonProperty("expected_revision") long expectedRevision, String reason) {}
+
+  record GrantDecisionReceipt(
+      String id,
+      long revision,
+      String result,
+      @JsonProperty("runtime_effect") String runtimeEffect) {}
+
+  record GrantDecisionRequest(
+      String id,
+      @JsonProperty("principal_id") String principalId,
+      String capability,
+      @JsonProperty("service_scope") String serviceScope,
+      @JsonProperty("expires_at") Instant expiresAt,
+      String reason) {}
+
+  record CreateMembershipRequest(
+      String id,
+      @JsonProperty("principal_id") String principalId,
+      String capability,
+      @JsonProperty("service_scope") String serviceScope,
+      @JsonProperty("expires_at") Instant expiresAt,
+      String reason,
+      @JsonProperty("expected_revision") long expectedRevision,
+      @JsonProperty("authorization_ref") String authorizationRef) {}
 
   record MembershipMutationReceipt(
       String id, long revision, String result, @JsonProperty("runtime_effect") String runtimeEffect) {}

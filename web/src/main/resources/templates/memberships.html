@@ -17,7 +17,151 @@
   </p>
   <p role="status" th:if="${membershipMessage != null}" th:text="${membershipMessage}"></p>
   <p role="alert" th:if="${membershipError != null}" th:text="${membershipError}"></p>
+  <p role="alert" th:if="${grantDecisionError != null}" th:text="${grantDecisionError}"></p>
+  <p role="alert" th:if="${membershipCreationError != null}" th:text="${membershipCreationError}"></p>
+  <p role="status" th:if="${grantDecisionMessage != null}" th:text="${grantDecisionMessage}"></p>
+  <p role="status" th:if="${grantDecisionRef != null}">
+    Authorization reference:
+    <code id="grant-decision-reference" th:text="${grantDecisionRef}">decision-id</code>.
+    It expires after 15 minutes; share it through a trusted channel.
+  </p>
+  <p role="status" th:if="${membershipAccessError != null}" th:text="${membershipAccessError}"></p>
   <p role="status" th:if="${membershipsError != null}" th:text="${membershipsError}"></p>
+
+  <section th:if="${canApproveGrant}">
+    <h2 id="grant-decision-heading">Record an independent grant decision</h2>
+    <p>
+      Use this only after reviewing a request received through your established approval process.
+      S01 records a 15-minute authorization reference but does not create a membership.
+      Share the reference through a trusted channel; the membership manager must submit the exact
+      same principal, capability, scope, and membership expiry.
+    </p>
+    <form method="post" th:action="@{/memberships/grant-decisions}"
+          th:object="${grantDecisionForm}" aria-labelledby="grant-decision-heading">
+      <input type="hidden" th:field="*{id}">
+      <fieldset>
+        <legend>Grant decision details</legend>
+        <label for="decision-principal-id">Target principal ID (required)</label>
+        <input id="decision-principal-id" type="text" th:field="*{principalId}" required
+               pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('principalId') ? 'decision-principal-help decision-principal-error' : 'decision-principal-help'},
+                        aria-invalid=${#fields.hasErrors('principalId') ? 'true' : null},
+                        autofocus=${#fields.hasErrors('principalId') ? 'autofocus' : null}">
+        <span id="decision-principal-help">The principal must already be admitted to S01.</span>
+        <span id="decision-principal-error" th:if="${#fields.hasErrors('principalId')}"
+              th:errors="*{principalId}"></span>
+
+        <label for="decision-capability">Capability (required)</label>
+        <input id="decision-capability" type="text" th:field="*{capability}" required
+               maxlength="200" pattern="\S+" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('capability') ? 'decision-capability-error' : null},
+                        aria-invalid=${#fields.hasErrors('capability') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and #fields.hasErrors('capability') ? 'autofocus' : null}">
+        <span id="decision-capability-error" th:if="${#fields.hasErrors('capability')}"
+              th:errors="*{capability}"></span>
+
+        <label for="decision-service-scope">Service scope (required)</label>
+        <input id="decision-service-scope" type="text" th:field="*{serviceScope}" required
+               maxlength="200" pattern="\S+" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('serviceScope') ? 'decision-scope-error' : null},
+                        aria-invalid=${#fields.hasErrors('serviceScope') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and #fields.hasErrors('serviceScope') ? 'autofocus' : null}">
+        <span id="decision-scope-error" th:if="${#fields.hasErrors('serviceScope')}"
+              th:errors="*{serviceScope}"></span>
+
+        <label for="decision-expires-at">Membership expiry (UTC, ISO-8601; required)</label>
+        <input id="decision-expires-at" type="text" th:field="*{expiresAt}" required
+               maxlength="50" placeholder="2030-01-01T00:00:00Z" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('expiresAt') ? 'decision-expiry-help decision-expiry-error' : 'decision-expiry-help'},
+                        aria-invalid=${#fields.hasErrors('expiresAt') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and !#fields.hasErrors('serviceScope') and #fields.hasErrors('expiresAt') ? 'autofocus' : null}">
+        <span id="decision-expiry-help">The membership manager must enter this exact expiry.</span>
+        <span id="decision-expiry-error" th:if="${#fields.hasErrors('expiresAt')}"
+              th:errors="*{expiresAt}"></span>
+
+        <label for="decision-reason">Approval reason (required)</label>
+        <textarea id="decision-reason" th:field="*{reason}" maxlength="2000" required
+                  th:attr="aria-describedby=${#fields.hasErrors('reason') ? 'decision-reason-error' : null},
+                           aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},
+                           autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and !#fields.hasErrors('serviceScope') and !#fields.hasErrors('expiresAt') and #fields.hasErrors('reason') ? 'autofocus' : null}"></textarea>
+        <span id="decision-reason-error" th:if="${#fields.hasErrors('reason')}"
+              th:errors="*{reason}"></span>
+      </fieldset>
+      <button type="submit">Record approval decision</button>
+    </form>
+  </section>
+
+  <section th:if="${canManageMemberships}">
+    <h2 id="membership-creation-heading">Apply an approved membership</h2>
+    <p>
+      Enter the values approved by a different principal and the authorization reference they
+      provided. S01 checks that the reference matches every grant detail, is still valid, and has
+      not been consumed. The reference can be used once; creation does not trigger a runtime action.
+    </p>
+    <form method="post" th:action="@{/memberships}"
+          th:object="${membershipCreationForm}" aria-labelledby="membership-creation-heading">
+      <input type="hidden" th:field="*{id}">
+      <input type="hidden" th:field="*{idempotencyKey}">
+      <fieldset>
+        <legend>Approved membership details</legend>
+        <label for="membership-principal-id">Target principal ID (required)</label>
+        <input id="membership-principal-id" type="text" th:field="*{principalId}" required
+               pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('principalId') ? 'membership-principal-help membership-principal-error' : 'membership-principal-help'},
+                        aria-invalid=${#fields.hasErrors('principalId') ? 'true' : null},
+                        autofocus=${#fields.hasErrors('principalId') ? 'autofocus' : null}">
+        <span id="membership-principal-help">Must match the principal in the approval decision.</span>
+        <span id="membership-principal-error" th:if="${#fields.hasErrors('principalId')}"
+              th:errors="*{principalId}"></span>
+
+        <label for="membership-capability">Capability (required)</label>
+        <input id="membership-capability" type="text" th:field="*{capability}" required
+               maxlength="200" pattern="\S+" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('capability') ? 'membership-capability-error' : null},
+                        aria-invalid=${#fields.hasErrors('capability') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and #fields.hasErrors('capability') ? 'autofocus' : null}">
+        <span id="membership-capability-error" th:if="${#fields.hasErrors('capability')}"
+              th:errors="*{capability}"></span>
+
+        <label for="membership-service-scope">Service scope (required)</label>
+        <input id="membership-service-scope" type="text" th:field="*{serviceScope}" required
+               maxlength="200" pattern="\S+" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('serviceScope') ? 'membership-scope-error' : null},
+                        aria-invalid=${#fields.hasErrors('serviceScope') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and #fields.hasErrors('serviceScope') ? 'autofocus' : null}">
+        <span id="membership-scope-error" th:if="${#fields.hasErrors('serviceScope')}"
+              th:errors="*{serviceScope}"></span>
+
+        <label for="membership-expires-at">Approved membership expiry (UTC, ISO-8601; required)</label>
+        <input id="membership-expires-at" type="text" th:field="*{expiresAt}" required
+               maxlength="50" placeholder="2030-01-01T00:00:00Z" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('expiresAt') ? 'membership-expiry-help membership-expiry-error' : 'membership-expiry-help'},
+                        aria-invalid=${#fields.hasErrors('expiresAt') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and !#fields.hasErrors('serviceScope') and #fields.hasErrors('expiresAt') ? 'autofocus' : null}">
+        <span id="membership-expiry-help">Must exactly match the expiry approved by S01.</span>
+        <span id="membership-expiry-error" th:if="${#fields.hasErrors('expiresAt')}"
+              th:errors="*{expiresAt}"></span>
+
+        <label for="membership-reason">Membership reason (required)</label>
+        <textarea id="membership-reason" th:field="*{reason}" maxlength="2000" required
+                  th:attr="aria-describedby=${#fields.hasErrors('reason') ? 'membership-reason-error' : null},
+                           aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},
+                           autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and !#fields.hasErrors('serviceScope') and !#fields.hasErrors('expiresAt') and #fields.hasErrors('reason') ? 'autofocus' : null}"></textarea>
+        <span id="membership-reason-error" th:if="${#fields.hasErrors('reason')}"
+              th:errors="*{reason}"></span>
+
+        <label for="membership-authorization-ref">Authorization reference (required)</label>
+        <input id="membership-authorization-ref" type="text" th:field="*{authorizationRef}" required
+               maxlength="200" pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}" autocomplete="off"
+               th:attr="aria-describedby=${#fields.hasErrors('authorizationRef') ? 'membership-reference-error' : null},
+                        aria-invalid=${#fields.hasErrors('authorizationRef') ? 'true' : null},
+                        autofocus=${!#fields.hasErrors('principalId') and !#fields.hasErrors('capability') and !#fields.hasErrors('serviceScope') and !#fields.hasErrors('expiresAt') and !#fields.hasErrors('reason') and #fields.hasErrors('authorizationRef') ? 'autofocus' : null}">
+        <span id="membership-reference-error" th:if="${#fields.hasErrors('authorizationRef')}"
+              th:errors="*{authorizationRef}"></span>
+      </fieldset>
+      <button type="submit">Apply approved membership</button>
+    </form>
+  </section>
 
   <p th:if="${memberships != null and #lists.isEmpty(memberships) and membershipsError == null}">
     No active memberships were returned for this context.

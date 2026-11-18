@@ -94,6 +94,43 @@ class IdentityProxyClient {
         });
   }
 
+  ResponseEntity<String> createGrantDecision(
+      String authorization, String tenantId, String environmentId, String requestBody) {
+    return restClient
+        .post()
+        .uri(
+            uriBuilder -> {
+              var uri = uriBuilder.path("/v1/grant-decisions");
+              context(uri, tenantId, environmentId);
+              return uri.build();
+            })
+        .header(HttpHeaders.AUTHORIZATION, authorization)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(requestBody)
+        .exchange((request, response) -> toResponse(response));
+  }
+
+  ResponseEntity<String> createMembership(
+      String authorization,
+      String tenantId,
+      String environmentId,
+      String idempotencyKey,
+      String requestBody) {
+    return restClient
+        .post()
+        .uri(
+            uriBuilder -> {
+              var uri = uriBuilder.path("/v1/memberships");
+              context(uri, tenantId, environmentId);
+              return uri.build();
+            })
+        .header(HttpHeaders.AUTHORIZATION, authorization)
+        .header("Idempotency-Key", idempotencyKey)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(requestBody)
+        .exchange((request, response) -> toResponse(response));
+  }
+
   ResponseEntity<String> ownerCandidates(
       String authorization,
       String objectKind,

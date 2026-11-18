@@ -64,6 +64,77 @@ class IdentityProxyClientTests {
   }
 
   @Test
+  void forwardsGrantDecisionToFixedEdgeRouteWithSelectedContext() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server
+        .expect(
+            requestTo(
+                "http://edge.test/v1/grant-decisions?tenant_id=tenant-a"
+                    + "&environment_id=environment-a"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer approver-token"))
+        .andExpect(content().json("{\"id\":\"decision-a\",\"principal_id\":\"principal-a\"}"))
+        .andRespond(
+            withStatus(HttpStatus.CREATED)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"id\":\"decision-a\",\"revision\":1,\"result\":\"CREATED\"}"));
+
+    IdentityProxyClient client = client(builder.build());
+
+    var response =
+        client.createGrantDecision(
+            "Bearer approver-token",
+            "tenant-a",
+            "environment-a",
+            "{\"id\":\"decision-a\",\"principal_id\":\"principal-a\"}");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
+    server.verify();
+  }
+
+  @Test
+  void forwardsMembershipCreationToFixedEdgeRouteWithContextAndIdempotencyKey() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server
+        .expect(
+            requestTo(
+                "http://edge.test/v1/memberships?tenant_id=tenant-a"
+                    + "&environment_id=environment-a"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer manager-token"))
+        .andExpect(header("Idempotency-Key", "request-a"))
+        .andExpect(
+            content()
+                .json(
+                    "{\"id\":\"membership-a\",\"principal_id\":\"principal-a\","
+                        + "\"capability\":\"catalog.journey.read\","
+                        + "\"service_scope\":\"*\",\"authorization_ref\":\"decision-a\"}"))
+        .andRespond(
+            withStatus(HttpStatus.CREATED)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body("{\"id\":\"membership-a\",\"revision\":1,\"result\":\"CREATED\"}"));
+
+    IdentityProxyClient client = client(builder.build());
+
+    var response =
+        client.createMembership(
+            "Bearer manager-token",
+            "tenant-a",
+            "environment-a",
+            "request-a",
+            "{\"id\":\"membership-a\",\"principal_id\":\"principal-a\","
+                + "\"capability\":\"catalog.journey.read\",\"service_scope\":\"*\","
+                + "\"authorization_ref\":\"decision-a\"}");
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
+    server.verify();
+  }
+
+  @Test
   void forwardsMembershipRevocationBodyAndIdempotencyKey() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

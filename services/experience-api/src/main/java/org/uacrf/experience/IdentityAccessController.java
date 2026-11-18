@@ -85,6 +85,31 @@ class IdentityAccessController {
         authorization, () -> identity.memberships(authorization, limit, cursor, tenantId, environmentId));
   }
 
+  @PostMapping("/v1/grant-decisions")
+  ResponseEntity<String> createGrantDecision(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestParam(name = "tenant_id", required = false) String tenantId,
+      @RequestParam(name = "environment_id", required = false) String environmentId,
+      @RequestBody String requestBody) {
+    return forward(
+        authorization,
+        () -> identity.createGrantDecision(authorization, tenantId, environmentId, requestBody));
+  }
+
+  @PostMapping("/v1/memberships")
+  ResponseEntity<String> createMembership(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestParam(name = "tenant_id", required = false) String tenantId,
+      @RequestParam(name = "environment_id", required = false) String environmentId,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(
+        authorization,
+        () ->
+            identity.createMembership(
+                authorization, tenantId, environmentId, idempotencyKey, requestBody));
+  }
+
   @GetMapping("/v1/owner-candidates")
   ResponseEntity<String> ownerCandidates(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

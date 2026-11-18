@@ -1,21 +1,23 @@
 # Runtime Validation Report
 
-**Generated**: 2026-11-18T00:06:48Z
+**Generated**: 2026-11-17
 
 **Target**: UACRF repository
 
 ## Latest live browser run
 
-On 2026-11-18, `npm --prefix e2e run test:live` passed **10 tests** with exit
+On 2026-11-17, `npm --prefix e2e run test:live` passed **10 tests** with exit
 code 0. The suite verifies that an authorized administrator admits an
 unadmitted user through UX01, EDGE01, S01, and the trusted local Keycloak
-directory. The receipt confirms no runtime effect; the user is not listed in
-the selected-context principal directory until separately granted membership.
-The read-only approver sees no admission control, and a CSRF-valid direct
-submission is denied by S01. Existing OIDC, context, logout, CSRF, invalid
-password, and catalog-owner denial checks also pass. The stack was removed.
-These checks use local HTTP and do not cover all mutations or cross-origin/
-HTTPS behavior.
+directory. The receipt confirms no runtime effect and no membership; the user
+remains absent from the selected-context principal directory until access is
+granted separately. The independent approver then records a grant decision,
+and the separate administrator applies it using the approval reference and
+matching principal, capability, scope, and expiry. S01 consumes the decision
+with membership creation. Direct cross-role submissions are denied. Existing
+OIDC, context, logout, CSRF, invalid-password, and catalog-owner denial checks
+also pass. The stack was removed. These checks use local HTTP and do not cover
+all mutations or cross-origin/HTTPS behavior.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection
@@ -40,7 +42,7 @@ below; the full Maven reactor was not rerun for the follow-ups.
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
-| Integration | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/experience-api,web -am test`; 75 tests, 0 failures, 0 errors, 0 skipped |
+| Integration | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/experience-api,web -am test`; 84 tests, 0 failures, 0 errors, 0 skipped (19 Experience API, 65 web) |
 | Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 10 tests in 3 files, all passed |
 
 **Overall**: PASS
@@ -59,6 +61,7 @@ below; the full Maven reactor was not rerun for the follow-ups.
 - Approver OIDC login, context selection, two-capability current-access read, and browser reload.
 - Administrator admission of a user from the trusted local Keycloak directory; S01 confirms no membership or runtime effect.
 - Approver admission control hidden; a CSRF-valid direct admission submission is rejected by S01.
+- Independent approver decision followed by separate administrator membership creation; direct cross-role decision and membership submissions are denied.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
 
@@ -76,6 +79,8 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   first-admin bootstrap, not a production identity provider.
 - The new principal is intentionally absent from the context-scoped principal
   list until an independent membership grant is made.
+- The approval handoff uses an authorization reference shared through a
+  trusted channel; the browser does not provide a persisted request inbox.
 - Authorized catalog writes remain untested. In the initial setup, the
   administrator cannot grant catalog authority to themselves, and
   `identity.owner.select` is not delegable to another catalog user. The user

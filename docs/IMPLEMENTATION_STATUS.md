@@ -15,7 +15,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized membership/catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Approval-gated membership creation is now covered in the browser. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, S05 objectives, S06 topology and projection | In progress | Qualify real cloud collectors; broaden freshness and ontology coverage; complete live multi-service acceptance and implement the first reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -182,8 +182,10 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   against the local Keycloak directory, confirms the admission receipt reports
   no runtime effect, and verifies that a directory reader without
   `identity.principal.manage` sees no form and receives an S01 denial on a
-  CSRF-valid direct submission. Approval-gated membership creation still has
-  no browser workflow. Ownership-transfer handlers remain pending.
+  CSRF-valid direct submission. The browser now exposes the separate
+  approver-decision and membership-manager steps for approval-gated membership
+  creation; live coverage verifies both cross-role denials. Ownership-transfer
+  handlers remain pending.
 - Keycloak is now available as a loopback-only local Compose service with an
   imported development realm. Its UX01 client emits the S01 audience and fixed
   `local-dev` / `local` scope claims; the `uacrf-s01-context` scope also maps
@@ -284,9 +286,10 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   administrator. The principal directory displays S01's paginated records in
   the selected context and conditionally offers principal admission from
   trusted providers. Admission creates no memberships or capabilities.
-  Principal disabling and approval-gated membership creation are not exposed
-  through the browser. Re-enabling, ownership-transfer handlers, and the rest
-  of the customer workflow remain unimplemented.
+  Approval-gated membership creation is exposed through distinct approver and
+  membership-manager forms. Principal disabling, re-enabling,
+  ownership-transfer handlers, and the rest of the customer workflow remain
+  unimplemented.
 - Local delegation configuration now uses RS256; place the private key only in
   S01 and configure the matching public key and key ID in S01 and S02, as
   described in [`.env.example`](../.env.example). Managed key storage and
@@ -361,14 +364,16 @@ provider credentials or making release claims.
   SHA-256 hashes, except for the two generated QA outputs. This establishes
   consistency only for available artifacts; exhaustive discovery from the
   absent legacy source and live database introspection remain unavailable.
-- Keep the approval-gated membership browser workflow gated. UX01 now exposes
-  trusted-provider principal admission through the existing S01
-  `POST /v1/principals` route via EDGE01; this does not add the route to the
-  canonical operation inventory. Keep the route outside that inventory until
-  source and release-boundary evidence supports the decision. The proposed
-  principal-status route supports disable; re-enabling and distributed
-  revocation remain gated by fresh source verification and current-authority
-  propagation.
+- UX01 now exposes trusted-provider principal admission through the existing
+  S01 `POST /v1/principals` route via EDGE01; this does not add the route to
+  the canonical operation inventory. Keep the route outside that inventory
+  until source and release-boundary evidence supports the decision. The
+  approval-gated membership browser flow is implemented as a separate
+  approver-issued decision and membership-manager application; it uses the
+  existing S01 contracts and does not create a persisted request inbox. The
+  proposed principal-status route supports disable; re-enabling and
+  distributed revocation remain gated by fresh source verification and
+  current-authority propagation.
 - Threat model and tenant/event compatibility review written
   (`docs/THREAT_MODEL.md`); its open items (key custody, deploy-time signature
   verification, CSRF review, runtime log/event leakage tests, rate limits, and
@@ -404,6 +409,20 @@ event. Grants are limited to a delegable capability set, reject wildcards and
 self-grants, and are bounded to 365 days. Admin capabilities are not
 delegable through this route. Covered by one S01 integration test and one EDGE01
 routing test.
+
+UX01 now exposes this contract through two capability-gated browser forms:
+`identity.grant.approve` records a decision and displays its 15-minute
+authorization reference; a separate `identity.membership.manage` principal
+applies the grant using that reference and the same principal, capability,
+scope, and expiry. The reference is handed off through the organization's
+trusted channel; there is no persisted request inbox or browser-side approval
+queue. S01 remains authoritative on every mutation and atomically consumes the
+reference with membership creation. The live browser suite verifies the
+approver cannot create memberships, the administrator cannot record grant
+decisions, and the separately approved membership appears only after the
+manager applies it. The focused UX01/experience-api reactor passed 84 tests;
+the isolated Playwright suite passed 10 tests. This does not resolve the
+catalog owner-selection gate or complete M1 acceptance.
 
 ## Trusted-provider principal admission
 

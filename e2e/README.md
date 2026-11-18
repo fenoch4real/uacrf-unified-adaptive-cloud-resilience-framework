@@ -31,6 +31,14 @@ is denied by S01. Since the directory is context-scoped to existing
 memberships, the newly admitted user does not appear there until separately
 granted access.
 
+The same browser journey then verifies the existing independent grant
+contract: the approver records a decision for the admitted principal, and the
+separate administrator applies it using the authorization reference and
+matching grant details. S01 consumes that reference with membership creation.
+The approver's direct membership submission and the administrator's direct
+decision submission are both denied. This is a manual trusted-channel
+handoff—there is no persisted request inbox or browser approval queue.
+
 The suite also verifies that an administrator without catalog-write authority
 cannot open the owner selector or submit a journey-creation request. Missing
 and invalid CSRF tokens are rejected for context selection and logout without

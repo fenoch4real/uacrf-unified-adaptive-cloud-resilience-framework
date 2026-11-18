@@ -440,6 +440,184 @@ class WebApplicationTests {
   }
 
   @Test
+  void showsGrantDecisionAndMembershipControlsOnlyForTheirCurrentS01Capabilities()
+      throws Exception {
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-approver",
+                "Approver",
+                "HUMAN",
+                null,
+                null,
+                List.of("identity.grant.approve")),
+            new IdentityAccessClient.MeAccess(
+                "local-admin",
+                "Administrator",
+                "HUMAN",
+                null,
+                null,
+                List.of("identity.membership.manage")));
+    when(identity.listMemberships("test-access-token", sessionContext(), null))
+        .thenReturn(new IdentityAccessClient.MembershipPage(List.of(), null));
+
+    mockMvc
+        .perform(
+            get("/memberships")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Record an independent grant decision")))
+        .andExpect(content().string(not(containsString("Apply an approved membership"))));
+
+    mockMvc
+        .perform(
+            get("/memberships")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(not(containsString("Record an independent grant decision"))))
+        .andExpect(content().string(containsString("Apply an approved membership")));
+  }
+
+  @Test
+  void recordsGrantDecisionWithTheApproverSuppliedValues() throws Exception {
+    String decisionId = "decision-approval-201";
+    Instant expiresAt = Instant.parse("2030-01-01T00:00:00Z");
+    when(identity.createGrantDecision(
+            "test-access-token",
+            sessionContext(),
+            decisionId,
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            expiresAt,
+            "Approved read-only access"))
+        .thenReturn(
+            new IdentityAccessClient.GrantDecisionReceipt(
+                decisionId, 1, "CREATED", "NONE"));
+
+    mockMvc
+        .perform(
+            post("/memberships/grant-decisions")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("id", decisionId)
+                .param("principalId", "local-member")
+                .param("capability", "catalog.journey.read")
+                .param("serviceScope", "*")
+                .param("expiresAt", "2030-01-01T00:00:00Z")
+                .param("reason", "Approved read-only access"))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/memberships"));
+
+    verify(identity)
+        .createGrantDecision(
+            "test-access-token",
+            sessionContext(),
+            decisionId,
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            expiresAt,
+            "Approved read-only access");
+  }
+
+  @Test
+  void appliesMembershipWithTheApprovalReferenceAndIdempotencyKey() throws Exception {
+    String membershipId = "00000000-0000-4000-8000-000000000221";
+    String idempotencyKey = "00000000-0000-4000-8000-000000000222";
+    Instant expiresAt = Instant.parse("2030-01-01T00:00:00Z");
+    when(identity.createMembership(
+            "test-access-token",
+            sessionContext(),
+            membershipId,
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            expiresAt,
+            "Approved read-only access",
+            "decision-approval-201",
+            idempotencyKey))
+        .thenReturn(
+            new IdentityAccessClient.MembershipMutationReceipt(
+                membershipId, 1, "CREATED", "NONE"));
+
+    mockMvc
+        .perform(
+            post("/memberships")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("id", membershipId)
+                .param("idempotencyKey", idempotencyKey)
+                .param("principalId", "local-member")
+                .param("capability", "catalog.journey.read")
+                .param("serviceScope", "*")
+                .param("expiresAt", "2030-01-01T00:00:00Z")
+                .param("reason", "Approved read-only access")
+                .param("authorizationRef", "decision-approval-201"))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/memberships"));
+
+    verify(identity)
+        .createMembership(
+            "test-access-token",
+            sessionContext(),
+            membershipId,
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            expiresAt,
+            "Approved read-only access",
+            "decision-approval-201",
+            idempotencyKey);
+  }
+
+  @Test
+  void rejectsMalformedMembershipExpiryAndAssociatesTheErrorWithItsField() throws Exception {
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-approver",
+                "Approver",
+                "HUMAN",
+                null,
+                null,
+                List.of("identity.grant.approve")));
+    when(identity.listMemberships("test-access-token", sessionContext(), null))
+        .thenReturn(new IdentityAccessClient.MembershipPage(List.of(), null));
+
+    mockMvc
+        .perform(
+            post("/memberships/grant-decisions")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("id", "decision-approval-201")
+                .param("principalId", "local-member")
+                .param("capability", "catalog.journey.read")
+                .param("serviceScope", "*")
+                .param("expiresAt", "not-an-instant")
+                .param("reason", "Approved read-only access"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(containsString("aria-invalid=\"true\"")))
+        .andExpect(content().string(containsString("Enter an ISO-8601 UTC timestamp ending in Z.")));
+
+    verify(identity, never())
+        .createGrantDecision(
+            "test-access-token",
+            sessionContext(),
+            "decision-approval-201",
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            null,
+            "Approved read-only access");
+  }
+
+  @Test
   void requiresCsrfForMembershipRevocation() throws Exception {
     mockMvc
         .perform(
@@ -1958,6 +2136,88 @@ class WebApplicationTests {
     assertThat(page.items()).singleElement().extracting(IdentityAccessClient.Membership::revision)
         .isEqualTo(3L);
     assertThat(receipt.result()).isEqualTo("REVOKED");
+    experienceServer.verify();
+  }
+
+  @Test
+  void forwardsGrantDecisionAndMembershipCreationThroughUX01WithSelectedContext() {
+    String decisionId = "decision-approval-201";
+    String membershipId = "00000000-0000-4000-8000-000000000221";
+    String idempotencyKey = "00000000-0000-4000-8000-000000000222";
+    Instant expiresAt = Instant.parse("2030-01-01T00:00:00Z");
+    RestClient.Builder experienceBuilder =
+        RestClient.builder().baseUrl("http://experience.test");
+    MockRestServiceServer experienceServer = MockRestServiceServer.bindTo(experienceBuilder).build();
+    experienceServer
+        .expect(
+            requestTo(
+                "http://experience.test/v1/grant-decisions?tenant_id=tenant-test"
+                    + "&environment_id=environment-test"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+        .andExpect(jsonPath("$.id").value(decisionId))
+        .andExpect(jsonPath("$.principal_id").value("local-member"))
+        .andExpect(jsonPath("$.expires_at").value("2030-01-01T00:00:00Z"))
+        .andRespond(
+            withSuccess(
+                """
+                {
+                  "id":"decision-approval-201",
+                  "revision":1,
+                  "result":"CREATED",
+                  "runtime_effect":"NONE"
+                }
+                """,
+                MediaType.APPLICATION_JSON));
+    experienceServer
+        .expect(
+            requestTo(
+                "http://experience.test/v1/memberships?tenant_id=tenant-test"
+                    + "&environment_id=environment-test"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+        .andExpect(header("Idempotency-Key", idempotencyKey))
+        .andExpect(jsonPath("$.id").value(membershipId))
+        .andExpect(jsonPath("$.authorization_ref").value(decisionId))
+        .andExpect(jsonPath("$.expected_revision").value(0))
+        .andRespond(
+            withSuccess(
+                """
+                {
+                  "id":"00000000-0000-4000-8000-000000000221",
+                  "revision":1,
+                  "result":"CREATED",
+                  "runtime_effect":"NONE"
+                }
+                """,
+                MediaType.APPLICATION_JSON));
+
+    IdentityAccessClient client = new IdentityAccessClient(experienceBuilder.build());
+    IdentityAccessClient.GrantDecisionReceipt decision =
+        client.createGrantDecision(
+            "test-access-token",
+            sessionContext(),
+            decisionId,
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            expiresAt,
+            "Approved read-only access");
+    IdentityAccessClient.MembershipMutationReceipt membership =
+        client.createMembership(
+            "test-access-token",
+            sessionContext(),
+            membershipId,
+            "local-member",
+            "catalog.journey.read",
+            "*",
+            expiresAt,
+            "Approved read-only access",
+            decisionId,
+            idempotencyKey);
+
+    assertThat(decision.result()).isEqualTo("CREATED");
+    assertThat(membership.result()).isEqualTo("CREATED");
     experienceServer.verify();
   }
 

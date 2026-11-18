@@ -51,6 +51,58 @@ class IdentityAccessControllerTests {
   }
 
   @Test
+  void forwardsGrantDecisionWithSelectedContext() {
+    String requestBody = "{\"id\":\"decision-a\",\"principal_id\":\"principal-a\"}";
+    ResponseEntity<String> upstream = ResponseEntity.status(HttpStatus.CREATED).body(
+        "{\"id\":\"decision-a\",\"revision\":1,\"result\":\"CREATED\",\"runtime_effect\":\"NONE\"}");
+    when(
+            identity.createGrantDecision(
+                "Bearer approver-token", "tenant-a", "environment-a", requestBody))
+        .thenReturn(upstream);
+
+    ResponseEntity<String> response =
+        controller.createGrantDecision(
+            "Bearer approver-token", "tenant-a", "environment-a", requestBody);
+
+    assertThat(response).isSameAs(upstream);
+    verify(identity)
+        .createGrantDecision(
+            "Bearer approver-token", "tenant-a", "environment-a", requestBody);
+  }
+
+  @Test
+  void forwardsMembershipCreationWithContextAndIdempotencyKey() {
+    String requestBody = "{\"id\":\"membership-a\",\"authorization_ref\":\"decision-a\"}";
+    ResponseEntity<String> upstream =
+        ResponseEntity.status(HttpStatus.CREATED).body("{\"id\":\"membership-a\"}");
+    when(
+            identity.createMembership(
+                "Bearer manager-token",
+                "tenant-a",
+                "environment-a",
+                "request-a",
+                requestBody))
+        .thenReturn(upstream);
+
+    ResponseEntity<String> response =
+        controller.createMembership(
+            "Bearer manager-token",
+            "tenant-a",
+            "environment-a",
+            "request-a",
+            requestBody);
+
+    assertThat(response).isSameAs(upstream);
+    verify(identity)
+        .createMembership(
+            "Bearer manager-token",
+            "tenant-a",
+            "environment-a",
+            "request-a",
+            requestBody);
+  }
+
+  @Test
   void forwardsMembershipRevocationWithItsIdempotencyKey() {
     String requestBody = "{\"expected_revision\":3,\"reason\":\"retire access\"}";
     ResponseEntity<String> upstream = ResponseEntity.ok("{\"result\":\"REVOKED\"}");
