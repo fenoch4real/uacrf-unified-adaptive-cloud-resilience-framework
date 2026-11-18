@@ -127,6 +127,26 @@ class ConnectionsApplicationTests {
             "{\"id\":\"b-1\",\"source_ref\":\"acct-1\",\"expected_revision\":0}");
     assertEquals(409, bind.statusCode());
     assertThat(bind.body()).contains("CONNECTION_NOT_ACCEPTED");
+
+    String azureConnection = connection("conn-azure", "AZURE", 0);
+    assertEquals(201, post("/v1/connections", bearer, "k-azure", azureConnection).statusCode());
+    assertThat(get("/v1/connections/conn-azure", bearer).body())
+        .contains("\"status\":\"UNACCEPTED\"")
+        .contains("\"read_only_identity_ref\":\"00000000-0000-0000-0000-000000000001\"");
+    String invalidSubscription =
+        azureConnection.replace(
+            "00000000-0000-0000-0000-000000000001", "<AZURE_SUBSCRIPTION_ID>");
+    assertEquals(
+        400, post("/v1/connections", bearer, "k-azure-invalid", invalidSubscription).statusCode());
+
+    String gcpConnection = connection("conn-gcp", "GCP", 0);
+    assertEquals(201, post("/v1/connections", bearer, "k-gcp", gcpConnection).statusCode());
+    assertThat(get("/v1/connections/conn-gcp", bearer).body())
+        .contains("\"status\":\"UNACCEPTED\"")
+        .contains("\"read_only_identity_ref\":\"sample-project-123\"");
+    String invalidProjectId = gcpConnection.replace("sample-project-123", "Project_ID");
+    assertEquals(
+        400, post("/v1/connections", bearer, "k-gcp-invalid", invalidProjectId).statusCode());
   }
 
   @Test
@@ -675,7 +695,11 @@ class ConnectionsApplicationTests {
 
   private static String connection(String id, String provider, long revision) {
     String identityRef =
-        provider.equals("AWS") ? "arn:aws:iam::123456789012:role/readonly" : "role/readonly";
+        provider.equals("AWS")
+            ? "arn:aws:iam::123456789012:role/readonly"
+            : provider.equals("AZURE")
+                ? "00000000-0000-0000-0000-000000000001"
+                : provider.equals("GCP") ? "sample-project-123" : "role/readonly";
     return "{\"id\":\"%s\",\"name\":\"Sample source\",\"provider\":\"%s\",\"read_only_identity_ref\":\"%s\",\"owner_id\":\"owner-1\",\"expected_revision\":%d}"
         .formatted(id, provider, identityRef, revision);
   }

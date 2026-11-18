@@ -19,9 +19,8 @@ class M2ObjectiveDriftLiveTests {
       String suffix = UUID.randomUUID().toString();
       String workloadId = "workload-" + suffix;
       String serviceId = "service-" + suffix;
-      String caseId = "case-" + suffix;
       LiveM2TestSupport.Fixture fixture =
-          environment.createAcceptedGraph(suffix, workloadId, serviceId, caseId);
+          environment.createAcceptedGraph(suffix, workloadId, serviceId);
       String originalObjectiveId = "objective-original-" + suffix;
       String changedObjectiveId = "objective-changed-" + suffix;
       environment.createAndActivateObjective(workloadId, originalObjectiveId, "250");

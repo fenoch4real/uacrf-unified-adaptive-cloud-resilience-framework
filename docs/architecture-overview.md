@@ -30,6 +30,11 @@ authority.
 
 ## Diagrams
 
+The [cloud-ecosystem architecture](architecture-diagram.md) maps current and
+planned services, cloud providers, agents, and infrastructure. The
+[API and service communication contracts](api-service-contracts.md) describe
+the current service catalog, route families, and communication patterns.
+
 The system-context diagram shows the browser, API edge, experience API,
 domain services, and supporting infrastructure:
 

@@ -1,11 +1,7 @@
 package org.uacrf.connections;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -83,7 +79,7 @@ final class AwsCollector implements ProviderCollector {
         sequence = Math.addExact(sequence, 1);
         observations.add(
             new Observation(
-                observationId(request.sourceRef(), sequence),
+                ProviderObservationIds.create("aws-config-", request.sourceRef(), sequence),
                 sequence,
                 Instant.parse(capturedAt.stringValue()),
                 KIND,
@@ -163,17 +159,6 @@ final class AwsCollector implements ProviderCollector {
       }
       sts.close();
       throw error;
-    }
-  }
-
-  private static String observationId(String sourceRef, long sequence) {
-    try {
-      byte[] digest =
-          MessageDigest.getInstance("SHA-256")
-              .digest((sourceRef + ":" + sequence).getBytes(StandardCharsets.UTF_8));
-      return "aws-config-" + HexFormat.of().formatHex(digest);
-    } catch (NoSuchAlgorithmException error) {
-      throw new IllegalStateException("SHA-256 is required by the runtime.", error);
     }
   }
 

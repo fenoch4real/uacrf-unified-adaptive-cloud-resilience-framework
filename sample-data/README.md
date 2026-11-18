@@ -16,6 +16,20 @@ The real AWS, Azure and GCP connection types stay `UNACCEPTED` and cannot be
 bound; the multi-cloud fixture only imitates their payload shapes. Provider
 capabilities are declared per provider and never treated as equivalent.
 
+Use these labeled fixtures to continue local application and integration work
+while live cloud checks are deferred. They represent a fictional estate, not a
+measurement of any real account, and the UI prototype and connected service
+flows must not be assumed to have identical coverage. In particular, fixture
+pages simulate provider responses; current live collectors emit individual
+resource observations with narrower fields. Fixture metrics and graph
+relationships do not imply that live metric collectors, relationship
+discovery, or every application view have been implemented. Expand or adapt
+the fixtures when needed, but keep sample provenance visible and do not treat
+sample observations as qualified provider evidence.
+
+The [connections live-check guide](../services/connections/README.md#deferred-live-provider-checks)
+records the account setup and validation work to return to later.
+
 Each delivery carries an `expect` value (`ACCEPTED`, `DUPLICATE` or
 `QUARANTINED:<reason>`) that the S03 integration tests assert after posting the
 deliveries in order.

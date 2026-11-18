@@ -3,7 +3,6 @@ package org.uacrf.m2live;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -23,9 +22,29 @@ class M2AuthorizedSelectionLiveTests {
       String suffix = UUID.randomUUID().toString();
       String workloadId = "workload-" + suffix;
       String serviceId = "service-" + suffix;
-      String caseId = "case-" + suffix;
       LiveM2TestSupport.Fixture fixture =
-          environment.createAcceptedGraph(suffix, workloadId, serviceId, caseId);
+          environment.createAcceptedGraph(suffix, workloadId, serviceId);
+      Map<String, Object> projection =
+          environment.awaitGraphProjection(fixture.graphId(), principalId, actorSubject);
+      assertEquals("PROJECTED", projection.get("projection_status"));
+      assertEquals(projection.get("expected_digest"), projection.get("actual_digest"));
+      assertEquals(Boolean.TRUE, projection.get("content_integrity_valid"));
+      assertEquals(List.of(), projection.get("missing_nodes"));
+      assertEquals(List.of(), projection.get("extra_nodes"));
+      assertEquals(List.of(), projection.get("missing_edges"));
+      assertEquals(List.of(), projection.get("extra_edges"));
+      LiveM2TestSupport.Response graphReceipt =
+          environment.request(
+              environment.topologyUrl(),
+              "POST",
+              "/internal/v1/graphs/" + fixture.graphId() + ":receipt",
+              environment.topologyToken(principalId, actorSubject),
+              null,
+              null);
+      assertEquals(200, graphReceipt.statusCode(), graphReceipt.body());
+      Map<String, Object> receipt = LiveM2TestSupport.readJson(graphReceipt.body());
+      assertEquals("PROJECTED", receipt.get("projection_status"));
+      assertEquals(Boolean.TRUE, receipt.get("eligibility"));
       String objectiveId = "objective-" + suffix;
       environment.createAndActivateObjective(workloadId, objectiveId, "250");
 
@@ -72,8 +91,6 @@ class M2AuthorizedSelectionLiveTests {
       Map<?, ?> persistedSlo = (Map<?, ?>) persistedAdvisory.get("slo_objectives");
       assertEquals(expectedSetDigest, persistedSlo.get("set_digest"));
       environment.verifyStubHealth();
-      assertTrue(environment.serviceReceiptCalls() > 0);
-      assertTrue(environment.caseReceiptCalls() > 0);
       assertEquals(0, environment.evidenceSummaryCalls());
     }
   }

@@ -3,7 +3,7 @@
 This two-layer map connects repository-backed UACRF services to the broader
 cloud, agent, and infrastructure ecosystem in the MS01 target. Solid arrows
 show implemented or local paths; dotted arrows show target, incomplete, or
-unaccepted paths. The [implementation status](../../../../../docs/IMPLEMENTATION_STATUS.md)
+unaccepted paths. The [implementation status](IMPLEMENTATION_STATUS.md)
 is authoritative for delivery and acceptance claims.
 
 ## Application Architecture
@@ -49,8 +49,8 @@ flowchart TD
     end
     subgraph Cloud1["Cloud provider and telemetry endpoints"]
         AWS1["AWS Config inventory not accepted"]
-        Azure1["Azure Resource Graph and Monitor planned"]
-        Gcp1["GCP Asset Inventory and Monitoring planned"]
+        Azure1["Azure Resource Graph inventory not accepted"]
+        Gcp1["GCP Asset Inventory not accepted"]
         KubernetesApi1["Kubernetes API source planned"]
         OTel1["OpenTelemetry sources planned"]
         PaymentApi1["Payment provider integration planned"]
@@ -79,8 +79,8 @@ flowchart TD
     FutureOwners1 -.->|"future owner local databases"| Postgres1
     S06 -->|"verified projection"| Neo4j1
     S03 -.->|"read only inventory and metrics"| AWS1
-    S03 -.->|"future read only collection"| Azure1
-    S03 -.->|"future read only collection"| Gcp1
+    S03 -.->|"read only inventory not accepted"| Azure1
+    S03 -.->|"read only inventory not accepted"| Gcp1
     S03 -.->|"future workload inventory"| KubernetesApi1
     S03 -.->|"source observations"| OTel1
     CustomerServices1 -.->|"emits telemetry"| OTel1
@@ -138,10 +138,13 @@ production object storage, and Kubernetes are target architecture components,
 not evidence of a deployed runtime. The AWS Config inventory collector has
 implementation coverage but AWS connections remain UNACCEPTED pending live
 read-only conformance; CloudWatch metric collection is not implemented. Azure
-and GCP collectors remain unimplemented, and Kubernetes and OpenTelemetry
-source integrations are target work. Provider credentials and actions are
-separate: S03 is read-only collection, while S11 and isolated execution cells
-are planned for individually authorized mutations.
+Resource Graph and Google Cloud Asset Inventory have partial read-only
+inventory implementations, but Azure and GCP connections also remain
+UNACCEPTED pending live conformance. Azure Monitor and Google Cloud Monitoring
+metrics, Kubernetes, and OpenTelemetry source integrations remain target work.
+Provider credentials and actions are separate: S03 is read-only collection,
+while S11 and isolated execution cells are planned for individually authorized
+mutations.
 
 ### Key Architectural Decisions
 
@@ -260,8 +263,8 @@ flowchart LR
 | Kubernetes and execution cells | Target only | Runtime and network isolation | Separate ingress, control, collection, and privileged execution pools |
 
 The target architecture and service ownership boundaries are documented in
-[ARCHITECTURE.md](../../../../../design/ms01/ARCHITECTURE.md) and
-[DEPLOYMENT_AND_OPERATIONS.md](../../../../../design/ms01/DEPLOYMENT_AND_OPERATIONS.md).
+[ARCHITECTURE.md](../design/ms01/ARCHITECTURE.md) and
+[DEPLOYMENT_AND_OPERATIONS.md](../design/ms01/DEPLOYMENT_AND_OPERATIONS.md).
 The diagram distinguishes those target components from the currently
 implemented service slices; it does not mark any provider or full-system
 workflow as accepted.

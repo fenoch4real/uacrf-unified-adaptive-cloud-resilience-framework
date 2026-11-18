@@ -17,8 +17,6 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -27,17 +25,11 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.testcontainers.neo4j.Neo4jContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.uacrf.security.DelegationJwtEncoderFactory;
@@ -81,7 +73,7 @@ final class LiveM2TestSupport {
     try {
       created.start();
       System.out.printf(
-          "M2 live services ready: S01, S05, S06; startup_ms=%d%n",
+          "M2 live services ready: S01, S02, S05, S06, S07; startup_ms=%d%n",
           created.startupMillis());
       return created;
     } catch (Exception error) {
@@ -153,6 +145,16 @@ final class LiveM2TestSupport {
             .withDatabaseName("uacrf_identity")
             .withUsername("identity_test")
             .withPassword(UUID.randomUUID().toString());
+    private final PostgreSQLContainer catalogDb =
+        new PostgreSQLContainer(POSTGRES_IMAGE)
+            .withDatabaseName("uacrf_catalog")
+            .withUsername("catalog_test")
+            .withPassword(UUID.randomUUID().toString());
+    private final PostgreSQLContainer assessmentDb =
+        new PostgreSQLContainer(POSTGRES_IMAGE)
+            .withDatabaseName("uacrf_assessment")
+            .withUsername("assessment_test")
+            .withPassword(UUID.randomUUID().toString());
     private final PostgreSQLContainer objectivesDb =
         new PostgreSQLContainer(POSTGRES_IMAGE)
             .withDatabaseName("uacrf_objectives")
@@ -168,24 +170,18 @@ final class LiveM2TestSupport {
         new Neo4jContainer(NEO4J_IMAGE).withAdminPassword(neo4jPassword);
     private final HttpClient http =
         HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-    private final Map<String, String> serviceWorkloads = new ConcurrentHashMap<>();
-    private final Map<String, String> caseWorkloads = new ConcurrentHashMap<>();
     private final ConcurrentLinkedQueue<String> stubFailures = new ConcurrentLinkedQueue<>();
-    private final java.util.concurrent.atomic.AtomicInteger serviceReceiptCalls =
-        new java.util.concurrent.atomic.AtomicInteger();
     private final java.util.concurrent.atomic.AtomicInteger evidenceSummaryCalls =
         new java.util.concurrent.atomic.AtomicInteger();
-    private final java.util.concurrent.atomic.AtomicInteger caseReceiptCalls =
-        new java.util.concurrent.atomic.AtomicInteger();
-    private final JwtDecoder delegationDecoder =
-        NimbusJwtDecoder.withPublicKey((RSAPublicKey) DELEGATION_KEYS.getPublic())
-            .signatureAlgorithm(SignatureAlgorithm.RS256)
-            .build();
     private HttpServer ownerStubs;
     private Process identityProcess;
+    private Process catalogProcess;
+    private Process assessmentProcess;
     private Process objectivesProcess;
     private Process topologyProcess;
     private int identityPort;
+    private int catalogPort;
+    private int assessmentPort;
     private int objectivesPort;
     private int topologyPort;
     private long startupMillis;
@@ -205,6 +201,8 @@ final class LiveM2TestSupport {
     private void start() throws Exception {
       long startedAt = System.nanoTime();
       identityDb.start();
+      catalogDb.start();
+      assessmentDb.start();
       objectivesDb.start();
       topologyDb.start();
       neo4j.start();
@@ -219,6 +217,24 @@ final class LiveM2TestSupport {
               identityEnvironment());
       awaitHealth("S01", identityPort, identityProcess);
       seedTopologyMembership();
+
+      catalogPort = freePort();
+      catalogProcess =
+          startService(
+              "services/estate-catalog/target/estate-catalog-service-1.0.0-SNAPSHOT.jar",
+              "catalog",
+              catalogPort,
+              catalogEnvironment());
+      awaitHealth("S02", catalogPort, catalogProcess);
+
+      assessmentPort = freePort();
+      assessmentProcess =
+          startService(
+              "services/assessment/target/assessment-service-1.0.0-SNAPSHOT.jar",
+              "assessment",
+              assessmentPort,
+              assessmentEnvironment());
+      awaitHealth("S07", assessmentPort, assessmentProcess);
 
       objectivesPort = freePort();
       objectivesProcess =
@@ -244,16 +260,8 @@ final class LiveM2TestSupport {
       return startupMillis;
     }
 
-    int serviceReceiptCalls() {
-      return serviceReceiptCalls.get();
-    }
-
     int evidenceSummaryCalls() {
       return evidenceSummaryCalls.get();
-    }
-
-    int caseReceiptCalls() {
-      return caseReceiptCalls.get();
     }
 
     void verifyStubHealth() {
@@ -262,9 +270,135 @@ final class LiveM2TestSupport {
       }
     }
 
-    void register(String serviceId, String workloadId, String caseId) {
-      serviceWorkloads.put(serviceId, workloadId);
-      caseWorkloads.put(caseId, workloadId);
+    private String catalogToken(String principalId, String ownerId, String runtimePrincipalId) {
+      DelegationPrincipal principal =
+          new DelegationPrincipal(
+              principalId,
+              tenantId,
+              environmentId,
+              "*",
+              IDP_ISSUER,
+              principalId,
+              List.of("catalog.service.write", "catalog.agent.write"),
+              List.of(ownerId),
+              List.of(runtimePrincipalId));
+      return "Bearer " + TOKEN_ISSUER.issue(principal, "S02");
+    }
+
+    private void registerCatalogFixture(String serviceId, String workloadId, String suffix)
+        throws IOException, InterruptedException {
+      String ownerId = "owner-" + suffix;
+      String runtimePrincipalId = "runtime-" + suffix;
+      String token =
+          catalogToken(principalId("s02-fixture-actor"), ownerId, runtimePrincipalId);
+      Response service =
+          request(
+              catalogUrl(),
+              "POST",
+              "/v1/services",
+              token,
+              json(
+                  Map.of(
+                      "reason", "M2 live owner fixture",
+                      "expected_revision", 0,
+                      "id", serviceId,
+                      "name", "M2 live test service",
+                      "owner_id", ownerId,
+                      "criticality", 3,
+                      "lifecycle", "ACTIVE")),
+              "m2-live-service-" + suffix);
+      requireStatus(201, service, "S02 service registration");
+      Response workload =
+          request(
+              catalogUrl(),
+              "POST",
+              "/v1/agent-workloads",
+              token,
+              json(
+                  Map.of(
+                      "id", workloadId,
+                      "service_id", serviceId,
+                      "name", "M2 live test workload",
+                      "kind", "SINGLE_AGENT",
+                      "owner_id", ownerId,
+                      "runtime_principal_id", runtimePrincipalId,
+                      "purpose", "M2 live topology selection fixture")),
+              "m2-live-workload-" + suffix);
+      requireStatus(201, workload, "S02 workload registration");
+    }
+
+    private String registerAssessmentFixture(String workloadId, String graphId, String suffix)
+        throws IOException, InterruptedException {
+      String objectiveId = "objective-" + suffix;
+      String token = assessmentToken(principalId("s07-fixture-" + suffix), suffix);
+      Response created =
+          request(
+              assessmentUrl(),
+              "POST",
+              "/v1/cases",
+              token,
+              json(
+                  Map.of(
+                      "workload_id", workloadId,
+                      "purpose", "assessment",
+                      "metric", "latency",
+                      "comparator", "LTE",
+                      "threshold", 250,
+                      "unit", "ms",
+                      "window_seconds", 3600,
+                      "objective_ref",
+                          Map.of(
+                              "objective_id", objectiveId,
+                              "revision", 1,
+                              "digest", "a".repeat(64)),
+                      "graph_ref",
+                          Map.of(
+                              "graph_id", graphId,
+                              "revision", 1,
+                              "digest", "b".repeat(64)),
+                      "required_source_kinds", List.of("metrics"))),
+              null);
+      requireStatus(201, created, "S07 case registration");
+      String caseId = (String) readJson(created.body()).get("id");
+      Response sealed =
+          request(
+              assessmentUrl(),
+              "POST",
+              "/v1/cases/" + caseId + ":seal",
+              token,
+              json(Map.of("expected_revision", 1)),
+              null);
+      requireStatus(200, sealed, "S07 case sealing");
+      Map<String, Object> sealedCase = readJson(sealed.body());
+      if (!"SEALED".equals(sealedCase.get("state"))
+          || !(sealedCase.get("case_digest") instanceof String digest)
+          || !digest.matches("[a-f0-9]{64}")) {
+        throw new AssertionError("S07 did not return a valid sealed case: " + sealed.body());
+      }
+      Response persisted =
+          request(assessmentUrl(), "GET", "/v1/cases/" + caseId, token, null, null);
+      requireStatus(200, persisted, "S07 case read-back");
+      Map<String, Object> persistedCase = readJson(persisted.body());
+      if (!"SEALED".equals(persistedCase.get("state"))
+          || !digest.equals(persistedCase.get("case_digest"))) {
+        throw new AssertionError("S07 case read-back differs from the sealed case: " + persisted.body());
+      }
+      return caseId;
+    }
+
+    private String assessmentToken(String principalId, String suffix) {
+      DelegationPrincipal principal =
+          new DelegationPrincipal(
+              principalId,
+              tenantId,
+              environmentId,
+              "*",
+              IDP_ISSUER,
+              principalId,
+              List.of("assessment.case.read", "assessment.case.write"),
+              List.of("owner-" + suffix),
+              List.of("runtime-" + suffix));
+      return "Bearer " + TOKEN_ISSUER.issue(principal, "S07");
     }
 
     void registerActor(String principalId, String actorSubject) throws SQLException {
@@ -344,6 +478,14 @@ final class LiveM2TestSupport {
       return "http://127.0.0.1:" + objectivesPort;
     }
 
+    String catalogUrl() {
+      return "http://127.0.0.1:" + catalogPort;
+    }
+
+    String assessmentUrl() {
+      return "http://127.0.0.1:" + assessmentPort;
+    }
+
     Map<String, Object> awaitCommand(String commandId, String bearer)
         throws IOException, InterruptedException {
       String lastBody = "";
@@ -365,6 +507,32 @@ final class LiveM2TestSupport {
       throw new AssertionError("Timed out waiting for S06 command; last response: " + lastBody);
     }
 
+    Map<String, Object> awaitGraphProjection(String graphId, String principalId, String actorSubject)
+        throws IOException, InterruptedException {
+      String bearer = topologyToken(principalId, actorSubject);
+      String path = "/v1/graphs/" + graphId + "/reconciliation";
+      String lastBody = "";
+      Instant deadline = Instant.now().plusSeconds(20);
+      while (Instant.now().isBefore(deadline)) {
+        Response response = request(topologyUrl(), "GET", path, bearer, null, null);
+        if (response.statusCode() != 200) {
+          throw new AssertionError(
+              "S06 graph reconciliation returned " + response.statusCode() + ": " + response.body());
+        }
+        lastBody = response.body();
+        Map<String, Object> result = readJson(lastBody);
+        String projectionStatus = (String) result.get("projection_status");
+        if ("PROJECTED".equals(projectionStatus)) {
+          return result;
+        }
+        if ("FAILED".equals(projectionStatus) || "DRIFTED".equals(projectionStatus)) {
+          throw new AssertionError("S06 graph projection ended as " + projectionStatus + ": " + lastBody);
+        }
+        Thread.sleep(100);
+      }
+      throw new AssertionError("Timed out waiting for S06 graph projection; last response: " + lastBody);
+    }
+
     String topologyToken(String principalId, String actorSubject) {
       return bearer(
           tenantId, environmentId, principalId, actorSubject, "S06", TOPOLOGY_CAPABILITIES);
@@ -374,9 +542,12 @@ final class LiveM2TestSupport {
       return bearer(tenantId, environmentId, principalId, actorSubject, "S05", capabilities);
     }
 
-    Fixture createAcceptedGraph(String suffix, String workloadId, String serviceId, String caseId)
-        throws IOException, InterruptedException {
-      register(serviceId, workloadId, caseId);
+    Fixture createAcceptedGraph(String suffix, String workloadId, String serviceId)
+        throws IOException, InterruptedException, SQLException {
+      registerCatalogFixture(serviceId, workloadId, suffix);
+      String caseId = registerAssessmentFixture(workloadId, "graph-" + suffix, suffix);
+      Map<String, Object> serviceSnapshot = serviceSnapshot(serviceId, 2);
+      String serviceDigest = serviceDigest(serviceSnapshot);
       String proposerId = principalId("proposer");
       String reviewerId = principalId("reviewer");
       String proposalId = "edge-" + suffix;
@@ -416,8 +587,7 @@ final class LiveM2TestSupport {
               null);
       requireStatus(200, accepted, "S06 graph acceptance");
       String graphId = (String) readJson(accepted.body()).get("id");
-      Map<String, Object> serviceSnapshot = serviceSnapshot(serviceId, workloadId);
-      return new Fixture(serviceId, workloadId, caseId, graphId, serviceDigest(serviceSnapshot));
+      return new Fixture(serviceId, workloadId, caseId, graphId, serviceDigest);
     }
 
     Response select(Fixture fixture, String principalId, String actorSubject, String suffix)
@@ -432,7 +602,7 @@ final class LiveM2TestSupport {
                   "reason", "M2 live validation " + suffix,
                   "expected_revision", 0,
                   "query_id", "action-relevant-dependencies.v3",
-                  "query_parameters_ref", "catalog://service/" + fixture.serviceId() + "/revision/1",
+                  "query_parameters_ref", "catalog://service/" + fixture.serviceId() + "/revision/2",
                   "query_parameters_digest", fixture.serviceDigest(),
                   "purpose", "topology.graph.subgraph-selection",
                   "maximum_nodes", 200));
@@ -610,6 +780,35 @@ final class LiveM2TestSupport {
           "UACRF_OBJECTIVES_REVIEWER_CHECK_ENABLED", "false");
     }
 
+    private Map<String, String> assessmentEnvironment() {
+      return Map.ofEntries(
+          Map.entry("SERVER_PORT", Integer.toString(assessmentPort)),
+          Map.entry("ASSESSMENT_JDBC_URL", assessmentDb.getJdbcUrl()),
+          Map.entry("ASSESSMENT_DB_USER", assessmentDb.getUsername()),
+          Map.entry("ASSESSMENT_DB_PASSWORD", assessmentDb.getPassword()),
+          Map.entry("UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS)),
+          Map.entry("UACRF_DELEGATION_KEY_ID", KEY_ID),
+          Map.entry("UACRF_DELEGATION_ISSUER", ISSUER),
+          Map.entry("UACRF_ASSESSMENT_RECEIPTS_ENABLED", "false"),
+          Map.entry("UACRF_ASSESSMENT_MODELS_ENABLED", "false"),
+          Map.entry("UACRF_ASSESSMENT_LEARNING_REVIEW_ENABLED", "false"),
+          Map.entry("UACRF_ASSESSMENT_ADAPTATION_ENABLED", "false"));
+    }
+
+    private Map<String, String> catalogEnvironment() {
+      return Map.ofEntries(
+          Map.entry("SERVER_PORT", Integer.toString(catalogPort)),
+          Map.entry("CATALOG_JDBC_URL", catalogDb.getJdbcUrl()),
+          Map.entry("CATALOG_DB_USER", catalogDb.getUsername()),
+          Map.entry("CATALOG_DB_PASSWORD", catalogDb.getPassword()),
+          Map.entry("UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS)),
+          Map.entry("UACRF_DELEGATION_KEY_ID", KEY_ID),
+          Map.entry("UACRF_DELEGATION_ISSUER", ISSUER),
+          Map.entry("UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64", publicKeyBase64(S02_KEYS)),
+          Map.entry("UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64", privateKeyBase64(S02_KEYS)),
+          Map.entry("UACRF_S02_OWNER_RECEIPT_KEY_ID", S02_KEY_ID));
+    }
+
     private Map<String, String> topologyEnvironment() {
       String stubs = "http://127.0.0.1:" + ownerStubs.getAddress().getPort();
       return Map.ofEntries(
@@ -625,119 +824,23 @@ final class LiveM2TestSupport {
           Map.entry("UACRF_DELEGATION_ISSUER", ISSUER),
           Map.entry("UACRF_TOPOLOGY_IDENTITY_URL", "http://127.0.0.1:" + identityPort),
           Map.entry("UACRF_TOPOLOGY_OBJECTIVES_URL", "http://127.0.0.1:" + objectivesPort),
-          Map.entry("UACRF_TOPOLOGY_CATALOG_URL", stubs),
+          Map.entry("UACRF_TOPOLOGY_CATALOG_URL", catalogUrl()),
           Map.entry("UACRF_TOPOLOGY_EVIDENCE_URL", stubs),
-          Map.entry("UACRF_TOPOLOGY_ASSESSMENT_URL", stubs),
+          Map.entry("UACRF_TOPOLOGY_ASSESSMENT_URL", assessmentUrl()),
           Map.entry("UACRF_TOPOLOGY_S02_KEY_ID", S02_KEY_ID),
           Map.entry("UACRF_TOPOLOGY_S02_PUBLIC_KEY_BASE64", publicKeyBase64(S02_KEYS)),
           Map.entry("UACRF_TOPOLOGY_COMMAND_INTERVAL_MS", "100"),
-          Map.entry("UACRF_TOPOLOGY_PROJECTION_ENABLED", "false"));
+          Map.entry("UACRF_TOPOLOGY_PROJECTION_ENABLED", "true"),
+          Map.entry("UACRF_TOPOLOGY_PROJECTION_INTERVAL_MS", "100"),
+          Map.entry("UACRF_TOPOLOGY_PROJECTION_RETRY_BASE_MS", "100"));
     }
 
     private void startOwnerStubs() throws IOException {
       ownerStubs =
           HttpServer.create(
               new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
-      ownerStubs.createContext("/internal/v1/services/", this::serviceEndpoint);
-      ownerStubs.createContext("/internal/v1/cases/", this::caseEndpoint);
       ownerStubs.createContext("/internal/v1/qualifications/", this::evidenceEndpoint);
       ownerStubs.start();
-    }
-
-    private void serviceEndpoint(HttpExchange exchange) throws IOException {
-      try {
-        String path = exchange.getRequestURI().getPath();
-        String prefix = "/internal/v1/services/";
-        if ("GET".equals(exchange.getRequestMethod())) {
-          String[] segments = path.substring(prefix.length()).split("/");
-          if (segments.length != 3 || !"revisions".equals(segments[1]) || !"1".equals(segments[2])) {
-            throw new IllegalArgumentException("Unexpected S02 service revision path: " + path);
-          }
-          String serviceId = segments[0];
-          String workloadId = requireRegistered(serviceWorkloads, serviceId, "service");
-          Jwt delegated = delegatedToken(exchange);
-          requireDelegation(
-              delegated,
-              "S02",
-              "service",
-              serviceId,
-              "topology.graph.subgraph-selection",
-              "catalog.service.read");
-          Map<String, Object> snapshot = serviceSnapshot(serviceId, workloadId);
-          send(exchange, 200, Map.of(
-              "resource_version", 1,
-              "content_digest", serviceDigest(snapshot),
-              "snapshot", snapshot));
-          return;
-        }
-        if (!"POST".equals(exchange.getRequestMethod()) || !path.endsWith(":receipt")) {
-          throw new IllegalArgumentException("Unexpected S02 request: " + exchange.getRequestMethod() + " " + path);
-        }
-        serviceReceiptCalls.incrementAndGet();
-        String serviceId =
-            path.substring(prefix.length(), path.length() - ":receipt".length());
-        String workloadId = requireRegistered(serviceWorkloads, serviceId, "service");
-        Map<String, Object> request = readJson(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-        if (!request.keySet().equals(java.util.Set.of("purpose", "requested_version", "operation_deadline"))) {
-          throw new IllegalArgumentException("Unexpected S02 receipt request fields.");
-        }
-        String purpose = (String) request.get("purpose");
-        String version = (String) request.get("requested_version");
-        Instant deadline = Instant.parse((String) request.get("operation_deadline"));
-        Jwt delegated = delegatedToken(exchange);
-        requireDelegation(delegated, "S02", "service", serviceId, purpose, "catalog.service.read");
-        Map<String, Object> snapshot = serviceSnapshot(serviceId, workloadId);
-        send(exchange, 200, signedServiceReceipt(
-            delegated, serviceId, version, purpose, deadline, serviceDigest(snapshot)));
-      } catch (RuntimeException error) {
-        stubFailures.add("S02: " + error.getMessage());
-        send(exchange, 500, Map.of("error", "S02 test stub rejected request"));
-      }
-    }
-
-    private void caseEndpoint(HttpExchange exchange) throws IOException {
-      try {
-        if (!"POST".equals(exchange.getRequestMethod())) {
-          throw new IllegalArgumentException("S07 case receipt must use POST.");
-        }
-        caseReceiptCalls.incrementAndGet();
-        String prefix = "/internal/v1/cases/";
-        String path = exchange.getRequestURI().getPath();
-        if (!path.endsWith(":receipt")) {
-          throw new IllegalArgumentException("Unexpected S07 case receipt path: " + path);
-        }
-        String caseId = path.substring(prefix.length(), path.length() - ":receipt".length());
-        String workloadId = requireRegistered(caseWorkloads, caseId, "case");
-        Map<String, Object> request =
-            readJson(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-        if (!request.isEmpty()) {
-          throw new IllegalArgumentException("Unexpected S07 case receipt request fields.");
-        }
-        Jwt delegated = delegatedToken(exchange);
-        String purpose = delegated.getClaimAsString("purpose");
-        if (!java.util.Set.of(
-                "topology.graph.subgraph-selection",
-                "topology.graph.difference-classification")
-            .contains(purpose)) {
-          throw new IllegalArgumentException("Unexpected S07 receipt purpose: " + purpose);
-        }
-        requireDelegation(
-            delegated,
-            "S07",
-            "assessment_case",
-            caseId,
-            purpose,
-            "assessment.case.read");
-        send(exchange, 200, Map.of(
-            "case_id", caseId,
-            "purpose", "incident",
-            "case_digest", "d".repeat(64),
-            "workload_id", workloadId,
-            "required_source_kinds", List.of("metrics")));
-      } catch (RuntimeException error) {
-        stubFailures.add("S07: " + error.getMessage());
-        send(exchange, 500, Map.of("error", "S07 test stub rejected request"));
-      }
     }
 
     private void evidenceEndpoint(HttpExchange exchange) throws IOException {
@@ -750,64 +853,6 @@ final class LiveM2TestSupport {
       } catch (RuntimeException error) {
         stubFailures.add("S04: " + error.getMessage());
         send(exchange, 500, Map.of("error", "S04 test stub rejected request"));
-      }
-    }
-
-    private Map<String, Object> signedServiceReceipt(
-        Jwt delegated,
-        String serviceId,
-        String version,
-        String purpose,
-        Instant deadline,
-        String digest) {
-      Map<String, Object> receipt = new LinkedHashMap<>();
-      receipt.put("protocol", "UACRF_OWNER_RECEIPT_V1");
-      receipt.put("key_id", S02_KEY_ID);
-      receipt.put("receipt_id", "receipt-" + UUID.randomUUID());
-      receipt.put("issuer_service", "S02");
-      receipt.put("audience_service", "S06");
-      receipt.put("tenant_id", delegated.getClaimAsString("tenant_id"));
-      receipt.put("environment_id", delegated.getClaimAsString("environment_id"));
-      receipt.put("actor_id", delegated.getClaimAsString("actor_subject"));
-      receipt.put("resource_type", "service");
-      receipt.put("resource_id", serviceId);
-      receipt.put("resource_version", version);
-      receipt.put("resource_revision", 1);
-      receipt.put("authority_epoch", 1);
-      receipt.put("content_digest", digest);
-      receipt.put("eligible", true);
-      receipt.put("purpose", purpose);
-      receipt.put("issued_at", Instant.now().toString());
-      receipt.put("valid_until", deadline.toString());
-      receipt.put(
-          "signature",
-          OwnerReceiptSignature.sign(
-              json(receipt), (RSAPrivateKey) S02_KEYS.getPrivate()));
-      return receipt;
-    }
-
-    private Jwt delegatedToken(HttpExchange exchange) {
-      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
-      if (authorization == null || !authorization.startsWith("Bearer ")) {
-        throw new IllegalArgumentException("A bearer token is required.");
-      }
-      return delegationDecoder.decode(authorization.substring("Bearer ".length()));
-    }
-
-    private void requireDelegation(
-        Jwt token,
-        String audience,
-        String resourceType,
-        String resourceId,
-        String purpose,
-        String capability) {
-      if (!ISSUER.equals(token.getIssuer().toString())
-          || !List.of(audience).equals(token.getAudience())
-          || !resourceType.equals(token.getClaimAsString("resource_type"))
-          || !resourceId.equals(token.getClaimAsString("resource_id"))
-          || !purpose.equals(token.getClaimAsString("purpose"))
-          || !List.of(capability).equals(token.getClaimAsStringList("capabilities"))) {
-        throw new IllegalArgumentException("Delegated owner token has an unexpected scope or purpose.");
       }
     }
 
@@ -892,23 +937,28 @@ final class LiveM2TestSupport {
       }
     }
 
-    private Map<String, Object> serviceSnapshot(String serviceId, String workloadId) {
-      return Map.of(
-          "service_id", serviceId,
-          "name", "M2 live test service",
-          "owner_id", "test-owner",
-          "criticality", 3,
-          "lifecycle", "ACTIVE",
-          "revision", 1,
-          "owned_agent_workload_ids", List.of(workloadId));
-    }
-
-    private String requireRegistered(Map<String, String> registry, String id, String kind) {
-      String value = registry.get(id);
-      if (value == null) {
-        throw new IllegalArgumentException("No test " + kind + " fixture is registered for " + id);
+    private Map<String, Object> serviceSnapshot(String serviceId, long resourceVersion)
+        throws SQLException {
+      try (Connection connection =
+              DriverManager.getConnection(
+                  catalogDb.getJdbcUrl(), catalogDb.getUsername(), catalogDb.getPassword());
+          PreparedStatement snapshot =
+              connection.prepareStatement(
+                  "SELECT snapshot::text FROM uacrf_catalog.service_revision "
+                      + "WHERE tenant_id = ? AND environment_id = ? AND service_id = ? "
+                      + "AND resource_version = ?")) {
+        snapshot.setString(1, tenantId);
+        snapshot.setString(2, environmentId);
+        snapshot.setString(3, serviceId);
+        snapshot.setLong(4, resourceVersion);
+        try (var rows = snapshot.executeQuery()) {
+          if (!rows.next()) {
+            throw new SQLException(
+                "S02 did not retain service revision " + resourceVersion + " for " + serviceId);
+          }
+          return readJson(rows.getString(1));
+        }
       }
-      return value;
     }
 
     private static String publicKeyBase64(KeyPair pair) {
@@ -959,6 +1009,8 @@ final class LiveM2TestSupport {
       closed = true;
       stopProcess(topologyProcess);
       stopProcess(objectivesProcess);
+      stopProcess(assessmentProcess);
+      stopProcess(catalogProcess);
       stopProcess(identityProcess);
       if (ownerStubs != null) {
         ownerStubs.stop(0);
@@ -971,6 +1023,12 @@ final class LiveM2TestSupport {
       }
       if (objectivesDb.isRunning()) {
         objectivesDb.stop();
+      }
+      if (assessmentDb.isRunning()) {
+        assessmentDb.stop();
+      }
+      if (catalogDb.isRunning()) {
+        catalogDb.stop();
       }
       if (identityDb.isRunning()) {
         identityDb.stop();

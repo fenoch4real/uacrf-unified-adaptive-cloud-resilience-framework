@@ -18,9 +18,8 @@ class M2IdentityMembershipLiveTests {
       String suffix = UUID.randomUUID().toString();
       String workloadId = "workload-" + suffix;
       String serviceId = "service-" + suffix;
-      String caseId = "case-" + suffix;
       LiveM2TestSupport.Fixture fixture =
-          environment.createAcceptedGraph(suffix, workloadId, serviceId, caseId);
+          environment.createAcceptedGraph(suffix, workloadId, serviceId);
       environment.createAndActivateObjective(workloadId, "objective-" + suffix, "250");
 
       LiveM2TestSupport.Response validSelection =
@@ -40,8 +39,6 @@ class M2IdentityMembershipLiveTests {
 
       String unregisteredPrincipal = LiveM2TestSupport.principalId("unregistered");
       String unregisteredSubject = LiveM2TestSupport.principalId("subject");
-      int serviceReceiptsBefore = environment.serviceReceiptCalls();
-      int caseReceiptsBefore = environment.caseReceiptCalls();
       LiveM2TestSupport.Response denied =
           environment.select(
               fixture,
@@ -52,8 +49,6 @@ class M2IdentityMembershipLiveTests {
       assertEquals(409, denied.statusCode(), denied.body());
       assertTrue(denied.body().contains("PROOF_UNAVAILABLE_OR_STALE"));
       assertFalse(denied.raw().headers().firstValue("Location").isPresent());
-      assertEquals(serviceReceiptsBefore, environment.serviceReceiptCalls());
-      assertEquals(caseReceiptsBefore, environment.caseReceiptCalls());
       assertEquals(200, environment.getCommand(commandId, principalId, actorSubject).statusCode());
       environment.verifyStubHealth();
       assertEquals(0, environment.evidenceSummaryCalls());

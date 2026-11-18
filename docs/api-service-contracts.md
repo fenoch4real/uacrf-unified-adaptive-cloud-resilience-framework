@@ -64,7 +64,7 @@ For S06 command status, `TopologyController.commandStatus` returns the compact m
 
 The persisted S06 selection coverage map records `graph_edge_count`, `verified_summary_count`, `unverified_summary_count`, up to ten verified `summaries`, `truncated`, `complete`, and `reason_codes` drawn from `SUMMARY_INVALIDATED`, `SUMMARY_STALE`, `SUMMARY_UNAVAILABLE`, `SUMMARY_LIMIT_REACHED`, and `SUMMARY_COVERAGE_GAP`. Difference-classification snapshots retain the corresponding authorized and current evidence-coverage maps; none of these internal coverage fields are returned by `GET /v1/commands/{id}`.
 
-The API Edge and Experience API generally forward JSON as text and preserve owner-service response bodies rather than composing gateway-level DTOs. The browser application uses form inputs and Thymeleaf views. Backend JSON uses snake_case naming where configured. The MS01 OpenAPI source is [openapi.json](../../../../../design/ms01/contracts/source/api_reference/openapi.json); no protobuf or GraphQL schemas were found.
+The API Edge and Experience API generally forward JSON as text and preserve owner-service response bodies rather than composing gateway-level DTOs. The browser application uses form inputs and Thymeleaf views. Backend JSON uses snake_case naming where configured. The MS01 OpenAPI source is [openapi.json](../design/ms01/contracts/source/api_reference/openapi.json); no protobuf or GraphQL schemas were found.
 
 ## Communication Patterns
 

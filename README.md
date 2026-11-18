@@ -48,10 +48,17 @@ measured against the target services and their executed tests.
 
 - [Microservices architecture](docs/ARCHITECTURE.md) —
   service boundaries, data ownership, and system behavior.
+- [Cloud-ecosystem architecture diagram](docs/architecture-diagram.md) and
+  [API and service communication contracts](docs/api-service-contracts.md) —
+  service, infrastructure, provider, agent, and communication views.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
 - [Current implementation status](docs/IMPLEMENTATION_STATUS.md) —
   milestone progress, implemented slices, evidence, and remaining work.
+- [Cloud connection and deferred live-check setup](services/connections/README.md#deferred-live-provider-checks) —
+  AWS, Azure, and Google Cloud parameters, access requirements, and validation limits.
+- [Synthetic sample data](sample-data/README.md) —
+  provider-shaped inventory, metrics, and graph fixtures for work without live cloud access.
 - [UI prototype](design/ui-prototype/ui_workloads/index.html) and [setup guide](design/ui-prototype/ui_workloads/START_HERE.html) —
   illustrative screens and local-only flows.
 - [Acceptance criteria and risks](docs/ACCEPTANCE_AND_RISKS.md) —

@@ -6,7 +6,7 @@ complete yet. The repository now contains tested slices across several
 services, but they do not yet constitute an accepted end-to-end microservices
 system.
 
-The [comprehensive UACRF cloud-ecosystem architecture diagram](../.github/modernize/assessment/engines/facts/architecture-diagram.md)
+The [comprehensive UACRF cloud-ecosystem architecture diagram](architecture-diagram.md)
 shows the current services, agents, cloud-provider integrations, and target
 infrastructure; dotted connections identify planned or unaccepted paths.
 
@@ -20,7 +20,7 @@ estimate.
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Ownership transfer for journeys and services is implemented and tested, but the live fixture verifies denial only; re-enabling principals remains unavailable pending verification and independent review. |
-| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S05/S06 API runtime gate now passes; complete live conformance for the AWS Config inventory collector (AWS connections remain unaccepted), implement other cloud collectors and telemetry, broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement the first reporting capabilities. |
+| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; complete live conformance for AWS Config, Azure Resource Graph, and GCP Cloud Asset Inventory (all remain unaccepted), implement Azure Monitor and GCP Monitoring metrics, broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement the first reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
@@ -98,7 +98,7 @@ without accounting for the weaker old behavior. The focused connections and
 delegation suites passed 20 tests; the MS01 architecture check passed 24
 checks. This does not qualify cloud collectors or replace S04 qualification.
 
-## S03 leased collection and AWS Config inventory
+## S03 leased collection and cloud-provider inventory
 
 The opt-in collection runner claims active source bindings through persisted
 per-source leases and checkpoints. Before submission it durably saves each
@@ -118,12 +118,37 @@ capture time and stable IDs derived from source and sequence. Mocked pagination
 tests verify that the next page resumes from its returned token with continuous
 sequence numbers and distinct IDs. AWS connections remain `UNACCEPTED` until
 live read-only conformance; the runner therefore does not schedule them.
-CloudWatch metrics have no source/metric-definition
-contract yet, and Azure and GCP collectors remain unimplemented. No live AWS
-credentials were provided, so real provider conformance is outstanding.
-The focused connections/delegation reactor passed 29 tests (21 connections
-tests and 8 delegation-auth tests), with no failures, errors, or skips; this is
-local test evidence, not live AWS conformance.
+
+Azure Resource Graph inventory uses `DefaultAzureCredential`, validates the
+subscription GUID, and collects selected-region resource metadata in pages of
+100 using `$skipToken`. Truncated results without a continuation token do not
+advance the checkpoint.
+
+Google Cloud Asset Inventory uses Google Application Default Credentials and
+the project-scoped `ListAssets` API. It validates the project ID, reads
+project-wide assets in pages of 100 using `nextPageToken`, and deliberately does
+not filter by the region segment because project inventory can include global
+assets. Observation payloads retain only the asset name, type, and update time.
+
+AWS, Azure, and GCP connections remain `UNACCEPTED` until their live read-only
+conformance suites pass; local tests do not qualify provider connections.
+CloudWatch, Azure Monitor, and Google Cloud Monitoring metrics remain outside
+these inventory slices. The focused connections/delegation reactor passed 34
+connections tests and 8 delegation-auth tests, with no failures, errors, or
+skips. These are local results, not live provider conformance.
+
+**Deferred live checks:** Continue implementation and application work using
+clearly labeled provider-shaped sample fixtures while account access and live
+conformance are deferred. The [connections live-check guide](../services/connections/README.md#deferred-live-provider-checks)
+records target identifiers, authentication and permissions, provider service
+prerequisites, owner approval and cost considerations, and the distinction
+between a smoke check and conformance. The initial local credential readiness
+check did not authenticate the three collector processes; no live inventory
+was queried. A separate opt-in live-check path and conformance evidence remain
+to be implemented; the `UNACCEPTED` binding/scheduling gate must not be bypassed.
+Existing resources can be used; an empty estate cannot demonstrate resource
+collection or pagination. Samples are fictional and do not establish parity
+with the current collectors or real cloud capabilities.
 
 ## Current handoff
 
@@ -548,22 +573,33 @@ These are never provider inventory or accepted evidence.
 
 ### Where to implement real provider connections (S03)
 
-Each stub lives in `services/connections/src/main/java/org/uacrf/connections/`,
-implements `ProviderCollector`, carries `IMPLEMENT:` markers and placeholder
-constants, and returns `NOT_IMPLEMENTED` (never fake data):
+Provider collectors live in `services/connections/src/main/java/org/uacrf/connections/`.
+They return provider observations only; a partial collector does not make a cloud
+connection accepted. Current implementation state:
 
-| Provider | Class | Placeholder constants to replace | Payload kinds to emit |
+| Provider | Class | Implemented | Remaining |
 | --- | --- | --- | --- |
-| AWS | `AwsCollector` | `ROLE_ARN`, `METRICS_API`, `INVENTORY_API`, `REGION` | `aws.cloudwatch.metrics`, `aws.config.resources` |
-| Azure | `AzureCollector` | `TENANT_ID`, `SUBSCRIPTION_ID`, `METRICS_API`, `INVENTORY_API` | `azure.monitor.metrics`, `azure.resourcegraph.rows` |
-| Google Cloud | `GcpCollector` | `PROJECT_ID`, `SERVICE_ACCOUNT`, `METRICS_API`, `INVENTORY_API` | `gcp.monitoring.timeseries`, `gcp.assetinventory.assets` |
+| AWS | `AwsCollector` | `aws.config.resources` | CloudWatch metrics; live conformance |
+| Azure | `AzureCollector` | Regional `azure.resourcegraph.rows` | Azure Monitor metrics; live conformance |
+| Google Cloud | `GcpCollector` | Project-wide `gcp.assetinventory.assets` | `gcp.monitoring.timeseries`; live conformance |
 
-Still to do around them: credential resolution (no secrets in the repo);
-lifting a provider from `UNACCEPTED` only after the live read-only conformance
-suite passes for pagination, permission denial, source outage, rate limits,
-checkpoint recovery and out-of-order delivery. The sample-data fixture shows
-each case. S05 and S06 now have initial service slices; see their sections
-below for implemented scope and remaining gaps.
+The AWS collector uses the AWS SDK default credential chain for STS role
+assumption. Azure uses `DefaultAzureCredential` with credentials configured
+outside the repository; its `read_only_identity_ref` is the subscription GUID,
+and `azure/<region>/resourcegraph/inventory` is a regional Resource Graph source.
+It projects only resource identifiers and basic inventory metadata, pages at 100
+rows, and preserves `$skipToken`. It refuses to advance when Resource Graph
+reports truncation without a continuation token. Azure Monitor metrics remain
+unimplemented. Google Cloud uses Application Default Credentials to list project-wide Cloud
+Asset Inventory resources, retaining only name, asset type, and update time;
+pages of 100 use `nextPageToken`, and the source region does not restrict assets.
+Google Cloud Monitoring metrics remain unimplemented. AWS, Azure, and GCP
+connections stay `UNACCEPTED` until live read-only conformance verifies
+pagination, permission denial, source outage, rate limits, checkpoint recovery,
+and out-of-order delivery. The sample-data fixture is not provider conformance
+evidence. The focused connections reactor passed 34 tests, and its
+delegation-auth prerequisite passed 8 tests, with no failures, errors or skips.
+No live provider conformance was performed for this slice.
 
 ## M2 / S04 evidence, qualification, and waiver workflows
 
@@ -757,7 +793,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 - The evidence-backed path currently accepts only human-authored `agent_workload DEPENDS_ON agent_workload` proposals. S06 obtains short-lived, resource/purpose-bound delegations from S01, signed active-version receipts from S02, and a bounded qualified-evidence summary from S04. It rechecks owner state during proposal, review, and current-use receipt preparation; stale or unavailable evidence fails closed without rewriting historical accepted revisions. Separate S02 RSA signing-key and S06 public-verification-key settings are required before enabling this path. Focused service tests cover each boundary and the EDGE01 route, but a live S01/S02/S04/S06 deployment integration test has not yet been run.
 - PostgreSQL owns `permitted_relationships`, `dependency_proposals`, `graph_revisions`, `graph_nodes`, `graph_edges`, `graph_edge_conflicts`, `graph_projections`, and `outbox_event`. New revisions receive a `PENDING` projection row transactionally; existing revisions are backfilled. Projection status is `PENDING`, `PROJECTING`, `PROJECTED`, `FAILED`, or `DRIFTED`; only `PROJECTED` with a matching verified digest is eligible. Proposals are tenant/environment scoped and constrained by a relationship allowlist. Observed proposals require source system, source revision, and verification time; authored proposals forbid those observed-source fields. Reviews use expected revisions and require a reviewer distinct from the proposer.
 - Accepting a graph requires the expected current revision for its scope. Accepted proposals are merged deterministically into an immutable graph revision with a canonical digest; new digest version 2 binds edge provenance and proposal IDs, while historical version 1 revisions retain their prior verification semantics. Repeating the same graph content does not create another revision. Conflicting provenance for duplicate accepted relationships is recorded in `graph_edge_conflicts`. Graph acceptance/conflict events are written transactionally to the outbox. The internal receipt reports the projection row's current status and is eligible only after digest verification.
-- S02 now retains immutable service-revision snapshots with deterministically ordered `owned_agent_workload_ids`; membership changes append a new revision, and no historical membership is fabricated. S06 verifies the exact signed S02 receipt, retained snapshot and digest, then uses that membership only as a bounded set of selection roots; it never infers dependency edges from catalog membership. Async selection and difference-classification commands are persisted with an outbox event, idempotency, status lookup, and stable expected-revision targets. Selection binds the accepted graph revision, S02 snapshot, purpose-scoped current S07 case receipt and bounded S04 summaries, then retains a digest and bounded typed node/edge references. `action-relevant-dependencies.v1` preserves the bounded dependency/failure-domain selection; `.v2` additionally selects accepted reachable `READS_FROM` edges from represented `service`/`agent_workload` nodes to `shared_resource` nodes. New `.v3` preserves v2 and adds the point-in-time current S05 active-objective set for the S07 case workload as owner-derived context only; it creates no SLO graph node or `GOVERNED_BY_SLO` edge. S06 requires the case workload in the exact S02 service membership and uses a resource-scoped S01 delegation to read and digest-check S05's bounded active-objective receipt. Classification re-reads that set for the same case workload; each owner response is a point-in-time snapshot, and a changed set digest forces `INDETERMINATE` without treating objective changes as graph widening, narrowing or target changes. The retained query ID binds classification to the same selection semantics. Classification emits advisory dependency, failure-domain and v2/v3 data-read deltas; exact same-source read-target replacements are target-changing, while mixed or unpaired read deltas are indeterminate. The public selection result also carries a digest-bound, count-only reconciliation between the exact S02 membership snapshot and `agent_workload` nodes in the exact accepted graph. Unknown S02 membership is `INDETERMINATE`; nodes outside the service membership are counts, not inventory defects. This is not a provider-inventory, freshness or completeness claim. S06 now accepts canonical `MEMBER_OF_FAILURE_DOMAIN` relationships, normalizes legacy `IN_FAILURE_DOMAIN` proposals, and interprets retained legacy edges equivalently. Read-edge properties do not establish freshness. SLO topology relationships and measurement evaluation, broader ontology, and freshness coverage remain incomplete or indeterminate; these operations do not write graph edges. The focused S06/S01 reactor passed 40 tests (31 topology and 9 identity; no failures, errors or skips), and the generated-contract suite passed 6 tests. The new API-only Testcontainers gate then passed three live journeys with separate S01, S05 and S06 HTTP processes and isolated PostgreSQL databases; the full Maven reactor passed 509 tests with no failures, errors or skips. S02, S04 and S07 were test-only owner boundaries; S06 Neo4j projection, Kafka, artifact storage, browser UX, live provider conformance and full M2 acceptance remain unverified. See [the M2 runtime-validation report](../integration-tests/m2-live/runtime-validation-report.md).
+- S02 now retains immutable service-revision snapshots with deterministically ordered `owned_agent_workload_ids`; membership changes append a new revision, and no historical membership is fabricated. S06 verifies the exact signed S02 receipt, retained snapshot and digest, then uses that membership only as a bounded set of selection roots; it never infers dependency edges from catalog membership. Async selection and difference-classification commands are persisted with an outbox event, idempotency, status lookup, and stable expected-revision targets. Selection binds the accepted graph revision, S02 snapshot, purpose-scoped current S07 case receipt and bounded S04 summaries, then retains a digest and bounded typed node/edge references. `action-relevant-dependencies.v1` preserves the bounded dependency/failure-domain selection; `.v2` additionally selects accepted reachable `READS_FROM` edges from represented `service`/`agent_workload` nodes to `shared_resource` nodes. New `.v3` preserves v2 and adds the point-in-time current S05 active-objective set for the S07 case workload as owner-derived context only; it creates no SLO graph node or `GOVERNED_BY_SLO` edge. S06 requires the case workload in the exact S02 service membership and uses a resource-scoped S01 delegation to read and digest-check S05's bounded active-objective receipt. Classification re-reads that set for the same case workload; each owner response is a point-in-time snapshot, and a changed set digest forces `INDETERMINATE` without treating objective changes as graph widening, narrowing or target changes. The retained query ID binds classification to the same selection semantics. Classification emits advisory dependency, failure-domain and v2/v3 data-read deltas; exact same-source read-target replacements are target-changing, while mixed or unpaired read deltas are indeterminate. The public selection result also carries a digest-bound, count-only reconciliation between the exact S02 membership snapshot and `agent_workload` nodes in the exact accepted graph. Unknown S02 membership is `INDETERMINATE`; nodes outside the service membership are counts, not inventory defects. This is not a provider-inventory, freshness or completeness claim. S06 now accepts canonical `MEMBER_OF_FAILURE_DOMAIN` relationships, normalizes legacy `IN_FAILURE_DOMAIN` proposals, and interprets retained legacy edges equivalently. Read-edge properties do not establish freshness. SLO topology relationships and measurement evaluation, broader ontology, and freshness coverage remain incomplete or indeterminate; these operations do not write graph edges. The focused S06/S01 reactor passed 40 tests (31 topology and 9 identity; no failures, errors or skips), and the generated-contract suite passed 6 tests. The API-only Testcontainers gate now runs S01, S02, S05, S06 and S07 as live HTTP processes with isolated PostgreSQL databases and the S06 Neo4j projection worker enabled. Three live journeys verify S02's signed service receipt and S07's case lifecycle/receipt through their real services, as well as the projected graph digest, reconciliation and eligible graph receipt. The focused module passed 3 tests and the canonical full Maven reactor passed 507 tests with no failures, errors or skips. S04 remains a test-only owner boundary; S07's external evidence/objective/topology receipt verification is disabled for this bounded case-receipt gate. Kafka, artifact storage, browser UX, live provider conformance and full M2 acceptance remain unverified. See [the M2 runtime-validation report](../integration-tests/m2-live/runtime-validation-report.md).
 - Still needed: SLO graph relationships and objective-to-measurement evaluation,
   broader classify/select ontology and freshness coverage, and
   S10 consumption pinned to an exact graph revision. S06 produces its own

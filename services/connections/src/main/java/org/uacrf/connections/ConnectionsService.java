@@ -28,6 +28,11 @@ class ConnectionsService {
   private static final Pattern AWS_ROLE_ARN =
       Pattern.compile(
           "^arn:aws(?:-[a-z0-9-]+)?:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]{1,512}$");
+  private static final Pattern AZURE_SUBSCRIPTION_ID =
+      Pattern.compile(
+          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+  private static final Pattern GCP_PROJECT_ID =
+      Pattern.compile("^[a-z][a-z0-9-]{4,28}[a-z0-9]$");
   private static final String UNACCEPTED_REASON =
       "No conformance-tested read-only collector exists for this provider yet.";
   private final JdbcTemplate jdbc;
@@ -51,6 +56,14 @@ class ConnectionsService {
     if (request.provider() == Provider.AWS
         && !AWS_ROLE_ARN.matcher(request.readOnlyIdentityRef()).matches()) {
       throw invalid("AWS read_only_identity_ref must be an IAM role ARN.");
+    }
+    if (request.provider() == Provider.AZURE
+        && !AZURE_SUBSCRIPTION_ID.matcher(request.readOnlyIdentityRef()).matches()) {
+      throw invalid("Azure read_only_identity_ref must be a subscription ID.");
+    }
+    if (request.provider() == Provider.GCP
+        && !GCP_PROJECT_ID.matcher(request.readOnlyIdentityRef()).matches()) {
+      throw invalid("GCP read_only_identity_ref must be a Google Cloud project ID.");
     }
     boolean accepted = request.provider() == Provider.SAMPLE_LOCAL;
     String awsExternalId =

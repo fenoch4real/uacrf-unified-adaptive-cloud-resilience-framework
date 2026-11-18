@@ -6,9 +6,8 @@ import java.util.List;
 /**
  * Seam for real, read-only provider collection. Implementations pull provider telemetry and
  * inventory and return {@link Batch}es that the caller submits through the existing observation
- * intake. Until a collector passes the live read-only conformance suite its provider connection
- * stays UNACCEPTED, so the shipped AWS, Azure and GCP collectors return {@link Batch#notImplemented}
- * and never fabricate data.
+ * intake. A partial implementation does not qualify a provider: its connections stay UNACCEPTED
+ * until the full live read-only conformance suite passes.
  */
 interface ProviderCollector {
   ConnectionsRequests.Provider provider();
