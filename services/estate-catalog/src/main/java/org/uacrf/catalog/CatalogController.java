@@ -25,6 +25,14 @@ class CatalogController {
     this.catalog = catalog;
   }
 
+  @PostMapping("/v1/ownership:transfer")
+  OwnershipTransferReceipt transferOwnership(
+      @AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody TransferOwnership request,
+      @RequestHeader("Idempotency-Key") String idempotencyKey) {
+    return catalog.transferOwnership(DelegationPrincipal.from(jwt), request, idempotencyKey);
+  }
+
   @PostMapping("/v1/services")
   @ResponseStatus(HttpStatus.CREATED)
   Receipt registerService(

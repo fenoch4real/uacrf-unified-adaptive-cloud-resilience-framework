@@ -83,6 +83,196 @@ class EstateCatalogApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void transfersJourneyAndServiceWithRetainedEvidenceAndReplay() throws Exception {
+    String tenant = "tenant-transfer-success";
+    String token = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.journey.write", "catalog.service.write"),
+        List.of("owner-1", "owner-2", "owner-3"), List.of()));
+    assertEquals(201, post("/v1/customer-journeys", token, "create-journey", """
+        {"id":"journey-transfer","name":"Journey","owner_id":"owner-1","purpose":"Test","lifecycle":"ACTIVE"}
+        """).statusCode());
+    assertEquals(201, post("/v1/services", token, "create-service", """
+        {"reason":"Registration","expected_revision":0,"id":"service-transfer","name":"Service","owner_id":"owner-1","criticality":3,"lifecycle":"ACTIVE"}
+        """).statusCode());
+    String journey = """
+        {"object_kind":"JOURNEY","object_id":"journey-transfer","owner_id":"owner-2","expected_revision":1,"reason":"New owner","expected_anchor_revision":null}
+        """;
+    var first = post("/v1/ownership:transfer", token, "journey-transfer-key", journey);
+    assertEquals(200, first.statusCode(), first.body());
+    var receipt = objectMapper.readTree(first.body());
+    assertThat(receipt.size()).isEqualTo(4);
+    assertThat(receipt.path("id").asText()).isEqualTo("journey-transfer");
+    assertThat(receipt.path("revision").asLong()).isEqualTo(2);
+    assertThat(receipt.path("result").asText()).isEqualTo("UPDATED");
+    assertThat(receipt.path("runtime_effect").asText()).isEqualTo("NONE");
+    var replay = post("/v1/ownership:transfer", token, "journey-transfer-key", journey);
+    assertEquals(200, replay.statusCode(), replay.body());
+    assertThat(objectMapper.readTree(replay.body()).path("result").asText()).isEqualTo("REPLAYED");
+    var changed = post("/v1/ownership:transfer", token, "journey-transfer-key",
+        journey.replace("owner-2", "owner-3"));
+    assertEquals(409, changed.statusCode());
+    assertThat(objectMapper.readTree(changed.body()).path("code").asText()).isEqualTo("IDEMPOTENCY_CONFLICT");
+    var stale = post("/v1/ownership:transfer", token, "stale-journey", journey);
+    assertEquals(409, stale.statusCode());
+    assertThat(objectMapper.readTree(stale.body()).path("code").asText()).isEqualTo("REVISION_MISMATCH");
+    var unchanged = post("/v1/ownership:transfer", token, "unchanged-journey",
+        journey.replace("\"expected_revision\":1", "\"expected_revision\":2"));
+    assertEquals(409, unchanged.statusCode());
+    assertThat(objectMapper.readTree(unchanged.body()).path("code").asText())
+        .isEqualTo("OWNER_ALREADY_ASSIGNED");
+    assertEquals(2L, jdbc.queryForObject(
+        "SELECT revision FROM uacrf_catalog.customer_journey WHERE tenant_id = ? AND id = 'journey-transfer'",
+        Long.class, tenant));
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.owner_transfer_audit WHERE tenant_id = ?", Integer.class, tenant));
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.outbox_event WHERE tenant_id = ? "
+            + "AND event_type = 'catalog.ownership.transferred'", Integer.class, tenant));
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.idempotency_record WHERE tenant_id = ? "
+            + "AND idempotency_key = 'unchanged-journey'", Integer.class, tenant));
+
+    String service = journey.replace("JOURNEY", "SERVICE").replace("journey-transfer", "service-transfer");
+    String scopedToken = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.service.write"),
+        List.of("owner-2"), List.of(), "service-transfer"));
+    var serviceResult = post("/v1/ownership:transfer", scopedToken, "service-transfer-key", service);
+    assertEquals(200, serviceResult.statusCode(), serviceResult.body());
+    assertThat(objectMapper.readTree(serviceResult.body()).path("revision").asLong()).isEqualTo(2);
+    var unchangedService = post("/v1/ownership:transfer", scopedToken, "unchanged-service",
+        service.replace("\"expected_revision\":1", "\"expected_revision\":2"));
+    assertEquals(409, unchangedService.statusCode());
+    assertThat(objectMapper.readTree(unchangedService.body()).path("code").asText())
+        .isEqualTo("OWNER_ALREADY_ASSIGNED");
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.idempotency_record WHERE tenant_id = ? "
+            + "AND idempotency_key = 'unchanged-service'", Integer.class, tenant));
+    assertEquals("owner-2", jdbc.queryForObject(
+        "SELECT owner_id FROM uacrf_catalog.customer_journey WHERE tenant_id = ? AND id = 'journey-transfer'",
+        String.class, tenant));
+    assertEquals("owner-2", jdbc.queryForObject(
+        "SELECT owner_id FROM uacrf_catalog.service WHERE tenant_id = ? AND id = 'service-transfer'",
+        String.class, tenant));
+    var audits = jdbc.queryForList(
+        "SELECT object_kind, previous_owner_id, owner_id, previous_revision, revision, actor_id, reason "
+            + "FROM uacrf_catalog.owner_transfer_audit WHERE tenant_id = ? ORDER BY object_kind", tenant);
+    assertThat(audits).hasSize(2);
+    for (var audit : audits) {
+      assertThat(audit).containsEntry("previous_owner_id", "owner-1").containsEntry("owner_id", "owner-2")
+          .containsEntry("previous_revision", 1L).containsEntry("revision", 2L)
+          .containsEntry("actor_id", "https://uacrf.local/s01|user-1").containsEntry("reason", "New owner");
+    }
+    assertThrows(DataAccessException.class, () -> jdbc.update(
+        "DELETE FROM uacrf_catalog.owner_transfer_audit WHERE tenant_id = ?", tenant));
+    assertEquals(2, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.outbox_event WHERE tenant_id = ? "
+            + "AND event_type = 'catalog.ownership.transferred' AND aggregate_sequence = 2",
+        Integer.class, tenant));
+    assertEquals(2, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.idempotency_record WHERE tenant_id = ? "
+            + "AND operation = 'POST /v1/ownership:transfer' AND response IS NOT NULL", Integer.class, tenant));
+    String snapshot = jdbc.queryForObject(
+        "SELECT snapshot::text FROM uacrf_catalog.service_revision WHERE tenant_id = ? "
+            + "AND service_id = 'service-transfer' AND resource_version = 2", String.class, tenant);
+    assertThat(objectMapper.readTree(snapshot).path("owner_id").asText()).isEqualTo("owner-2");
+    assertThat(objectMapper.readTree(snapshot).path("owned_agent_workload_ids").toString()).isEqualTo("[]");
+    assertEquals(2, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.service_revision WHERE tenant_id = ? AND service_id = 'service-transfer'",
+        Integer.class, tenant));
+  }
+
+  @Test
+  void enforcesTransferAuthorizationContractAndAgentAnchor() throws Exception {
+    String tenant = "tenant-transfer-denials";
+    String token = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.journey.write", "catalog.service.write", "catalog.agent.write"),
+        List.of("owner-1", "owner-2"), List.of("runtime-1")));
+    assertEquals(201, post("/v1/services", token, "anchor-service", """
+        {"reason":"Registration","expected_revision":0,"id":"anchor","name":"Anchor","owner_id":"owner-1","criticality":3,"lifecycle":"ACTIVE"}
+        """).statusCode());
+    assertEquals(201, post("/v1/agent-workloads", token, "anchor-agent", """
+        {"id":"agent-anchor","service_id":"anchor","name":"Agent","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Work"}
+        """).statusCode());
+    String body = """
+        {"object_kind":"SERVICE","object_id":"anchor","owner_id":"owner-2","expected_revision":2,"reason":"Transfer","expected_anchor_revision":null}
+        """;
+    var anchor = post("/v1/ownership:transfer", token, "anchor-transfer", body);
+    assertEquals(409, anchor.statusCode());
+    assertThat(objectMapper.readTree(anchor.body()).path("code").asText()).isEqualTo("SERVICE_IS_AGENT_ANCHOR");
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.owner_transfer_audit WHERE tenant_id = ?", Integer.class, tenant));
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.idempotency_record WHERE tenant_id = ? "
+            + "AND operation = 'POST /v1/ownership:transfer'", Integer.class, tenant));
+    var unsupported = post("/v1/ownership:transfer", token, "unsupported",
+        body.replace("SERVICE", "AGENT"));
+    assertEquals(422, unsupported.statusCode());
+    assertThat(objectMapper.readTree(unsupported.body()).path("code").asText())
+        .isEqualTo("UNSUPPORTED_OBJECT_KIND");
+    assertEquals(400, post("/v1/ownership:transfer", token, "non-null",
+        body.replace("\"expected_anchor_revision\":null", "\"expected_anchor_revision\":1")).statusCode());
+    assertEquals(400, post("/v1/ownership:transfer", token, "missing",
+        body.replace(",\"expected_anchor_revision\":null", "")).statusCode());
+    for (List<String> capabilities : List.of(
+        List.of("catalog.service.write"), List.of("ownership.transfer"))) {
+      String limited = bearer(actor(tenant, "environment-a", capabilities, List.of("owner-2"), List.of()));
+      assertEquals(403, post("/v1/ownership:transfer", limited, "denied", body).statusCode());
+    }
+    for (List<String> capabilities : List.of(
+        List.of("catalog.journey.write"), List.of("ownership.transfer"))) {
+      String limited = bearer(actor(tenant, "environment-a", capabilities, List.of("owner-2"), List.of()));
+      assertEquals(403, post("/v1/ownership:transfer", limited, "journey-denied",
+          body.replace("SERVICE", "JOURNEY")).statusCode());
+    }
+    String ineligible = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.service.write"), List.of("owner-1"), List.of()));
+    assertEquals(403, post("/v1/ownership:transfer", ineligible, "ineligible", body).statusCode());
+    String wrongScope = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.service.write", "catalog.journey.write"),
+        List.of("owner-2"), List.of(), "other"));
+    assertEquals(403, post("/v1/ownership:transfer", wrongScope, "wrong-scope", body).statusCode());
+    assertEquals(403, post("/v1/ownership:transfer", wrongScope, "journey-scope",
+        body.replace("SERVICE", "JOURNEY")).statusCode());
+    String matchedScope = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.service.write"), List.of("owner-2"), List.of(), "anchor"));
+    assertEquals(409, post("/v1/ownership:transfer", matchedScope, "matched-scope", body).statusCode());
+  }
+
+  @Test
+  void rollsBackTransferAndEvidenceWhenOutboxInsertFails() throws Exception {
+    String tenant = "tenant-transfer-rollback";
+    String token = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer", "catalog.service.write"),
+        List.of("owner-1", "owner-2"), List.of()));
+    assertEquals(201, post("/v1/services", token, "create-rollback", """
+        {"reason":"Registration","expected_revision":0,"id":"rollback","name":"Service","owner_id":"owner-1","criticality":3,"lifecycle":"ACTIVE"}
+        """).statusCode());
+    jdbc.update("INSERT INTO uacrf_catalog.outbox_event "
+        + "(event_id, tenant_id, environment_id, aggregate_type, aggregate_id, aggregate_sequence, event_type, payload) "
+        + "VALUES (?, ?, 'environment-a', 'SERVICE', 'rollback', 2, 'test.conflict', '{}'::jsonb)",
+        java.util.UUID.randomUUID(), tenant);
+    String body = """
+        {"object_kind":"SERVICE","object_id":"rollback","owner_id":"owner-2","expected_revision":1,"reason":"Transfer","expected_anchor_revision":null}
+        """;
+    assertEquals(409, post("/v1/ownership:transfer", token, "rollback-key", body).statusCode());
+    assertEquals("owner-1", jdbc.queryForObject(
+        "SELECT owner_id FROM uacrf_catalog.service WHERE tenant_id = ? AND id = 'rollback'",
+        String.class, tenant));
+    assertEquals(1L, jdbc.queryForObject(
+        "SELECT revision FROM uacrf_catalog.service WHERE tenant_id = ? AND id = 'rollback'",
+        Long.class, tenant));
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.owner_transfer_audit WHERE tenant_id = ?", Integer.class, tenant));
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.idempotency_record WHERE tenant_id = ? "
+            + "AND operation = 'POST /v1/ownership:transfer'", Integer.class, tenant));
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_catalog.service_revision WHERE tenant_id = ?", Integer.class, tenant));
+    jdbc.update("DELETE FROM uacrf_catalog.outbox_event WHERE tenant_id = ? AND event_type = 'test.conflict'", tenant);
+    assertEquals(200, post("/v1/ownership:transfer", token, "rollback-key", body).statusCode());
+  }
+
+  @Test
   void concurrentMembershipChangesRetainBothRevisionsAndRollBackOnFailure() throws Exception {
     String tenant = "tenant-concurrent-membership";
     String token =

@@ -82,6 +82,14 @@ class CatalogRouteController {
     return forward(() -> catalog.registerJourney(authorization, idempotencyKey, requestBody));
   }
 
+  @PostMapping("/v1/ownership:transfer")
+  ResponseEntity<String> transferOwnership(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(() -> catalog.transferOwnership(authorization, idempotencyKey, requestBody));
+  }
+
   @PostMapping("/v1/customer-journeys/{id}/steps")
   ResponseEntity<String> registerStep(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

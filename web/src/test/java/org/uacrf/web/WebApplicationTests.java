@@ -231,6 +231,8 @@ class WebApplicationTests {
         .andExpect(content().string(containsString("Owner eligible")))
         .andExpect(content().string(containsString("Next page of principals")))
         .andExpect(content().string(containsString("Admit trusted directory principal")))
+        .andExpect(content().string(containsString("Disable principal")))
+        .andExpect(content().string(containsString("Reason for disabling this principal")))
         .andExpect(content().string(containsString("keycloak-local")))
         .andExpect(content().string(not(containsString("disabled-source"))))
         .andExpect(content().string(containsString("it does not grant memberships or capabilities")))
@@ -262,9 +264,138 @@ class WebApplicationTests {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("Principal directory")))
         .andExpect(content().string(not(containsString("Admit trusted directory principal"))))
+        .andExpect(content().string(not(containsString("Disable principal"))))
         .andExpect(content().string(not(containsString("No trusted identity providers"))));
 
     verify(identity, never()).listIdentityProviders("test-access-token", sessionContext());
+  }
+
+  @Test
+  void disablesAnEnabledPrincipalWithTheCurrentRevisionAndAuditReason() throws Exception {
+    String principalId = "principal-test";
+    String reason = "Disable compromised test identity.";
+    String idempotencyKey = "00000000-0000-4000-8000-000000000203";
+    when(
+            identity.disablePrincipal(
+                "test-access-token", principalId, 2, reason, idempotencyKey))
+        .thenReturn(
+            new IdentityAccessClient.PrincipalStatusReceipt(
+                principalId, 3, "UPDATED", "NONE"));
+
+    MvcResult result =
+        mockMvc
+            .perform(
+                post("/principals/{principalId}:disable", principalId)
+                    .with(browserLogin())
+                    .with(csrf())
+                    .session(sessionWithSelectedContext())
+                    .param("expectedRevision", "2")
+                    .param("reason", reason)
+                    .param("idempotencyKey", idempotencyKey))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/principals"))
+            .andReturn();
+
+    assertThat(result.getFlashMap().get("principalMessage"))
+        .asString()
+        .contains(principalId)
+        .contains("No memberships were removed");
+    verify(identity).disablePrincipal("test-access-token", principalId, 2, reason, idempotencyKey);
+  }
+
+  @Test
+  void validatesPrincipalDisableReasonBeforeCallingS01() throws Exception {
+    when(identity.listPrincipals("test-access-token", sessionContext(), null))
+        .thenReturn(
+            new IdentityAccessClient.PrincipalPage(
+                List.of(
+                    new IdentityAccessClient.Principal(
+                        "principal-test", "Test Principal", "HUMAN", true, false, 2)),
+                null));
+    when(identity.listIdentityProviders("test-access-token", sessionContext()))
+        .thenReturn(new IdentityAccessClient.IdentityProviderList(List.of()));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-admin",
+                "Local Administrator",
+                "HUMAN",
+                null,
+                "GLOBAL_GRANTS_ONLY",
+                List.of("identity.directory.read", "identity.principal.manage")));
+
+    mockMvc
+        .perform(
+            post("/principals/{principalId}:disable", "principal-test")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("expectedRevision", "2")
+                .param("reason", "")
+                .param("idempotencyKey", "00000000-0000-4000-8000-000000000204"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(containsString("Correct the disable reason and try again.")))
+        .andExpect(content().string(containsString("principal-disable-reason-error")))
+        .andExpect(content().string(containsString("aria-invalid=\"true\"")))
+        .andExpect(content().string(containsString("autofocus=\"autofocus\"")));
+
+    verify(identity, never())
+        .disablePrincipal(
+            "test-access-token",
+            "principal-test",
+            2,
+            "",
+            "00000000-0000-4000-8000-000000000204");
+  }
+
+  @Test
+  void preservesPrincipalDisableRetryKeyWhenTheOutcomeIsUnconfirmed() throws Exception {
+    String principalId = "principal-test";
+    String reason = "Disable compromised test identity.";
+    String idempotencyKey = "00000000-0000-4000-8000-000000000206";
+    when(
+            identity.disablePrincipal(
+                "test-access-token", principalId, 2, reason, idempotencyKey))
+        .thenThrow(new ResourceAccessException("connection timed out"));
+    when(identity.listPrincipals("test-access-token", sessionContext(), null))
+        .thenReturn(
+            new IdentityAccessClient.PrincipalPage(
+                List.of(
+                    new IdentityAccessClient.Principal(
+                        principalId, "Test Principal", "HUMAN", true, false, 2)),
+                null));
+    when(identity.listIdentityProviders("test-access-token", sessionContext()))
+        .thenReturn(new IdentityAccessClient.IdentityProviderList(List.of()));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-admin",
+                "Local Administrator",
+                "HUMAN",
+                null,
+                "GLOBAL_GRANTS_ONLY",
+                List.of("identity.directory.read", "identity.principal.manage")));
+
+    mockMvc
+        .perform(
+            post("/principals/{principalId}:disable", principalId)
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("expectedRevision", "2")
+                .param("reason", reason)
+                .param("idempotencyKey", idempotencyKey))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(
+            content()
+                .string(
+                    containsString(
+                        "Retry with the same reason and request key.")))
+        .andExpect(content().string(containsString("name=\"idempotencyKey\"")))
+        .andExpect(content().string(containsString(idempotencyKey)))
+        .andExpect(content().string(containsString(reason)));
+
+    verify(identity).disablePrincipal("test-access-token", principalId, 2, reason, idempotencyKey);
   }
 
   @Test
@@ -2140,6 +2271,47 @@ class WebApplicationTests {
   }
 
   @Test
+  void disablesPrincipalThroughUX01WithRevisionAuditReasonAndIdempotency() {
+    String principalId = "principal-test";
+    String idempotencyKey = "00000000-0000-4000-8000-000000000205";
+    RestClient.Builder experienceBuilder =
+        RestClient.builder().baseUrl("http://experience.test");
+    MockRestServiceServer experienceServer = MockRestServiceServer.bindTo(experienceBuilder).build();
+    experienceServer
+        .expect(requestTo("http://experience.test/v1/principals/" + principalId + ":set-status"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-access-token"))
+        .andExpect(header("Idempotency-Key", idempotencyKey))
+        .andExpect(jsonPath("$.enabled").value(false))
+        .andExpect(jsonPath("$.expected_revision").value(2))
+        .andExpect(jsonPath("$.reason").value("Disable compromised test identity."))
+        .andRespond(
+            withSuccess(
+                """
+                {
+                  "id":"principal-test",
+                  "revision":3,
+                  "result":"UPDATED",
+                  "runtime_effect":"NONE"
+                }
+                """,
+                MediaType.APPLICATION_JSON));
+
+    IdentityAccessClient client = new IdentityAccessClient(experienceBuilder.build());
+    IdentityAccessClient.PrincipalStatusReceipt receipt =
+        client.disablePrincipal(
+            "test-access-token",
+            principalId,
+            2,
+            "Disable compromised test identity.",
+            idempotencyKey);
+
+    assertThat(receipt.result()).isEqualTo("UPDATED");
+    assertThat(receipt.revision()).isEqualTo(3);
+    experienceServer.verify();
+  }
+
+  @Test
   void forwardsGrantDecisionAndMembershipCreationThroughUX01WithSelectedContext() {
     String decisionId = "decision-approval-201";
     String membershipId = "00000000-0000-4000-8000-000000000221";
@@ -2674,6 +2846,451 @@ class WebApplicationTests {
     server.verify();
   }
 
+  @Test
+  void transfersJourneyOwnerWithFreshS01AuthorizationAndExpectedRevision() throws Exception {
+    String idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
+    BrowserContext context = sessionContext();
+    CatalogClient.JourneyDetails journey =
+        new CatalogClient.JourneyDetails(
+            "journey-test",
+            "Resilience review",
+            "owner-current",
+            "Review resilience controls",
+            "DRAFT",
+            3,
+            List.of(),
+            List.of());
+    CatalogClient.OwnershipTransfer transfer =
+        new CatalogClient.OwnershipTransfer(
+            "JOURNEY", "journey-test", "owner-next", 3, "Approved ownership change", null);
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.journey.read"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-read", "Bearer", 30));
+    when(catalog.getJourney("s02-read", "journey-test")).thenReturn(journey);
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(transferAccess());
+    when(identity.ownerCandidates(
+            "test-access-token", context, "JOURNEY", "journey-test", null))
+        .thenReturn(
+            new IdentityAccessClient.OwnerPage(
+                List.of(
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-current", "Current Owner", "HUMAN", true, true, 1),
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-next", "Next Owner", "HUMAN", true, true, 1)),
+                null));
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("ownership.transfer", "catalog.journey.write"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-transfer", "Bearer", 30));
+    when(catalog.transferOwnership("s02-transfer", idempotencyKey, transfer))
+        .thenReturn(
+            new CatalogClient.OwnershipTransferReceipt(
+                "journey-test", 4, "UPDATED", "NONE"));
+
+    mockMvc
+        .perform(
+            post("/ownership-transfers/JOURNEY/journey-test")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("ownerId", "owner-next")
+                .param("expectedRevision", "3")
+                .param("reason", "Approved ownership change")
+                .param("idempotencyKey", idempotencyKey)
+                .param("ownerCursor", ""))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(
+            redirectedUrl(
+                "/ownership-transfers/JOURNEY/journey-test?updated=true"));
+
+    verify(identity)
+        .createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("ownership.transfer", "catalog.journey.write"),
+            "tenant-test",
+            "environment-test");
+    verify(catalog).transferOwnership("s02-transfer", idempotencyKey, transfer);
+  }
+
+  @Test
+  void retriesCompletedTransferWhenCurrentOwnerMatchesSubmittedOwner() throws Exception {
+    String idempotencyKey = "123e4567-e89b-42d3-a456-426614174003";
+    BrowserContext context = sessionContext();
+    CatalogClient.OwnershipTransfer transfer =
+        new CatalogClient.OwnershipTransfer(
+            "JOURNEY", "journey-test", "owner-next", 3, "Approved ownership change", null);
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.journey.read"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-read", "Bearer", 30));
+    when(catalog.getJourney("s02-read", "journey-test"))
+        .thenReturn(
+            new CatalogClient.JourneyDetails(
+                "journey-test",
+                "Resilience review",
+                "owner-next",
+                "Review resilience controls",
+                "DRAFT",
+                4,
+                List.of(),
+                List.of()));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(transferAccess());
+    when(identity.ownerCandidates(
+            "test-access-token", context, "JOURNEY", "journey-test", null))
+        .thenReturn(
+            new IdentityAccessClient.OwnerPage(
+                List.of(
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-next", "Next Owner", "HUMAN", true, true, 1)),
+                null));
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("ownership.transfer", "catalog.journey.write"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-transfer", "Bearer", 30));
+    when(catalog.transferOwnership("s02-transfer", idempotencyKey, transfer))
+        .thenReturn(
+            new CatalogClient.OwnershipTransferReceipt(
+                "journey-test", 4, "REPLAYED", "NONE"));
+
+    mockMvc
+        .perform(
+            post("/ownership-transfers/JOURNEY/journey-test")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("ownerId", "owner-next")
+                .param("expectedRevision", "3")
+                .param("reason", "Approved ownership change")
+                .param("idempotencyKey", idempotencyKey)
+                .param("ownerCursor", ""))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(
+            redirectedUrl(
+                "/ownership-transfers/JOURNEY/journey-test?updated=true"));
+
+    verify(catalog).transferOwnership("s02-transfer", idempotencyKey, transfer);
+  }
+
+  @Test
+  void rendersTransferFormWithCurrentRevisionAndExcludesTheCurrentOwner() throws Exception {
+    BrowserContext context = sessionContext();
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.journey.read"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-read", "Bearer", 30));
+    when(catalog.getJourney("s02-read", "journey-test"))
+        .thenReturn(
+            new CatalogClient.JourneyDetails(
+                "journey-test",
+                "Resilience review",
+                "owner-current",
+                "Review resilience controls",
+                "DRAFT",
+                3,
+                List.of(),
+                List.of()));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(transferAccess());
+    when(identity.ownerCandidates(
+            "test-access-token", context, "JOURNEY", "journey-test", null))
+        .thenReturn(
+            new IdentityAccessClient.OwnerPage(
+                List.of(
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-current", "Current Owner", "HUMAN", true, true, 1),
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-next", "Next Owner", "HUMAN", true, true, 1)),
+                "next-owner-page"));
+
+    mockMvc
+        .perform(
+            get("/ownership-transfers/JOURNEY/journey-test")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Resilience review")))
+        .andExpect(content().string(containsString("Current revision")))
+        .andExpect(content().string(containsString("value=\"3\"")))
+        .andExpect(content().string(containsString("Next Owner (owner-next)")))
+        .andExpect(content().string(not(containsString("Current Owner (owner-current)"))))
+        .andExpect(content().string(containsString("More eligible owners")))
+        .andExpect(content().string(not(containsString("test-access-token"))));
+  }
+
+  @Test
+  void transfersServiceOwnerWithServiceScopedS01Delegation() throws Exception {
+    String serviceId = "service-test";
+    String idempotencyKey = "123e4567-e89b-42d3-a456-426614174001";
+    BrowserContext context = sessionContext();
+    CatalogClient.ServiceRecord service =
+        new CatalogClient.ServiceRecord(
+            serviceId, "Recovery API", "owner-current", "ACTIVE", 3, 5);
+    CatalogClient.OwnershipTransfer transfer =
+        new CatalogClient.OwnershipTransfer(
+            "SERVICE", serviceId, "owner-next", 5, "Service ownership change", null);
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            serviceId,
+            List.of("catalog.service.read"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-service-read", "Bearer", 30));
+    when(catalog.findService("s02-service-read", serviceId))
+        .thenReturn(java.util.Optional.of(service));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(transferAccess());
+    when(identity.ownerCandidates(
+            "test-access-token", context, "SERVICE", serviceId, null))
+        .thenReturn(
+            new IdentityAccessClient.OwnerPage(
+                List.of(
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-next", "Next Owner", "HUMAN", true, true, 1)),
+                null));
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            serviceId,
+            List.of("ownership.transfer", "catalog.service.write"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-service-transfer", "Bearer", 30));
+    when(catalog.transferOwnership("s02-service-transfer", idempotencyKey, transfer))
+        .thenReturn(
+            new CatalogClient.OwnershipTransferReceipt(serviceId, 6, "UPDATED", "NONE"));
+
+    mockMvc
+        .perform(
+            post("/ownership-transfers/SERVICE/" + serviceId)
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("ownerId", "owner-next")
+                .param("expectedRevision", "5")
+                .param("reason", "Service ownership change")
+                .param("idempotencyKey", idempotencyKey)
+                .param("ownerCursor", ""))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(
+            redirectedUrl(
+                "/ownership-transfers/SERVICE/" + serviceId + "?updated=true"));
+
+    verify(identity)
+        .createDelegation(
+            "test-access-token",
+            "S02",
+            serviceId,
+            List.of("ownership.transfer", "catalog.service.write"),
+            "tenant-test",
+            "environment-test");
+    verify(catalog).transferOwnership("s02-service-transfer", idempotencyKey, transfer);
+  }
+
+  @Test
+  void rejectsUnlistedOwnerBeforeRequestingTransferDelegation() throws Exception {
+    BrowserContext context = sessionContext();
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.journey.read"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-read", "Bearer", 30));
+    when(catalog.getJourney("s02-read", "journey-test"))
+        .thenReturn(
+            new CatalogClient.JourneyDetails(
+                "journey-test",
+                "Resilience review",
+                "owner-current",
+                "Review resilience controls",
+                "DRAFT",
+                1,
+                List.of(),
+                List.of()));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(transferAccess());
+    when(identity.ownerCandidates(
+            "test-access-token", context, "JOURNEY", "journey-test", null))
+        .thenReturn(
+            new IdentityAccessClient.OwnerPage(
+                List.of(
+                    new IdentityAccessClient.OwnerCandidate(
+                        "owner-eligible", "Eligible Owner", "HUMAN", true, true, 1)),
+                null));
+
+    mockMvc
+        .perform(
+            post("/ownership-transfers/JOURNEY/journey-test")
+                .with(browserLogin())
+                .with(csrf())
+                .session(sessionWithSelectedContext())
+                .param("ownerId", "owner-not-listed")
+                .param("expectedRevision", "1")
+                .param("reason", "Should not be accepted")
+                .param("idempotencyKey", "123e4567-e89b-42d3-a456-426614174002")
+                .param("ownerCursor", ""))
+        .andExpect(status().isForbidden())
+        .andExpect(
+            content()
+                .string(
+                    containsString(
+                        "Select an active, eligible human owner from the current S01 owner list.")));
+
+    verify(identity, never())
+        .createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("ownership.transfer", "catalog.journey.write"),
+            "tenant-test",
+            "environment-test");
+    verify(catalog, never())
+        .transferOwnership(
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void hidesTransferControlsWhenCurrentS01AccessLacksTransferAuthority() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.journey.read"),
+            "tenant-test",
+            "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-read", "Bearer", 30));
+    when(catalog.getJourney("s02-read", "journey-test"))
+        .thenReturn(
+            new CatalogClient.JourneyDetails(
+                "journey-test",
+                "Resilience review",
+                "owner-current",
+                "Review resilience controls",
+                "DRAFT",
+                1,
+                List.of(),
+                List.of()));
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(
+            new IdentityAccessClient.MeAccess(
+                "local-reader",
+                "Local Reader",
+                "HUMAN",
+                null,
+                "GLOBAL_GRANTS_ONLY",
+                List.of("identity.owner.select")));
+
+    mockMvc
+        .perform(
+            get("/ownership-transfers/JOURNEY/journey-test")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(
+            content()
+                .string(
+                    containsString(
+                        "The selected context does not grant ownership.transfer and identity.owner.select.")));
+
+    verify(identity, never())
+        .ownerCandidates(
+            "test-access-token", sessionContext(), "JOURNEY", "journey-test", null);
+  }
+
+  @Test
+  void serializesOwnershipTransferReceiptAndReadsScopedServiceDetails() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://catalog.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server
+        .expect(requestTo("http://catalog.test/v1/services?pageSize=25&includeRetired=true"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer s02-service-read"))
+        .andRespond(
+            withSuccess(
+                """
+                {
+                  "items":[
+                    {
+                      "id":"service-test",
+                      "name":"Recovery API",
+                      "owner_id":"owner-current",
+                      "lifecycle":"ACTIVE",
+                      "criticality":3,
+                      "revision":5
+                    }
+                  ],
+                  "next_cursor":null
+                }
+                """,
+                MediaType.APPLICATION_JSON));
+    server
+        .expect(requestTo("http://catalog.test/v1/ownership:transfer"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer s02-transfer"))
+        .andExpect(header("Idempotency-Key", "transfer-key"))
+        .andExpect(jsonPath("$.object_kind").value("SERVICE"))
+        .andExpect(jsonPath("$.object_id").value("service-test"))
+        .andExpect(jsonPath("$.owner_id").value("owner-next"))
+        .andExpect(jsonPath("$.expected_revision").value(5))
+        .andExpect(jsonPath("$.expected_anchor_revision").value(org.hamcrest.Matchers.nullValue()))
+        .andRespond(
+            withSuccess(
+                """
+                {
+                  "id":"service-test",
+                  "revision":6,
+                  "result":"UPDATED",
+                  "runtime_effect":"NONE"
+                }
+                """,
+                MediaType.APPLICATION_JSON));
+
+    CatalogClient client = new CatalogClient(builder.build());
+    assertThat(client.findService("s02-service-read", "service-test"))
+        .contains(
+            new CatalogClient.ServiceRecord(
+                "service-test", "Recovery API", "owner-current", "ACTIVE", 3, 5));
+    CatalogClient.OwnershipTransferReceipt receipt =
+        client.transferOwnership(
+            "s02-transfer",
+            "transfer-key",
+            new CatalogClient.OwnershipTransfer(
+                "SERVICE", "service-test", "owner-next", 5, "Transfer reason", null));
+
+    assertThat(receipt.result()).isEqualTo("UPDATED");
+    assertThat(receipt.runtimeEffect()).isEqualTo("NONE");
+    server.verify();
+  }
+
   private RequestPostProcessor browserLogin() {
     return request -> {
       oidcLogin()
@@ -2702,5 +3319,15 @@ class WebApplicationTests {
   private BrowserContext sessionContext() {
     return new BrowserContext(
         "tenant-test", "Test tenant", "environment-test", "Test environment");
+  }
+
+  private static IdentityAccessClient.MeAccess transferAccess() {
+    return new IdentityAccessClient.MeAccess(
+        "local-admin",
+        "Local Administrator",
+        "HUMAN",
+        null,
+        "GLOBAL_GRANTS_ONLY",
+        List.of("ownership.transfer", "identity.owner.select"));
   }
 }

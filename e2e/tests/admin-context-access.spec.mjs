@@ -143,14 +143,50 @@ test('principal admission stays separate from approval-gated membership creation
     await expect(page.getByRole('listitem').filter({ hasText: principalId })).toContainText(
       'catalog.journey.read',
     );
+    await approverPage.goto('/principals');
+    await expect(approverPage.getByRole('row').filter({ hasText: principalId })).toContainText(
+      'Enabled',
+    );
+    await expect(approverPage.getByText('Disable principal', { exact: true })).toHaveCount(0);
+    await approverPage.goto('/memberships');
+    const principalCsrf = await approverPage.locator('input[name="_csrf"]').first().inputValue();
+    const unauthorizedDisable = await approverPage.request.post(
+      `/principals/${principalId}:disable`,
+      {
+        form: {
+          expectedRevision: '1',
+          reason: 'Approver must not disable principals.',
+          idempotencyKey: randomUUID(),
+          _csrf: principalCsrf,
+        },
+      },
+    );
+    expect(unauthorizedDisable.status()).toBe(403);
+
     await page.goto('/principals');
-    await expect(page.getByRole('row').filter({ hasText: 'Local Member' })).toBeVisible();
+    const principalRow = page.getByRole('row').filter({ hasText: principalId });
+    await expect(principalRow).toContainText('Enabled');
+    await principalRow.getByText('Disable principal', { exact: true }).click();
+    await principalRow
+      .getByLabel('Reason for disabling this principal')
+      .fill('Complete the principal lifecycle browser test.');
+    await principalRow.getByRole('button', { name: 'Disable this principal' }).click();
+    await expect(page.getByRole('status')).toContainText(
+      'No memberships were removed; re-enabling requires trusted-source verification',
+    );
+    await expect(page.getByRole('row').filter({ hasText: principalId })).toContainText(
+      'Disabled',
+    );
+    await page.goto('/memberships');
+    await expect(page.getByRole('listitem').filter({ hasText: principalId })).toContainText(
+      'catalog.journey.read',
+    );
   } finally {
     await approverContext.close();
   }
 });
 
-test('administrator without catalog permission cannot create a journey', async ({ page }) => {
+test('administrator without catalog permission cannot create journeys or transfer ownership', async ({ page }) => {
   await signIn(page, 'local-admin');
   await selectLocalContext(page);
 
@@ -174,4 +210,31 @@ test('administrator without catalog permission cannot create a journey', async (
   });
   expect(submission.status()).toBe(403);
   expect(await submission.text()).toContain('S01 did not authorize owner selection (HTTP 403).');
+
+  const transferPage = await page.goto('/ownership-transfers/JOURNEY/known-journey');
+  expect(transferPage.status()).toBe(403);
+  await expect(page.getByRole('button', { name: 'Transfer owner' })).toHaveCount(0);
+  await expect(page.getByRole('status')).toContainText(
+    'S01 or S02 did not authorize reading the target (HTTP 403).',
+  );
+
+  await page.goto('/principals');
+  const transferCsrf = await page.locator('input[name="_csrf"]').first().inputValue();
+  const unauthorizedTransfer = await page.request.post(
+    '/ownership-transfers/JOURNEY/known-journey',
+    {
+      form: {
+        ownerId: 'local-approver',
+        expectedRevision: '1',
+        reason: 'Must not bypass S01 catalog authorization.',
+        idempotencyKey: randomUUID(),
+        ownerCursor: '',
+        _csrf: transferCsrf,
+      },
+    },
+  );
+  expect(unauthorizedTransfer.status()).toBe(403);
+  expect(await unauthorizedTransfer.text()).toContain(
+    'S01 or S02 did not authorize reading the target (HTTP 403).',
+  );
 });

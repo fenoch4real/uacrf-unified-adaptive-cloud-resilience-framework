@@ -2,6 +2,7 @@ package org.uacrf.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -50,6 +51,60 @@ class CatalogClient {
         || response.steps() == null
         || response.capabilities() == null) {
       throw new IllegalStateException("S02 returned an incomplete customer journey.");
+    }
+    return response;
+  }
+
+  Optional<ServiceRecord> findService(String delegationToken, String serviceId) {
+    ServicePage response =
+        restClient
+            .get()
+            .uri(
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v1/services")
+                        .queryParam("pageSize", 25)
+                        .queryParam("includeRetired", true)
+                        .build())
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + delegationToken)
+            .retrieve()
+            .body(ServicePage.class);
+    if (response == null
+        || response.items() == null
+        || response.items().stream()
+            .anyMatch(
+                service ->
+                    service == null
+                        || service.id() == null
+                        || service.id().isBlank()
+                        || service.name() == null
+                        || service.name().isBlank()
+                        || service.ownerId() == null
+                        || service.revision() < 1)) {
+      throw new IllegalStateException("S02 returned an incomplete service page.");
+    }
+    return response.items().stream()
+        .filter(service -> serviceId.equals(service.id()))
+        .findFirst();
+  }
+
+  OwnershipTransferReceipt transferOwnership(
+      String delegationToken, String idempotencyKey, OwnershipTransfer transfer) {
+    OwnershipTransferReceipt response =
+        restClient
+            .post()
+            .uri("/v1/ownership:transfer")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + delegationToken)
+            .header("Idempotency-Key", idempotencyKey)
+            .body(transfer)
+            .retrieve()
+            .body(OwnershipTransferReceipt.class);
+    if (response == null
+        || !transfer.objectId().equals(response.id())
+        || response.revision() != transfer.expectedRevision() + 1
+        || !List.of("UPDATED", "REPLAYED").contains(response.result())
+        || !"NONE".equals(response.runtimeEffect())) {
+      throw new IllegalStateException("S02 returned an invalid ownership-transfer receipt.");
     }
     return response;
   }
@@ -206,6 +261,14 @@ class CatalogClient {
       String purpose,
       String lifecycle) {}
 
+  record OwnershipTransfer(
+      @JsonProperty("object_kind") String objectKind,
+      @JsonProperty("object_id") String objectId,
+      @JsonProperty("owner_id") String ownerId,
+      @JsonProperty("expected_revision") long expectedRevision,
+      String reason,
+      @JsonProperty("expected_anchor_revision") Object expectedAnchorRevision) {}
+
   record CapabilityLink(
       String id,
       @JsonProperty("capability_kind") String capabilityKind,
@@ -220,9 +283,29 @@ class CatalogClient {
       String result,
       @JsonProperty("runtime_effect") String runtimeEffect) {}
 
+  record OwnershipTransferReceipt(
+      String id,
+      long revision,
+      String result,
+      @JsonProperty("runtime_effect") String runtimeEffect) {}
+
   record JourneyPage(
       @JsonProperty("items") List<Journey> items,
       @JsonProperty("next_cursor") String nextCursor) {}
+
+  record ServicePage(
+      @JsonProperty("items") List<ServiceRecord> items,
+      @JsonProperty("next_cursor") String nextCursor) {}
+
+  record ServiceRecord(
+      String id,
+      String name,
+      @JsonProperty("owner_id") String ownerId,
+      String lifecycle,
+      int criticality,
+      long revision) {}
+
+  record OwnershipTarget(String objectKind, String id, String name, String ownerId, long revision) {}
 
   record Journey(
       String id,

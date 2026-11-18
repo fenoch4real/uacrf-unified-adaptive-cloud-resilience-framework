@@ -86,6 +86,14 @@ final class CatalogRequests {
       @NotBlank @Size(max = 2000) String purpose,
       @NotNull JourneyLifecycle lifecycle) {}
 
+  record TransferOwnership(
+      @NotBlank String objectKind,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String objectId,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String ownerId,
+      @NotNull @Min(1) @Max(9_007_199_254_740_991L) Long expectedRevision,
+      @NotBlank @Size(max = 2000) String reason,
+      @NotNull tools.jackson.databind.JsonNode expectedAnchorRevision) {}
+
   record RegisterStep(
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String id,
       @Min(1) int position,

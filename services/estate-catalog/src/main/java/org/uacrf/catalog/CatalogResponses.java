@@ -9,6 +9,8 @@ final class CatalogResponses {
   record Receipt(
       String id, long revision, String recordKind, String result, String runtimeEffect) {}
 
+  record OwnershipTransferReceipt(String id, long revision, String result, String runtimeEffect) {}
+
   record Page<T>(List<T> items, String nextCursor) {}
 
   record ServiceRecord(

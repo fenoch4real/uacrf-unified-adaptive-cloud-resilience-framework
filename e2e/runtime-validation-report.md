@@ -14,10 +14,16 @@ remains absent from the selected-context principal directory until access is
 granted separately. The independent approver then records a grant decision,
 and the separate administrator applies it using the approval reference and
 matching principal, capability, scope, and expiry. S01 consumes the decision
-with membership creation. Direct cross-role submissions are denied. Existing
-OIDC, context, logout, CSRF, invalid-password, and catalog-owner denial checks
-also pass. The stack was removed. These checks use local HTTP and do not cover
-all mutations or cross-origin/HTTPS behavior.
+with membership creation. The approver cannot submit a direct principal
+disable request; the authorized administrator disables the admitted principal
+with a reason and current revision, while S01 preserves its memberships.
+Existing OIDC, context, logout, CSRF, invalid-password, and catalog-owner
+denial checks also pass. The suite additionally confirms an administrator
+without catalog-write authority cannot open a journey ownership-transfer page
+or submit a CSRF-valid transfer request; S01 rejects both before S02. No
+successful live transfer or catalog-side persistence check is covered. The
+stack was removed. These checks use local HTTP and do not cover all mutations
+or cross-origin/HTTPS behavior.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection
@@ -42,10 +48,16 @@ below; the full Maven reactor was not rerun for the follow-ups.
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
-| Integration | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/experience-api,web -am test`; 84 tests, 0 failures, 0 errors, 0 skipped (19 Experience API, 65 web) |
+| Targeted service tests | PASS | 0 | Estate Catalog (20), API Edge (7), and UX01 (76); 103 tests, 0 failures, 0 errors, 0 skipped |
 | Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 10 tests in 3 files, all passed |
 
 **Overall**: PASS
+
+The targeted service tests were run with:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/estate-catalog,services/api-edge,web -am -Dtest='EstateCatalogApplicationTests,OwnerReceiptTests,CatalogRouteControllerTests,WebApplicationTests' -Dsurefire.failIfNoSpecifiedTests=false test
+```
 
 ## Environment
 
@@ -62,6 +74,8 @@ below; the full Maven reactor was not rerun for the follow-ups.
 - Administrator admission of a user from the trusted local Keycloak directory; S01 confirms no membership or runtime effect.
 - Approver admission control hidden; a CSRF-valid direct admission submission is rejected by S01.
 - Independent approver decision followed by separate administrator membership creation; direct cross-role decision and membership submissions are denied.
+- Identity manager disables the admitted principal with an audited reason; a direct approver disable submission is denied, and the existing membership remains intact.
+- An administrator without catalog-write authority cannot open the ownership-transfer page or submit a CSRF-valid direct transfer request; S01 denies both.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
 

@@ -81,6 +81,11 @@ class CatalogRouteClient {
     return post("/v1/customer-journeys", authorization, idempotencyKey, requestBody);
   }
 
+  ResponseEntity<String> transferOwnership(
+      String authorization, String idempotencyKey, String requestBody) {
+    return post("/v1/ownership:transfer", authorization, idempotencyKey, requestBody);
+  }
+
   ResponseEntity<String> registerStep(
       String authorization, String journeyId, String idempotencyKey, String requestBody) {
     return post(

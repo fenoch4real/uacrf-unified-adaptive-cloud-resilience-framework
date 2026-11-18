@@ -39,11 +39,21 @@ The approver's direct membership submission and the administrator's direct
 decision submission are both denied. This is a manual trusted-channel
 handoff—there is no persisted request inbox or browser approval queue.
 
+An identity manager can also disable an enabled principal from the directory
+with a required audit reason and the displayed revision. The browser does not
+offer re-enabling; S01 preserves existing memberships and requires trusted
+source verification and independent grant review before re-enabling is
+available. The suite verifies the approver cannot submit a direct disable
+request and the authorized administrator can disable the principal.
+
 The suite also verifies that an administrator without catalog-write authority
-cannot open the owner selector or submit a journey-creation request. Missing
-and invalid CSRF tokens are rejected for context selection and logout without
-changing the selected context or session; valid browser forms still work.
-These are HTTP rejection checks, not a complete cross-origin or HTTPS review.
-The suite uses the isolated first-admin bootstrap fixture; it does not grant
-catalog-write capabilities, run S02, or test production identity-provider
+cannot open the journey owner selector or ownership-transfer page, and that
+CSRF-valid direct journey-creation and ownership-transfer submissions are
+denied by S01. The transfer check exercises only the authorization denial; it
+does not run S02 or verify a successful catalog mutation. Missing and invalid
+CSRF tokens are rejected for context selection and logout without changing
+the selected context or session; valid browser forms still work. These are
+HTTP rejection checks, not a complete cross-origin or HTTPS review. The suite
+uses the isolated first-admin bootstrap fixture; it does not grant
+catalog-write capabilities or test production identity-provider
 configuration.

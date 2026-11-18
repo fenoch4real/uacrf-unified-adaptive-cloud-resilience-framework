@@ -21,6 +21,7 @@
   <p role="alert" th:if="${principalAdmissionError != null}" th:text="${principalAdmissionError}"></p>
   <p role="alert" th:if="${principalAdmissionAuthorityError != null}"
      th:text="${principalAdmissionAuthorityError}"></p>
+  <p role="alert" th:if="${principalStatusError != null}" th:text="${principalStatusError}"></p>
   <p role="alert" th:if="${identityProvidersError != null}" th:text="${identityProvidersError}"></p>
   <p th:if="${canAdmitPrincipal and trustedProviders != null and #lists.isEmpty(trustedProviders) and identityProvidersError == null}">
     No trusted identity providers are available in this context.
@@ -94,11 +95,14 @@
           <th scope="col">Status</th>
           <th scope="col">Owner eligible</th>
           <th scope="col">Revision</th>
+          <th scope="col" th:if="${canDisablePrincipal}">Actions</th>
         </tr>
       </thead>
       <tbody>
         <tr th:each="principal : ${principals}">
-          <th scope="row" th:text="${principal.id}">principal-id</th>
+          <th scope="row" th:id="|principal-id-${principal.id}|" th:text="${principal.id}">
+            principal-id
+          </th>
           <td data-label="Display name" th:text="${principal.displayName}">Principal</td>
           <td data-label="Kind" th:text="${principal.kind}">HUMAN</td>
           <td data-label="Status" th:text="${principal.enabled ? 'Enabled' : 'Disabled'}">
@@ -107,6 +111,44 @@
           <td data-label="Owner eligible"
               th:text="${principal.ownerEligible ? 'Yes' : 'No'}">No</td>
           <td data-label="Revision" th:text="${principal.revision}">1</td>
+          <td data-label="Actions" th:if="${canDisablePrincipal}">
+            <details th:if="${principal.enabled}">
+              <summary>Disable principal</summary>
+              <form method="post"
+                    th:action="@{/principals/{principalId}:disable(principalId=${principal.id})}"
+                    th:attr="aria-labelledby=|principal-disable-heading-${principal.id}|">
+                <input type="hidden" name="expectedRevision"
+                       th:value="${principalDisableForms[principal.id].expectedRevision}">
+                <input type="hidden" name="idempotencyKey"
+                       th:value="${principalDisableForms[principal.id].idempotencyKey}">
+                <input th:if="${requestCursor != null}" type="hidden" name="cursor"
+                       th:value="${requestCursor}">
+                <h3 th:id="|principal-disable-heading-${principal.id}|">
+                  Disable <span th:text="${principal.displayName}">principal</span>
+                </h3>
+                <p>This disables the principal. Existing memberships remain unchanged.
+                  Re-enabling is unavailable until trusted-source verification and independent
+                  grant review are supported.</p>
+                <label th:for="|principal-disable-reason-${principal.id}|">
+                  Reason for disabling this principal (required)
+                </label>
+                <textarea name="reason" th:id="|principal-disable-reason-${principal.id}|"
+                          th:text="${principalDisableForms[principal.id].reason}"
+                          maxlength="2000" required
+                          th:attr="aria-invalid=${principalDisableErrorPrincipalId == principal.id ? 'true' : null},
+                                   autofocus=${principalDisableErrorPrincipalId == principal.id ? 'autofocus' : null},
+                                   aria-describedby=|principal-disable-reason-help-${principal.id}|"></textarea>
+                <p th:id="|principal-disable-reason-help-${principal.id}|">
+                  The reason is retained in the identity audit record.
+                  <span th:if="${principalDisableErrorPrincipalId == principal.id and principalDisableReasonError != null}"
+                        th:id="|principal-disable-reason-error-${principal.id}|"
+                        th:text="${principalDisableReasonError}"></span>
+                </p>
+                <button type="submit">Disable this principal</button>
+              </form>
+            </details>
+            <span th:if="${!principal.enabled}">No further status change is available here.</span>
+          </td>
         </tr>
       </tbody>
     </table>

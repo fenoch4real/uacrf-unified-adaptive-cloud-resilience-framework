@@ -217,6 +217,36 @@ class IdentityAccessClient {
     return response;
   }
 
+  PrincipalStatusReceipt disablePrincipal(
+      String accessToken,
+      String principalId,
+      long expectedRevision,
+      String reason,
+      String idempotencyKey) {
+    PrincipalStatusReceipt response =
+        restClient
+            .post()
+            .uri(
+                uriBuilder ->
+                    uriBuilder
+                        .path("/v1/principals/{id}:set-status")
+                        .build(principalId))
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .header("Idempotency-Key", idempotencyKey)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(new PrincipalStatusRequest(false, expectedRevision, reason, null))
+            .retrieve()
+            .body(PrincipalStatusReceipt.class);
+    if (response == null
+        || !principalId.equals(response.id())
+        || response.revision() != expectedRevision + 1
+        || !List.of("UPDATED", "REPLAYED").contains(response.result())
+        || !"NONE".equals(response.runtimeEffect())) {
+      throw new IllegalStateException("UX01 returned an invalid principal-status receipt.");
+    }
+    return response;
+  }
+
   MembershipPage listMemberships(String accessToken, BrowserContext context, String cursor) {
     MembershipPage response =
         restClient
@@ -449,6 +479,18 @@ class IdentityAccessClient {
       @JsonProperty("expected_revision") long expectedRevision) {}
 
   record PrincipalAdmissionReceipt(
+      String id,
+      long revision,
+      String result,
+      @JsonProperty("runtime_effect") String runtimeEffect) {}
+
+  record PrincipalStatusRequest(
+      boolean enabled,
+      @JsonProperty("expected_revision") long expectedRevision,
+      String reason,
+      @JsonProperty("grant_review_ref") String grantReviewRef) {}
+
+  record PrincipalStatusReceipt(
       String id,
       long revision,
       String result,

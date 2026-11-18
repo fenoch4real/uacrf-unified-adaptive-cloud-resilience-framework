@@ -60,6 +60,129 @@ class CatalogService {
   }
 
   @Transactional
+  OwnershipTransferReceipt transferOwnership(
+      DelegationPrincipal actor, TransferOwnership request, String key) {
+    if (!Set.of("JOURNEY", "SERVICE").contains(request.objectKind())) {
+      throw new CatalogException(
+          HttpStatus.UNPROCESSABLE_ENTITY, "UNSUPPORTED_OBJECT_KIND",
+          "Ownership transfer supports JOURNEY and SERVICE only.");
+    }
+    if (!request.expectedAnchorRevision().isNull()) {
+      throw invalid("expected_anchor_revision must be null for JOURNEY and SERVICE.");
+    }
+    requireCapability(actor, "ownership.transfer");
+    boolean service = "SERVICE".equals(request.objectKind());
+    requireCapability(actor, service ? "catalog.service.write" : "catalog.journey.write");
+    if (service) {
+      requireServiceScope(actor, request.objectId());
+    } else {
+      requireGlobalScope(actor);
+    }
+    requireOwner(actor, request.ownerId());
+    validateIdempotencyKey(key);
+
+    String operation = "POST /v1/ownership:transfer";
+    String digest = sha256(serialize(request));
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA
+            + "idempotency_record (tenant_id, environment_id, actor_id, operation, "
+            + "idempotency_key, payload_digest) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), operation, key, digest);
+    if (inserted == 0) {
+      List<Map<String, Object>> records = jdbc.queryForList(
+          "SELECT payload_digest, response::text FROM " + SCHEMA
+              + "idempotency_record WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? "
+              + "AND operation = ? AND idempotency_key = ? FOR UPDATE",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), operation, key);
+      if (records.isEmpty() || !digest.equals(records.getFirst().get("payload_digest"))) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+      }
+      Object response = records.getFirst().get("response");
+      if (response == null) {
+        throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+      }
+      OwnershipTransferReceipt retained;
+      try {
+        retained = objectMapper.readValue(response.toString(), OwnershipTransferReceipt.class);
+      } catch (JacksonException error) {
+        throw new IllegalStateException("Could not read the retained idempotency result.", error);
+      }
+      return new OwnershipTransferReceipt(retained.id(), retained.revision(), "REPLAYED", "NONE");
+    }
+
+    String table = service ? "service" : "customer_journey";
+    List<Map<String, Object>> rows = jdbc.queryForList(
+        "SELECT * FROM " + SCHEMA + table
+            + " WHERE tenant_id = ? AND environment_id = ? AND id = ? FOR UPDATE",
+        actor.tenantId(), actor.environmentId(), request.objectId());
+    if (rows.isEmpty()) {
+      throw notFound("The catalog object is absent or not visible.");
+    }
+    Map<String, Object> row = rows.getFirst();
+    long oldRevision = ((Number) row.get("revision")).longValue();
+    if (oldRevision != request.expectedRevision()) {
+      throw conflict("REVISION_MISMATCH", "The catalog object revision has changed.");
+    }
+    if (request.ownerId().equals(row.get("owner_id"))) {
+      throw conflict("OWNER_ALREADY_ASSIGNED", "The requested owner is already assigned.");
+    }
+    if (oldRevision >= MAX_SAFE_INTEGER) {
+      throw conflict("REVISION_LIMIT", "The catalog object revision limit was reached.");
+    }
+    List<String> workloadIds = service
+        ? jdbc.queryForList(
+            "SELECT id FROM " + SCHEMA
+                + "agent_workload WHERE tenant_id = ? AND environment_id = ? AND service_id = ? ORDER BY id",
+            String.class, actor.tenantId(), actor.environmentId(), request.objectId())
+        : List.of();
+    if (!workloadIds.isEmpty()) {
+      throw conflict("SERVICE_IS_AGENT_ANCHOR", "The service is an internal anchor for an agent workload.");
+    }
+    long revision = oldRevision + 1;
+    jdbc.update(
+        "UPDATE " + SCHEMA + table
+            + " SET owner_id = ?, revision = ?, updated_at = now() "
+            + "WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+        request.ownerId(), revision, actor.tenantId(), actor.environmentId(), request.objectId());
+    if (service) {
+      appendServiceRevision(actor, new ServiceRevisionSnapshot(
+          request.objectId(), row.get("name").toString(), request.ownerId(),
+          ((Number) row.get("criticality")).intValue(), row.get("lifecycle").toString(),
+          revision, workloadIds));
+    }
+    jdbc.update(
+        "INSERT INTO " + SCHEMA
+            + "owner_transfer_audit (audit_id, tenant_id, environment_id, object_kind, object_id, "
+            + "previous_owner_id, owner_id, previous_revision, revision, actor_id, reason) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        UUID.randomUUID(), actor.tenantId(), actor.environmentId(), request.objectKind(),
+        request.objectId(), row.get("owner_id"), request.ownerId(), oldRevision, revision,
+        actor.principalId(), request.reason().trim());
+    OwnershipTransferReceipt receipt =
+        new OwnershipTransferReceipt(request.objectId(), revision, "UPDATED", "NONE");
+    jdbc.update(
+        "UPDATE " + SCHEMA
+            + "idempotency_record SET response = ?::jsonb WHERE tenant_id = ? AND environment_id = ? "
+            + "AND actor_id = ? AND operation = ? AND idempotency_key = ?",
+        serialize(receipt), actor.tenantId(), actor.environmentId(), actor.principalId(), operation, key);
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("actor_id", actor.principalId());
+    payload.put("event_type", "catalog.ownership.transferred");
+    payload.put("aggregate_id", request.objectId());
+    payload.put("revision", revision);
+    payload.put("previous_owner_id", row.get("owner_id"));
+    payload.put("record", request);
+    jdbc.update(
+        "INSERT INTO " + SCHEMA
+            + "outbox_event (event_id, tenant_id, environment_id, aggregate_type, aggregate_id, "
+            + "aggregate_sequence, event_type, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb)",
+        UUID.randomUUID(), actor.tenantId(), actor.environmentId(),
+        service ? "SERVICE" : "CUSTOMER_JOURNEY", request.objectId(), revision,
+        "catalog.ownership.transferred", serialize(payload));
+    return receipt;
+  }
+
+  @Transactional
   Receipt registerService(
       DelegationPrincipal actor, RegisterService request, String idempotencyKey) {
     requireCapability(actor, "catalog.service.write");

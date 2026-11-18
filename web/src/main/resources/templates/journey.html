@@ -19,6 +19,12 @@
   <section th:if="${journey != null}">
     <p th:text="${journey.purpose}">Journey purpose</p>
     <p>Lifecycle: <span th:text="${journey.lifecycle}">DRAFT</span></p>
+    <p>Current owner: <span th:text="${journey.ownerId}">Owner ID</span></p>
+    <p>
+      <a th:href="@{/ownership-transfers/JOURNEY/{id}(id=${journey.id})}">
+        Transfer journey ownership
+      </a>
+    </p>
     <p>
       <a th:href="@{/journeys/{id}/steps/new(id=${journey.id})}">Add a journey step</a>
     </p>
@@ -41,6 +47,10 @@
       <li th:each="capability : ${journey.capabilities}">
         <span th:text="${capability.capabilityKind}">SERVICE</span>:
         <span th:text="${capability.capabilityId}">Capability</span>
+        <a th:if="${capability.capabilityKind == 'SERVICE'}"
+           th:href="@{/ownership-transfers/SERVICE/{id}(id=${capability.capabilityId})}">
+          Transfer service ownership
+        </a>
       </li>
       <li th:if="${#lists.isEmpty(journey.capabilities)}">No capabilities are linked.</li>
     </ul>

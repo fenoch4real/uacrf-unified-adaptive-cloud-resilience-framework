@@ -50,6 +50,51 @@ class CatalogRouteControllerTests {
   }
 
   @Test
+  void forwardsOwnershipTransferToTheFixedOwner() throws Exception {
+    TestRoute route = route();
+    String body =
+        "{\"object_kind\":\"JOURNEY\",\"object_id\":\"journey-a\","
+            + "\"owner_id\":\"owner-b\",\"expected_revision\":3,"
+            + "\"reason\":\"Approved ownership change\",\"expected_anchor_revision\":null}";
+    route
+        .server()
+        .expect(requestTo(CATALOG_URL + "/v1/ownership:transfer"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(
+            org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                HttpHeaders.AUTHORIZATION, "Bearer delegated-token"))
+        .andExpect(
+            org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                "Idempotency-Key", "transfer-key"))
+        .andExpect(
+            org.springframework.test.web.client.match.MockRestRequestMatchers.content().json(body))
+        .andRespond(
+            withStatus(HttpStatus.OK)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(
+                    "{\"id\":\"journey-a\",\"revision\":4,\"result\":\"UPDATED\","
+                        + "\"runtime_effect\":\"NONE\"}"));
+
+    route
+        .mvc()
+        .perform(
+            post("/internal/catalog/v1/ownership:transfer")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer delegated-token")
+                .header("Idempotency-Key", "transfer-key")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isOk())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+        .andExpect(
+            content()
+                .json(
+                    "{\"id\":\"journey-a\",\"revision\":4,\"result\":\"UPDATED\","
+                        + "\"runtime_effect\":\"NONE\"}"));
+
+    route.server().verify();
+  }
+
+  @Test
   void forwardsCatalogReadsAndPreservesAuthenticationChallenges() throws Exception {
     TestRoute route = route();
     route

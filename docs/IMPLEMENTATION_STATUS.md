@@ -15,7 +15,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Approval-gated membership creation is now covered in the browser. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Ownership transfer for journeys and services is implemented and tested, but the live fixture verifies denial only; re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, S05 objectives, S06 topology and projection | In progress | Qualify real cloud collectors; broaden freshness and ontology coverage; complete live multi-service acceptance and implement the first reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -184,8 +184,7 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   `identity.principal.manage` sees no form and receives an S01 denial on a
   CSRF-valid direct submission. The browser now exposes the separate
   approver-decision and membership-manager steps for approval-gated membership
-  creation; live coverage verifies both cross-role denials. Ownership-transfer
-  handlers remain pending.
+  creation; live coverage verifies both cross-role denials.
 - Keycloak is now available as a loopback-only local Compose service with an
   imported development realm. Its UX01 client emits the S01 audience and fixed
   `local-dev` / `local` scope claims; the `uacrf-s01-context` scope also maps
@@ -227,9 +226,10 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   read-only principal-directory access and S01 denial of a CSRF-valid direct
   admission submission by the approver, invalid-password rejection for both
   users, unauthenticated-route redirection, local-session logout, and denial
-  of journey owner selection and a direct creation submission without
-  catalog-write authority. The newly admitted principal is absent from the
-  context-scoped principal list because admission adds no membership. The
+  of journey owner selection plus direct journey-creation and ownership-
+  transfer submissions without catalog-write authority. The newly admitted
+  principal is absent from the context-scoped principal list because
+  admission adds no membership. The
   suite also verifies missing and invalid CSRF tokens cannot select a context
   or end the session, while valid context selection and logout still succeed.
   These checks use local HTTP and do not constitute a complete cross-origin
@@ -280,6 +280,23 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   activation check requires an actor different from the version author, but
   the current delegation principal does not establish that the actor is human
   or provide a separate review record.
+  Ownership transfer for JOURNEY and SERVICE is implemented through UX01,
+  EDGE01's fixed internal catalog route, and S02. At submission, UX01
+  revalidates the selected human owner with S01 and obtains a fresh,
+  short-lived delegation containing `ownership.transfer` and the target's
+  catalog-write capability; S02 checks the eligible-owner claim and expected
+  revision, then atomically updates ownership and revision with immutable
+  audit evidence, an idempotency response, and an outbox event. SERVICE
+  transfers also append a service revision snapshot. Same-owner transfers are
+  rejected, and a service referenced as an agent workload's internal anchor
+  cannot be transferred; AGENT transfer remains out of scope. S02's
+  PostgreSQL-backed tests, EDGE01 route tests, and UX01 tests cover the
+  implementation; the targeted suites pass 103 tests (20 S02, 7 EDGE01,
+  76 UX01). The live browser fixture verifies that an administrator
+  without catalog-write authority cannot open the transfer page or bypass
+  authorization with a CSRF-valid direct submission. This is an S01 denial,
+  not a successful live transfer or an S02 persistence check; the fixture
+  intentionally does not alter the existing authorization policy.
   The selected-context membership page reads S01's active membership pages and
   submits revision-checked, idempotent revocations with an audit reason; S01
   remains authoritative and prevents removal of the final identity
@@ -287,9 +304,13 @@ checks. This does not qualify cloud collectors or replace S04 qualification.
   the selected context and conditionally offers principal admission from
   trusted providers. Admission creates no memberships or capabilities.
   Approval-gated membership creation is exposed through distinct approver and
-  membership-manager forms. Principal disabling, re-enabling,
-  ownership-transfer handlers, and the rest of the customer workflow remain
-  unimplemented.
+  membership-manager forms. Identity managers can disable an enabled
+  principal with a required, audited reason and the current revision; S01
+  remains authoritative and preserves memberships. The browser hides this
+  action from readers without `identity.principal.manage`, and S01 denies
+  direct unauthorized submissions. Re-enabling remains unavailable pending
+  trusted-source verification and independent grant review.
+  The rest of the customer workflow remains unimplemented.
 - Local delegation configuration now uses RS256; place the private key only in
   S01 and configure the matching public key and key ID in S01 and S02, as
   described in [`.env.example`](../.env.example). Managed key storage and
@@ -371,9 +392,10 @@ provider credentials or making release claims.
   approval-gated membership browser flow is implemented as a separate
   approver-issued decision and membership-manager application; it uses the
   existing S01 contracts and does not create a persisted request inbox. The
-  proposed principal-status route supports disable; re-enabling and
-  distributed revocation remain gated by fresh source verification and
-  current-authority propagation.
+  existing principal-status route supports disable, and UX01 now exposes the
+  action from the selected-context directory with revision and idempotency
+  checks. Re-enabling and distributed revocation remain gated by fresh source
+  verification and current-authority propagation.
 - Threat model and tenant/event compatibility review written
   (`docs/THREAT_MODEL.md`); its open items (key custody, deploy-time signature
   verification, CSRF review, runtime log/event leakage tests, rate limits, and

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transfer ownership | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Transfer ownership</h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p th:if="${objectKind == 'JOURNEY'}">
+    <a th:href="@{/journeys/{id}(id=${objectId})}">Back to customer journey</a>
+  </p>
+  <p th:if="${objectKind == 'SERVICE'}">
+    <a href="/journeys">Back to customer journeys</a>
+  </p>
+  <p role="status" th:if="${ownershipStatus != null}" th:text="${ownershipStatus}"></p>
+  <p role="status" th:if="${ownershipError != null}" th:text="${ownershipError}"></p>
+  <div id="validation-errors" role="alert"
+       th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the transfer details</h2>
+    <ul>
+      <li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li>
+    </ul>
+  </div>
+  <section th:if="${target != null}">
+    <h2 th:text="${target.name}">Catalog object</h2>
+    <dl>
+      <dt>Object type</dt>
+      <dd th:text="${target.objectKind}">JOURNEY</dd>
+      <dt>Object ID</dt>
+      <dd th:text="${target.id}">object-id</dd>
+      <dt>Current owner</dt>
+      <dd th:text="${target.ownerId}">current-owner</dd>
+      <dt>Current revision</dt>
+      <dd th:text="${target.revision}">1</dd>
+    </dl>
+    <p>
+      This updates the catalog owner and revision only. The runtime effect is
+      NONE. S01 authorizes the transfer and S02 commits it.
+    </p>
+    <p th:if="${ownerCandidates != null and #lists.isEmpty(ownerCandidates)}">
+      No other eligible human owners are available on this page.
+    </p>
+    <form th:if="${ownerCandidates != null}" method="post"
+          th:action="@{/ownership-transfers/{kind}/{id}(kind=${objectKind},id=${objectId})}"
+          th:object="${transferForm}" aria-labelledby="transfer-heading">
+      <input type="hidden" th:field="*{expectedRevision}">
+      <input type="hidden" th:field="*{idempotencyKey}">
+      <input type="hidden" th:field="*{ownerCursor}">
+      <fieldset>
+        <legend id="transfer-heading">Ownership change</legend>
+        <p>
+          <label for="ownerId">New owner (required)</label>
+          <select id="ownerId" th:field="*{ownerId}" required
+                  th:attr="aria-describedby=${invalidOwner == true ? 'owner-help owner-error' : 'owner-help'},
+                           aria-invalid=${invalidOwner == true ? 'true' : null}">
+            <option value="">Select an eligible human owner</option>
+            <option th:each="owner : ${ownerCandidates}" th:value="${owner.id}"
+                    th:text="${owner.displayName + ' (' + owner.id + ')'}">Owner</option>
+          </select>
+          <span id="owner-help">S01 supplies the current eligible-owner list.</span>
+          <span id="owner-error" th:if="${ownerError != null}" th:text="${ownerError}"></span>
+        </p>
+        <p>
+          <label for="reason">Transfer reason (required)</label>
+          <textarea id="reason" th:field="*{reason}" maxlength="2000" required
+                    th:attr="aria-describedby=${invalidReason == true ? 'reason-help reason-error' : 'reason-help'},
+                             aria-invalid=${invalidReason == true ? 'true' : null}"></textarea>
+          <span id="reason-help">Explain why ownership is changing.</span>
+          <span id="reason-error" th:if="${reasonError != null}" th:text="${reasonError}"></span>
+        </p>
+      </fieldset>
+      <button type="submit"
+              th:if="${!#lists.isEmpty(ownerCandidates)}">Transfer owner</button>
+    </form>
+    <p th:if="${nextOwnerCursor != null}">
+      <a th:href="@{/ownership-transfers/{kind}/{id}(kind=${objectKind},id=${objectId},ownerCursor=${nextOwnerCursor})}">
+        More eligible owners
+      </a>
+    </p>
+  </section>
+</main>
+</body>
+</html>
