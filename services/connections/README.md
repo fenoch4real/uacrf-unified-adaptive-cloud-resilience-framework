@@ -99,12 +99,13 @@ client-credentials identity and narrow S01 delegation. When enabled, it requires
 identity values, absolute HTTP(S) token/delegation/inbox URLs, and a positive batch size; invalid
 configuration fails at startup. Its HTTP calls share the runner's 2-second connect and 3-second
 response timeouts. Errors and timeouts leave outbox rows pending for retry; S04's inbox
-idempotency handles a retry when delivery succeeded but its response was lost. This does not
-establish live S01 or production identity conformance.
+idempotency handles a retry when delivery succeeded but its response was lost. S03 requires the
+response `event_id` to match the sent event before accepting `RECEIVED`, `DUPLICATE`, or
+`QUARANTINED`; a missing or mismatched ID leaves the row pending.
 The `m2-live` process test also starts S03 and S04 with separate PostgreSQL databases and verifies
-that a connection created through S03's HTTP API reaches S04's inbox. Its S01 token and delegation
-endpoints are test stubs using ephemeral keys, so this is local wiring evidence rather than live
-identity or production conformance.
+that a connection created through S03's HTTP API reaches S04's inbox through real local S01
+admission, grant, membership, and delegation APIs. The directory, client-credentials endpoint,
+and OIDC signing/JWKS are test fixtures; this does not establish production identity conformance.
 
 AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` ExternalId, exposed by
 the authorized connection read endpoint for the target role's trust policy. The first AWS source

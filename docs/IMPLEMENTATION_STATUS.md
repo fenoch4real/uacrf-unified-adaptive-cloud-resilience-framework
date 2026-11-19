@@ -885,7 +885,8 @@ retains evidence events and decides qualification.
   pending `outbox_event` rows to the S04 inbox. It signs in to Keycloak with the
   client-credentials grant, asks S01 for a 30-second S04 delegation limited to
   `evidence.inbox.write`, and marks rows published only on RECEIVED, DUPLICATE or
-  QUARANTINED (retained by S04). When enabled, it fails startup on blank client
+  QUARANTINED (retained by S04) with the matching event ID. A missing or
+  mismatched acknowledgement ID leaves the row pending. When enabled, it fails startup on blank client
   identity, non-absolute/non-HTTP(S) token/delegation/inbox URLs, or nonpositive
   batch size. Its HTTP calls use a 2-second connect and 3-second response timeout;
   errors and timeouts leave rows pending for retry, including when S04 accepted
