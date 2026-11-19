@@ -44,6 +44,7 @@ class M2S03ToS04OutboxLiveTests {
   private static final String PUBLISHER_CLIENT_SECRET = "m2-live-publisher-secret";
   private static final String PUBLISHER_SUBJECT = "m2-live-publisher-subject";
   private static final String CONNECTION_EVENT = "connections.connection.registered";
+  private static final String SOURCE_BINDING_EVENT = "connections.source-binding.created";
   private static final HttpClient HTTP =
       HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
 
@@ -206,9 +207,34 @@ class M2S03ToS04OutboxLiveTests {
               HttpResponse.BodyHandlers.ofString());
       assertEquals(201, created.statusCode(), created.body());
 
+      HttpResponse<String> bound =
+          HTTP.send(
+              HttpRequest.newBuilder(
+                      URI.create(
+                          "http://127.0.0.1:"
+                              + connectionsPort
+                              + "/v1/connections/"
+                              + connectionId
+                              + "/source-bindings"))
+                  .timeout(Duration.ofSeconds(5))
+                  .header("Authorization", bearer)
+                  .header("Content-Type", "application/json")
+                  .header("Idempotency-Key", "m2-live-binding-" + suffix)
+                  .POST(
+                      HttpRequest.BodyPublishers.ofString(
+                          LiveM2TestSupport.json(
+                              Map.of(
+                                  "id", connectionId,
+                                  "source_ref", "source/" + suffix,
+                                  "expected_revision", 0))))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      assertEquals(201, bound.statusCode(), bound.body());
+
       Delivery delivery =
           awaitDelivery(
               connectionId,
+              CONNECTION_EVENT,
               LiveM2TestSupport.TENANT,
               LiveM2TestSupport.ENVIRONMENT,
               logDirectory);
@@ -220,8 +246,22 @@ class M2S03ToS04OutboxLiveTests {
       assertEquals(connectionId, delivery.inboxEvent().aggregateId());
       assertEquals(1, delivery.inboxEvent().aggregateSequence());
       assertEquals(sha256(delivery.inboxEvent().payload()), delivery.inboxEvent().payloadDigest());
+
+      Delivery bindingDelivery =
+          awaitDelivery(
+              connectionId,
+              SOURCE_BINDING_EVENT,
+              LiveM2TestSupport.TENANT,
+              LiveM2TestSupport.ENVIRONMENT,
+              logDirectory);
+      assertTrue(bindingDelivery.published(), "S03 did not mark the source-binding event delivered");
+      assertNotNull(bindingDelivery.inboxEvent(), "S04 did not retain the source-binding event");
+      assertEquals(SOURCE_BINDING_EVENT, bindingDelivery.inboxEvent().eventType());
+      assertEquals("SOURCE_BINDING", bindingDelivery.inboxEvent().aggregateType());
+      assertEquals(connectionId, bindingDelivery.inboxEvent().aggregateId());
+      assertEquals(1, bindingDelivery.inboxEvent().aggregateSequence());
       assertEquals(1, inboxProxy.acknowledgementFailures());
-      assertEquals(1, inboxProxy.receivedResponses());
+      assertEquals(2, inboxProxy.receivedResponses());
       assertTrue(inboxProxy.duplicateResponses() > 0, "S04 did not identify the retried event");
       assertTrue(inboxProxy.requestCount() > 1, "S03 did not retry after the failed acknowledgement");
       assertTrue(inboxProxy.failures().isEmpty(), String.join("; ", inboxProxy.failures()));
@@ -381,11 +421,15 @@ class M2S03ToS04OutboxLiveTests {
   }
 
   private static Delivery awaitDelivery(
-      String connectionId, String tenantId, String environmentId, Path logDirectory)
+      String aggregateId,
+      String eventType,
+      String tenantId,
+      String environmentId,
+      Path logDirectory)
       throws Exception {
     Instant deadline = Instant.now().plusSeconds(30);
     while (Instant.now().isBefore(deadline)) {
-      OutboxEvent outboxEvent = findOutboxEvent(connectionId);
+      OutboxEvent outboxEvent = findOutboxEvent(aggregateId, eventType);
       if (outboxEvent != null) {
         InboxEvent inboxEvent = findInboxEvent(tenantId, environmentId, outboxEvent.eventId());
         if (outboxEvent.published() && inboxEvent != null) {
@@ -401,7 +445,8 @@ class M2S03ToS04OutboxLiveTests {
             + logTail("evidence", logDirectory));
   }
 
-  private static OutboxEvent findOutboxEvent(String connectionId) throws SQLException {
+  private static OutboxEvent findOutboxEvent(String aggregateId, String eventType)
+      throws SQLException {
     try (Connection connection =
             DriverManager.getConnection(
                 CONNECTIONS_DB.getJdbcUrl(),
@@ -412,8 +457,8 @@ class M2S03ToS04OutboxLiveTests {
                 "SELECT event_id, published_at IS NOT NULL FROM "
                     + "uacrf_connections.outbox_event WHERE aggregate_id = ? "
                     + "AND event_type = ?")) {
-      query.setString(1, connectionId);
-      query.setString(2, CONNECTION_EVENT);
+      query.setString(1, aggregateId);
+      query.setString(2, eventType);
       try (var rows = query.executeQuery()) {
         if (!rows.next()) {
           return null;
