@@ -20,7 +20,7 @@ estimate.
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Ownership transfer for journeys and services is implemented and tested, but the live fixture verifies denial only; re-enabling principals remains unavailable pending verification and independent review. |
-| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; complete live conformance for AWS Config, Azure Resource Graph, and GCP Cloud Asset Inventory (all remain unaccepted), implement Azure Monitor and GCP Monitoring metrics, broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement the first reporting capabilities. |
+| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; a paginated S03 source-collection outcome report is available through EDGE01. Complete live conformance for AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, and GCP Cloud Asset Inventory and Monitoring metrics (all remain unaccepted), broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement additional reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
@@ -109,14 +109,35 @@ with the current payload. It is not a deduplicated current inventory, shared
 resource taxonomy, qualified evidence, relationship discovery, or graph promotion.
 The cloud providers remain `UNACCEPTED`.
 
+S03 and EDGE01 now expose a paginated, tenant/environment-scoped collection
+outcome report for source bindings. It returns the last collector status and
+detail, active-lease state, last successful collection timestamp, and next
+scheduled collection time without exposing checkpoints or pending payloads.
+`COLLECTED` means the batch was submitted to intake; per-observation accepted,
+duplicate, or quarantined results are not aggregated. The timestamps do not
+establish freshness because the endpoint applies no freshness policy.
+
 The browser application now lists connections and renders their inventory
 observations through a context-bound S03 read delegation and EDGE01. Sample
 connections are visibly identified as synthetic, unknown locations remain
 unknown, and pagination and raw-observation provenance are shown. The full
 web module passed 82 tests, including mocked delegation, route rendering and
 HTTP-client contract checks. The browser does not automatically ingest the
-sample fixture; a sample importer and a browser-to-S03 end-to-end test remain
-open. No live cloud provider was queried.
+sample fixture. An explicit import registers a sample-local connection,
+binds three inventory sources and submits 42 synthetic observations; it
+reports partial results and supports identical retries. It does not import
+fixture metrics, simulated pages, graph records or intentional fault deliveries.
+The focused web suites passed 86 tests. The isolated browser suite passed all
+11 tests, including independently approved memberships, an initial import,
+replay, and paginated AWS/Azure/GCP sample views with unknown GCP locations.
+No live cloud provider is queried.
+
+S01 now supports selecting eligible owners for `CONNECTION` through its
+existing owner-candidates API. The caller must hold both global
+`identity.owner.select` and global `connections.connection.write` in the
+selected tenant and environment; a connection ID cannot substitute for global
+write authority. PostgreSQL-backed HTTP tests cover eligible-owner filtering,
+denial, revocation and the S03 delegation's owner claims.
 
 The historical technical-approach Mermaid examples now use the dictionary's
 relationship endpoint roles; sample-data tests check those examples. The
@@ -160,11 +181,24 @@ project-wide assets in pages of 100 using `nextPageToken`, and deliberately does
 not filter by the region segment because project inventory can include global
 assets. Observation payloads retain only the asset name, type, and update time.
 
+A bounded Google Cloud Monitoring collector now queries one metric type and
+one monitored-resource type in the configured project. It uses `view=FULL`,
+pages at 100 points, preserves the original query interval with the page token,
+and limits each window to 24 hours (five minutes by default). Points outside
+the half-open request interval are discarded. Partial responses reporting
+`executionErrors` or unreachable regions, and observations exceeding S03's
+16,384-character payload limit, retain the previous checkpoint.
+
 AWS, Azure, and GCP connections remain `UNACCEPTED` until their live read-only
 conformance suites pass; local tests do not qualify provider connections.
-CloudWatch, Azure Monitor, and Google Cloud Monitoring metrics remain outside
-these inventory slices. The focused connections/delegation reactor passed 34
-connections tests and 8 delegation-auth tests, with no failures, errors, or
+AWS supports bounded SQS metrics and exact selector-based CloudWatch metrics;
+bounded Azure Monitor and Google Cloud Monitoring metric collectors complement
+their inventory slices. The paginated S03 collection outcome report is
+available through EDGE01 and rendered on the browser inventory page with a
+cursor independent from inventory pagination. The targeted web suite passed 89
+tests (85 browser application and 4 connections client), with no failures,
+errors, or skips. The clean S03/EDGE01/delegation reactor passed 92 tests (57
+connections, 27 API edge, and 8 delegation-auth), with no failures, errors, or
 skips. These are local results, not live provider conformance.
 
 **Deferred live checks:** Continue implementation and application work using
@@ -334,11 +368,13 @@ test passed with no failures, errors, or skips.
   `authorization_ref` for an independent grant decision. S01 now implements
   that verifier (see "Independent grant authority" below). Do not seed catalog
   memberships or bypass the gate. The initial approver exists, but an
-  authorized browser journey is still blocked: the initial administrator
+  authorized browser journey was blocked: the initial administrator
   cannot grant catalog authority to themselves, and `identity.owner.select`
   is not delegable to another catalog user. The user chose to keep that policy
-  unchanged; a separate authorization decision is needed to resolve this
-  path. The browser also supports draft-journey
+  unchanged at the time. This decision has since been superseded:
+  `identity.owner.select` is now grantable to human principals at global
+  scope via the existing independent approval workflow. No grants are
+  automatic, and self-grants remain prohibited. The browser also supports draft-journey
   registration: S01 supplies
   paged eligible human owners, the selected owner is revalidated before a
   write delegation is requested, and S02 receives a stable
@@ -519,9 +555,11 @@ scope and expiry, was made by a different principal than the creator and the
 target, and its approver still holds a current `identity.grant.approve` grant.
 The decision is consumed atomically with the membership, audit event and outbox
 event. Grants are limited to a delegable capability set, reject wildcards and
-self-grants, and are bounded to 365 days. Admin capabilities are not
-delegable through this route. Covered by one S01 integration test and one EDGE01
-routing test.
+self-grants, and are bounded to 365 days. `identity.owner.select` is
+grantable only to humans at global scope; other identity administration
+capabilities remain non-delegable through this route. PostgreSQL-backed S01
+tests cover the grant restrictions; the identity suite passed 24 tests and
+the updated grant test also passed separately. EDGE01 routing is tested.
 
 UX01 now exposes this contract through two capability-gated browser forms:
 `identity.grant.approve` records a decision and displays its 15-minute
@@ -534,8 +572,8 @@ reference with membership creation. The live browser suite verifies the
 approver cannot create memberships, the administrator cannot record grant
 decisions, and the separately approved membership appears only after the
 manager applies it. The focused UX01/experience-api reactor passed 84 tests;
-the isolated Playwright suite passed 10 tests. This does not resolve the
-catalog owner-selection gate or complete M1 acceptance.
+the isolated Playwright suite now passes 11 tests. Authorized
+end-to-end catalog mutation and M1 acceptance remain unverified.
 
 ## Trusted-provider principal admission
 
@@ -614,27 +652,52 @@ connection accepted. Current implementation state:
 
 | Provider | Class | Implemented | Remaining |
 | --- | --- | --- | --- |
-| AWS | `AwsCollector` | `aws.config.resources` | CloudWatch metrics; live conformance |
-| Azure | `AzureCollector` | Regional `azure.resourcegraph.rows` | Azure Monitor metrics; live conformance |
-| Google Cloud | `GcpCollector` | Project-wide `gcp.assetinventory.assets` | `gcp.monitoring.timeseries`; live conformance |
+| AWS | `AwsCollector` | `aws.config.resources`; bounded SQS and selector-based CloudWatch metrics | Live conformance |
+| Azure | `AzureCollector` | Regional `azure.resourcegraph.rows`; bounded `azure.monitor.metrics` | Live conformance |
+| Google Cloud | `GcpCollector` | Project-wide `gcp.assetinventory.assets`; bounded `gcp.monitoring.timeseries` | Live conformance |
 
 The AWS collector uses the AWS SDK default credential chain for STS role
-assumption. Azure uses `DefaultAzureCredential` with credentials configured
+assumption. Its bounded CloudWatch slice accepts
+`aws/<region>/cloudwatch/sqs/<queue-name>` for the two SQS queue metrics, or
+`aws/<region>/cloudwatch/metric/<base64url-selector>` for one exact metric,
+statistic, and dimensions supplied by the source binding. Both use a
+five-minute period, a maximum 24-hour window, half-open point filtering, and
+the S03 payload limit; results flow as `aws.cloudwatch.metrics` observations
+through the existing intake. This does not enumerate metric descriptors or
+establish live conformance.
+Azure uses `DefaultAzureCredential` with credentials configured
 outside the repository; its `read_only_identity_ref` is the subscription GUID,
 and `azure/<region>/resourcegraph/inventory` is a regional Resource Graph source.
 It projects only resource identifiers and basic inventory metadata, pages at 100
 rows, and preserves `$skipToken`. It refuses to advance when Resource Graph
-reports truncation without a continuation token. Azure Monitor metrics remain
-unimplemented. Google Cloud uses Application Default Credentials to list project-wide Cloud
+reports truncation without a continuation token. Its bounded Azure Monitor slice
+accepts one resource-scoped metric source in the form
+`azure/monitor/<base64url-resource-id>/<metric-name>`; the unpadded Base64URL
+resource ID must belong to the configured subscription. It queries the
+resource-specific Azure Monitor Metrics REST API using the default metric
+namespace, `Average` aggregation, five-minute intervals, and a maximum 24-hour
+window. Returned points are restricted to the half-open request window and
+retained as `azure.monitor.metrics` observations through S03 intake. This
+resource-specific collector does not enumerate metric definitions, select
+non-default namespaces, or establish live conformance. Google Cloud uses Application Default Credentials to list project-wide Cloud
 Asset Inventory resources, retaining only name, asset type, and update time;
 pages of 100 use `nextPageToken`, and the source region does not restrict assets.
-Google Cloud Monitoring metrics remain unimplemented. AWS, Azure, and GCP
-connections stay `UNACCEPTED` until live read-only conformance verifies
+Its bounded Cloud Monitoring collector accepts
+`gcp/monitoring/<base64url-metric-type>/<resource-type>` and queries one
+project-scoped metric type and monitored resource type through
+`projects.timeSeries.list`. It reads full time series with at most 100 points
+per page, retains native metric/resource labels and point values, and carries
+the original time interval in its continuation checkpoint. Partial responses
+and oversize observation payloads do not advance that checkpoint. The runtime
+identity needs `monitoring.timeSeries.list`, normally granted by
+`roles/monitoring.viewer`. This collector does not enumerate metric descriptors
+or aggregate/reduce series. AWS, Azure, and GCP connections stay `UNACCEPTED`
+until live read-only conformance verifies
 pagination, permission denial, source outage, rate limits, checkpoint recovery,
 and out-of-order delivery. The sample-data fixture is not provider conformance
-evidence. The focused connections reactor passed 34 tests, and its
-delegation-auth prerequisite passed 8 tests, with no failures, errors or skips.
-No live provider conformance was performed for this slice.
+evidence. The clean connections/delegation reactor passed 60 tests (52
+connections and 8 delegation-auth), including the bounded provider metric tests,
+with no failures, errors or skips. No live provider conformance was performed.
 
 ## M2 / S04 evidence, qualification, and waiver workflows
 
@@ -1271,10 +1334,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 ## Next implementation step
 
 M1 now has tested journey and service ownership-transfer paths, but authorized
-live catalog mutation acceptance remains blocked by the unchanged
-owner-selection grant policy. Do not bypass the independent grant or gated
-membership workflow. The next unblocked M2 slice is a real read-only provider
-collector connected to S03's opt-in leased runner. Before enabling collection,
+live catalog mutation acceptance remains unverified. Use the independent
+grant and gated membership workflow; do not bypass it. Continue integrated
+work with explicitly synthetic samples while live provider validation remains
+deferred. Before enabling collection,
 provision a dedicated S03 system client with only
 `connections.observation.write` and configure its secret outside the
 repository. Keep each cloud provider UNACCEPTED until its live conformance

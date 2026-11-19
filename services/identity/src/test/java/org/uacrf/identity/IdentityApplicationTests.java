@@ -399,6 +399,71 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void connectionOwnerCandidatesRequireGlobalWriteAndOwnerSelection() throws Exception {
+    seedScopedMemberships();
+    UUID scopedGrant = UUID.randomUUID();
+    UUID globalGrant = UUID.randomUUID();
+    UUID noSelectionGrant = UUID.randomUUID();
+    String path = "/v1/owner-candidates?object_kind=CONNECTION"
+        + "&object_id=sample-connection&tenant_id=tenant-test&environment_id=environment-test";
+    String admin = tokenWithoutContext("keycloak-subject-1");
+    try {
+      jdbc.update(
+          "INSERT INTO uacrf_identity.principal "
+              + "(id, issuer_uri, subject, display_name, kind, enabled, token_valid_after, revision) "
+              + "VALUES ('connection-writer-test', ?, 'connection-writer-test', "
+              + "'Connection writer', 'HUMAN', true, '2020-01-01T00:00:00Z', 1)",
+          ISSUER);
+      for (Object[] membership : List.of(
+          new Object[] {scopedGrant, "admin-test", "sample-connection"},
+          new Object[] {noSelectionGrant, "connection-writer-test", "*"})) {
+        jdbc.update(
+            "INSERT INTO uacrf_identity.membership "
+                + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+                + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', ?, "
+                + "'connections.connection.write', ?, '2099-12-31T23:59:59Z', 1)",
+            membership);
+      }
+
+      assertEquals(403, get(path, admin).statusCode());
+      assertEquals(403, get(path, tokenWithoutContext("connection-writer-test")).statusCode());
+      assertEquals(401, get(path, null).statusCode());
+
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+              + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', "
+              + "'admin-test', 'connections.connection.write', '*', '2099-12-31T23:59:59Z', 1)",
+          globalGrant);
+      HttpResponse<String> candidates = get(path, admin);
+      assertEquals(200, candidates.statusCode());
+      assertThat(candidates.body())
+          .contains("\"id\":\"owner-a\"", "\"id\":\"owner-b\"")
+          .doesNotContain("owner-expired", "owner-disabled");
+      assertEquals(200, get(path.replace("&object_id=sample-connection", ""), admin).statusCode());
+      HttpResponse<String> issued = post(
+          "/internal/v1/delegations", token("keycloak-subject-1"),
+          """
+          {"audience":"S03","capability_ids":["connections.connection.write"]}
+          """);
+      assertEquals(200, issued.statusCode());
+      String accessToken = issued.body().replaceFirst("^.*\"access_token\":\"([^\"]+)\".*$", "$1");
+      Jwt delegation = decodeDelegation(accessToken, "S03");
+      assertThat(delegation.getClaimAsString("service_scope")).isEqualTo("*");
+      assertThat(delegation.getClaimAsStringList("eligible_owner_ids"))
+          .contains("owner-a", "owner-b")
+          .doesNotContain("owner-expired", "owner-disabled");
+
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", globalGrant);
+      assertEquals(403, get(path, admin).statusCode());
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE id IN (?, ?, ?)",
+          scopedGrant, globalGrant, noSelectionGrant);
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id = 'connection-writer-test'");
+    }
+  }
+
+  @Test
   void listsOnlyAdmittedContextsAndRechecksMembershipForSelectedAccess() throws Exception {
     seedScopedMemberships();
     jdbc.update(
@@ -1859,6 +1924,60 @@ class IdentityApplicationTests {
         post("/v1/grant-decisions" + context, token("approver-a-subject"),
             decisionBody("grant-decision-self", "approver-a", "catalog.service.read", expiresAt));
     assertEquals(403, selfGrant.statusCode(), selfGrant.body());
+
+    String ownerDecision =
+        decisionBody("grant-decision-owner", "grant-target", "identity.owner.select", expiresAt);
+    HttpResponse<String> scopedOwner =
+        post("/v1/grant-decisions" + context, token("approver-a-subject"),
+            ownerDecision.replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\""));
+    assertEquals(422, scopedOwner.statusCode(), scopedOwner.body());
+    assertThat(scopedOwner.body()).contains("INVALID_SCOPE");
+    jdbc.update("UPDATE uacrf_identity.principal SET kind = 'SYSTEM' WHERE id = 'grant-target'");
+    HttpResponse<String> systemOwner =
+        post("/v1/grant-decisions" + context, token("approver-a-subject"), ownerDecision);
+    assertEquals(422, systemOwner.statusCode(), systemOwner.body());
+    assertThat(systemOwner.body()).contains("INVALID_PRINCIPAL_KIND");
+    jdbc.update("UPDATE uacrf_identity.principal SET kind = 'AGENT' WHERE id = 'grant-target'");
+    HttpResponse<String> agentOwner =
+        post("/v1/grant-decisions" + context, token("approver-a-subject"), ownerDecision);
+    assertEquals(422, agentOwner.statusCode(), agentOwner.body());
+    assertThat(agentOwner.body()).contains("INVALID_PRINCIPAL_KIND");
+    jdbc.update("UPDATE uacrf_identity.principal SET kind = 'HUMAN' WHERE id = 'grant-target'");
+    HttpResponse<String> selfOwnerApproval =
+        post("/v1/grant-decisions" + context, token("approver-a-subject"),
+            decisionBody("grant-decision-owner-self", "approver-a", "identity.owner.select", expiresAt));
+    assertEquals(403, selfOwnerApproval.statusCode(), selfOwnerApproval.body());
+    HttpResponse<String> managerOwnerApproval =
+        post("/v1/grant-decisions" + context, token("approver-a-subject"),
+            decisionBody("grant-decision-owner-manager", "admin-test", "identity.owner.select", expiresAt));
+    assertEquals(201, managerOwnerApproval.statusCode(), managerOwnerApproval.body());
+    HttpResponse<String> managerSelfGrant =
+        post("/v1/memberships" + context, token("keycloak-subject-1"),
+            membershipBody("00000000-0000-4000-8000-000000000207", "admin-test",
+                "identity.owner.select", expiresAt, "grant-decision-owner-manager"),
+            "grant-key-owner-self");
+    assertEquals(403, managerSelfGrant.statusCode(), managerSelfGrant.body());
+    HttpResponse<String> ownerApproved =
+        post("/v1/grant-decisions" + context, token("approver-a-subject"), ownerDecision);
+    assertEquals(201, ownerApproved.statusCode(), ownerApproved.body());
+    String ownerMembership =
+        membershipBody("00000000-0000-4000-8000-000000000205", "grant-target",
+            "identity.owner.select", expiresAt, "grant-decision-owner");
+    HttpResponse<String> ownerScopedMembership =
+        post("/v1/memberships" + context, token("keycloak-subject-1"),
+            ownerMembership.replace("\"service_scope\":\"*\"", "\"service_scope\":\"svc-1\""),
+            "grant-key-owner-scoped");
+    assertEquals(422, ownerScopedMembership.statusCode(), ownerScopedMembership.body());
+    HttpResponse<String> ownerCreated =
+        post("/v1/memberships" + context, token("keycloak-subject-1"),
+            ownerMembership, "grant-key-owner");
+    assertEquals(201, ownerCreated.statusCode(), ownerCreated.body());
+    HttpResponse<String> ownerReused =
+        post("/v1/memberships" + context, token("keycloak-subject-1"),
+            membershipBody("00000000-0000-4000-8000-000000000206", "grant-target",
+                "identity.owner.select", expiresAt, "grant-decision-owner"),
+            "grant-key-owner-reused");
+    assertEquals(403, ownerReused.statusCode(), ownerReused.body());
 
     HttpResponse<String> approved =
         post("/v1/grant-decisions" + context, token("approver-a-subject"), decisionBody);

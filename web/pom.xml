@@ -53,6 +53,18 @@
     </dependency>
   </dependencies>
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>../sample-data/connections</directory>
+        <targetPath>sample-data/connections</targetPath>
+        <includes>
+          <include>sample-multicloud-estate.json</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>

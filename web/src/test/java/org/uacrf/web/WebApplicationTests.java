@@ -7,6 +7,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oauth2Client;
@@ -900,6 +903,8 @@ class WebApplicationTests {
         .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
     when(connections.get("s03-delegation", "sample-estate"))
         .thenReturn(new ConnectionsClient.Connection("sample-estate", "Sample estate", "SAMPLE_LOCAL", "ACTIVE", null));
+    when(connections.listCollectionStatuses("s03-delegation", "sample-estate", null))
+        .thenReturn(new ConnectionsClient.CollectionStatusPage(List.of(), null));
     when(connections.listInventory("s03-delegation", "sample-estate", "current", "SAMPLE_LOCAL"))
         .thenReturn(new ConnectionsClient.InventoryPage(
             List.of(new ConnectionsClient.InventoryObservation(
@@ -918,6 +923,72 @@ class WebApplicationTests {
         .andExpect(content().string(containsString("obs-1")))
         .andExpect(content().string(containsString("cursor=next-page")))
         .andExpect(content().string(not(containsString("s03-delegation"))));
+  }
+
+  @Test
+  void showsCollectionStatusesWithIndependentPaginationAndNoFreshnessClaim() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenReturn(new ConnectionsClient.Connection("sample-estate", "Sample estate", "AWS", "ACTIVE", null));
+    when(connections.listCollectionStatuses("s03-delegation", "sample-estate", "status-current"))
+        .thenReturn(new ConnectionsClient.CollectionStatusPage(
+            List.of(
+                new ConnectionsClient.CollectionStatus(
+                    "binding-1", "sample-estate", "aws/us-east-1/config/inventory",
+                    null, null, false, null, null),
+                new ConnectionsClient.CollectionStatus(
+                    "binding-2", "sample-estate", "aws/us-east-1/cloudwatch/sqs/orders",
+                    "COLLECTED", "<script>detail</script>", false,
+                    "2026-11-18T10:20:30Z", "2026-11-18T10:25:00Z")),
+            "status-next"));
+    when(connections.listInventory("s03-delegation", "sample-estate", "inventory-current", "AWS"))
+        .thenReturn(new ConnectionsClient.InventoryPage(List.of(), "inventory-next"));
+
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .param("cursor", "inventory-current").param("statusCursor", "status-current")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Source collection status")))
+        .andExpect(content().string(containsString("aws/us-east-1/config/inventory")))
+        .andExpect(content().string(containsString("Not yet run")))
+        .andExpect(content().string(containsString("No details reported")))
+        .andExpect(content().string(containsString("Not recorded")))
+        .andExpect(content().string(containsString("Not scheduled")))
+        .andExpect(content().string(containsString("COLLECTED")))
+        .andExpect(content().string(containsString("&lt;script&gt;detail&lt;/script&gt;")))
+        .andExpect(content().string(containsString("datetime=\"2026-11-18T10:20:30Z\"")))
+        .andExpect(content().string(containsString("do not indicate freshness or staleness")))
+        .andExpect(content().string(containsString("statusCursor=status-next")))
+        .andExpect(content().string(containsString("cursor=inventory-current")))
+        .andExpect(content().string(containsString("cursor=inventory-next")))
+        .andExpect(content().string(containsString("statusCursor=status-current")))
+        .andExpect(content().string(not(containsString("s03-delegation"))));
+
+    verify(connections).listCollectionStatuses("s03-delegation", "sample-estate", "status-current");
+    verify(connections).listInventory("s03-delegation", "sample-estate", "inventory-current", "AWS");
+  }
+
+  @Test
+  void showsAnEmptyCollectionStatusState() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenReturn(new ConnectionsClient.Connection("sample-estate", "Sample estate", "AWS", "ACTIVE", null));
+    when(connections.listCollectionStatuses("s03-delegation", "sample-estate", null))
+        .thenReturn(new ConnectionsClient.CollectionStatusPage(List.of(), null));
+    when(connections.listInventory("s03-delegation", "sample-estate", null, "AWS"))
+        .thenReturn(new ConnectionsClient.InventoryPage(List.of(), null));
+
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString(
+            "No source collection status rows are available for this connection.")));
   }
 
   @Test
@@ -948,6 +1019,90 @@ class WebApplicationTests {
         .andExpect(content().string(containsString("Inventory access was not authorized (HTTP 403)")))
         .andExpect(content().string(not(containsString("Synthetic sample"))));
     verifyNoInteractions(connections);
+  }
+
+  @Test
+  void sampleImportRequiresContextCsrfAndAnEligibleOwner() throws Exception {
+    mockMvc.perform(get("/connections/sample-import").with(browserLogin()))
+        .andExpect(redirectedUrl("/contexts"));
+    mockMvc.perform(post("/connections/sample-import").with(browserLogin())
+            .session(sessionWithSelectedContext()).param("ownerId", "owner-test"))
+        .andExpect(status().isForbidden());
+
+    when(identity.ownerCandidates("test-access-token", sessionContext(), "CONNECTION", null))
+        .thenReturn(new IdentityAccessClient.OwnerPage(List.of(
+            new IdentityAccessClient.OwnerCandidate("owner-test", "Owner <test>", "HUMAN", true, true, 1)), null));
+    mockMvc.perform(get("/connections/sample-import").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Owner &lt;test&gt;")))
+        .andExpect(content().string(containsString("synthetic AWS")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")));
+    mockMvc.perform(post("/connections/sample-import").with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext()).param("ownerId", "forged-owner"))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Select an eligible human owner")));
+    verifyNoInteractions(connections);
+  }
+
+  @Test
+  void sampleImportStopsOnUncertaintyAndSafelyReplaysConfirmedObservations() throws Exception {
+    when(identity.ownerCandidates("test-access-token", sessionContext(), "CONNECTION", null))
+        .thenReturn(new IdentityAccessClient.OwnerPage(List.of(
+            new IdentityAccessClient.OwnerCandidate("owner-test", "Owner", "HUMAN", true, true, 1)), null));
+    when(identity.createDelegation("test-access-token", "S03", null,
+        List.of("connections.connection.write", "connections.observation.write"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("sample-delegation", "Bearer", 30));
+    var accepted = new java.util.HashSet<String>();
+    var interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+    when(connections.submitSample(anyString(), anyString(), any())).thenAnswer(invocation -> {
+      SampleInventory.Observation observation = invocation.getArgument(2);
+      if (accepted.size() == 2 && !interrupted.getAndSet(true)) {
+        throw new ResourceAccessException("simulated interruption");
+      }
+      String result = accepted.add(observation.id()) ? "ACCEPTED" : "DUPLICATE";
+      return new ConnectionsClient.IngestResult(observation.id(), result, result, observation.sequence());
+    });
+    MockHttpSession session = sessionWithSelectedContext();
+    mockMvc.perform(post("/connections/sample-import").with(browserLogin()).with(csrf())
+            .session(session).param("ownerId", "owner-test"))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("the last operation may have completed")))
+        .andExpect(content().string(containsString("Confirmed observations in this attempt:")));
+    mockMvc.perform(post("/connections/sample-import").with(browserLogin()).with(csrf())
+            .session(session).param("ownerId", "owner-test"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Sample import completed:")))
+        .andExpect(content().string(containsString("42")))
+        .andExpect(content().string(containsString("already accepted on a prior attempt")));
+    assertThat(accepted).hasSize(42);
+    String id = SampleInventory.connectionId(sessionContext(), "local-admin-subject", "owner-test");
+    verify(connections, times(2)).registerSample("sample-delegation", "sample-register-" + id,
+        new SampleInventory.Connection(id, "Sample multi-cloud estate (AWS, Azure, Google Cloud shapes)",
+            "SAMPLE_LOCAL", "sample/readonly-collector", "owner-test", 0));
+    verify(connections, times(6)).bindSample(anyString(), anyString(), anyString(), any());
+    verify(connections, times(45)).submitSample(anyString(), anyString(), any());
+  }
+
+  @Test
+  void sampleImportStopsImmediatelyWhenAnObservationIsQuarantined() throws Exception {
+    when(identity.ownerCandidates("test-access-token", sessionContext(), "CONNECTION", null))
+        .thenReturn(new IdentityAccessClient.OwnerPage(List.of(
+            new IdentityAccessClient.OwnerCandidate("owner-test", "Owner", "HUMAN", true, true, 1)), null));
+    when(identity.createDelegation("test-access-token", "S03", null,
+        List.of("connections.connection.write", "connections.observation.write"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("sample-delegation", "Bearer", 30));
+    when(connections.submitSample(anyString(), anyString(), any())).thenAnswer(invocation -> {
+      SampleInventory.Observation observation = invocation.getArgument(2);
+      return new ConnectionsClient.IngestResult(observation.id(), "QUARANTINED", "REPLAY_CONFLICT", observation.sequence());
+    });
+    mockMvc.perform(post("/connections/sample-import").with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext()).param("ownerId", "owner-test"))
+        .andExpect(status().isConflict())
+        .andExpect(content().string(containsString("S03 quarantined")))
+        .andExpect(content().string(not(containsString("Sample import completed"))));
+    verify(connections, times(1)).submitSample(anyString(), anyString(), any());
   }
 
   @Test

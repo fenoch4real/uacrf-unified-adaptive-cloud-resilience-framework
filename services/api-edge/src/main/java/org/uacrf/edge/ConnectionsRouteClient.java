@@ -81,6 +81,11 @@ class ConnectionsRouteClient {
     return listChild("inventory-observations", authorization, id, pageSize, cursor);
   }
 
+  ResponseEntity<String> listCollectionStatuses(
+      String authorization, String id, int pageSize, String cursor) {
+    return listChild("collection-statuses", authorization, id, pageSize, cursor);
+  }
+
   ResponseEntity<String> listQuarantine(
       String authorization, String id, int pageSize, String cursor) {
     return listChild("quarantine", authorization, id, pageSize, cursor);

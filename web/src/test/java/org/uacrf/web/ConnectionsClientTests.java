@@ -4,11 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -53,6 +57,36 @@ class ConnectionsClientTests {
   }
 
   @Test
+  void readsCollectionStatusesWithAnIndependentCursorAndAllowsNeverRunFields() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/connections");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo(
+            "http://edge.test/internal/connections/v1/connections/sample/collection-statuses?pageSize=25&cursor=status-cursor"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withSuccess("""
+            {"items":[{"id":"binding","connection_id":"sample",
+            "source_ref":"aws/us-east-1/config/inventory","last_status":null,
+            "last_detail":null,"running":false,"last_collected_at":null,
+            "next_collection_at":null}],"next_cursor":"next-status-page"}
+            """, MediaType.APPLICATION_JSON));
+
+    ConnectionsClient.CollectionStatusPage page =
+        new ConnectionsClient(builder.build())
+            .listCollectionStatuses("delegated", "sample", "status-cursor");
+
+    assertThat(page.nextCursor()).isEqualTo("next-status-page");
+    assertThat(page.items()).singleElement().satisfies(status -> {
+      assertThat(status.sourceRef()).isEqualTo("aws/us-east-1/config/inventory");
+      assertThat(status.lastStatus()).isNull();
+      assertThat(status.lastDetail()).isNull();
+      assertThat(status.running()).isFalse();
+      assertThat(status.lastCollectedAt()).isNull();
+      assertThat(status.nextCollectionAt()).isNull();
+    });
+    server.verify();
+  }
+
+  @Test
   void rejectsInventoryWithConflictingSourceClass() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -66,6 +100,42 @@ class ConnectionsClientTests {
     ConnectionsClient client = new ConnectionsClient(builder.build());
     assertThatThrownBy(() -> client.listInventory("delegated", "sample", null, "SAMPLE_LOCAL"))
         .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
+  void submitsSampleMutationsWithDelegationAndChecksReceipts() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/connections");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/internal/connections/v1/connections"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header("Idempotency-Key", "register-key"))
+        .andExpect(jsonPath("$.provider").value("SAMPLE_LOCAL"))
+        .andExpect(jsonPath("$.owner_id").value("owner"))
+        .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+            .withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"id\":\"sample\",\"revision\":1,\"record_kind\":\"CONNECTION\",\"result\":\"CREATED\",\"runtime_effect\":\"NONE\"}"));
+    server.expect(requestTo("http://edge.test/internal/connections/v1/connections/sample/source-bindings"))
+        .andExpect(header("Idempotency-Key", "binding-key"))
+        .andExpect(jsonPath("$.source_ref").value("sample:aws/inventory"))
+        .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+            .withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"id\":\"binding\",\"revision\":1,\"record_kind\":\"SOURCE_BINDING\",\"result\":\"CREATED\",\"runtime_effect\":\"NONE\"}"));
+    server.expect(requestTo("http://edge.test/internal/connections/v1/connections/sample/observations"))
+        .andExpect(jsonPath("$.payload_digest").value("digest"))
+        .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+            .withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"id\":\"observation\",\"status\":\"DUPLICATE\",\"reason\":\"Already accepted.\",\"sequence\":1}"));
+    ConnectionsClient client = new ConnectionsClient(builder.build());
+    client.registerSample("delegated", "register-key",
+        new SampleInventory.Connection("sample", "Sample", "SAMPLE_LOCAL", "sample/ref", "owner", 0));
+    client.bindSample("delegated", "sample", "binding-key",
+        new SampleInventory.Binding("binding", "sample:aws/inventory", null, 0));
+    assertThat(client.submitSample("delegated", "sample",
+        new SampleInventory.Observation("observation", "sample:aws/inventory", 1,
+            "2026-11-12T09:05:00Z", "aws.config.resources", "{}", "digest")).status())
+        .isEqualTo("DUPLICATE");
     server.verify();
   }
 }

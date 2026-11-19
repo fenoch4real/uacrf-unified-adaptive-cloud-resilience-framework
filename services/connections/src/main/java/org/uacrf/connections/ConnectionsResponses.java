@@ -22,6 +22,16 @@ final class ConnectionsResponses {
 
   record Binding(String id, String connectionId, String sourceRef, String serviceRef, long revision) {}
 
+  record CollectionStatus(
+      String id,
+      String connectionId,
+      String sourceRef,
+      String lastStatus,
+      String lastDetail,
+      boolean running,
+      String lastCollectedAt,
+      String nextCollectionAt) {}
+
   record IngestResult(String id, String status, String reason, long sequence) {}
 
   record Observation(

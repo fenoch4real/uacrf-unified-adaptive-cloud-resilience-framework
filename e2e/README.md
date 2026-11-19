@@ -6,7 +6,7 @@ EDGE01 → S01 context/current-access flow against disposable infrastructure.
 ## Run
 
 Prerequisites: Docker with a running daemon, Node.js, npm, and free loopback
-ports 8080, 8081, 8082, 8084, and 8180.
+ports 8080, 8081, 8082, 8084, 8085, and 8180.
 
 ```sh
 npm ci --prefix e2e
@@ -15,7 +15,7 @@ npm --prefix e2e run test:live
 ```
 
 `test:live` builds the required application images, starts an isolated
-PostgreSQL/Keycloak/application stack, waits for service health endpoints, and
+PostgreSQL/Keycloak/application stack, including S03, waits for service health endpoints, and
 runs Playwright headlessly. It generates test passwords, client secrets, and
 delegation keys in a private temporary directory; credentials are not stored
 in the repository. The runner removes its uniquely named containers, network,
@@ -38,6 +38,12 @@ matching grant details. S01 consumes that reference with membership creation.
 The approver's direct membership submission and the administrator's direct
 decision submission are both denied. This is a manual trusted-channel
 handoff—there is no persisted request inbox or browser approval queue.
+
+The synthetic inventory test separately admits a human principal and uses the
+same approval and membership workflow to grant owner eligibility, global
+owner selection, and S03 read/write access. It imports 42 sample observations,
+replays the import, and checks both inventory pages and provider labels. It
+does not contact cloud providers or qualify evidence.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

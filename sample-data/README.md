@@ -36,11 +36,34 @@ Each delivery carries an `expect` value (`ACCEPTED`, `DUPLICATE` or
 `QUARANTINED:<reason>`) that the S03 integration tests assert after posting the
 deliveries in order.
 
-The browser's read-only connections and inventory views can display observations
-once they have been ingested through authorized S03 APIs. The application does
-not automatically load this fixture, and a browser-driven importer is not yet
-implemented. Seeing these views does not establish a live provider connection
-or evidence qualification.
+## Import synthetic inventory
+
+From **Connections**, choose **Import synthetic inventory**, select a tenant
+and environment and an eligible human owner, then explicitly submit the form.
+The signed-in user needs global `identity.owner.select`,
+`connections.connection.write`, and `connections.observation.write`; viewing
+the result also requires `connections.connection.read`. S01 permits
+`identity.owner.select` only for humans at global scope, through the same
+independently approved, time-bounded grant process as other grantable
+capabilities. No grant is automatic, and neither the approver nor membership
+manager can grant it to themselves. The fictional `owner-platform` in the
+fixture is not automatically granted or used.
+
+The browser packages the canonical multi-cloud fixture and submits its 42
+inventory observations and three inventory source bindings through S03 as a
+`SAMPLE_LOCAL` connection. It does not import fixture metrics, simulated pages,
+graph records, or deliberate fault deliveries. Import writes synthetic records
+to the selected environment; it does not contact a cloud provider or qualify
+evidence. It is never automatic.
+
+If interrupted, the page reports the confirmed count and an uncertain last
+operation. Retry with the same signed-in user, tenant, environment, and owner:
+S03 replays registration and bindings and recognizes identical observations.
+Selecting another user or owner creates another connection and duplicates the
+synthetic dataset. A conflict or quarantine stops the import and requires
+investigation; do not treat a partial import as complete. Fixture changes can
+also cause replay conflicts and require investigation rather than overwriting
+existing records. Inventory access is separately authorized.
 
 ## Regenerating
 

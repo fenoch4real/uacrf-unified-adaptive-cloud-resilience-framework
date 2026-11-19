@@ -38,6 +38,22 @@ the provider name describes the simulated payload, not a live account.
 Projection does not qualify evidence, discover relationships, promote graph
 nodes, or accept providers. Existing retention and qualification policies are unchanged.
 
+## Collection outcome report
+
+`GET /v1/connections/{id}/collection-statuses` returns one paginated row per
+source binding through the existing `connections.connection.read` capability
+and tenant/environment scope; the EDGE01 route is
+`/internal/connections/v1/connections/{id}/collection-statuses`. `pageSize` is
+1-100 (default 25), with the standard `cursor` and `next_cursor` pagination.
+Each row reports `last_status`, `last_detail`, whether a collection lease is
+currently active, the last successful `last_collected_at`, and
+`next_collection_at`. It never exposes page tokens, checkpoints, lease tokens,
+or pending observation payloads. A `COLLECTED` status means the collection
+batch was submitted to S03 intake; individual accepted, duplicate, or
+quarantined observation outcomes are not summarized here. The timestamps are
+reported as recorded and do not imply that a source is fresh or stale; no
+freshness threshold is configured by this report.
+
 The browser application provides a read-only connections list and inventory
 observation view from **Current access**. It uses a selected tenant/environment
 and a short-lived S03 delegation for `connections.connection.read`; the token
@@ -45,10 +61,17 @@ stays server-side. Configure `UACRF_CONNECTIONS_BASE_URL` to the EDGE01
 internal connections base URL (default `http://localhost:8080/internal/connections`;
 use the EDGE01 service address in a container). The page shows source class,
 native identifiers, location when known, and raw observation references.
+The inventory page also renders the paginated collection outcome report for the
+connection, using a separate cursor from inventory pagination. It displays the
+last status and detail, active-lease state, last successful collection, and
+next scheduled time; missing and never-run values are called out explicitly.
+The page clarifies that timestamps do not establish freshness or staleness and
+that `COLLECTED` only means the batch was submitted to intake.
 It visibly labels `SAMPLE_LOCAL` as synthetic and does not qualify or promote it.
-The [sample fixture](../../sample-data/README.md) is not loaded automatically:
-it must first be ingested through authorized S03 APIs. A browser-driven sample
-import and a fully integrated browser-to-S03 test remain outstanding.
+The [sample fixture](../../sample-data/README.md#import-synthetic-inventory)
+is not loaded automatically. An explicit browser import uses S01 owner
+selection and S03 write delegations to load only the synthetic inventory
+subset. Failed or quarantined operations stop the import and are reported.
 
 Deploy V3 before the updated service and avoid mixed old/new ingestion instances: older instances
 neither retain exact times nor acquire the new ID lock. Rollback to older intake also loses these
@@ -66,9 +89,38 @@ AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` External
 the authorized connection read endpoint for the target role's trust policy. The first AWS source
 is `aws/<region>/config/inventory`; it uses STS `AssumeRole` and AWS Config
 `SelectResourceConfig`, processing at most one 100-item page per collection and retaining
-`NextToken` as the checkpoint. The collector uses the AWS SDK default credential chain only for
-the service-side STS call; no AWS credentials are stored in the repository. This slice does not
-collect CloudWatch metrics. AWS remains `UNACCEPTED` until live read-only conformance is complete.
+`NextToken` as the checkpoint. A bounded CloudWatch source is also available as
+`aws/<region>/cloudwatch/sqs/<queue-name>`; it requests
+`ApproximateAgeOfOldestMessage` (Maximum) and
+`ApproximateNumberOfMessagesVisible` (Average) from namespace `AWS/SQS` in
+five-minute periods. The requested interval is at most 24 hours, and metric
+results are submitted through the same S03 intake as `aws.cloudwatch.metrics`
+observations.
+
+Other exact CloudWatch metrics can be selected with
+`aws/<region>/cloudwatch/metric/<base64url-selector>`. The unpadded Base64URL
+selector decodes to a compact JSON object with exactly four fields:
+`namespace`, `metricName`, `statistic`, and `dimensions`. `dimensions` is an
+object of CloudWatch dimension names and values; it may be empty and is limited
+to 30 entries. The selector is limited to 337 UTF-8 bytes. Supported statistics
+are `Average`, `Sum`, `Minimum`, `Maximum`, and `SampleCount`. For example, an
+EC2 CPU metric selector is
+`{"namespace":"AWS/EC2","metricName":"CPUUtilization","statistic":"Average","dimensions":{"InstanceId":"i-0123456789abcdef0"}}`.
+That selector's source reference is
+`aws/us-east-1/cloudwatch/metric/eyJuYW1lc3BhY2UiOiJBV1MvRUMyIiwibWV0cmljTmFtZSI6IkNQVVV0aWxpemF0aW9uIiwic3RhdGlzdGljIjoiQXZlcmFnZSIsImRpbWVuc2lvbnMiOnsiSW5zdGFuY2VJZCI6ImktMDEyMzQ1Njc4OWFiY2RlZjAifX0`.
+Each source makes one exact metric query at five-minute periods; it does not
+enumerate metrics. Collection windows default to five minutes and are capped at
+24 hours, and returned points are filtered to the half-open request interval.
+The selector and provider result labels, timestamps, and values are retained
+in the `aws.cloudwatch.metrics` observation. Incomplete results, unexpected
+continuation tokens, and payloads exceeding S03's 16,384-character limit fail
+without checkpoint advancement. The metric and statistic must be valid for the
+selected namespace and dimensions.
+
+The target role needs `cloudwatch:GetMetricData` on `*` in addition to the AWS
+Config inventory permission below
+([CloudWatch IAM action reference](https://docs.aws.amazon.com/service-authorization/latest/reference/list_cloudwatch.html)).
+AWS remains `UNACCEPTED` until live read-only conformance is complete.
 Synthetic sample fixtures are never scheduled as provider data.
 
 For target-account setup, first register the AWS connection and read its generated ExternalId.
@@ -93,8 +145,11 @@ Use that value in the target role's trust policy with the collector runtime's AW
 
 Attach a read-only permissions policy to the target role allowing
 `config:SelectResourceConfig` on `*` (the [AWS Config service authorization reference](https://docs.aws.amazon.com/service-authorization/latest/reference/list_config.html)
-does not define a resource-level ARN for this action). The AWS account/region must have AWS
-Config inventory available. The runtime principal also needs permission to assume the target role.
+does not define a resource-level ARN for this action). For SQS or selector-based
+metric sources, also allow `cloudwatch:GetMetricData` on `*`. The AWS account/region
+must have AWS Config inventory available for inventory sources; the selected
+queue must emit the requested CloudWatch metrics for metric sources. The runtime
+principal also needs permission to assume the target role.
 Replace the placeholders with deployment-specific values; do not use customer-controlled
 ExternalIds or store long-lived AWS access keys in the repository.
 
@@ -105,9 +160,22 @@ subscription GUID as `read_only_identity_ref`, then bind a source such as
 configured outside the repository. That identity needs read access to the selected subscription
 and `Microsoft.ResourceGraph/resources/read`. The query returns resource ID, name, type, location,
 subscription ID and resource group only, in pages of at most 100 rows using `$skipToken`.
-Azure Monitor metrics are not part of this slice. Azure connections remain `UNACCEPTED` until the
-live read-only conformance suite passes; this implementation does not require or use a live Azure
-account during local tests.
+For a resource metric, bind
+`azure/monitor/<base64url-resource-id>/<metric-name>`; encode the full Azure
+resource ID as unpadded Base64URL. The resource ID's subscription must match
+`read_only_identity_ref`. The collector uses the Azure Monitor Metrics
+[`2018-01-01` REST API](https://learn.microsoft.com/en-us/rest/api/monitor/metrics/list?view=rest-monitor-2018-01-01)
+with the default metric namespace, `Average` aggregation, five-minute periods
+and a positive window of at most 24 hours (five minutes by default). It filters
+metric timestamps to the half-open requested interval and submits observations
+as `azure.monitor.metrics`. The runtime identity needs
+read access to the selected resource; the built-in
+[Monitoring Reader role](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor)
+provides read-only access to metrics and can be assigned at the narrowest
+resource scope. This slice does not enumerate metric definitions or query
+non-default metric namespaces; the selected metric must expose `Average`.
+Azure connections remain `UNACCEPTED` until the live read-only conformance
+suite passes; no live Azure account is used by local collector tests.
 
 The first Google Cloud slice collects project-wide resource inventory from Cloud Asset Inventory.
 Register the Google Cloud project ID as `read_only_identity_ref` and bind a source such as
@@ -118,9 +186,24 @@ filter the project-wide asset results. The service uses Google Application Defau
 normally through `roles/cloudasset.viewer`, and `serviceusage.services.use`, normally through
 `roles/serviceusage.serviceUsageConsumer`. Each request reads at most 100 assets and retains
 `nextPageToken` as the checkpoint. Observation payloads contain only asset name, type, and update
-time, not resource data. Cloud Monitoring metrics are not part of this slice. GCP connections
-remain `UNACCEPTED` until live read-only conformance passes; no live Google Cloud account is used
-by local tests.
+time, not resource data.
+
+For Cloud Monitoring, bind
+`gcp/monitoring/<base64url-metric-type>/<resource-type>`. The metric type is encoded as unpadded
+Base64URL; the resource type remains a readable segment. The project is taken from
+`read_only_identity_ref`, and the source does not impose a region filter. The collector calls
+[`projects.timeSeries.list`](https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/list)
+with one metric type and one monitored-resource type, `view=FULL`, and at most 100 points per page.
+It uses the request interval or defaults to the last five minutes, with a 24-hour maximum, and
+filters points to the half-open interval. Continuation checkpoints retain the original interval as
+well as the provider page token, so later pages resume the same query. Native metric/resource
+labels and point values are submitted as `gcp.monitoring.timeseries` observations. Responses with
+`executionErrors`, unreachable regions, or payloads larger than the S03 limit fail without
+advancing the checkpoint. The identity needs `monitoring.timeSeries.list`, normally through the
+read-only [`roles/monitoring.viewer`](https://docs.cloud.google.com/monitoring/access-control)
+role. Metric descriptor enumeration and aggregation/reduction are not implemented. GCP
+connections remain `UNACCEPTED` until live read-only conformance passes; local tests use no live
+Google Cloud account.
 
 ## Deferred live provider checks
 
@@ -142,7 +225,7 @@ enable or create anything without the account owner's approval.
 | --- | --- | --- |
 | AWS | Target role ARN, AWS region, collector identity/profile and UACRF-generated ExternalId | AWS Config inventory in the selected account and region |
 | Azure | Subscription GUID and Azure region | Resource Graph rows in that subscription and region |
-| GCP | Project ID and source region | Project-wide Cloud Asset Inventory, including global assets; the source region is not a filter |
+| GCP | Project ID and source region | Project-wide Cloud Asset Inventory plus a selected Monitoring metric/resource type; the source region does not filter either query |
 
 Never put access keys, bearer tokens, credential files, or client secrets in chat or source
 control. The identifiers above are not credentials; share them only as appropriate for the

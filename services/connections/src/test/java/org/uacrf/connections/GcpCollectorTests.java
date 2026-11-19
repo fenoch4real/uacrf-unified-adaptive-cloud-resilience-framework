@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,6 +21,8 @@ class GcpCollectorTests {
   private static final String SOURCE_REF = "gcp/europe-west1/assetinventory/inventory";
   private static final String PROJECT_ID = "sample-project-123";
   private static final Instant COLLECTED_AT = Instant.parse("2026-11-18T12:00:00Z");
+  private static final String METRIC_TYPE = "run.googleapis.com/request_latencies";
+  private static final String RESOURCE_TYPE = "cloud_run_revision";
 
   @Test
   void buildsProjectAssetInventoryFirstAndContinuationRequests() {
@@ -210,6 +215,362 @@ class GcpCollectorTests {
     assertThatThrownBy(() -> collector.collect(request(null, 0)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("assetType");
+  }
+
+  @Test
+  void buildsScopedTimeSeriesRequestWithIntervalAndEncodedPageToken() {
+    Instant from = Instant.parse("2026-11-18T11:55:00Z");
+    Instant to = COLLECTED_AT;
+    URI uri =
+        GcpCollector.monitoringUri(
+            PROJECT_ID, METRIC_TYPE, RESOURCE_TYPE, from, to, "opaque+/=");
+
+    assertThat(uri.getHost()).isEqualTo("monitoring.googleapis.com");
+    assertThat(uri.getPath())
+        .isEqualTo("/v3/projects/" + PROJECT_ID + "/timeSeries");
+    assertThat(uri.getRawQuery())
+        .contains(
+            "filter=metric.type+%3D+%22run.googleapis.com%2Frequest_latencies%22+AND+resource.type+%3D+%22cloud_run_revision%22",
+            "interval.startTime=2026-11-18T11%3A55%3A00Z",
+            "interval.endTime=2026-11-18T12%3A00%3A00Z",
+            "view=FULL",
+            "pageSize=100",
+            "pageToken=opaque%2B%2F%3D");
+  }
+
+  @Test
+  void collectsScopedTimeSeriesAndFiltersPointsToTheHalfOpenWindow() {
+    Instant from = Instant.parse("2026-11-18T11:55:00Z");
+    AtomicInteger requested = new AtomicInteger();
+    GcpCollector collector =
+        new GcpCollector(
+            () ->
+                new GcpCollector.InventorySession() {
+                  @Override
+                  public GcpCollector.QueryResponse listAssets(String projectId, String pageToken) {
+                    throw new AssertionError("Metric collection must not query Asset Inventory.");
+                  }
+
+                  @Override
+                  public GcpCollector.QueryResponse listTimeSeries(
+                      String projectId,
+                      String metricType,
+                      String resourceType,
+                      Instant start,
+                      Instant end,
+                      String pageToken) {
+                    assertThat(projectId).isEqualTo(PROJECT_ID);
+                    assertThat(metricType).isEqualTo(METRIC_TYPE);
+                    assertThat(resourceType).isEqualTo(RESOURCE_TYPE);
+                    assertThat(start).isEqualTo(from);
+                    assertThat(end).isEqualTo(COLLECTED_AT);
+                    assertThat(pageToken).isNull();
+                    requested.incrementAndGet();
+                    return response(
+                        200,
+                        Map.of(),
+                        """
+                        {
+                          "unit": "ms",
+                          "timeSeries": [{
+                            "metric": {"type":"run.googleapis.com/request_latencies","labels":{}},
+                            "resource": {
+                              "type":"cloud_run_revision",
+                              "labels":{"project_id":"sample-project-123","location":"europe-west1","service_name":"inventory"}
+                            },
+                            "metricKind":"GAUGE",
+                            "valueType":"DOUBLE",
+                            "unit":"ms",
+                            "points": [
+                              {"interval":{"endTime":"2026-11-18T11:54:00Z"},"value":{"doubleValue":90.0}},
+                              {"interval":{"startTime":"2026-11-18T11:50:00Z","endTime":"2026-11-18T11:55:00Z"},"value":{"doubleValue":91.0}},
+                              {"interval":{"startTime":"2026-11-18T11:55:00Z","endTime":"2026-11-18T11:58:00Z"},"value":{"doubleValue":94.0}},
+                              {"interval":{"endTime":"2026-11-18T12:00:00Z"},"value":{"doubleValue":99.0}}
+                            ]
+                          }]
+                        }
+                        """);
+                  }
+
+                  @Override
+                  public void close() {}
+                },
+            new ObjectMapper());
+
+    Batch batch = collector.collect(metricRequest(null, 4, null, COLLECTED_AT));
+
+    assertThat(requested).hasValue(1);
+    assertThat(batch.status()).isEqualTo(Batch.Status.COLLECTED);
+    assertThat(batch.nextCheckpoint()).isNull();
+    assertThat(batch.observations())
+        .extracting(ProviderCollector.Observation::sequence)
+        .containsExactly(5L);
+    assertThat(batch.observations())
+        .extracting(ProviderCollector.Observation::observedAt)
+        .containsExactly(Instant.parse("2026-11-18T11:58:00Z"));
+    assertThat(batch.observations())
+        .extracting(ProviderCollector.Observation::kind)
+        .containsOnly("gcp.monitoring.timeseries");
+    var payload = new ObjectMapper().readTree(batch.observations().getFirst().payload());
+    assertThat(payload.get("unit").stringValue()).isEqualTo("ms");
+    assertThat(payload.get("timeSeries").get(0).get("unit").stringValue()).isEqualTo("ms");
+    assertThat(payload.get("timeSeries").get(0).get("points")).hasSize(2);
+    assertThat(
+            payload
+                .get("timeSeries")
+                .get(0)
+                .get("points")
+                .get(0)
+                .get("value")
+                .get("doubleValue")
+                .doubleValue())
+        .isEqualTo(91.0);
+  }
+
+  @Test
+  void resumesMonitoringPaginationAndPreservesContinuousSequences() {
+    List<GcpCollector.QueryResponse> pages =
+        List.of(
+            response(
+                200,
+                Map.of(),
+                """
+                {"nextPageToken":"next+/=","timeSeries":[
+                  {"metric":{"type":"run.googleapis.com/request_latencies"},"resource":{"type":"cloud_run_revision"},
+                   "metricKind":"GAUGE","valueType":"DOUBLE","points":[
+                     {"interval":{"endTime":"2026-11-18T11:58:00Z"},"value":{"doubleValue":94.0}}]}]}
+                """),
+            response(
+                200,
+                Map.of(),
+                """
+                {"timeSeries":[
+                  {"metric":{"type":"run.googleapis.com/request_latencies"},"resource":{"type":"cloud_run_revision"},
+                   "metricKind":"GAUGE","valueType":"DOUBLE","points":[
+                     {"interval":{"endTime":"2026-11-18T11:59:00Z"},"value":{"doubleValue":95.0}}]}]}
+                """));
+    AtomicInteger pageIndex = new AtomicInteger();
+    List<String> requestedTokens = new ArrayList<>();
+    List<Instant> requestedFrom = new ArrayList<>();
+    List<Instant> requestedTo = new ArrayList<>();
+    GcpCollector collector =
+        new GcpCollector(
+            () ->
+                new GcpCollector.InventorySession() {
+                  @Override
+                  public GcpCollector.QueryResponse listAssets(String projectId, String pageToken) {
+                    throw new AssertionError("Metric collection must not query Asset Inventory.");
+                  }
+
+                  @Override
+                  public GcpCollector.QueryResponse listTimeSeries(
+                      String projectId,
+                      String metricType,
+                      String resourceType,
+                      Instant from,
+                      Instant to,
+                      String pageToken) {
+                    requestedTokens.add(pageToken);
+                    requestedFrom.add(from);
+                    requestedTo.add(to);
+                    return pages.get(pageIndex.getAndIncrement());
+                  }
+
+                  @Override
+                  public void close() {}
+                },
+            new ObjectMapper());
+    Instant from = Instant.parse("2026-11-18T11:55:00Z");
+
+    Batch first = collector.collect(metricRequest(null, 0, from, COLLECTED_AT));
+    Batch second =
+        collector.collect(
+            metricRequest(
+                first.nextCheckpoint(),
+                first.observations().getFirst().sequence(),
+                COLLECTED_AT,
+                COLLECTED_AT.plusSeconds(300)));
+
+    assertThat(requestedTokens).containsExactly(null, "next+/=");
+    assertThat(first.nextCheckpoint()).startsWith("gcp-monitoring-v1/");
+    assertThat(requestedFrom).containsExactly(from, from);
+    assertThat(requestedTo).containsExactly(COLLECTED_AT, COLLECTED_AT);
+    assertThat(first.observations().getFirst().sequence()).isEqualTo(1);
+    assertThat(second.nextCheckpoint()).isNull();
+    assertThat(second.observations().getFirst().sequence()).isEqualTo(2);
+    assertThat(second.observations().getFirst().id())
+        .isNotEqualTo(first.observations().getFirst().id());
+  }
+
+  @Test
+  void rejectsMonitoringResponseOutsideRequestedMetricScopeAndMalformedPoints() {
+    assertThatThrownBy(
+            () ->
+                collectMetricFailure(
+                    response(
+                        200,
+                        Map.of(),
+                        """
+                        {"timeSeries":[
+                          {"metric":{"type":"other.googleapis.com/metric"},"resource":{"type":"cloud_run_revision"},
+                           "points":[]}]}
+                        """)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("outside the requested metric scope");
+
+    assertThatThrownBy(
+            () ->
+                collectMetricFailure(
+                    response(
+                        200,
+                        Map.of(),
+                        """
+                        {"timeSeries":[
+                          {"metric":{"type":"run.googleapis.com/request_latencies"},"resource":{"type":"cloud_run_revision"},
+                           "points":[{"interval":{},"value":{"doubleValue":1.0}}]}]}
+                        """)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("interval.endTime");
+  }
+
+  @Test
+  void mapsMonitoringPermissionRateLimitAndOutageWithoutAdvancingPageToken() {
+    assertThat(collectMetricFailure(response(403, Map.of(), "")).status())
+        .isEqualTo(Batch.Status.PERMISSION_DENIED);
+
+    Instant before = Instant.now();
+    Batch rateLimited =
+        collectMetricFailure(response(429, Map.of("Retry-After", "2"), ""));
+    assertThat(rateLimited.status()).isEqualTo(Batch.Status.RATE_LIMITED);
+    assertThat(rateLimited.nextCheckpoint()).isEqualTo(previousPageCheckpoint());
+    assertThat(rateLimited.observations()).isEmpty();
+    assertThat(rateLimited.retryAt()).isAfter(before);
+    assertThat(collectMetricFailure(response(503, Map.of(), "")).status())
+        .isEqualTo(Batch.Status.SOURCE_UNAVAILABLE);
+  }
+
+  @Test
+  void refusesPartialMonitoringPagesAndOversizedObservationsWithoutAdvancing() {
+    Batch partial =
+        collectMetricFailure(
+            response(
+                200,
+                Map.of(),
+                """
+                {
+                  "nextPageToken":"would-skip-data",
+                  "executionErrors":[{"code":8,"message":"partial backend failure"}],
+                  "timeSeries":[]
+                }
+                """));
+    assertThat(partial.status()).isEqualTo(Batch.Status.SOURCE_UNAVAILABLE);
+    assertThat(partial.nextCheckpoint()).isEqualTo(previousPageCheckpoint());
+    assertThat(partial.observations()).isEmpty();
+    assertThat(partial.detail()).contains("partial data");
+
+    String largePoint =
+        "{\"timeSeries\":[{\"metric\":{\"type\":\""
+            + METRIC_TYPE
+            + "\"},\"resource\":{\"type\":\""
+            + RESOURCE_TYPE
+            + "\"},\"points\":[{\"interval\":{\"endTime\":\"2026-11-18T11:58:00Z\"},"
+            + "\"value\":{\"stringValue\":\""
+            + "x".repeat(17_000)
+            + "\"}}]}]}";
+    Batch oversized = collectMetricFailure(response(200, Map.of(), largePoint));
+    assertThat(oversized.status()).isEqualTo(Batch.Status.SOURCE_UNAVAILABLE);
+    assertThat(oversized.nextCheckpoint()).isEqualTo(previousPageCheckpoint());
+    assertThat(oversized.observations()).isEmpty();
+    assertThat(oversized.detail()).contains("payload limit");
+  }
+
+  @Test
+  void rejectsInvalidMetricSourceAndWindowBeforeOpeningSession() {
+    GcpCollector collector =
+        new GcpCollector(
+            () -> {
+              throw new AssertionError("Invalid metric requests must not open a session.");
+            },
+            new ObjectMapper());
+    Request tooWide =
+        metricRequest(
+            null,
+            0,
+            COLLECTED_AT.minusSeconds(86_401),
+            COLLECTED_AT);
+    assertThatThrownBy(() -> collector.collect(tooWide))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("no longer than 24 hours");
+    assertThatThrownBy(
+            () ->
+                collector.collect(
+                    new Request(
+                        "connection-1",
+                        "gcp/monitoring/not-base64/cloud_run_revision",
+                        PROJECT_ID,
+                        null,
+                        null,
+                        0,
+                        null,
+                        COLLECTED_AT)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("invalid metric type");
+    assertThatThrownBy(
+            () ->
+                collector.collect(
+                    metricRequest("malformed-checkpoint", 0, null, COLLECTED_AT)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("checkpoint is invalid");
+  }
+
+  private static Batch collectMetricFailure(GcpCollector.QueryResponse response) {
+    GcpCollector collector =
+        new GcpCollector(
+            () ->
+                new GcpCollector.InventorySession() {
+                  @Override
+                  public GcpCollector.QueryResponse listAssets(String projectId, String pageToken) {
+                    throw new AssertionError("Metric collection must not query Asset Inventory.");
+                  }
+
+                  @Override
+                  public GcpCollector.QueryResponse listTimeSeries(
+                      String projectId,
+                      String metricType,
+                      String resourceType,
+                      Instant from,
+                      Instant to,
+                      String pageToken) {
+                    return response;
+                  }
+
+                  @Override
+                  public void close() {}
+                },
+            new ObjectMapper());
+    return collector.collect(metricRequest(previousPageCheckpoint(), 9, null, COLLECTED_AT));
+  }
+
+  private static String previousPageCheckpoint() {
+    String cursor =
+        COLLECTED_AT.minusSeconds(300) + "\n" + COLLECTED_AT + "\nprevious-page";
+    return "gcp-monitoring-v1/"
+        + Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(cursor.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static Request metricRequest(
+      String pageToken, long lastSequence, Instant from, Instant to) {
+    return new Request(
+        "connection-1",
+        GcpCollector.metricSourceRef(METRIC_TYPE, RESOURCE_TYPE),
+        PROJECT_ID,
+        null,
+        pageToken,
+        lastSequence,
+        from,
+        to);
   }
 
   private static Batch collectFailure(GcpCollector.QueryResponse response) {

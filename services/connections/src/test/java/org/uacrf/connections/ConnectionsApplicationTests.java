@@ -165,6 +165,93 @@ class ConnectionsApplicationTests {
   }
 
   @Test
+  void reportsScopedCollectionOutcomesWithoutExposingCheckpoints() throws Exception {
+    String tenant = "tenant-collection-report";
+    String environment = "env-collection-report";
+    String bearer = bearer(actor(tenant, environment, RW, List.of("owner-1")), "S03");
+    assertEquals(
+        201,
+        post(
+                "/v1/connections",
+                bearer,
+                "report-connection",
+                connection("conn-report", "SAMPLE_LOCAL", 0))
+            .statusCode());
+    String binding =
+        "{\"id\":\"binding-%s\",\"source_ref\":\"source-%s\",\"expected_revision\":0}";
+    assertEquals(
+        201,
+        post(
+                "/v1/connections/conn-report/source-bindings",
+                bearer,
+                "report-binding-1",
+                binding.formatted("1", "1"))
+            .statusCode());
+    assertEquals(
+        201,
+        post(
+                "/v1/connections/conn-report/source-bindings",
+                bearer,
+                "report-binding-2",
+                binding.formatted("2", "2"))
+            .statusCode());
+
+    String endpoint = "/v1/connections/conn-report/collection-statuses";
+    JsonNode firstPage = mapper.readTree(get(endpoint + "?pageSize=1", bearer).body());
+    JsonNode first = firstPage.get("items").get(0);
+    assertThat(first.get("id").asString()).isEqualTo("binding-1");
+    assertThat(first.get("last_status").asString()).isEqualTo("NEVER_RUN");
+    assertThat(first.get("last_detail").asString()).contains("not run");
+    assertThat(first.get("running").asBoolean()).isFalse();
+    assertThat(first.get("last_collected_at").isNull()).isTrue();
+    assertThat(first.get("next_collection_at").isString()).isTrue();
+    assertThat(firstPage.get("next_cursor").isString()).isTrue();
+
+    Instant lastCollected = Instant.parse("2026-11-18T08:00:00Z");
+    jdbc.update(
+        "UPDATE uacrf_connections.collection_checkpoint SET last_status = ?, last_detail = ?, "
+            + "last_collected_at = ?, next_collection_at = ?, lease_until = now() + interval '1 minute', "
+            + "checkpoint = ? WHERE tenant_id = ? AND environment_id = ? AND connection_id = ? "
+            + "AND source_ref = ?",
+        "SOURCE_UNAVAILABLE",
+        "Provider source is unavailable; retry scheduled.",
+        java.sql.Timestamp.from(lastCollected),
+        java.sql.Timestamp.from(Instant.parse("2026-11-18T08:35:00Z")),
+        "private-page-token",
+        tenant,
+        environment,
+        "conn-report",
+        "source-1");
+    JsonNode reported = mapper.readTree(get(endpoint + "?pageSize=1", bearer).body());
+    JsonNode status = reported.get("items").get(0);
+    assertThat(status.get("last_status").asString()).isEqualTo("SOURCE_UNAVAILABLE");
+    assertThat(status.get("running").asBoolean()).isTrue();
+    assertThat(Instant.parse(status.get("last_collected_at").asString())).isEqualTo(lastCollected);
+    assertThat(status.toString())
+        .doesNotContain("checkpoint", "private-page-token")
+        .contains("next_collection_at");
+
+    String cursor = firstPage.get("next_cursor").asString();
+    JsonNode secondPage =
+        mapper.readTree(get(endpoint + "?pageSize=1&cursor=" + cursor, bearer).body());
+    assertThat(secondPage.get("items").get(0).get("id").asString()).isEqualTo("binding-2");
+    assertThat(secondPage.get("items").get(0).get("last_status").asString()).isEqualTo("NEVER_RUN");
+
+    String otherTenant =
+        bearer(actor("tenant-other", environment, RW, List.of("owner-1")), "S03");
+    assertEquals(404, get(endpoint, otherTenant).statusCode());
+    String noRead =
+        bearer(
+            actor(
+                tenant,
+                environment,
+                List.of("connections.connection.write"),
+                List.of("owner-1")),
+            "S03");
+    assertEquals(403, get(endpoint, noRead).statusCode());
+  }
+
+  @Test
   void collectionLeasesAreExclusiveAndRetainTheCheckpointForRetry() throws Exception {
     String tenant = "tenant-collection-lease";
     String bearer = bearer(actor(tenant, "env-lease", RW, List.of("owner-1")), "S03");

@@ -192,6 +192,45 @@ class ConnectionsService {
     return page(rows, pageSize, Binding::id);
   }
 
+  @Transactional(readOnly = true)
+  Page<CollectionStatus> listCollectionStatuses(
+      DelegationPrincipal actor, String connectionId, int pageSize, String cursor) {
+    requireCapability(actor, "connections.connection.read");
+    find(actor, connectionId);
+    List<CollectionStatus> rows =
+        jdbc.query(
+            "SELECT b.id, b.connection_id, b.source_ref, cp.last_status, cp.last_detail, "
+                + "(cp.lease_until > now()) AS running, cp.last_collected_at, "
+                + "cp.next_collection_at FROM "
+                + SCHEMA
+                + "source_binding b JOIN "
+                + SCHEMA
+                + "collection_checkpoint cp ON cp.tenant_id = b.tenant_id "
+                + "AND cp.environment_id = b.environment_id "
+                + "AND cp.connection_id = b.connection_id AND cp.source_ref = b.source_ref "
+                + "WHERE b.tenant_id = ? AND b.environment_id = ? "
+                + "AND b.connection_id = ? AND b.id > ? ORDER BY b.id LIMIT ?",
+            (rs, row) -> {
+              java.sql.Timestamp lastCollected = rs.getTimestamp("last_collected_at");
+              java.sql.Timestamp nextCollection = rs.getTimestamp("next_collection_at");
+              return new CollectionStatus(
+                  rs.getString("id"),
+                  rs.getString("connection_id"),
+                  rs.getString("source_ref"),
+                  rs.getString("last_status"),
+                  rs.getString("last_detail"),
+                  rs.getBoolean("running"),
+                  lastCollected == null ? null : lastCollected.toInstant().toString(),
+                  nextCollection == null ? null : nextCollection.toInstant().toString());
+            },
+            actor.tenantId(),
+            actor.environmentId(),
+            connectionId,
+            decodeCursor(cursor),
+            pageSize + 1);
+    return page(rows, pageSize, CollectionStatus::id);
+  }
+
   private Connection find(DelegationPrincipal actor, String id) {
     List<Connection> rows =
         jdbc.query(

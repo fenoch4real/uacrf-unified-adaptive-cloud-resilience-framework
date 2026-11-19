@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -65,6 +67,64 @@ class ConnectionsClient {
     return page;
   }
 
+  CollectionStatusPage listCollectionStatuses(String token, String id, String cursor) {
+    CollectionStatusPage page =
+        restClient.get()
+            .uri(uri -> {
+              var request = uri.path("/v1/connections/{id}/collection-statuses").queryParam("pageSize", 25);
+              if (cursor != null && !cursor.isBlank()) {
+                request.queryParam("cursor", cursor);
+              }
+              return request.build(id);
+            })
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .retrieve().body(CollectionStatusPage.class);
+    if (page == null || page.items() == null
+        || page.items().stream().anyMatch(item -> !validCollectionStatus(item, id))) {
+      throw new IllegalStateException("S03 returned an incomplete collection-status page.");
+    }
+    return page;
+  }
+
+  void registerSample(String token, String key, SampleInventory.Connection request) {
+    var response = restClient.post().uri("/v1/connections")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key)
+        .contentType(MediaType.APPLICATION_JSON).body(request).retrieve().toEntity(Receipt.class);
+    validateReceipt(response.getStatusCode().value(), response.getBody(), request.id(), "CONNECTION");
+  }
+
+  void bindSample(String token, String connectionId, String key, SampleInventory.Binding request) {
+    var response = restClient.post().uri("/v1/connections/{id}/source-bindings", connectionId)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key)
+        .contentType(MediaType.APPLICATION_JSON).body(request).retrieve().toEntity(Receipt.class);
+    validateReceipt(response.getStatusCode().value(), response.getBody(), request.id(), "SOURCE_BINDING");
+  }
+
+  IngestResult submitSample(String token, String connectionId, SampleInventory.Observation request) {
+    var response = restClient.post().uri("/v1/connections/{id}/observations", connectionId)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .contentType(MediaType.APPLICATION_JSON).body(request).retrieve().toEntity(IngestResult.class);
+    IngestResult result = response.getBody();
+    if (response.getStatusCode().value() != HttpStatus.ACCEPTED.value() || result == null
+        || !request.id().equals(result.id()) || request.sequence() != result.sequence()
+        || result.status() == null
+        || !List.of("ACCEPTED", "DUPLICATE", "QUARANTINED").contains(result.status())
+        || ("QUARANTINED".equals(result.status()) && !present(result.reason()))) {
+      throw new IllegalStateException("S03 returned an invalid observation result.");
+    }
+    return result;
+  }
+
+  private static void validateReceipt(int status, Receipt receipt, String id, String kind) {
+    if (status != HttpStatus.CREATED.value() || receipt == null || !id.equals(receipt.id())
+        || !kind.equals(receipt.recordKind()) || receipt.revision() != 1
+        || !"CREATED".equals(receipt.result()) || !"NONE".equals(receipt.runtimeEffect())) {
+      throw new IllegalStateException("S03 returned an invalid mutation receipt.");
+    }
+  }
+
   private static boolean valid(Connection connection) {
     return connection != null && present(connection.id()) && present(connection.name())
         && present(connection.provider()) && present(connection.status());
@@ -80,11 +140,35 @@ class ConnectionsClient {
         && present(item.rawPayloadDigest()) && present(item.observedAt());
   }
 
+  private static boolean validCollectionStatus(CollectionStatus item, String connectionId) {
+    return item != null && present(item.id()) && connectionId.equals(item.connectionId())
+        && present(item.sourceRef());
+  }
+
   private static boolean present(String value) {
     return value != null && !value.isBlank();
   }
 
   record ConnectionPage(List<Connection> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record CollectionStatusPage(
+      List<CollectionStatus> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record Receipt(
+      String id, long revision, @JsonProperty("record_kind") String recordKind,
+      String result, @JsonProperty("runtime_effect") String runtimeEffect) {}
+
+  record IngestResult(String id, String status, String reason, long sequence) {}
+
+  record CollectionStatus(
+      String id,
+      @JsonProperty("connection_id") String connectionId,
+      @JsonProperty("source_ref") String sourceRef,
+      @JsonProperty("last_status") String lastStatus,
+      @JsonProperty("last_detail") String lastDetail,
+      boolean running,
+      @JsonProperty("last_collected_at") String lastCollectedAt,
+      @JsonProperty("next_collection_at") String nextCollectionAt) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   record Connection(

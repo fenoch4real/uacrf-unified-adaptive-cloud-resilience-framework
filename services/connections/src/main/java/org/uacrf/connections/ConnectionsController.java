@@ -68,6 +68,16 @@ class ConnectionsController {
         DelegationPrincipal.from(jwt), id, ConnectionsService.validatePageSize(pageSize), cursor);
   }
 
+  @GetMapping("/v1/connections/{id}/collection-statuses")
+  Page<CollectionStatus> listCollectionStatuses(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return connections.listCollectionStatuses(
+        DelegationPrincipal.from(jwt), id, ConnectionsService.validatePageSize(pageSize), cursor);
+  }
+
   @PostMapping("/v1/connections/{id}/observations")
   @ResponseStatus(HttpStatus.ACCEPTED)
   IngestResult submitObservation(

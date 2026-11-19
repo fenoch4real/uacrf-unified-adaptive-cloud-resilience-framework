@@ -6,3 +6,7 @@ main {
 .inventory-list > li {
   margin-block-end: 2rem;
 }
+
+.collection-status-list > li {
+  margin-block-end: 1.5rem;
+}

@@ -96,6 +96,11 @@ class ConnectionsRouteControllerTests {
         .andExpect(method(HttpMethod.GET))
         .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer t"))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
+        .expect(requestTo(URL + "/v1/connections/c-1/collection-statuses?pageSize=10"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer t"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
 
     mvc.perform(
             post("/internal/connections/v1/connections/c-1/observations")
@@ -112,6 +117,12 @@ class ConnectionsRouteControllerTests {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer t")
                 .param("pageSize", "3")
                 .param("cursor", "next"))
+        .andExpect(status().isOk())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(
+            get("/internal/connections/v1/connections/c-1/collection-statuses")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer t")
+                .param("pageSize", "10"))
         .andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     server.verify();

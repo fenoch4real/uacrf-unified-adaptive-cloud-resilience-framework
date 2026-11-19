@@ -12,6 +12,7 @@
   <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/access">Back to current access</a></p>
+  <p><a href="/connections/sample-import">Import synthetic inventory</a></p>
   <p>Unaccepted provider connections cannot be scheduled for collection.</p>
   <p role="status" th:if="${connectionError != null}" th:text="${connectionError}"></p>
   <p th:if="${connectionError == null and #lists.isEmpty(connections)}">No connections are available.</p>

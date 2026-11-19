@@ -95,10 +95,11 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   list until an independent membership grant is made.
 - The approval handoff uses an authorization reference shared through a
   trusted channel; the browser does not provide a persisted request inbox.
-- Authorized catalog writes remain untested. In the initial setup, the
-  administrator cannot grant catalog authority to themselves, and
-  `identity.owner.select` is not delegable to another catalog user. The user
-  chose to keep this authorization policy unchanged.
+- Authorized catalog writes remain untested. At the time of this baseline,
+  the initial administrator could not grant catalog authority to themselves
+  and `identity.owner.select` was not delegable. The latter restriction has
+  since been amended: independently approved global grants to human principals
+  are now supported; self-grants remain prohibited.
 
 ## Issues found
 

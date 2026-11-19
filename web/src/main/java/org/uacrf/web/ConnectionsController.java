@@ -55,13 +55,17 @@ class ConnectionsController {
   String inventory(
       @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response, @PathVariable String id,
-      @RequestParam(required = false) String cursor, Model model) {
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) String statusCursor, Model model) {
     Object selected = session.getAttribute(BrowserContext.SESSION_KEY);
     if (!(selected instanceof BrowserContext context)) {
       return "redirect:/contexts";
     }
     model.addAttribute("selectedContext", context);
     model.addAttribute("inventory", List.of());
+    model.addAttribute("collectionStatuses", List.of());
+    model.addAttribute("inventoryCursor", cursor);
+    model.addAttribute("statusCursor", statusCursor);
     String token;
     try {
       token = delegate(client, context);
@@ -74,10 +78,33 @@ class ConnectionsController {
       model.addAttribute("inventoryError", "Inventory access was not authorized (HTTP " + error.getStatusCode().value() + ").");
       return "inventory";
     }
+    ConnectionsClient.Connection connection;
     try {
-      ConnectionsClient.Connection connection = connections.get(token, id);
-      ConnectionsClient.InventoryPage page = connections.listInventory(token, id, cursor, connection.provider());
+      connection = connections.get(token, id);
       model.addAttribute("connection", connection);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("inventoryError", "Connections service is unavailable; inventory was not loaded.");
+      return "inventory";
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("inventoryError", "Inventory was not loaded (HTTP " + error.getStatusCode().value() + ").");
+      return "inventory";
+    }
+    try {
+      ConnectionsClient.CollectionStatusPage statusPage =
+          connections.listCollectionStatuses(token, id, statusCursor);
+      model.addAttribute("collectionStatuses", statusPage.items());
+      model.addAttribute("statusNextCursor", statusPage.nextCursor());
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("collectionStatusError", "Connections service is unavailable; source collection statuses were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("collectionStatusError", "Source collection statuses were not loaded (HTTP " + error.getStatusCode().value() + ").");
+    }
+    try {
+      ConnectionsClient.InventoryPage page = connections.listInventory(token, id, cursor, connection.provider());
       model.addAttribute("inventory", page.items());
       model.addAttribute("nextCursor", page.nextCursor());
     } catch (ResourceAccessException error) {

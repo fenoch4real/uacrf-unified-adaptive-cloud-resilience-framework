@@ -27,8 +27,8 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 
 | Service | Method | Path | Request Type | Response Type |
 |---|---|---|---|---|
-| Browser Experience | GET | `/`, `/access`, `/contexts`, `/principals`, `/memberships`, `/journeys`, `/journeys/{id}` | Query parameters | Thymeleaf HTML view or redirect |
-| Browser Experience | POST | `/memberships/{membershipId}:revoke`, `/agents`, `/services/{serviceId}/agents`, `/journeys`, `/journeys/{id}/steps`, `/journeys/{journeyId}/services`, `/journeys/{journeyId}/agents/link` | Form data | Thymeleaf HTML view or redirect |
+| Browser Experience | GET | `/`, `/access`, `/contexts`, `/principals`, `/memberships`, `/journeys`, `/journeys/{id}`, `/connections`, `/connections/{id}/inventory`, `/connections/sample-import` | Query parameters | Thymeleaf HTML view or redirect |
+| Browser Experience | POST | `/memberships/{membershipId}:revoke`, `/agents`, `/services/{serviceId}/agents`, `/journeys`, `/journeys/{id}/steps`, `/journeys/{journeyId}/services`, `/journeys/{journeyId}/agents/link`, `/connections/sample-import` | Form data | Thymeleaf HTML view or redirect |
 | Experience API | GET | `/v1/me/access`, `/v1/me/contexts`, `/v1/identity-providers`, `/v1/principals`, `/v1/memberships`, `/v1/owner-candidates` | Query parameters and bearer token | Identity JSON pass-through |
 | Experience API | POST | `/v1/memberships/{id}:revoke`, `/v1/principals/{id}:set-status`, `/internal/v1/delegations` | JSON body and bearer token; idempotency key for mutations | Identity JSON pass-through |
 | API Edge | GET, POST | `/v1/me/**`, `/v1/identity-providers`, `/v1/principals`, `/v1/memberships/**`, `/v1/owner-candidates` | Query/body JSON and bearer token | Identity JSON pass-through |
@@ -38,7 +38,7 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Identity (S01) | POST | `/internal/v1/delegations`, `/internal/v1/delegations:exchange`, `/internal/v1/objective-review-authority:check` | Delegation, exchange, or authority-check JSON | Scoped delegation or authority response |
 | Estate Catalog (S02) | GET, POST | `/v1/services`, `/v1/agent-workloads`, `/v1/agent-workloads/{id}/versions`, `/v1/agent-workloads/{id}:activate`, `/v1/customer-journeys/**` | `CatalogRequests` records, query/path parameters, idempotency key for writes | `CatalogResponses` receipts, pages, agents, services, and journeys |
 | Estate Catalog (S02) | GET, POST | `/internal/v1/workload-versions/{id}`, `/internal/v1/workloads/{id}:receipt`, `/internal/v1/services/{id}:receipt`, `/internal/v1/services/{id}/revisions/{version}` | Delegated bearer JWT; receipt request where applicable | Workload/service owner receipt or exact immutable revision snapshot |
-| Connections (S03) | GET, POST | `/v1/connections/**` including source bindings, observations, read-only inventory projection, and quarantine | `ConnectionsRequests` records, query/path parameters, idempotency key for registration | `ConnectionsResponses` pages, records, and ingestion result; observation submission returns 202 |
+| Connections (S03) | GET, POST | `/v1/connections/**` including source bindings, observations, paginated collection outcome reports, read-only inventory projection, and quarantine | `ConnectionsRequests` records, query/path parameters, idempotency key for registration | `ConnectionsResponses` pages, records, and ingestion result; observation submission returns 202 |
 | Evidence (S04) | GET, POST | `/v1/evidence/**`, `/internal/v1/observations`, `/internal/v1/qualifications/{id}:receipt`, `:measurement`, `:topology-summary`, `/internal/v1/inbox/events` | `EvidenceRequests` records and delegated bearer JWT | Evidence, qualification/measurement/topology-summary receipts, and inbox result; intake/inbox return 202 |
 | Objectives (S05) | GET, POST, PUT | `/v1/objectives/**`, `/v1/organization-constraints/{metric}`, `/internal/v1/workloads/{id}/objectives:receipt` | `ObjectivesRequests` records and query/path parameters | `ObjectivesResponses` objectives, constraints, and receipt |
 | Topology (S06) | GET, POST | `/v1/dependency-proposals`, `/v1/dependency-proposals:evidence-backed`, `/v1/dependency-proposals/{id}`, `/v1/dependency-proposals/{id}:review`, `/v1/graphs:accept`, `/v1/graphs/{id}/...`, `/internal/v1/graphs/{id}:receipt` | `TopologyRequests` records and query/path parameters | `TopologyResponses` proposals, graph views, impact, and receipt |
@@ -49,6 +49,26 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Knowledge (S08) | GET, POST | `/v1/knowledge-items/**`, `/v1/retrievals/**`, `/internal/v1/retrievals/{id}:receipt` | `KnowledgeRequests` records and query/path parameters | Versioned item, retrieval, or retrieval receipt |
 
 Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
+
+For `/v1/owner-candidates`, `object_kind=CONNECTION` requires both global
+`identity.owner.select` and global `connections.connection.write` in the
+selected tenant and environment. Supplying an `object_id` does not permit a
+service-scoped connection grant. Results contain eligible human owners and are
+paginated like other owner-candidate requests; this lookup does not grant
+permissions or register a connection.
+
+`identity.owner.select` may be granted only to an enabled, trusted human
+principal at global scope (`*`). An independently authorized approver must
+record a matching, time-limited grant decision, and a different membership
+manager must apply it; neither may grant the capability to themselves.
+The existing decision expiry, single-use, and membership expiry rules apply.
+No automatic membership is created.
+
+The browser's explicit sample-import form requires a current eligible owner and
+global S03 connection and observation write grants. It imports the inventory
+subset only, reports quarantine or uncertain partial results, and replays
+identical operations for the same user, context, and owner. No provider is
+contacted, and no evidence is qualified.
 
 ## Management & Observability Endpoints
 
@@ -63,7 +83,10 @@ The owner services define request and response types in service-specific `*Reque
 S03's [inventory-observation projection](../services/connections/README.md#read-only-inventory-projection)
 is an authorized, on-read view of retained observations, not qualified evidence or a
 deduplicated resource inventory. EDGE01 forwards its internal route; the browser application
-uses a context-bound S03 read delegation to list connections and their inventory observations.
+uses a context-bound S03 read delegation to list connections, inventory observations, and the
+paginated collection outcome report. The report's browser cursor is independent of inventory
+pagination, and its status and timestamp semantics are documented in the
+[S03 collection outcome report](../services/connections/README.md#collection-outcome-report).
 
 For S06 command status, `TopologyController.commandStatus` returns the compact map produced by `TopologyGraphCommandService.status`: `command_id`, `status`, `terminal`, `domain_completion`, and conditionally `advisory_result`. The declared `TopologyResponses.CommandStatus` record has a different field set and is not used by this handler. The public advisory result exposes bounded selection nodes/edges or bounded classification changes; the internal `s04_summary_coverage` map and evidence summaries are not part of the status response.
 

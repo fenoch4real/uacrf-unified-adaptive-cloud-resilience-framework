@@ -19,6 +19,40 @@
       status: <span th:text="${connection.status}">Status</span></p>
     <p th:if="${connection.statusReason != null}" th:text="${connection.statusReason}"></p>
     <p th:if="${connection.provider == 'SAMPLE_LOCAL'}">Synthetic sample: these observations are not live provider data or qualified evidence.</p>
+    <section aria-labelledby="collection-status-heading">
+      <h2 id="collection-status-heading">Source collection status</h2>
+      <p>These are the last recorded outcomes and schedule for each source binding. The timestamps do not indicate freshness or staleness. A COLLECTED batch means it was submitted to intake; individual accepted, duplicate, or quarantined observation outcomes are not shown here.</p>
+      <p role="status" th:if="${collectionStatusError != null}" th:text="${collectionStatusError}"></p>
+      <p th:if="${collectionStatusError == null and #lists.isEmpty(collectionStatuses)}">No source collection status rows are available for this connection.</p>
+      <ul class="collection-status-list">
+        <li th:each="status : ${collectionStatuses}">
+          <h3 th:text="${status.sourceRef}">Source reference</h3>
+          <dl>
+            <dt>Last status</dt>
+            <dd th:text="${status.lastStatus != null ? status.lastStatus : 'Not yet run'}">Not yet run</dd>
+            <dt>Last detail</dt>
+            <dd th:text="${status.lastDetail != null ? status.lastDetail : 'No details reported'}">No details reported</dd>
+            <dt>Collection running</dt>
+            <dd th:text="${status.running ? 'Yes' : 'No'}">No</dd>
+            <dt>Last successful collection</dt>
+            <dd>
+              <time th:if="${status.lastCollectedAt != null}"
+                    th:datetime="${status.lastCollectedAt}" th:text="${status.lastCollectedAt}">Time</time>
+              <span th:if="${status.lastCollectedAt == null}">Not recorded</span>
+            </dd>
+            <dt>Next scheduled collection</dt>
+            <dd>
+              <time th:if="${status.nextCollectionAt != null}"
+                    th:datetime="${status.nextCollectionAt}" th:text="${status.nextCollectionAt}">Time</time>
+              <span th:if="${status.nextCollectionAt == null}">Not scheduled</span>
+            </dd>
+          </dl>
+        </li>
+      </ul>
+      <nav aria-label="Source collection status pages" th:if="${statusNextCursor != null}">
+        <a th:href="@{/connections/{id}/inventory(id=${connection.id},statusCursor=${statusNextCursor},cursor=${inventoryCursor})}">Next collection status page</a>
+      </nav>
+    </section>
     <p>These are individual retained observations, not a deduplicated current inventory or qualified evidence.</p>
     <p th:if="${#lists.isEmpty(inventory)}">No inventory observations are available for this connection.</p>
     <ul class="inventory-list">
@@ -39,7 +73,7 @@
       </li>
     </ul>
     <nav aria-label="Inventory pages" th:if="${nextCursor != null}">
-      <a th:href="@{/connections/{id}/inventory(id=${connection.id},cursor=${nextCursor})}">Next observations</a>
+      <a th:href="@{/connections/{id}/inventory(id=${connection.id},cursor=${nextCursor},statusCursor=${statusCursor})}">Next observations</a>
     </nav>
   </section>
 </main>

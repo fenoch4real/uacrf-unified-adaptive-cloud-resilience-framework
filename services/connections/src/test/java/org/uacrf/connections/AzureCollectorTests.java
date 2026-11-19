@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,10 @@ class AzureCollectorTests {
   private static final String SOURCE_REF = "azure/westeurope/resourcegraph/inventory";
   private static final String SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000001";
   private static final Instant COLLECTED_AT = Instant.parse("2026-11-18T12:00:00Z");
+  private static final String RESOURCE_ID =
+      "/subscriptions/"
+          + SUBSCRIPTION_ID
+          + "/resourceGroups/rg/providers/Microsoft.ServiceBus/namespaces/bus1";
 
   @Test
   void buildsResourceGraphFirstPageAndContinuationRequests() throws Exception {
@@ -251,6 +256,237 @@ class AzureCollectorTests {
                         null)))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("collection time");
+  }
+
+  @Test
+  void buildsAzureMonitorRequestForOneMetricAndBoundedTimespan() {
+    Instant from = Instant.parse("2026-11-18T11:55:00Z");
+    Instant to = COLLECTED_AT;
+    URI uri = AzureCollector.metricsUri(RESOURCE_ID, "ActiveMessages", from, to);
+
+    assertThat(uri.getHost()).isEqualTo("management.azure.com");
+    assertThat(uri.getPath())
+        .isEqualTo(RESOURCE_ID + "/providers/Microsoft.Insights/metrics");
+    assertThat(uri.getRawQuery())
+        .contains(
+            "api-version=2018-01-01",
+            "timespan=2026-11-18T11%3A55%3A00Z%2F2026-11-18T12%3A00%3A00Z",
+            "interval=PT5M",
+            "metricnames=ActiveMessages",
+            "aggregation=Average");
+  }
+
+  @Test
+  void collectsOneScopedMetricAndFiltersSamplesToTheHalfOpenWindow() throws Exception {
+    Instant from = Instant.parse("2026-11-18T11:55:00Z");
+    AtomicReference<String> requestedResourceId = new AtomicReference<>();
+    AtomicReference<String> requestedMetric = new AtomicReference<>();
+    AtomicReference<Instant> requestedFrom = new AtomicReference<>();
+    AtomicReference<Instant> requestedTo = new AtomicReference<>();
+    AzureCollector.InventorySession session =
+        new AzureCollector.InventorySession() {
+          @Override
+          public AzureCollector.QueryResponse query(
+              String subscriptionId, String query, String skipToken) {
+            throw new AssertionError("Metric collection must not query Resource Graph.");
+          }
+
+          @Override
+          public AzureCollector.QueryResponse metrics(
+              String resourceId, String metricName, Instant start, Instant end) {
+            requestedResourceId.set(resourceId);
+            requestedMetric.set(metricName);
+            requestedFrom.set(start);
+            requestedTo.set(end);
+            return response(
+                200,
+                Map.of(),
+                """
+                {
+                  "cost": 0,
+                  "timespan": "2026-11-18T11:55:00Z/2026-11-18T12:00:00Z",
+                  "interval": "PT5M",
+                  "namespace": "Microsoft.ServiceBus/namespaces",
+                  "resourceregion": "westeurope",
+                  "value": [{
+                    "id": "/metric/ActiveMessages",
+                    "type": "Microsoft.Insights/metrics",
+                    "name": {"value":"ActiveMessages","localizedValue":"Active Messages"},
+                    "unit": "Count",
+                    "timeseries": [{
+                      "metadatavalues": [{"name":{"value":"EntityName"},"value":"queue-a"}],
+                      "data": [
+                        {"timeStamp":"2026-11-18T11:50:00Z","average":1},
+                        {"timeStamp":"2026-11-18T11:55:00Z","average":2},
+                        {"timeStamp":"2026-11-18T11:58:00Z","average":4},
+                        {"timeStamp":"2026-11-18T12:00:00Z","average":8}
+                      ]
+                    }]
+                  }]
+                }
+                """);
+          }
+
+          @Override
+          public void close() {}
+        };
+    AzureCollector collector = new AzureCollector(() -> session, new ObjectMapper());
+    Request request =
+        new Request(
+            "connection-1",
+            AzureCollector.metricSourceRef(RESOURCE_ID, "ActiveMessages"),
+            SUBSCRIPTION_ID,
+            null,
+            null,
+            7,
+            from,
+            COLLECTED_AT);
+
+    Batch batch = collector.collect(request);
+
+    assertThat(requestedResourceId).hasValue(RESOURCE_ID);
+    assertThat(requestedMetric).hasValue("ActiveMessages");
+    assertThat(requestedFrom).hasValue(from);
+    assertThat(requestedTo).hasValue(COLLECTED_AT);
+    assertThat(batch.status()).isEqualTo(Batch.Status.COLLECTED);
+    assertThat(batch.nextCheckpoint()).isNull();
+    assertThat(batch.observations())
+        .extracting(ProviderCollector.Observation::sequence)
+        .containsExactly(8L);
+    assertThat(batch.observations())
+        .extracting(ProviderCollector.Observation::observedAt)
+        .containsExactly(Instant.parse("2026-11-18T11:58:00Z"));
+    assertThat(batch.observations())
+        .extracting(ProviderCollector.Observation::kind)
+        .containsOnly("azure.monitor.metrics");
+    var payload = new ObjectMapper().readTree(batch.observations().getFirst().payload());
+    assertThat(payload.get("resourceregion").stringValue()).isEqualTo("westeurope");
+    assertThat(payload.get("value").get(0).get("timeseries").get(0).get("data"))
+        .hasSize(2);
+    assertThat(
+            payload
+                .get("value")
+                .get(0)
+                .get("timeseries")
+                .get(0)
+                .get("data")
+                .get(0)
+                .get("average")
+                .doubleValue())
+        .isEqualTo(2.0);
+  }
+
+  @Test
+  void rejectsCrossSubscriptionResourceIdsAndInvalidMetricWindowsBeforeOpeningSession() {
+    AzureCollector collector =
+        new AzureCollector(
+            () -> {
+              throw new AssertionError("Invalid metric sources must not open a session.");
+            },
+            new ObjectMapper());
+    String otherSubscriptionResourceId =
+        RESOURCE_ID.replace(SUBSCRIPTION_ID, "00000000-0000-0000-0000-000000000002");
+    Request crossSubscription =
+        new Request(
+            "connection-1",
+            AzureCollector.metricSourceRef(otherSubscriptionResourceId, "ActiveMessages"),
+            SUBSCRIPTION_ID,
+            null,
+            null,
+            0,
+            null,
+            COLLECTED_AT);
+    assertThatThrownBy(() -> collector.collect(crossSubscription))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("configured subscription");
+
+    Request tooWide =
+        new Request(
+            "connection-1",
+            AzureCollector.metricSourceRef(RESOURCE_ID, "ActiveMessages"),
+            SUBSCRIPTION_ID,
+            null,
+            null,
+            0,
+            COLLECTED_AT.minusSeconds(86_401),
+            COLLECTED_AT);
+    assertThatThrownBy(() -> collector.collect(tooWide))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("no longer than 24 hours");
+  }
+
+  @Test
+  void mapsAzureMonitorPermissionRateLimitAndOutageWithoutCheckpointAdvance() {
+    assertThat(collectMetricFailure(response(403, Map.of(), "")).status())
+        .isEqualTo(Batch.Status.PERMISSION_DENIED);
+
+    Instant before = Instant.now();
+    Batch rateLimited =
+        collectMetricFailure(response(429, Map.of("Retry-After", "2"), ""));
+    assertThat(rateLimited.status()).isEqualTo(Batch.Status.RATE_LIMITED);
+    assertThat(rateLimited.nextCheckpoint()).isNull();
+    assertThat(rateLimited.observations()).isEmpty();
+    assertThat(rateLimited.retryAt()).isAfter(before);
+    assertThat(collectMetricFailure(response(503, Map.of(), "")).status())
+        .isEqualTo(Batch.Status.SOURCE_UNAVAILABLE);
+  }
+
+  @Test
+  void rejectsMetricResponseMissingRequestedAggregation() {
+    assertThatThrownBy(
+            () ->
+                collectMetricFailure(
+                    response(
+                        200,
+                        Map.of(),
+                        """
+                        {
+                          "value": [{
+                            "id": "/metric/ActiveMessages",
+                            "name": {"value":"ActiveMessages"},
+                            "unit": "Count",
+                            "timeseries": [{
+                              "data": [{"timeStamp":"2026-11-18T11:58:00Z"}]
+                            }]
+                          }]
+                        }
+                        """)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("requested average");
+  }
+
+  private static Batch collectMetricFailure(AzureCollector.QueryResponse response) {
+    AzureCollector collector =
+        new AzureCollector(
+            () ->
+                new AzureCollector.InventorySession() {
+                  @Override
+                  public AzureCollector.QueryResponse query(
+                      String subscriptionId, String query, String skipToken) {
+                    throw new AssertionError("Metric collection must not query Resource Graph.");
+                  }
+
+                  @Override
+                  public AzureCollector.QueryResponse metrics(
+                      String resourceId, String metricName, Instant from, Instant to) {
+                    return response;
+                  }
+
+                  @Override
+                  public void close() {}
+                },
+            new ObjectMapper());
+    Request request =
+        new Request(
+            "connection-1",
+            AzureCollector.metricSourceRef(RESOURCE_ID, "ActiveMessages"),
+            SUBSCRIPTION_ID,
+            null,
+            null,
+            9,
+            null,
+            COLLECTED_AT);
+    return collector.collect(request);
   }
 
   private static Batch collectFailure(AzureCollector.QueryResponse response) {

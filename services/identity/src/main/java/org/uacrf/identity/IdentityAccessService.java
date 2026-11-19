@@ -87,6 +87,7 @@ class IdentityAccessService {
           "knowledge.classification.internal.read",
           "knowledge.classification.restricted.read",
           "advisory.run.create",
+          "identity.owner.select",
           "owner.eligible",
           "runtime.principal.use");
   private static final Duration GRANT_DECISION_TTL = Duration.ofMinutes(15);
@@ -1221,6 +1222,9 @@ class IdentityAccessService {
     if ("owner.eligible".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "owner.eligible is environment-local and uses scope *.");
     }
+    if ("identity.owner.select".equals(capability) && !"*".equals(serviceScope)) {
+      throw unprocessable("INVALID_SCOPE", "identity.owner.select requires global scope.");
+    }
     if ("advisory.run.create".equals(capability) && !"*".equals(serviceScope)) {
       throw unprocessable("INVALID_SCOPE", "advisory.run.create requires global scope.");
     }
@@ -1264,7 +1268,7 @@ class IdentityAccessService {
     String kind = kinds.getFirst();
     boolean allowed =
         switch (capability) {
-          case "owner.eligible" -> "HUMAN".equals(kind);
+          case "owner.eligible", "identity.owner.select" -> "HUMAN".equals(kind);
           case "runtime.principal.use" -> "SYSTEM".equals(kind) || "AGENT".equals(kind);
           case "objectives.review-authority.check" -> "SYSTEM".equals(kind);
           case "knowledge.item.review", "advisory.run.create", "assessment.learning.review",
@@ -1320,8 +1324,9 @@ class IdentityAccessService {
     }
     String requiredWriteCapability = writeCapability(objectKind);
     Actor actor = resolveActor(jwt, tenantId, environmentId);
+    String writeScope = "CONNECTION".equals(objectKind) ? null : objectId;
     if (!hasCapability(actor, "identity.owner.select", "*")
-        || !hasCapability(actor, requiredWriteCapability, objectId)) {
+        || !hasCapability(actor, requiredWriteCapability, writeScope)) {
       throw denied("The current principal cannot select an owner for this target.");
     }
 
@@ -1494,6 +1499,7 @@ class IdentityAccessService {
       case "SERVICE" -> "catalog.service.write";
       case "AGENT" -> "catalog.agent.write";
       case "RESOURCE" -> "catalog.resource.write";
+      case "CONNECTION" -> "connections.connection.write";
       case "ONBOARDING" -> "onboarding.write";
       case "KNOWLEDGE" -> "knowledge.write";
       default -> throw invalid("object_kind is not supported.");
