@@ -19,7 +19,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | Complete authorized catalog journeys without bypassing owner-selection policy; verify deployment identity and end-to-end acceptance. Ownership transfer for journeys and services is implemented and tested, but the live fixture verifies denial only; re-enabling principals remains unavailable pending verification and independent review. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite now creates a draft journey, registers and links a service through the independent grant and owner-selection flow, and verifies S02 readback. Add standalone and service-bound workload registration, successful ownership transfer, deployment-identity verification, and end-to-end acceptance. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; a paginated S03 source-collection outcome report is available through EDGE01. Complete live conformance for AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, and GCP Cloud Asset Inventory and Monitoring metrics (all remain unaccepted), broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement additional reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -127,10 +127,11 @@ sample fixture. An explicit import registers a sample-local connection,
 binds three inventory sources and submits 42 synthetic observations; it
 reports partial results and supports identical retries. It does not import
 fixture metrics, simulated pages, graph records or intentional fault deliveries.
-The focused web suites passed 86 tests. The isolated browser suite passed all
+the focused web suites passed 86 tests. The isolated browser suite passed all
 11 tests, including independently approved memberships, an initial import,
-replay, and paginated AWS/Azure/GCP sample views with unknown GCP locations.
-No live cloud provider is queried.
+replay, paginated AWS/Azure/GCP sample views with unknown GCP locations, and an
+authorized S02 flow that creates a journey, registers and links a service, and
+reads the persisted catalog state back. No live cloud provider is queried.
 
 S01 now supports selecting eligible owners for `CONNECTION` through its
 existing owner-candidates API. The caller must hold both global
@@ -575,8 +576,11 @@ reference with membership creation. The live browser suite verifies the
 approver cannot create memberships, the administrator cannot record grant
 decisions, and the separately approved membership appears only after the
 manager applies it. The focused UX01/experience-api reactor passed 84 tests;
-the isolated Playwright suite now passes 11 tests. Authorized
-end-to-end catalog mutation and M1 acceptance remain unverified.
+the isolated Playwright suite now passes 11 tests. Its authorized catalog path
+creates a draft journey, registers and links a service, and verifies S02
+readback after independent approval and membership assignment. Standalone and
+service-bound workload registration, successful ownership transfer, and full
+M1 acceptance remain unverified.
 
 ## Trusted-provider principal admission
 
@@ -1376,11 +1380,13 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 
 ## Next implementation step
 
-M1 now has tested journey and service ownership-transfer paths, but authorized
-live catalog mutation acceptance remains unverified. Use the independent
-grant and gated membership workflow; do not bypass it. Continue integrated
-work with explicitly synthetic samples while live provider validation remains
-deferred. Before enabling collection,
+The live browser suite now verifies authorized draft journey creation, service
+registration/linking, and S02 readback through the independent grant and owner
+selection workflow. Continue M1 with standalone and service-bound workload
+registration, successful ownership transfer, and deployment-identity
+verification; do not bypass authorization. Continue integrated work with
+explicitly synthetic samples while live provider validation remains deferred.
+Before enabling collection,
 provision a dedicated S03 system client with only
 `connections.observation.write` and configure its secret outside the
 repository. Keep each cloud provider UNACCEPTED until its live conformance

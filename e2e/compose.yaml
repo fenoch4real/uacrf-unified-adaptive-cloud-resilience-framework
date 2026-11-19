@@ -16,6 +16,23 @@ services:
       timeout: 3s
       retries: 12
 
+  catalog-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: uacrf_catalog
+      POSTGRES_USER: ${CATALOG_DB_ADMIN_USER:?}
+      POSTGRES_PASSWORD: ${CATALOG_DB_ADMIN_PASSWORD:?}
+      APP_DB_USER: ${CATALOG_DB_USER:?}
+      APP_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?}
+    volumes:
+      - catalog-data:/var/lib/postgresql
+      - ../config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   connections-db:
     image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     environment:
@@ -92,6 +109,27 @@ services:
     ports:
       - "127.0.0.1:8082:8082"
 
+  estate-catalog:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: estate-catalog
+    environment:
+      CATALOG_JDBC_URL: jdbc:postgresql://catalog-db:5432/uacrf_catalog
+      CATALOG_DB_USER: ${CATALOG_DB_USER:?}
+      CATALOG_DB_PASSWORD: ${CATALOG_DB_PASSWORD:?}
+      UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?}
+      UACRF_DELEGATION_KEY_ID: uacrf-e2e-key
+      UACRF_DELEGATION_ISSUER: https://uacrf.local/s01
+      UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64: ${UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64:?}
+      UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64: ${UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64:?}
+      UACRF_S02_OWNER_RECEIPT_KEY_ID: uacrf-e2e-s02-key
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8083:8083"
+
   api-edge:
     build:
       context: ..
@@ -99,9 +137,11 @@ services:
       target: api-edge
     environment:
       UACRF_EDGE_IDENTITY_BASE_URL: http://identity:8082
+      UACRF_EDGE_CATALOG_BASE_URL: http://estate-catalog:8083
       UACRF_EDGE_CONNECTIONS_BASE_URL: http://connections:8085
     depends_on:
       - identity
+      - estate-catalog
     ports:
       - "127.0.0.1:8080:8080"
 
@@ -147,13 +187,16 @@ services:
       UACRF_OIDC_JWK_SET_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/certs
       UACRF_OIDC_USERINFO_URI: http://keycloak:8080/realms/uacrf/protocol/openid-connect/userinfo
       UACRF_EXPERIENCE_BASE_URL: http://experience-api:8081
+      UACRF_CATALOG_BASE_URL: http://api-edge:8080/internal/catalog
       UACRF_CONNECTIONS_BASE_URL: http://api-edge:8080/internal/connections
       UACRF_SESSION_COOKIE_SECURE: "false"
     depends_on:
       - experience-api
+      - api-edge
     ports:
       - "127.0.0.1:8084:8084"
 
 volumes:
   identity-data:
+  catalog-data:
   connections-data:

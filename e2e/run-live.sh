@@ -8,6 +8,9 @@ key_dir="$runtime_dir/keys"
 pem_key="$key_dir/delegation.pem"
 private_key="$key_dir/delegation-private.der"
 public_key="$key_dir/delegation-public.der"
+s02_pem_key="$key_dir/s02-owner-receipt.pem"
+s02_private_key="$key_dir/s02-owner-receipt-private.der"
+s02_public_key="$key_dir/s02-owner-receipt-public.der"
 env_file="$runtime_dir/compose.env"
 project_name="uacrf-e2e-$(openssl rand -hex 5)"
 compose_started=0
@@ -23,7 +26,9 @@ cleanup() {
     printf 'Failed to remove disposable Compose project %s.\n' "$project_name" >&2
     result=1
   fi
-  rm -f "$env_file" "$pem_key" "$private_key" "$public_key"
+  rm -f \
+    "$env_file" "$pem_key" "$private_key" "$public_key" \
+    "$s02_pem_key" "$s02_private_key" "$s02_public_key"
   if ! rmdir "$key_dir" "$runtime_dir"; then
     printf 'Failed to remove temporary E2E credential files in %s.\n' "$runtime_dir" >&2
     result=1
@@ -40,10 +45,15 @@ fi
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$pem_key"
 openssl pkcs8 -topk8 -nocrypt -in "$pem_key" -outform DER -out "$private_key"
 openssl pkey -in "$pem_key" -pubout -outform DER -out "$public_key"
-rm -f "$pem_key"
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$s02_pem_key"
+openssl pkcs8 -topk8 -nocrypt -in "$s02_pem_key" -outform DER -out "$s02_private_key"
+openssl pkey -in "$s02_pem_key" -pubout -outform DER -out "$s02_public_key"
+rm -f "$pem_key" "$s02_pem_key"
 
 identity_admin_password="$(openssl rand -hex 24)"
 identity_runtime_password="$(openssl rand -hex 24)"
+catalog_admin_password="$(openssl rand -hex 24)"
+catalog_runtime_password="$(openssl rand -hex 24)"
 connections_admin_password="$(openssl rand -hex 24)"
 connections_runtime_password="$(openssl rand -hex 24)"
 keycloak_admin_password="$(openssl rand -hex 24)"
@@ -60,6 +70,10 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'IDENTITY_DB_ADMIN_PASSWORD=%s\n' "$identity_admin_password"
   printf 'IDENTITY_DB_USER=uacrf_identity_runtime\n'
   printf 'IDENTITY_DB_PASSWORD=%s\n' "$identity_runtime_password"
+  printf 'CATALOG_DB_ADMIN_USER=uacrf_catalog_admin\n'
+  printf 'CATALOG_DB_ADMIN_PASSWORD=%s\n' "$catalog_admin_password"
+  printf 'CATALOG_DB_USER=uacrf_catalog_runtime\n'
+  printf 'CATALOG_DB_PASSWORD=%s\n' "$catalog_runtime_password"
   printf 'CONNECTIONS_DB_ADMIN_USER=uacrf_connections_admin\n'
   printf 'CONNECTIONS_DB_ADMIN_PASSWORD=%s\n' "$connections_admin_password"
   printf 'CONNECTIONS_DB_USER=uacrf_connections_runtime\n'
@@ -74,6 +88,8 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'IDENTITY_BOOTSTRAP_ADMIN_EXPIRES_AT=%s\n' "$admin_expires_at"
   printf 'UACRF_DELEGATION_PRIVATE_KEY_BASE64=%s\n' "$(base64 < "$private_key" | tr -d '\n')"
   printf 'UACRF_DELEGATION_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$public_key" | tr -d '\n')"
+  printf 'UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64=%s\n' "$(base64 < "$s02_private_key" | tr -d '\n')"
+  printf 'UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$s02_public_key" | tr -d '\n')"
 } > "$env_file"
 
 compose=(docker compose --env-file "$env_file" -p "$project_name" -f "$compose_file")
@@ -103,6 +119,7 @@ if ! "${compose[@]}" up --detach --build; then
 fi
 wait_for_url keycloak 'http://localhost:8180/realms/uacrf/.well-known/openid-configuration'
 wait_for_url identity 'http://localhost:8082/actuator/health'
+wait_for_url estate-catalog 'http://localhost:8083/actuator/health'
 wait_for_url connections 'http://localhost:8085/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'

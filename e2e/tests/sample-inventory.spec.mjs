@@ -58,6 +58,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     for (const capability of [
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write',
+      'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
+      'catalog.service.write',
     ]) {
       await approver.goto('/memberships');
       await approver.getByLabel('Target principal ID (required)').fill(principalId);
@@ -114,6 +116,33 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.locator('ul.inventory-list > li')).toHaveCount(17);
     await expect(sample.getByText('GCP', { exact: true }).first()).toBeVisible();
     await expect(sample.getByText('Unknown', { exact: true }).first()).toBeVisible();
+
+    const journeyName = `Browser journey ${randomUUID()}`;
+    await sample.goto('/journeys/new');
+    await sample.getByLabel('Name').fill(journeyName);
+    await sample.getByLabel('Purpose').fill('Validate authorized owner selection and S02 persistence.');
+    await sample.getByLabel('Eligible human owner').selectOption(principalId);
+    await sample.getByRole('button', { name: 'Create draft journey' }).click();
+    await expect(sample.getByRole('heading', { name: journeyName })).toBeVisible();
+    await expect(sample.getByText(principalId, { exact: true })).toBeVisible();
+
+    await sample.getByRole('link', { name: 'Register and link a service' }).click();
+    const serviceName = `Browser service ${randomUUID()}`;
+    await sample.getByLabel('Name (required)').fill(serviceName);
+    await sample.getByLabel('Registration reason (required)').fill('Validate authorized catalog registration.');
+    await sample.getByLabel('Eligible human owner (required)').selectOption(principalId);
+    await sample.locator('input[name="criticality"][value="3"]').check();
+    await sample.getByRole('button', { name: 'Register service' }).click();
+    await expect(sample.getByRole('heading', { name: /Link service to/ })).toBeVisible();
+    const serviceId = new URL(sample.url()).pathname.match(/\/services\/([^/]+)\/link$/)?.[1];
+    expect(serviceId).toBeTruthy();
+    await sample.getByRole('radio', { name: 'Required' }).check();
+    await sample.getByRole('button', { name: 'Link service' }).click();
+    await expect(sample.getByRole('heading', { name: journeyName })).toBeVisible();
+    await expect(sample.getByText(serviceId, { exact: true })).toBeVisible();
+
+    await sample.goto('/journeys');
+    await expect(sample.getByRole('link', { name: journeyName })).toBeVisible();
   } finally {
     await sampleContext.close();
   }

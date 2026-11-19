@@ -1,29 +1,24 @@
 # Runtime Validation Report
 
-**Generated**: 2026-11-17
+**Generated**: 2026-11-18
 
 **Target**: UACRF repository
 
 ## Latest live browser run
 
-On 2026-11-17, `npm --prefix e2e run test:live` passed **10 tests** with exit
-code 0. The suite verifies that an authorized administrator admits an
-unadmitted user through UX01, EDGE01, S01, and the trusted local Keycloak
-directory. The receipt confirms no runtime effect and no membership; the user
-remains absent from the selected-context principal directory until access is
-granted separately. The independent approver then records a grant decision,
-and the separate administrator applies it using the approval reference and
-matching principal, capability, scope, and expiry. S01 consumes the decision
-with membership creation. The approver cannot submit a direct principal
-disable request; the authorized administrator disables the admitted principal
-with a reason and current revision, while S01 preserves its memberships.
-Existing OIDC, context, logout, CSRF, invalid-password, and catalog-owner
-denial checks also pass. The suite additionally confirms an administrator
-without catalog-write authority cannot open a journey ownership-transfer page
-or submit a CSRF-valid transfer request; S01 rejects both before S02. No
-successful live transfer or catalog-side persistence check is covered. The
-stack was removed. These checks use local HTTP and do not cover all mutations
-or cross-origin/HTTPS behavior.
+On 2026-11-18, `npm --prefix e2e run test:live` passed **11 tests** with exit
+code 0. The disposable Compose stack included S02 and a separate PostgreSQL
+catalog database. In addition to the established OIDC, context, membership,
+admission, disable, CSRF, and denial flows, an independently authorized human
+created a draft journey, registered a service, linked it to that journey, and
+verified the journey and linked service through S02 readback. Catalog
+capabilities were granted through the separate approver decision and
+administrator membership workflow; the browser did not bypass owner selection.
+An administrator without catalog-write authority remains denied when opening
+journey ownership or transfer flows. The stack was removed after the run.
+This validates one authorized journey/service path, not all catalog mutations,
+successful ownership transfer, or workload registration, and does not cover
+cross-origin/HTTPS behavior or production identity-provider configuration.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection
@@ -49,7 +44,7 @@ below; the full Maven reactor was not rerun for the follow-ups.
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
 | Targeted service tests | PASS | 0 | Estate Catalog (20), API Edge (7), and UX01 (76); 103 tests, 0 failures, 0 errors, 0 skipped |
-| Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 10 tests in 3 files, all passed |
+| Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 11 tests in 4 files, all passed |
 
 **Overall**: PASS
 
@@ -75,6 +70,7 @@ The targeted service tests were run with:
 - Approver admission control hidden; a CSRF-valid direct admission submission is rejected by S01.
 - Independent approver decision followed by separate administrator membership creation; direct cross-role decision and membership submissions are denied.
 - Identity manager disables the admitted principal with an audited reason; a direct approver disable submission is denied, and the existing membership remains intact.
+- An independently authorized human creates a draft journey, registers a service, links it to the journey, and reads back the persisted journey and service through the browser.
 - An administrator without catalog-write authority cannot open the ownership-transfer page or submit a CSRF-valid direct transfer request; S01 denies both.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
@@ -95,11 +91,11 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   list until an independent membership grant is made.
 - The approval handoff uses an authorization reference shared through a
   trusted channel; the browser does not provide a persisted request inbox.
-- Authorized catalog writes remain untested. At the time of this baseline,
-  the initial administrator could not grant catalog authority to themselves
-  and `identity.owner.select` was not delegable. The latter restriction has
-  since been amended: independently approved global grants to human principals
-  are now supported; self-grants remain prohibited.
+- Successful catalog verification is limited to draft journey creation,
+  service registration, and journey linking. Standalone and service-bound
+  workload registration and successful ownership transfer remain untested.
+- Catalog authority is granted only through independently approved global
+  memberships for human principals; self-grants remain prohibited.
 
 ## Issues found
 
