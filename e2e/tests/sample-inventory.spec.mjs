@@ -102,6 +102,11 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'View sample inventory' }).click();
     await expect(sample.getByText('Synthetic sample: these observations are not live provider data or qualified evidence.'))
       .toBeVisible();
+    await expect(sample.getByRole('heading', { name: 'Source collection status' })).toBeVisible();
+    await expect(sample.getByText('NEVER_RUN', { exact: true }).first()).toBeVisible();
+    await expect(sample.getByText('Collection has not run yet.', { exact: true }).first()).toBeVisible();
+    await expect(sample.getByText('Not recorded', { exact: true }).first()).toBeVisible();
+    await expect(sample.getByText(/timestamps do not indicate freshness or staleness/)).toBeVisible();
     await expect(sample.locator('ul.inventory-list > li')).toHaveCount(25);
     await expect(sample.getByText('AWS', { exact: true }).first()).toBeVisible();
     await expect(sample.getByText('AZURE', { exact: true }).first()).toBeVisible();

@@ -199,7 +199,10 @@ cursor independent from inventory pagination. The targeted web suite passed 89
 tests (85 browser application and 4 connections client), with no failures,
 errors, or skips. The clean S03/EDGE01/delegation reactor passed 92 tests (57
 connections, 27 API edge, and 8 delegation-auth), with no failures, errors, or
-skips. These are local results, not live provider conformance.
+skips. The isolated browser E2E suite passed 11 tests, including the synthetic
+source `NEVER_RUN` report and its freshness limitation; the disposable stack
+was removed afterward. No cloud provider was contacted. These are local
+results, not live provider conformance.
 
 **Deferred live checks:** Continue implementation and application work using
 clearly labeled provider-shaped sample fixtures while account access and live

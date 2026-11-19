@@ -43,7 +43,9 @@ The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global
 owner selection, and S03 read/write access. It imports 42 sample observations,
 replays the import, and checks both inventory pages and provider labels. It
-does not contact cloud providers or qualify evidence.
+checks the per-source `NEVER_RUN` collection status and the explicit freshness
+limitation on the inventory page. It does not contact cloud providers or
+qualify evidence.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not
