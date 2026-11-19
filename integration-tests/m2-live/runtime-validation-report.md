@@ -9,7 +9,7 @@
 |---|---|---:|---|
 | Startup | PASS | 0 | Four objective/topology runs started real S01, S02, S05, S06 and S07 HTTP processes; a fifth run started real S03 and S04 processes. All health endpoints returned 200; the four topology runs started in 51.6-57.8 seconds. |
 | Focused integration tests | PASS | 0 | Final focused rerun with S06 Neo4j projection and S05 workload-owner checks enabled; 5 tests, 0 failures, 0 errors, 0 skipped. |
-| Full Maven reactor | NOT RERUN | — | The previously recorded full reactor passed 571 tests before the current S03 outbox reliability and live-process additions. The focused connections/delegation reactor and all five M2 live tests passed. |
+| Full Maven reactor | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the S03 outbox and process-test additions: 584 tests, 0 failures, 0 errors, 0 skipped, including all five M2 live tests. |
 | Browser E2E | N/A | n/a | This gate is API-only and renders no HTML. Browser/UX remains a separate acceptance requirement. |
 
 **Overall**: PASS — this focused gate does not establish full M2 acceptance.
