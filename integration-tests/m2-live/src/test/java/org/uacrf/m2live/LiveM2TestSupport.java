@@ -97,7 +97,7 @@ final class LiveM2TestSupport {
     }
   }
 
-  private static String bearer(
+  static String bearer(
       String tenantId,
       String environmentId,
       String principalId,
@@ -116,6 +116,36 @@ final class LiveM2TestSupport {
             List.of(),
             List.of());
     return "Bearer " + TOKEN_ISSUER.issue(principal, audience);
+  }
+
+  static String bearerWithEligibleOwners(
+      String tenantId,
+      String environmentId,
+      String principalId,
+      String actorSubject,
+      String audience,
+      List<String> capabilities,
+      List<String> eligibleOwnerIds) {
+    DelegationPrincipal principal =
+        new DelegationPrincipal(
+            principalId,
+            tenantId,
+            environmentId,
+            "*",
+            IDP_ISSUER,
+            actorSubject,
+            capabilities,
+            eligibleOwnerIds,
+            List.of());
+    return "Bearer " + TOKEN_ISSUER.issue(principal, audience);
+  }
+
+  static String delegationPublicKeyBase64() {
+    return Base64.getEncoder().encodeToString(DELEGATION_KEYS.getPublic().getEncoded());
+  }
+
+  static String delegationKeyId() {
+    return KEY_ID;
   }
 
   static String principalId(String label) {

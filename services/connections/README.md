@@ -100,7 +100,11 @@ identity values, absolute HTTP(S) token/delegation/inbox URLs, and a positive ba
 configuration fails at startup. Its HTTP calls share the runner's 2-second connect and 3-second
 response timeouts. Errors and timeouts leave outbox rows pending for retry; S04's inbox
 idempotency handles a retry when delivery succeeded but its response was lost. This does not
-establish live S03-to-S04 or production identity conformance.
+establish live S01 or production identity conformance.
+The `m2-live` process test also starts S03 and S04 with separate PostgreSQL databases and verifies
+that a connection created through S03's HTTP API reaches S04's inbox. Its S01 token and delegation
+endpoints are test stubs using ephemeral keys, so this is local wiring evidence rather than live
+identity or production conformance.
 
 AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` ExternalId, exposed by
 the authorized connection read endpoint for the target role's trust policy. The first AWS source
