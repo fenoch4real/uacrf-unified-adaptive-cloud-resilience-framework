@@ -42,8 +42,10 @@ handoff—there is no persisted request inbox or browser approval queue.
 
 The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global
-owner selection, S02 journey/service read/write, and S03 read/write access.
-It imports 42 sample observations,
+owner selection, S02 journey/service/agent read/write, and S03 read/write access.
+It also admits the local S03 publisher service account as a SYSTEM runtime
+principal and grants `runtime.principal.use` through that same independent
+approval workflow. It imports 42 sample observations,
 replays the import, and checks both inventory pages and provider labels. It
 checks the per-source `NEVER_RUN` collection status and the explicit freshness
 limitation on the inventory page. It does not contact cloud providers or
@@ -51,6 +53,9 @@ qualify evidence.
 
 The same authorized user creates a draft journey, registers and links a service
 through UX01, EDGE01, and S02, then reads the journey and linked service back.
+The user also registers standalone and service-bound agent workloads; S02
+returns a successful mutation receipt, and UX01 confirms that no runtime action
+was performed.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

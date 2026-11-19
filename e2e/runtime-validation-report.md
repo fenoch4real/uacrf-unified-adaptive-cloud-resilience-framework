@@ -14,11 +14,15 @@ created a draft journey, registered a service, linked it to that journey, and
 verified the journey and linked service through S02 readback. Catalog
 capabilities were granted through the separate approver decision and
 administrator membership workflow; the browser did not bypass owner selection.
-An administrator without catalog-write authority remains denied when opening
-journey ownership or transfer flows. The stack was removed after the run.
-This validates one authorized journey/service path, not all catalog mutations,
-successful ownership transfer, or workload registration, and does not cover
-cross-origin/HTTPS behavior or production identity-provider configuration.
+The test also admitted the trusted local S03 publisher service account as a
+SYSTEM principal, granted `runtime.principal.use` through the same independent
+approval flow, and registered standalone and service-bound agent workloads.
+S02 returned successful mutation receipts, and UX01 confirmed that no runtime
+action was performed. An administrator without catalog-write authority remains
+denied when opening journey ownership or transfer flows. The stack was removed
+after the run. Successful ownership transfer, production deployment identity,
+and production identity-provider configuration remain unverified; the suite
+does not cover cross-origin/HTTPS behavior.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection
@@ -71,6 +75,7 @@ The targeted service tests were run with:
 - Independent approver decision followed by separate administrator membership creation; direct cross-role decision and membership submissions are denied.
 - Identity manager disables the admitted principal with an audited reason; a direct approver disable submission is denied, and the existing membership remains intact.
 - An independently authorized human creates a draft journey, registers a service, links it to the journey, and reads back the persisted journey and service through the browser.
+- The same human registers a standalone and a service-bound workload using a separately approved SYSTEM runtime principal; both operations return S02 success receipts without executing runtime actions.
 - An administrator without catalog-write authority cannot open the ownership-transfer page or submit a CSRF-valid direct transfer request; S01 denies both.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
@@ -91,9 +96,11 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   list until an independent membership grant is made.
 - The approval handoff uses an authorization reference shared through a
   trusted channel; the browser does not provide a persisted request inbox.
-- Successful catalog verification is limited to draft journey creation,
-  service registration, and journey linking. Standalone and service-bound
-  workload registration and successful ownership transfer remain untested.
+- Successful catalog verification covers draft journey creation, service
+  registration/linking and readback, plus standalone and service-bound workload
+  registration receipts. There is no UX01 workload readback view, so workload
+  persistence is not independently verified through a read-after-write UI.
+  Successful ownership transfer also remains untested.
 - Catalog authority is granted only through independently approved global
   memberships for human principals; self-grants remain prohibited.
 

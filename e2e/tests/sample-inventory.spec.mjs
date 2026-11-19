@@ -49,20 +49,44 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   const principalId = admission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
   expect(principalId).toBeTruthy();
 
+  const runtimeLookup = await fetch(
+    `http://localhost:8180/admin/realms/uacrf/users?${new URLSearchParams({
+      username: 'service-account-uacrf-s03-publisher',
+      exact: 'true',
+    })}`,
+    { headers },
+  );
+  expect(runtimeLookup.status).toBe(200);
+  const runtimeUsers = await runtimeLookup.json();
+  expect(runtimeUsers).toHaveLength(1);
+  await page.goto('/principals');
+  await page.getByLabel('Trusted identity provider').selectOption('keycloak-local');
+  await page.getByLabel('Directory subject reference').fill(runtimeUsers[0].id);
+  await page.getByLabel('Reason for admission').fill('Isolated agent workload runtime principal.');
+  await page.getByRole('button', { name: 'Admit principal' }).click();
+  const runtimeAdmission = await page.getByRole('status').innerText();
+  const runtimePrincipalId =
+    runtimeAdmission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
+  expect(runtimePrincipalId).toBeTruthy();
+
   const approverContext = await browser.newContext();
   try {
     const approver = await approverContext.newPage();
     await signIn(approver, 'local-approver');
     await selectLocalContext(approver);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    for (const capability of [
+    const grants = [
+      ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
-      'catalog.service.write',
-    ]) {
+      'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
+      ].map((capability) => ({ principalId, capability })),
+      { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
+    ];
+    for (const { principalId: targetPrincipalId, capability } of grants) {
       await approver.goto('/memberships');
-      await approver.getByLabel('Target principal ID (required)').fill(principalId);
+      await approver.getByLabel('Target principal ID (required)').fill(targetPrincipalId);
       await approver.getByLabel('Capability (required)').fill(capability);
       await approver.getByLabel('Service scope (required)').fill('*');
       await approver.getByLabel('Membership expiry (UTC, ISO-8601; required)').fill(expiresAt);
@@ -71,7 +95,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const authorizationRef = await approver.locator('#grant-decision-reference').innerText();
 
       await page.goto('/memberships');
-      await page.getByLabel('Target principal ID (required)').fill(principalId);
+      await page.getByLabel('Target principal ID (required)').fill(targetPrincipalId);
       await page.getByLabel('Capability (required)').fill(capability);
       await page.getByLabel('Service scope (required)').fill('*');
       await page.getByLabel('Approved membership expiry (UTC, ISO-8601; required)').fill(expiresAt);
@@ -143,6 +167,31 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
 
     await sample.goto('/journeys');
     await expect(sample.getByRole('link', { name: journeyName })).toBeVisible();
+
+    await sample.goto('/agents/new');
+    await expect(sample.getByText('This agent will be standalone, without a service anchor.'))
+      .toBeVisible();
+    await sample.getByLabel('Name (required)').fill(`Standalone agent ${randomUUID()}`);
+    await sample.locator('input[name="kind"][value="SINGLE_AGENT"]').check();
+    await sample.getByLabel('Eligible human owner (required)').selectOption(principalId);
+    await sample.getByLabel('Runtime principal ID (required)').fill(runtimePrincipalId);
+    await sample.getByLabel('Purpose (required)').fill('Validate authorized standalone workload registration.');
+    await sample.getByRole('button', { name: 'Register agent workload' }).click();
+    await expect(sample.getByRole('status')).toContainText(
+      'was created. No runtime action was performed.',
+    );
+
+    await sample.goto(`/services/${serviceId}/agents/new`);
+    await expect(sample.locator('main')).toContainText(`Service-bound agent for ${serviceId}`);
+    await sample.getByLabel('Name (required)').fill(`Service-bound agent ${randomUUID()}`);
+    await sample.locator('input[name="kind"][value="MULTI_AGENT"]').check();
+    await sample.getByLabel('Eligible human owner (required)').selectOption(principalId);
+    await sample.getByLabel('Runtime principal ID (required)').fill(runtimePrincipalId);
+    await sample.getByLabel('Purpose (required)').fill('Validate authorized service-bound workload registration.');
+    await sample.getByRole('button', { name: 'Register agent workload' }).click();
+    await expect(sample.getByRole('status')).toContainText(
+      'was created. No runtime action was performed.',
+    );
   } finally {
     await sampleContext.close();
   }
