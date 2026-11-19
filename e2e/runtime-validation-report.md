@@ -27,7 +27,9 @@ independent approval for the client-credentials delegation check. After
 registration, UX01 used a separate S01 delegation restricted to
 `catalog.agent.read` to read both persisted workloads from S02 and verify their
 identifiers, kinds, owners, runtime principals, and service association. No
-runtime action was performed. The stack was removed after the run.
+runtime action was performed. A separately admitted transferee with only
+`owner.eligible` received HTTP 403 from S01 on `/agents` and saw no workload
+records. The stack was removed after the run.
 The same run authenticates the disposable S03 publisher with Keycloak
 client-credentials, verifies through EDGE01 that S01 resolves it to the
 admitted SYSTEM principal with only its two approved capabilities, and obtains
@@ -99,7 +101,11 @@ The UX01 focused rerun was:
 - Identity manager disables the admitted principal with an audited reason; a direct approver disable submission is denied, and the existing membership remains intact.
 - An independently authorized human creates a draft journey, registers a service, links it to the journey, and reads back the persisted journey and service through the browser.
 - The bootstrap transfer operator, without catalog-write authority, transfers the journey and unanchored service to a separately admitted eligible human; the browser verifies both updated owners and denies transfer to a principal without transfer authority.
-- The same human registers a standalone and a service-bound workload using a separately approved SYSTEM runtime principal; UX01 reads both persisted records back from S02 through a narrow read delegation, without executing runtime actions.
+- The same human registers a standalone and a service-bound workload using a
+  separately approved SYSTEM runtime principal; UX01 reads both persisted
+  records back from S02 through a narrow read delegation, without executing
+  runtime actions. A transferee with only `owner.eligible` is denied readback
+  by S01 and sees no records.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
 

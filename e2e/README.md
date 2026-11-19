@@ -64,7 +64,9 @@ The user also registers standalone and service-bound agent workloads, then
 reads both persisted records back through UX01 using a narrow
 `catalog.agent.read` delegation. The readback verifies workload identifiers,
 kind, owner, runtime principal, and service association; no runtime action is
-performed. Separately, the suite admits the dedicated `uacrf-s03-collector`
+performed. A separately admitted transferee with only `owner.eligible` is
+denied workload readback by S01 and receives no records. Separately, the suite
+admits the dedicated `uacrf-s03-collector`
 service account as SYSTEM, grants it only `connections.observation.write`
 through the approval workflow, and verifies client-credentials resolution and
 a narrow S03 delegation through S01. An ungranted catalog capability is

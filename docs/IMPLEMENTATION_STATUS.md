@@ -19,7 +19,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; a paginated S03 source-collection outcome report is available through EDGE01. Complete live conformance for AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, and GCP Cloud Asset Inventory and Monitoring metrics (all remain unaccepted), broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement additional reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -134,8 +134,10 @@ unknown GCP locations, plus an authorized S02 flow that creates a journey,
 registers and links a service,
 reads persisted journey/service state back, and registers standalone and
 service-bound agent workloads, then reads both persisted workloads through the
-UX01 page using a narrow `catalog.agent.read` delegation. No runtime action is
-performed and no live cloud provider is queried.
+UX01 page using a narrow `catalog.agent.read` delegation. A separate admitted
+user with only `owner.eligible` is denied this read by S01 and receives no
+workload records. No runtime action is performed and no live cloud provider is
+queried.
 
 S01 now supports selecting eligible owners for `CONNECTION` through its
 existing owner-candidates API. The caller must hold both global
@@ -1402,10 +1404,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 
 The live browser suite verifies authorized draft journey creation,
 service registration/linking and readback, standalone and service-bound
-workload registration and persisted UX01/S02 readback, operator-only ownership
-transfer, and isolated S03 publisher/collector client-credentials delegation
-through independently granted S01 authority. The isolated collector runner
-remains disabled.
+workload registration and persisted UX01/S02 readback, denial of readback to a
+user lacking `catalog.agent.read`, operator-only ownership transfer, and
+isolated S03 publisher/collector client-credentials delegation through
+independently granted S01 authority. The isolated collector runner remains
+disabled.
 Continue M1 with production deployment-identity verification and full
 end-to-end acceptance; do not bypass authorization. Continue integrated work
 with explicitly synthetic samples while live provider validation remains

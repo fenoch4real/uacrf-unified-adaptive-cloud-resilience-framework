@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
-import { selectLocalContext, signIn } from './helpers/auth.mjs';
+import { expectCurrentAccess, selectLocalContext, signIn } from './helpers/auth.mjs';
 
 test.use({ actionTimeout: 10_000, navigationTimeout: 30_000 });
 
@@ -382,6 +382,30 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(serviceBoundRecord).toContainText(principalId);
     await expect(serviceBoundRecord).toContainText(runtimePrincipalId);
     await expect(serviceBoundRecord.locator('dd').last()).toHaveText('1');
+
+    const restrictedContext = await browser.newContext();
+    try {
+      const restricted = await restrictedContext.newPage();
+      await restricted.goto('/contexts');
+      await restricted.locator('#username').fill(transfereeUsername);
+      await restricted.locator('#password').fill(transfereePassword);
+      await restricted.locator('#kc-login').click();
+      await expect(
+        restricted.getByRole('heading', { name: 'Unified Adaptive Cloud Resilience Framework' }),
+      ).toBeVisible();
+      await selectLocalContext(restricted);
+      await expectCurrentAccess(restricted, 'Browser Transferee', ['owner.eligible']);
+
+      const deniedResponse = await restricted.goto('/agents');
+      expect(deniedResponse.status()).toBe(403);
+      await expect(restricted.getByRole('status')).toContainText(
+        'S01 did not authorize agent workload access (HTTP 403).',
+      );
+      await expect(restricted.getByText(standaloneName, { exact: true })).toHaveCount(0);
+      await expect(restricted.getByText(serviceBoundName, { exact: true })).toHaveCount(0);
+    } finally {
+      await restrictedContext.close();
+    }
   } finally {
     await sampleContext.close();
   }
