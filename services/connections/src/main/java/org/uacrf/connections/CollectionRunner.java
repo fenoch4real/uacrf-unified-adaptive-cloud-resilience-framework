@@ -31,6 +31,7 @@ class CollectionRunner {
   private static final Logger LOG = LoggerFactory.getLogger(CollectionRunner.class);
   private static final List<String> OBSERVATION_WRITE = List.of("connections.observation.write");
   private static final int MAX_CHECKPOINT_LENGTH = 4096;
+  private static final Duration TOKEN_REFRESH_MARGIN = Duration.ofSeconds(5);
 
   private final CollectionCheckpointStore checkpoints;
   private final Map<ConnectionsRequests.Provider, ProviderCollector> collectors;
@@ -102,8 +103,8 @@ class CollectionRunner {
   }
 
   int runDue() {
-    Map<String, String> identityTokens = new LinkedHashMap<>();
-    Map<String, String> delegations = new LinkedHashMap<>();
+    Map<String, CachedToken> identityTokens = new LinkedHashMap<>();
+    Map<String, CachedToken> delegations = new LinkedHashMap<>();
     int completed = 0;
     while (completed < batchSize) {
       List<LeasedSource> sources =
@@ -145,8 +146,8 @@ class CollectionRunner {
 
   private void collect(
       LeasedSource source,
-      Map<String, String> identityTokens,
-      Map<String, String> delegations) {
+      Map<String, CachedToken> identityTokens,
+      Map<String, CachedToken> delegations) {
     if (source.pendingObservations() != null) {
       if (source.pendingCollectedAt() == null) {
         throw new IllegalStateException("Pending collection batch has no collection time.");
@@ -217,8 +218,8 @@ class CollectionRunner {
       List<ProviderCollector.Observation> observations,
       String nextCheckpoint,
       Instant collectedAt,
-      Map<String, String> identityTokens,
-      Map<String, String> delegations) {
+      Map<String, CachedToken> identityTokens,
+      Map<String, CachedToken> delegations) {
     checkpoints.renew(source, Duration.ofMillis(leaseMs));
     validateBatch(observations, nextCheckpoint);
     String scope = source.tenantId() + "/" + source.environmentId();
@@ -226,15 +227,17 @@ class CollectionRunner {
         observations.stream()
             .sorted(java.util.Comparator.comparingLong(ProviderCollector.Observation::sequence))
             .toList()) {
-      String identityToken =
-          identityTokens.computeIfAbsent(scope, ignored -> identityToken(source));
-      String delegation =
-          delegations.computeIfAbsent(
-              scope,
-              ignored ->
-                  delegation(
-                      source, identityToken, source.tenantId(), source.environmentId()));
-      submit(source, observation, delegation);
+      CachedToken delegation = delegations.get(scope);
+      if (!usable(delegation)) {
+        CachedToken identity = identityTokens.get(scope);
+        if (!usable(identity)) {
+          identity = identityToken(source);
+          identityTokens.put(scope, identity);
+        }
+        delegation = delegation(source, identity.value(), source.tenantId(), source.environmentId());
+        delegations.put(scope, delegation);
+      }
+      submit(source, observation, delegation.value());
     }
     complete(
         source,
@@ -286,22 +289,24 @@ class CollectionRunner {
     }
   }
 
-  private String identityToken(LeasedSource source) {
+  private CachedToken identityToken(LeasedSource source) {
     checkpoints.renew(source, Duration.ofMillis(leaseMs));
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("grant_type", "client_credentials");
     form.add("client_id", clientId);
     form.add("client_secret", clientSecret);
+    long startedAt = System.nanoTime();
     return accessToken(
         http.post()
             .uri(tokenUrl)
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
             .body(form)
             .retrieve()
-            .body(Map.class));
+            .body(Map.class),
+        startedAt);
   }
 
-  private String delegation(
+  private CachedToken delegation(
       LeasedSource source, String identityToken, String tenant, String environment) {
     checkpoints.renew(source, Duration.ofMillis(leaseMs));
     Map<String, Object> request = new LinkedHashMap<>();
@@ -309,6 +314,7 @@ class CollectionRunner {
     request.put("capability_ids", OBSERVATION_WRITE);
     request.put("tenant_id", tenant);
     request.put("environment_id", environment);
+    long startedAt = System.nanoTime();
     return accessToken(
         http.post()
             .uri(delegationUrl)
@@ -316,7 +322,8 @@ class CollectionRunner {
             .contentType(MediaType.APPLICATION_JSON)
             .body(request)
             .retrieve()
-            .body(Map.class));
+            .body(Map.class),
+        startedAt);
   }
 
   private void complete(
@@ -356,13 +363,30 @@ class CollectionRunner {
     }
   }
 
-  private static String accessToken(Map<?, ?> response) {
+  private static CachedToken accessToken(Map<?, ?> response, long startedAt) {
     Object token = response == null ? null : response.get("access_token");
     if (!(token instanceof String value) || value.isBlank()) {
       throw new IllegalStateException("Token endpoint returned no access_token.");
     }
-    return value;
+    Object expires = response.get("expires_in");
+    if (!response.containsKey("expires_in")) {
+      return new CachedToken(value, startedAt, 0);
+    }
+    if (!(expires instanceof Number number)
+        || number.longValue() <= 0
+        || number.doubleValue() != number.longValue()) {
+      throw new IllegalStateException("Token endpoint returned an invalid expires_in.");
+    }
+    long lifetime = Math.min(number.longValue(), 86400);
+    long usableSeconds = Math.max(0, lifetime - TOKEN_REFRESH_MARGIN.toSeconds());
+    return new CachedToken(value, startedAt, Duration.ofSeconds(usableSeconds).toNanos());
   }
+
+  private static boolean usable(CachedToken token) {
+    return token != null && System.nanoTime() - token.startedAt() < token.usableNanos();
+  }
+
+  private record CachedToken(String value, long startedAt, long usableNanos) {}
 
   private static String statusDetail(Batch.Status status) {
     return switch (status) {

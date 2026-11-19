@@ -88,7 +88,10 @@ validity. Its identity, delegation, and intake HTTP calls use bounded
 2-second connect and 3-second response timeouts. Timeout failures do not advance checkpoints, and
 any persisted batch is replayed unchanged on retry. Provider-reported retry times are honored,
 intake failures do not advance checkpoints, and a partially accepted batch is persisted and
-replayed unchanged on retry. The runner renews each database lease before provider collection and
+replayed unchanged on retry. Within a collection cycle, identity and delegation tokens are
+reused only until five seconds before their reported expiry, measured from the start of the token
+request using monotonic time; a response without `expires_in` is not cached, and an invalid
+lifetime fails the attempt without advancing the checkpoint. The runner renews each database lease before provider collection and
 before its token, delegation, and intake calls; renewal fails closed if another runner has replaced
 the lease token. Failure to record one lost lease is logged without stopping unrelated claims in
 the same collection cycle. It claims one source at a time, up to the configured cycle limit, so

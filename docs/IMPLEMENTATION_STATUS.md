@@ -667,6 +667,12 @@ credential validity.
 Its identity, delegation, and intake HTTP calls use bounded 2-second connect
 and 3-second response timeouts; timeout failures retain the prior checkpoint
 and replay any persisted batch unchanged.
+During each collection cycle, cached identity and delegation tokens refresh
+five seconds before their reported expiry, measured from the start of the
+token request using monotonic time. Tokens without `expires_in` are not cached;
+invalid lifetimes fail the attempt without advancing the checkpoint. Focused
+tests simulate short, reusable, absent, and invalid lifetimes with HTTP
+fixtures and verify a retained batch completes without recollection.
 The runner renews leases before provider calls and each outbound request, and
 stale lease tokens cannot renew after another runner takes ownership.
 Failure to record a lost lease is logged without aborting unrelated claims in
@@ -682,8 +688,8 @@ identity-endpoint test verifies a token-endpoint timeout leaves its outbox row
 pending and succeeds on retry. S03 also requires the S04 acknowledgement's
 `event_id` to match the sent event before treating `RECEIVED`, `DUPLICATE`, or
 `QUARANTINED` as terminal; a missing or mismatched ID leaves the row pending.
-The full connections module suite passed 68 tests, and its delegation-auth
-dependency passed 8 tests (76 total in the selected reactor), with no failures,
+The full connections module suite passed 70 tests, and its delegation-auth
+dependency passed 8 tests (78 total in the selected reactor), with no failures,
 errors, or skips. This includes bounded runner and publisher identity calls,
 AWS SDK timeout, and active lease renewal cases. The latest
 targeted runner/application/publisher rerun passed 27 tests, including rejection

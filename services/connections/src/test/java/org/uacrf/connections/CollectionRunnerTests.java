@@ -29,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.uacrf.connections.CollectionCheckpointStore.LeasedSource;
 import org.uacrf.connections.ProviderCollector.Batch;
 import org.uacrf.connections.ProviderCollector.Observation;
+import tools.jackson.databind.json.JsonMapper;
 
 class CollectionRunnerTests {
   @Test
@@ -501,6 +502,91 @@ class CollectionRunnerTests {
     }
   }
 
+  @Test
+  void refreshesExpiringTokensWhileReplayingACompleteBatch() throws Exception {
+    for (List<Integer> lifetimes :
+        List.of(
+            List.of(1, 1, 2, 2),
+            List.of(30, 1, 1, 2),
+            List.of(30, 30, 1, 1),
+            List.of(-1, -1, 2, 2))) {
+      List<String> calls = new CopyOnWriteArrayList<>();
+      HttpServer server = startExpiringServer(calls, lifetimes.get(0), lifetimes.get(1));
+      try {
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        CollectionCheckpointStore checkpoints = mock(CollectionCheckpointStore.class);
+        Instant collectedAt = Instant.parse("2026-11-17T17:00:00Z");
+        LeasedSource source =
+            sourceWithPending(
+                List.of(
+                    new Observation("obs-1", 8, collectedAt, "aws.config.resources", "{}"),
+                    new Observation("obs-2", 9, collectedAt, "aws.config.resources", "{}")),
+                "next-page",
+                collectedAt);
+        when(checkpoints.claimDue(1, Duration.ofMillis(2000))).thenReturn(List.of(source));
+        ProviderCollector collector = mock(ProviderCollector.class);
+        when(collector.provider()).thenReturn(ConnectionsRequests.Provider.AWS);
+
+        assertThat(runner(checkpoints, collector, baseUrl, 1, 2000, 10).runDue()).isEqualTo(1);
+
+        assertThat(calls.stream().filter(call -> call.startsWith("token:")).count())
+            .isEqualTo(lifetimes.get(2).longValue());
+        assertThat(calls.stream().filter(call -> call.startsWith("delegation:")).count())
+            .isEqualTo(lifetimes.get(3).longValue());
+        assertThat(calls.stream().filter(call -> call.startsWith("observation:")).count())
+            .isEqualTo(2);
+        verify(checkpoints)
+            .complete(
+                eq(source),
+                eq("COLLECTED"),
+                eq("Batch submitted to observation intake."),
+                eq("next-page"),
+                eq(collectedAt),
+                any(),
+                eq(true));
+        verify(collector, never()).collect(any());
+      } finally {
+        server.stop(0);
+      }
+    }
+  }
+
+  @Test
+  void invalidTokenLifetimeDoesNotAdvanceTheCollectionCheckpoint() throws Exception {
+    for (int lifetime : List.of(0, -2)) {
+      List<String> calls = new CopyOnWriteArrayList<>();
+      HttpServer server = startExpiringServer(calls, lifetime, 30);
+      try {
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        CollectionCheckpointStore checkpoints = mock(CollectionCheckpointStore.class);
+        Instant collectedAt = Instant.parse("2026-11-17T17:00:00Z");
+        LeasedSource source =
+            sourceWithPending(
+                List.of(new Observation("obs-1", 8, collectedAt, "aws.config.resources", "{}")),
+                "next-page",
+                collectedAt);
+        when(checkpoints.claimDue(1, Duration.ofMillis(2000))).thenReturn(List.of(source));
+        ProviderCollector collector = mock(ProviderCollector.class);
+        when(collector.provider()).thenReturn(ConnectionsRequests.Provider.AWS);
+
+        assertThat(runner(checkpoints, collector, baseUrl, 1, 2000, 10).runDue()).isEqualTo(1);
+
+        assertThat(calls).noneMatch(call -> call.startsWith("observation:"));
+        verify(checkpoints)
+            .complete(
+                eq(source),
+                eq("FAILED"),
+                any(),
+                eq(source.checkpoint()),
+                eq(source.lastCollectedAt()),
+                any(),
+                eq(false));
+      } finally {
+        server.stop(0);
+      }
+    }
+  }
+
   private static CollectionRunner runner(
       CollectionCheckpointStore checkpoints,
       ProviderCollector collector,
@@ -601,11 +687,62 @@ class CollectionRunnerTests {
     return server;
   }
 
+  private static HttpServer startExpiringServer(
+      List<String> calls, int identityLifetime, int delegationLifetime) throws IOException {
+    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/token",
+        exchange ->
+            respond(
+                exchange,
+                calls,
+                "token:",
+                tokenResponse("identity-token", identityLifetime),
+                200));
+    server.createContext(
+        "/delegations",
+        exchange ->
+            respond(
+                exchange,
+                calls,
+                "delegation:",
+                tokenResponse("delegation-token", delegationLifetime),
+                200));
+    server.createContext(
+        "/v1/connections/connection-1/observations",
+        exchange -> {
+          String request =
+              new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+          var observation = JsonMapper.builder().build().readTree(request);
+          String body =
+              "{\"id\":\""
+                  + observation.get("id").asString()
+                  + "\",\"status\":\"ACCEPTED\",\"sequence\":"
+                  + observation.get("sequence").asLong()
+                  + "}";
+          respond(exchange, calls, "observation:", body, 202, request);
+        });
+    server.start();
+    return server;
+  }
+
+  private static String tokenResponse(String token, int lifetime) {
+    String expires =
+        lifetime == -1 ? "" : ",\"expires_in\":" + (lifetime == -2 ? "null" : lifetime);
+    return "{\"access_token\":\"" + token + "\"" + expires + "}";
+  }
+
   private static void respond(
       HttpExchange exchange, List<String> calls, String label, String body, int status)
       throws IOException {
-    String authorization = exchange.getRequestHeaders().getFirst("Authorization");
     String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    respond(exchange, calls, label, body, status, request);
+  }
+
+  private static void respond(
+      HttpExchange exchange, List<String> calls, String label, String body, int status, String request)
+      throws IOException {
+    String authorization = exchange.getRequestHeaders().getFirst("Authorization");
     calls.add(label + (authorization == null ? "" : authorization) + "|" + request);
     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().add("Content-Type", "application/json");
