@@ -9,7 +9,7 @@
 |---|---|---:|---|
 | Startup | PASS | 0 | Four objective/topology runs started real S01, S02, S05, S06 and S07 HTTP processes; the fifth run started those support services plus real S03 and S04 processes. All health endpoints returned 200. |
 | Focused integration tests | PASS | 0 | The current root reactor ran all five `m2-live` process tests against rebuilt services: 5 tests, 0 failures, 0 errors, 0 skipped. |
-| Full Maven reactor | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the acknowledgement-ID and collection-token changes: 588 tests, 0 failures, 0 errors, 0 skipped. |
+| Full Maven reactor | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the acknowledgement-ID, collection-token, and aggregate-type changes: 590 tests, 0 failures, 0 errors, 0 skipped. |
 | Browser E2E | N/A | n/a | This gate is API-only and renders no HTML. Browser/UX remains a separate acceptance requirement. |
 
 **Overall**: PASS — this focused gate does not establish full M2 acceptance.
@@ -64,10 +64,12 @@ The latest full-reactor command was:
 ./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify
 ```
 
-This run passed 588 tests, including all five `m2-live` tests, after the
-acknowledgement-ID and collection-token changes. It supersedes the earlier
-584-test root verification. It does not exercise live provider collection or
-prove that a retained collection batch refreshes tokens in a running process.
+This run passed 590 tests, including all five `m2-live` tests, after the
+acknowledgement-ID, collection-token, and aggregate-type changes. The live
+S03/S04 journey verifies the retained connection event's `aggregate_type`.
+It supersedes the earlier 588- and 584-test root verifications. It does not
+exercise live provider collection or prove that a retained collection batch
+refreshes tokens in a running process.
 
 ## Boundaries and known gaps
 

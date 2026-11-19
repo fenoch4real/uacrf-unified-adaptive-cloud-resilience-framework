@@ -105,6 +105,10 @@ response timeouts. Errors and timeouts leave outbox rows pending for retry; S04'
 idempotency handles a retry when delivery succeeded but its response was lost. S03 requires the
 response `event_id` to match the sent event before accepting `RECEIVED`, `DUPLICATE`, or
 `QUARANTINED`; a missing or mismatched ID leaves the row pending.
+Each published event includes the outbox row's `aggregate_type`. S04 scopes
+aggregate sequencing by source service, aggregate type, and aggregate ID, so
+connection, source-binding, and observation IDs cannot block one another when
+their values coincide.
 The `m2-live` process test also starts S03 and S04 with separate PostgreSQL databases and verifies
 that a connection created through S03's HTTP API reaches S04's inbox through real local S01
 admission, grant, membership, and delegation APIs. The directory, client-credentials endpoint,

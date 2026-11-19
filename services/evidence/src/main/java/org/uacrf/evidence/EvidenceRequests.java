@@ -57,8 +57,21 @@ final class EvidenceRequests {
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String eventId,
       @NotBlank @Pattern(regexp = "^S[0-9]{2}$") String sourceService,
       @NotBlank @Pattern(regexp = "^[a-z][a-z0-9_.-]{0,99}$") String eventType,
+      @NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_]{0,63}$") String aggregateType,
       @NotBlank @Size(max = 200) String aggregateId,
       @Min(1) long aggregateSequence,
       @NotBlank @Size(max = 16384) String payload,
-      @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String payloadDigest) {}
+      @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String payloadDigest) {
+    InboxEvent {
+      if (aggregateType == null) {
+        aggregateType =
+            switch (eventType == null ? "" : eventType) {
+              case "connections.connection.registered" -> "CONNECTION";
+              case "connections.source-binding.created" -> "SOURCE_BINDING";
+              case "connections.observation.accepted" -> "OBSERVATION";
+              default -> null;
+            };
+      }
+    }
+  }
 }

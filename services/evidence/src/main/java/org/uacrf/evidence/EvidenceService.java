@@ -570,18 +570,28 @@ class EvidenceService {
         actor.tenantId() + "|" + actor.environmentId() + "|" + event.eventId());
     jdbc.queryForList(
         "SELECT pg_advisory_xact_lock(hashtext(?))",
-        actor.tenantId() + "|" + actor.environmentId() + "|" + event.sourceService() + "|" + event.aggregateId());
+        actor.tenantId()
+            + "|"
+            + actor.environmentId()
+            + "|"
+            + event.sourceService()
+            + "|"
+            + event.aggregateType()
+            + "|"
+            + event.aggregateId());
     if (!sha256(event.payload()).equals(event.payloadDigest())) {
       return quarantineEvent(actor, event, "DIGEST_MISMATCH");
     }
     List<Boolean> seen =
         jdbc.query(
-            "SELECT source_service, event_type, aggregate_id, aggregate_sequence, payload, payload_digest FROM "
+            "SELECT source_service, event_type, aggregate_type, aggregate_id, aggregate_sequence, "
+                + "payload, payload_digest FROM "
                 + SCHEMA + "inbox_event WHERE tenant_id = ? "
                 + "AND environment_id = ? AND event_id = ?",
             (row, index) ->
                 event.sourceService().equals(row.getString("source_service"))
                     && event.eventType().equals(row.getString("event_type"))
+                    && event.aggregateType().equals(row.getString("aggregate_type"))
                     && event.aggregateId().equals(row.getString("aggregate_id"))
                     && event.aggregateSequence() == row.getLong("aggregate_sequence")
                     && event.payload().equals(row.getString("payload"))
@@ -597,24 +607,27 @@ class EvidenceService {
     Long last =
         jdbc.queryForObject(
             "SELECT max(aggregate_sequence) FROM " + SCHEMA + "inbox_event WHERE tenant_id = ? "
-                + "AND environment_id = ? AND source_service = ? AND aggregate_id = ?",
+                + "AND environment_id = ? AND source_service = ? AND aggregate_type = ? "
+                + "AND aggregate_id = ?",
             Long.class,
             actor.tenantId(),
             actor.environmentId(),
             event.sourceService(),
+            event.aggregateType(),
             event.aggregateId());
     if (last != null && event.aggregateSequence() <= last) {
       return quarantineEvent(actor, event, "SEQUENCE_REGRESSION");
     }
     jdbc.update(
         "INSERT INTO " + SCHEMA + "inbox_event (tenant_id, environment_id, event_id, source_service, "
-            + "event_type, aggregate_id, aggregate_sequence, payload, payload_digest) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "event_type, aggregate_type, aggregate_id, aggregate_sequence, payload, payload_digest) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         actor.tenantId(),
         actor.environmentId(),
         event.eventId(),
         event.sourceService(),
         event.eventType(),
+        event.aggregateType(),
         event.aggregateId(),
         event.aggregateSequence(),
         event.payload(),
@@ -625,14 +638,15 @@ class EvidenceService {
   private InboxResult quarantineEvent(DelegationPrincipal actor, InboxEvent event, String reason) {
     jdbc.update(
         "INSERT INTO " + SCHEMA + "quarantined_inbox_event (quarantine_id, tenant_id, environment_id, "
-            + "event_id, source_service, event_type, aggregate_id, aggregate_sequence, reason, payload, claimed_digest) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "event_id, source_service, event_type, aggregate_type, aggregate_id, aggregate_sequence, "
+            + "reason, payload, claimed_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         UUID.randomUUID(),
         actor.tenantId(),
         actor.environmentId(),
         event.eventId(),
         event.sourceService(),
         event.eventType(),
+        event.aggregateType(),
         event.aggregateId(),
         event.aggregateSequence(),
         reason,

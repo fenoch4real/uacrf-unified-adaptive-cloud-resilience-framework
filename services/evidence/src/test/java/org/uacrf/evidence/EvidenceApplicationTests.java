@@ -884,6 +884,12 @@ class EvidenceApplicationTests {
   void inboxChecksDigestDuplicatesAndAggregateSequence() throws Exception {
     String submit = bearer("submitter", "tenant-i", SUBMITTER);
     assertThat(post("/internal/v1/inbox/events", submit, event("ev1", 2, "x", null)).body()).contains("RECEIVED");
+    assertEquals(
+        "OBSERVATION",
+        jdbc.queryForObject(
+            "SELECT aggregate_type FROM uacrf_evidence.inbox_event "
+                + "WHERE tenant_id = 'tenant-i' AND event_id = 'ev1'",
+            String.class));
     assertThat(post("/internal/v1/inbox/events", submit, event("ev1", 2, "x", null)).body()).contains("DUPLICATE");
     assertThat(post("/internal/v1/inbox/events", submit, event("ev1", 2, "y", null)).body()).contains("EVENT_CONFLICT");
     assertThat(post("/internal/v1/inbox/events", submit, event("ev2", 1, "z", null)).body()).contains("SEQUENCE_REGRESSION");
@@ -892,9 +898,73 @@ class EvidenceApplicationTests {
   }
 
   @Test
+  void inboxSequencesAreScopedByAggregateType() throws Exception {
+    String submit = bearer("submitter", "tenant-aggregate-type", SUBMITTER);
+    String connection =
+        typedEvent(
+            "connection-event",
+            "CONNECTION",
+            "connections.connection.registered",
+            "shared-id",
+            1,
+            "connection",
+            null);
+    String binding =
+        typedEvent(
+            "binding-event",
+            "SOURCE_BINDING",
+            "connections.source-binding.created",
+            "shared-id",
+            1,
+            "binding",
+            null);
+
+    assertThat(post("/internal/v1/inbox/events", submit, connection).body()).contains("RECEIVED");
+    assertThat(post("/internal/v1/inbox/events", submit, binding).body()).contains("RECEIVED");
+    assertThat(
+            post(
+                    "/internal/v1/inbox/events",
+                    submit,
+                    typedEvent(
+                        "stale-connection-event",
+                        "CONNECTION",
+                        "connections.connection.registered",
+                        "shared-id",
+                        1,
+                        "stale",
+                        null))
+                .body())
+        .contains("SEQUENCE_REGRESSION");
+    assertEquals("CONFLICT", inboxIntegrity("tenant-aggregate-type", "connection-event"));
+    assertEquals("NO_KNOWN_CONFLICT", inboxIntegrity("tenant-aggregate-type", "binding-event"));
+  }
+
+  @Test
+  void inboxRequiresAggregateTypeForUnrecognizedLegacyEventTypes() throws Exception {
+    String submit = bearer("submitter", "tenant-unknown-aggregate-type", SUBMITTER);
+    String unsupportedLegacyEvent =
+        event("unknown-event", 1, "payload", null)
+            .replace(
+                "connections.observation.accepted",
+                "connections.observation.custom");
+
+    assertEquals(
+        400,
+        post("/internal/v1/inbox/events", submit, unsupportedLegacyEvent).statusCode());
+  }
+
+  @Test
   void inboxQuarantinesReplayWithChangedEnvelopeEvenWhenPayloadMatches() throws Exception {
     String submit = bearer("submitter", "tenant-envelope", SUBMITTER);
-    String original = event("envelope-1", 1, "same-payload", null);
+    String original =
+        typedEvent(
+            "envelope-1",
+            "OBSERVATION",
+            "connections.observation.accepted",
+            "obs-1",
+            1,
+            "same-payload",
+            null);
     assertThat(post("/internal/v1/inbox/events", submit, original).body()).contains("RECEIVED");
     assertThat(post("/internal/v1/inbox/events", submit, original).body()).contains("DUPLICATE");
 
@@ -902,6 +972,8 @@ class EvidenceApplicationTests {
         List.of(
             original.replace("\"source_service\":\"S03\"", "\"source_service\":\"S05\""),
             original.replace("connections.observation.accepted", "connections.observation.changed"),
+            original.replace(
+                "\"aggregate_type\":\"OBSERVATION\"", "\"aggregate_type\":\"CONNECTION\""),
             original.replace("\"aggregate_id\":\"obs-1\"", "\"aggregate_id\":\"obs-2\""),
             original.replace("\"aggregate_sequence\":1", "\"aggregate_sequence\":2"))) {
       HttpResponse<String> response = post("/internal/v1/inbox/events", submit, changed);
@@ -910,7 +982,7 @@ class EvidenceApplicationTests {
     }
     assertThat(post("/internal/v1/inbox/events", submit, original).body()).contains("DUPLICATE");
     assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.inbox_event WHERE tenant_id = 'tenant-envelope'", Integer.class));
-    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event WHERE tenant_id = 'tenant-envelope' AND reason = 'EVENT_CONFLICT'", Integer.class));
+    assertEquals(5, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event WHERE tenant_id = 'tenant-envelope' AND reason = 'EVENT_CONFLICT'", Integer.class));
     assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event WHERE tenant_id = 'tenant-envelope' AND event_type = 'connections.observation.changed'", Integer.class));
     String otherTenant = bearer("submitter", "tenant-envelope-other", SUBMITTER);
     assertThat(post("/internal/v1/inbox/events", otherTenant, original).body()).contains("RECEIVED");
@@ -949,10 +1021,24 @@ class EvidenceApplicationTests {
   void inboxIntegrityViewFlagsConflictingIdsAndSequencesWithoutFlaggingUnrelatedEvents()
       throws Exception {
     String submit = bearer("submitter", "tenant-integrity", SUBMITTER);
-    String first = event("integrity-1", 5, "payload-1", null);
+    String first =
+        typedEvent(
+            "integrity-1",
+            "OBSERVATION",
+            "connections.observation.accepted",
+            "obs-1",
+            5,
+            "payload-1",
+            null);
     String second =
-        event("integrity-2", 1, "payload-2", null)
-            .replace("\"aggregate_id\":\"obs-1\"", "\"aggregate_id\":\"obs-2\"");
+        typedEvent(
+            "integrity-2",
+            "OBSERVATION",
+            "connections.observation.accepted",
+            "obs-2",
+            1,
+            "payload-2",
+            null);
     assertThat(post("/internal/v1/inbox/events", submit, first).body()).contains("RECEIVED");
     assertThat(post("/internal/v1/inbox/events", submit, second).body()).contains("RECEIVED");
     assertThat(post("/internal/v1/inbox/events", submit, event("stale", 4, "old", null)).body())
@@ -1060,6 +1146,39 @@ class EvidenceApplicationTests {
           oldDb.queryForObject(
               "SELECT count(*) FROM uacrf_evidence.quarantined_inbox_event "
                   + "WHERE event_id = 'legacy' AND payload = 'old-payload' AND event_type IS NULL",
+              Integer.class));
+      assertEquals(
+          "OBSERVATION",
+          oldDb.queryForObject(
+              "SELECT aggregate_type FROM uacrf_evidence.inbox_event "
+                  + "WHERE tenant_id='tenant-legacy' AND event_id='legacy'",
+              String.class));
+      assertEquals(
+          "OBSERVATION",
+          oldDb.queryForObject(
+              "SELECT aggregate_type FROM uacrf_evidence.quarantined_inbox_event "
+                  + "WHERE tenant_id='tenant-legacy' AND event_id='legacy'",
+              String.class));
+      oldDb.update(
+          "INSERT INTO uacrf_evidence.inbox_event "
+              + "(tenant_id, environment_id, event_id, source_service, event_type, aggregate_type, "
+              + "aggregate_id, aggregate_sequence, payload, payload_digest) "
+              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "tenant-legacy",
+          "env-1",
+          "legacy-connection",
+          "S03",
+          "connections.connection.registered",
+          "CONNECTION",
+          "obs-1",
+          1,
+          "connection-payload",
+          sha("connection-payload"));
+      assertEquals(
+          2,
+          oldDb.queryForObject(
+              "SELECT count(*) FROM uacrf_evidence.inbox_event WHERE tenant_id='tenant-legacy' "
+                  + "AND source_service='S03' AND aggregate_id='obs-1' AND aggregate_sequence=1",
               Integer.class));
       assertEquals(
           "CONFLICT",
@@ -1172,6 +1291,25 @@ class EvidenceApplicationTests {
   private static String event(String id, long sequence, String payload, String digest) {
     return "{\"event_id\":\"%s\",\"source_service\":\"S03\",\"event_type\":\"connections.observation.accepted\",\"aggregate_id\":\"obs-1\",\"aggregate_sequence\":%d,\"payload\":\"%s\",\"payload_digest\":\"%s\"}"
         .formatted(id, sequence, payload, digest == null ? sha(payload) : digest);
+  }
+
+  private static String typedEvent(
+      String id,
+      String aggregateType,
+      String eventType,
+      String aggregateId,
+      long sequence,
+      String payload,
+      String digest) {
+    return "{\"event_id\":\"%s\",\"source_service\":\"S03\",\"aggregate_type\":\"%s\",\"event_type\":\"%s\",\"aggregate_id\":\"%s\",\"aggregate_sequence\":%d,\"payload\":\"%s\",\"payload_digest\":\"%s\"}"
+        .formatted(
+            id,
+            aggregateType,
+            eventType,
+            aggregateId,
+            sequence,
+            payload,
+            digest == null ? sha(payload) : digest);
   }
 
   private static String receiptBody(String digest) {

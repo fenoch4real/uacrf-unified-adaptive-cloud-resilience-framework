@@ -86,7 +86,7 @@ class OutboxPublisher {
   int publishPending() {
     List<Map<String, Object>> rows =
         jdbc.queryForList(
-            "SELECT event_id, tenant_id, environment_id, aggregate_id, aggregate_sequence, "
+            "SELECT event_id, tenant_id, environment_id, aggregate_type, aggregate_id, aggregate_sequence, "
                 + "event_type, payload::text AS payload FROM "
                 + SCHEMA
                 + "outbox_event WHERE published_at IS NULL ORDER BY created_at, event_id LIMIT ?",
@@ -108,6 +108,7 @@ class OutboxPublisher {
       event.put("event_id", row.get("event_id").toString());
       event.put("source_service", "S03");
       event.put("event_type", row.get("event_type"));
+      event.put("aggregate_type", row.get("aggregate_type"));
       event.put("aggregate_id", row.get("aggregate_id"));
       event.put("aggregate_sequence", row.get("aggregate_sequence"));
       event.put("payload", payload);

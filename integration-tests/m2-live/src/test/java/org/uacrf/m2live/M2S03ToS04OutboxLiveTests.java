@@ -216,6 +216,7 @@ class M2S03ToS04OutboxLiveTests {
       assertNotNull(delivery.inboxEvent(), "S04 did not retain the event");
       assertEquals("S03", delivery.inboxEvent().sourceService());
       assertEquals(CONNECTION_EVENT, delivery.inboxEvent().eventType());
+      assertEquals("CONNECTION", delivery.inboxEvent().aggregateType());
       assertEquals(connectionId, delivery.inboxEvent().aggregateId());
       assertEquals(1, delivery.inboxEvent().aggregateSequence());
       assertEquals(sha256(delivery.inboxEvent().payload()), delivery.inboxEvent().payloadDigest());
@@ -429,7 +430,7 @@ class M2S03ToS04OutboxLiveTests {
                 EVIDENCE_DB.getJdbcUrl(), EVIDENCE_DB.getUsername(), EVIDENCE_DB.getPassword());
         PreparedStatement query =
             connection.prepareStatement(
-                "SELECT source_service, event_type, aggregate_id, aggregate_sequence, "
+                "SELECT source_service, event_type, aggregate_type, aggregate_id, aggregate_sequence, "
                     + "payload, payload_digest "
                     + "FROM uacrf_evidence.inbox_event WHERE tenant_id = ? "
                     + "AND environment_id = ? AND event_id = ?")) {
@@ -444,9 +445,10 @@ class M2S03ToS04OutboxLiveTests {
             rows.getString(1),
             rows.getString(2),
             rows.getString(3),
-            rows.getLong(4),
-            rows.getString(5),
-            rows.getString(6).trim());
+            rows.getString(4),
+            rows.getLong(5),
+            rows.getString(6),
+            rows.getString(7).trim());
       }
     }
   }
@@ -657,6 +659,7 @@ class M2S03ToS04OutboxLiveTests {
   private record InboxEvent(
       String sourceService,
       String eventType,
+      String aggregateType,
       String aggregateId,
       long aggregateSequence,
       String payload,

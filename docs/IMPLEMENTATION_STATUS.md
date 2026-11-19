@@ -20,7 +20,7 @@ estimate.
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
-| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after this retry-test change (5 tests, 0 failures, 0 errors, 0 skips). The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain. |
+| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after the aggregate-type contract change (5 tests, 0 failures, 0 errors, 0 skips). S04 sequence identity now includes aggregate type; the V8 migration classifies retained S03 events and conservatively preserves ambiguous legacy quarantines. The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
@@ -470,9 +470,10 @@ test passed with no failures, errors, or skips.
   Testcontainers HTTP integration tests for S01 and S02. Compose configuration
   validates, and the pinned Keycloak image successfully imported the realm in
   a temporary smoke test. The persistent Compose services have not been
-  started. The latest root `verify`, after the S03 acknowledgement and
-  collection-token changes, passed 588 tests with zero failures, errors, or
-  skips, including all five `m2-live` tests against rebuilt service jars.
+  started. The latest root `verify`, after S03 acknowledgement validation,
+  collection-token refresh, and S03/S04 aggregate-type sequencing, passed 590
+  tests with zero failures, errors, or skips, including all five `m2-live`
+  tests against rebuilt service jars.
 - Java 25 and Docker are available in the development environment. The root
   Maven wrapper pins Maven 3.10.0 and verifies its download; the Docker builder
   image also replaces Maven's vulnerable bundled Guava with checksum-verified
@@ -704,8 +705,9 @@ delegation endpoint; a broader ungranted capability is denied. A test proxy
 returns 503 after S04 persists the first event; the S03 retry receives
 `DUPLICATE` and then marks the outbox row published. The targeted process test
 passed 1/1 using the rebuilt S03 publisher after acknowledgement-ID validation.
-The subsequent full reactor passed all five `m2-live` tests after both the
-acknowledgement-ID and collection-token changes. The client-credentials endpoint, directory and OIDC signing/JWKS remain
+The subsequent full reactor passed all five `m2-live` tests after the
+acknowledgement-ID, collection-token, and aggregate-type changes; the live
+connection event was retained with `aggregate_type=CONNECTION`. The client-credentials endpoint, directory and OIDC signing/JWKS remain
 test fixtures, so this does not verify the production IdP or production
 identity. Real provider collection and production deployment identity
 configuration remain unverified. The isolated
@@ -715,12 +717,11 @@ identity resolves to an admitted SYSTEM principal with only
 delegation; the runner remains disabled, so this is not collection execution
 or production deployment-identity evidence.
 
-An outstanding cross-service sequencing risk remains: S03 permits a connection
-and a source binding to share an ID because its outbox sequence key includes
-aggregate type. S04's inbox sequence key excludes aggregate type, so the second
-sequence-1 event for that ID can be quarantined as a regression. A compatible
-event-identity and rollout strategy, including existing retained events and
-quarantines, is needed before changing either contract.
+The S03/S04 aggregate collision is addressed by carrying `aggregate_type` into
+the inbox and including it in sequence locks, stale-sequence checks, uniqueness,
+and integrity reporting. Migration V8 classifies retained S03 events and
+preserves ambiguous legacy quarantines conservatively. The S03/S04 live process
+test verifies a published connection arrives with `aggregate_type=CONNECTION`.
 
 Sample data lives in `sample-data/` and is generated and validated by Java
 (`./mvnw -pl sample-data test`, add `-Duacrf.sample.regenerate=true` to rewrite).
@@ -865,12 +866,17 @@ retains evidence events and decides qualification.
   observation from being treated as a measurement; it does not define a broader
   source-kind registry or provider attestation contract.
 - `POST /internal/v1/inbox/events` is the consumer-side inbox (digest, duplicate,
-  per-aggregate sequence checks, quarantine). A duplicate must match the retained
-  source service, event type, aggregate, sequence, payload and digest; reusing an
+  per-aggregate-type sequence checks, quarantine). A duplicate must match the retained
+  source service, event type, aggregate type and ID, sequence, payload and digest; reusing an
   ID with changed metadata is quarantined. Transaction-scoped locks serialize
   concurrent deliveries for both event ID and aggregate. New quarantine rows
-  retain the event type; rows predating migration V2 have an unknown (`NULL`)
-  type rather than a fabricated value. PostgreSQL-backed HTTP tests cover
+  retain the event type;   rows predating migration V2 have an unknown (`NULL`)
+  type rather than a fabricated value. Migration V8 backfills aggregate types
+  from the three known S03 event types, preserves other retained event types,
+  and narrows sequence uniqueness to include aggregate type. Legacy quarantines
+  with no event type inherit a matching accepted event's aggregate type when
+  available; otherwise the integrity view conservatively applies them to any
+  matching type. PostgreSQL-backed HTTP tests cover
   changed envelopes, simultaneous conflicting IDs and a V1-to-V2 upgrade with
   existing quarantine data. Migration V3 adds a local `inbox_event_integrity`
   view that identifies accepted events with retained conflicting IDs or
@@ -1034,7 +1040,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 - Accepting a graph requires the expected current revision for its scope. Accepted proposals are merged deterministically into an immutable graph revision with a canonical digest; new digest version 2 binds edge provenance and proposal IDs, while historical version 1 revisions retain their prior verification semantics. Repeating the same graph content does not create another revision. Conflicting provenance for duplicate accepted relationships is recorded in `graph_edge_conflicts`. Graph acceptance/conflict events are written transactionally to the outbox. The internal receipt reports the projection row's current status and is eligible only after digest verification.
 - S02 now retains immutable service-revision snapshots with deterministically ordered `owned_agent_workload_ids`; membership changes append a new revision, and no historical membership is fabricated. S06 verifies the exact signed S02 receipt, retained snapshot and digest, then uses that membership only as a bounded set of selection roots; it never infers dependency edges from catalog membership. Async selection and difference-classification commands are persisted with an outbox event, idempotency, status lookup, and stable expected-revision targets. Selection binds the accepted graph revision, S02 snapshot, purpose-scoped current S07 case receipt and bounded S04 summaries, then retains a digest and bounded typed node/edge references. `action-relevant-dependencies.v1` preserves the bounded dependency/failure-domain selection; `.v2` additionally selects accepted reachable `READS_FROM` edges from represented `service`/`agent_workload` nodes to `shared_resource` nodes. New `.v3` preserves v2 and adds the point-in-time current S05 active-objective set for the S07 case workload as owner-derived context only; it creates no SLO graph node or `GOVERNED_BY_SLO` edge. S06 requires the case workload in the exact S02 service membership and uses a resource-scoped S01 delegation to read and digest-check S05's bounded active-objective receipt. Classification re-reads that set for the same case workload; each owner response is a point-in-time snapshot, and a changed set digest forces `INDETERMINATE` without treating objective changes as graph widening, narrowing or target changes. The retained query ID binds classification to the same selection semantics. Classification emits advisory dependency, failure-domain and v2/v3 data-read deltas; exact same-source read-target replacements are target-changing, while mixed or unpaired read deltas are indeterminate. The public selection result also carries a digest-bound, count-only reconciliation between the exact S02 membership snapshot and `agent_workload` nodes in the exact accepted graph. Unknown S02 membership is `INDETERMINATE`; nodes outside the service membership are counts, not inventory defects. This is not a provider-inventory, freshness or completeness claim. S06 now accepts canonical `MEMBER_OF_FAILURE_DOMAIN` relationships, normalizes legacy `IN_FAILURE_DOMAIN` proposals, and interprets retained legacy edges equivalently. Read-edge properties do not establish freshness. SLO topology relationships and measurement evaluation, broader ontology, and freshness coverage remain incomplete or indeterminate; these operations do not write graph edges. The focused S06/S01 reactor passed 40 tests (31 topology and 9 identity; no failures, errors or skips), and the generated-contract suite passed 6 tests. The API-only Testcontainers gate now runs S01, S02, S05, S06 and S07 as live HTTP processes with isolated PostgreSQL databases and the S06 Neo4j projection worker enabled. Four objective/topology journeys verify S02's signed service receipt and S07's case lifecycle/receipt through their real services, the projected graph digest/reconciliation/eligible graph receipt, and S05's exact workload-owner proposal and activation checks. A fifth local process journey verifies S03 connection registration and outbox delivery into the real S04 inbox through the real S01 delegation endpoint. It uses a test-signed OIDC token and test JWKS; the SYSTEM publisher is admitted through S01's public principal API using a test-only directory stub, a separate approver creates its `evidence.inbox.write` grant decision, and the administrator creates its membership through S01's public membership API. An ungranted `connections.connection.write` request is denied. All five focused m2-live tests passed after this enhancement; the prior 584-test root verification predates the S01 delegation and public admission/grant test enhancements, and the root reactor was not rerun. S07 external owner receipt verification remains disabled in this bounded gate; Kafka, artifact storage, live provider conformance, browser UX and full M2 acceptance remain unverified. See [the M2 runtime-validation report](../integration-tests/m2-live/runtime-validation-report.md).
 - After the earlier full-module run, the live S03/S04 process test injected a 503 after S04 persisted the event; S03 retried and S04 returned `DUPLICATE`. The targeted test passed 1/1; the subsequent full-module rerun passed 5/5, with 0 failures, 0 errors, and 0 skips.
-- The later canonical full Maven reactor passed 588 tests, including all five `m2-live` tests, after S03 acknowledgement-ID validation and collection-token refresh. It supersedes the earlier 584-test verification and the historical "root reactor was not rerun" statement above. These are code/test-suite results only; production identity, provider acceptance, and full M2 acceptance remain open.
+- The latest canonical full Maven reactor passed 590 tests, including all five `m2-live` tests, after S03 acknowledgement-ID validation, collection-token refresh, and aggregate-type sequencing. It supersedes the earlier 588- and 584-test verifications and the historical "root reactor was not rerun" statements above. The focused evidence inbox suite passed 7 tests, and the S03 publisher suite passed 7 tests, both with zero failures, errors, or skips. These are code/test-suite results only; production identity, provider acceptance, and full M2 acceptance remain open.
 - Still needed: SLO graph relationships and objective-to-measurement evaluation,
   broader classify/select ontology and freshness coverage, and
   S10 consumption pinned to an exact graph revision. S06 produces its own
