@@ -662,9 +662,9 @@ and 3-second response timeouts; timeout failures retain the prior checkpoint
 and replay any persisted batch unchanged.
 AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
-data. The prior full connections module suite passed 17 tests, including runner,
-PostgreSQL lease, and outbox publisher tests; the latest targeted runner and
-application tests passed 19 tests with no failures. Real provider collection
+data. The full connections module suite passed 59 tests, and its delegation-auth
+dependency passed 8 tests (67 total in the selected reactor), with no failures,
+errors, or skips. This includes the slow-identity-endpoint timeout case. Real provider collection
 and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only
