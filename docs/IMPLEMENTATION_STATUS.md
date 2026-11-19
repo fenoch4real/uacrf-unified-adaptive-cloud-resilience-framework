@@ -684,14 +684,19 @@ with no failures, errors, or skips. This includes bounded runner and publisher
 identity calls, AWS SDK timeout, and active lease renewal cases. The latest
 targeted runner/application/publisher rerun passed 27 tests, including rejection
 of incomplete identity/endpoints, timeout retry, stale-token fencing, and
-processing after lease loss. A separate `m2-live` process test creates a
-connection through S03 HTTP and verifies its scheduled publisher persists the
-event in the real S04 inbox. The test uses S01's public principal-admission API
-with a test-only directory stub, a separate approver's grant-decision API, the
-administrator's membership API, and S01's real delegation endpoint; a broader
-ungranted capability is denied. A test proxy returns 503 after S04 persists the
-first event; the S03 retry receives `DUPLICATE` and then marks the outbox row
-published. The targeted process test passed 1/1 after this addition; the full
+processing after lease loss. The focused `OutboxPublisherTests` rerun passed
+6 tests, including the S04 `QUARANTINED` response path: the row is marked
+published, excluded from the delivered count, and not retried on the next
+cycle. This response is simulated by the publisher test's HTTP stub and is not
+process-level S04 quarantine evidence. A separate `m2-live` process test
+creates a connection through S03 HTTP and verifies its scheduled publisher
+persists the event in the real S04 inbox. The test uses S01's public
+principal-admission API with a test-only directory stub, a separate approver's
+grant-decision API, the administrator's membership API, and S01's real
+delegation endpoint; a broader ungranted capability is denied. A test proxy
+returns 503 after S04 persists the first event; the S03 retry receives
+`DUPLICATE` and then marks the outbox row published. The targeted process test
+passed 1/1 after this addition; the full
 five-test module previously passed after the public API change and was not
 rerun. The client-credentials endpoint, directory and OIDC signing/JWKS remain
 test fixtures, so this does not verify the production IdP or production

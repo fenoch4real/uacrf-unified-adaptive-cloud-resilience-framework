@@ -107,6 +107,17 @@ class OutboxPublisherTests {
   }
 
   @Test
+  void marksRowsPublishedWhenS04DurablyQuarantinesThem() {
+    inboxStatus = "QUARANTINED";
+    UUID id = insert("agg-quarantined");
+
+    assertThat(publisher.publishPending()).isZero();
+
+    assertThat(published(id)).isTrue();
+    assertThat(publisher.publishPending()).isZero();
+  }
+
+  @Test
   void rejectsBlankPublisherSecretWhenEnabled() {
     assertThatThrownBy(
             () ->
@@ -216,7 +227,11 @@ class OutboxPublisherTests {
             if ("FAIL".equals(inboxStatus)) {
               respond(exchange, "inbox:", "{}", 503);
             } else {
-              respond(exchange, "inbox:", "{\"status\":\"" + inboxStatus + "\"}", 200);
+              String body = "{\"status\":\"" + inboxStatus + "\"}";
+              if ("QUARANTINED".equals(inboxStatus)) {
+                body = "{\"status\":\"QUARANTINED\",\"reason\":\"DIGEST_MISMATCH\"}";
+              }
+              respond(exchange, "inbox:", body, 200);
             }
           });
       server.start();
