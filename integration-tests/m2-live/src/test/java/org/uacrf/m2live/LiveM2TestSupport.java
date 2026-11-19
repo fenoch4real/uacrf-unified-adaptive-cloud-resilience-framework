@@ -35,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.testcontainers.neo4j.Neo4jContainer;
@@ -68,6 +69,9 @@ final class LiveM2TestSupport {
   private static final String S02_KEY_ID = "m2-live-s02-key";
   private static final String IDP_KEY_ID = "m2-live-idp-key";
   private static final String IDP_AUDIENCE = "uacrf-s01";
+  private static final String DIRECTORY_CLIENT_ID = "m2-live-directory-client";
+  private static final String DIRECTORY_CLIENT_SECRET = "m2-live-directory-secret";
+  private static final String DIRECTORY_ACCESS_TOKEN = "m2-live-directory-token";
   private static final KeyPair DELEGATION_KEYS = generateKeyPair();
   private static final KeyPair S02_KEYS = generateKeyPair();
   private static final KeyPair IDP_KEYS = generateKeyPair();
@@ -274,6 +278,7 @@ final class LiveM2TestSupport {
     private final HttpClient http =
         HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     private final ConcurrentLinkedQueue<String> stubFailures = new ConcurrentLinkedQueue<>();
+    private final Map<String, Map<String, Object>> directoryUsers = new ConcurrentHashMap<>();
     private final java.util.concurrent.atomic.AtomicInteger evidenceSummaryCalls =
         new java.util.concurrent.atomic.AtomicInteger();
     private final boolean enableWorkloadOwnerChecks;
@@ -371,8 +376,20 @@ final class LiveM2TestSupport {
 
     void verifyStubHealth() {
       if (!stubFailures.isEmpty()) {
-        throw new AssertionError("Owner receipt stub failures: " + String.join("; ", stubFailures));
+        throw new AssertionError("M2 live fixture stub failures: " + String.join("; ", stubFailures));
       }
+    }
+
+    void registerDirectoryUser(
+        String subject, String username, String firstName, String lastName, boolean enabled) {
+      directoryUsers.put(
+          subject,
+          Map.of(
+              "id", subject,
+              "username", username,
+              "firstName", firstName,
+              "lastName", lastName,
+              "enabled", enabled));
     }
 
     private String catalogToken(String principalId, String ownerId, String runtimePrincipalId) {
@@ -564,17 +581,6 @@ final class LiveM2TestSupport {
 
     void registerActor(String principalId, String actorSubject, List<String> capabilities)
         throws SQLException {
-      registerPrincipal(principalId, actorSubject, capabilities, "HUMAN");
-    }
-
-    void registerSystemPrincipal(
-        String principalId, String actorSubject, List<String> capabilities) throws SQLException {
-      registerPrincipal(principalId, actorSubject, capabilities, "SYSTEM");
-    }
-
-    private void registerPrincipal(
-        String principalId, String actorSubject, List<String> capabilities, String kind)
-        throws SQLException {
       try (Connection connection =
               DriverManager.getConnection(
                   identityDb.getJdbcUrl(), identityDb.getUsername(), identityDb.getPassword());
@@ -593,7 +599,7 @@ final class LiveM2TestSupport {
                   "INSERT INTO uacrf_identity.principal "
                       + "(id, issuer_uri, subject, display_name, kind, enabled, "
                       + "token_valid_after, revision) "
-                      + "VALUES (?, ?, ?, ?, ?, true, now() - interval '1 minute', 1)");
+                      + "VALUES (?, ?, ?, ?, 'HUMAN', true, now() - interval '1 minute', 1)");
           PreparedStatement membership =
               connection.prepareStatement(
                   "INSERT INTO uacrf_identity.membership "
@@ -612,7 +618,6 @@ final class LiveM2TestSupport {
         principal.setString(2, IDP_ISSUER);
         principal.setString(3, actorSubject);
         principal.setString(4, "M2 live test actor");
-        principal.setString(5, kind);
         principal.executeUpdate();
         for (String capability : capabilities) {
           membership.setObject(1, UUID.randomUUID());
@@ -967,6 +972,16 @@ final class LiveM2TestSupport {
           Map.entry(
               "KEYCLOAK_JWK_SET_URI",
               "http://127.0.0.1:" + ownerStubs.getAddress().getPort() + "/unused-jwks"),
+          Map.entry("IDENTITY_DIRECTORY_ENABLED", "true"),
+          Map.entry("IDENTITY_DIRECTORY_ISSUER", IDP_ISSUER),
+          Map.entry(
+              "IDENTITY_DIRECTORY_TOKEN_URI",
+              "http://127.0.0.1:" + ownerStubs.getAddress().getPort() + "/keycloak-admin/token"),
+          Map.entry(
+              "IDENTITY_DIRECTORY_USERS_URI",
+              "http://127.0.0.1:" + ownerStubs.getAddress().getPort() + "/keycloak-admin/users"),
+          Map.entry("IDENTITY_DIRECTORY_CLIENT_ID", DIRECTORY_CLIENT_ID),
+          Map.entry("IDENTITY_DIRECTORY_CLIENT_SECRET", DIRECTORY_CLIENT_SECRET),
           Map.entry("UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS)),
           Map.entry("UACRF_DELEGATION_PRIVATE_KEY_BASE64", privateKeyBase64(DELEGATION_KEYS)),
           Map.entry("UACRF_DELEGATION_KEY_ID", KEY_ID),
@@ -1076,8 +1091,48 @@ final class LiveM2TestSupport {
           HttpServer.create(
               new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
       ownerStubs.createContext("/unused-jwks", exchange -> send(exchange, 200, identityJwkSet()));
+      ownerStubs.createContext("/keycloak-admin/token", this::directoryTokenEndpoint);
+      ownerStubs.createContext("/keycloak-admin/users/", this::directoryUserEndpoint);
       ownerStubs.createContext("/internal/v1/qualifications/", this::evidenceEndpoint);
       ownerStubs.start();
+    }
+
+    private void directoryTokenEndpoint(HttpExchange exchange) throws IOException {
+      String requestBody =
+          new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      if (!"POST".equals(exchange.getRequestMethod())
+          || !requestBody.contains("grant_type=client_credentials")
+          || !requestBody.contains("client_id=" + DIRECTORY_CLIENT_ID)
+          || !requestBody.contains("client_secret=" + DIRECTORY_CLIENT_SECRET)) {
+        stubFailures.add("Keycloak directory token request did not use the test service account.");
+        send(exchange, 400, Map.of("error", "invalid directory token request"));
+        return;
+      }
+      send(
+          exchange,
+          200,
+          Map.of(
+              "access_token", DIRECTORY_ACCESS_TOKEN,
+              "token_type", "Bearer",
+              "expires_in", 300));
+    }
+
+    private void directoryUserEndpoint(HttpExchange exchange) throws IOException {
+      String path = exchange.getRequestURI().getPath();
+      String subject = path.substring("/keycloak-admin/users/".length());
+      if (!"GET".equals(exchange.getRequestMethod())
+          || !("Bearer " + DIRECTORY_ACCESS_TOKEN)
+              .equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+        stubFailures.add("Keycloak directory user lookup did not use the test service account.");
+        send(exchange, 401, Map.of("error", "unauthorized directory lookup"));
+        return;
+      }
+      Map<String, Object> user = directoryUsers.get(subject);
+      if (user == null) {
+        send(exchange, 404, Map.of("error", "directory subject not found"));
+        return;
+      }
+      send(exchange, 200, user);
     }
 
     private void evidenceEndpoint(HttpExchange exchange) throws IOException {

@@ -80,8 +80,62 @@ class M2S03ToS04OutboxLiveTests {
       }
 
       identityEnvironment = LiveM2TestSupport.environment();
-      identityEnvironment.registerSystemPrincipal(
-          PUBLISHER_CLIENT_ID, PUBLISHER_SUBJECT, List.of("evidence.inbox.write"));
+      identityEnvironment.registerDirectoryUser(
+          PUBLISHER_SUBJECT,
+          "service-account-" + PUBLISHER_CLIENT_ID,
+          "M2 live",
+          "S03 publisher",
+          true);
+      String suffix = UUID.randomUUID().toString();
+      String publisherPrincipalId = "uacrf.s03.publisher";
+      String grantDecisionId = "m2.live.grant." + suffix.replace("-", "");
+      String grantExpiry = Instant.now().plus(Duration.ofDays(7)).toString();
+      HttpResponse<String> admitted =
+          postIdentity(
+              identityEnvironment.identityUrl(),
+              "/v1/principals",
+              "bootstrap-admin-subject",
+              Map.of(
+                  "id", publisherPrincipalId,
+                  "provider_id", "keycloak-local",
+                  "directory_subject_ref", PUBLISHER_SUBJECT,
+                  "reason", "Admit the S03 publisher for the M2 live fixture.",
+                  "expected_revision", 0),
+              "m2-live-admit-" + suffix);
+      assertEquals(201, admitted.statusCode(), admitted.body());
+
+      HttpResponse<String> grantDecision =
+          postIdentity(
+              identityEnvironment.identityUrl(),
+              "/v1/grant-decisions",
+              "bootstrap-approver-subject",
+              Map.of(
+                  "id", grantDecisionId,
+                  "principal_id", publisherPrincipalId,
+                  "capability", "evidence.inbox.write",
+                  "service_scope", "*",
+                  "expires_at", grantExpiry,
+                  "reason", "Authorize S03 outbox delivery in the M2 live fixture."),
+              null);
+      assertEquals(201, grantDecision.statusCode(), grantDecision.body());
+
+      HttpResponse<String> membership =
+          postIdentity(
+              identityEnvironment.identityUrl(),
+              "/v1/memberships",
+              "bootstrap-admin-subject",
+              Map.of(
+                  "id", UUID.randomUUID().toString(),
+                  "principal_id", publisherPrincipalId,
+                  "capability", "evidence.inbox.write",
+                  "service_scope", "*",
+                  "expires_at", grantExpiry,
+                  "reason", "Enable the admitted S03 publisher in the M2 live fixture.",
+                  "expected_revision", 0,
+                  "authorization_ref", grantDecisionId),
+              "m2-live-membership-" + suffix);
+      assertEquals(201, membership.statusCode(), membership.body());
+
       identityStub = startIdentityStub(stubFailures, tokenCalls);
       int evidencePort = freePort();
       int connectionsPort = freePort();
@@ -109,13 +163,12 @@ class M2S03ToS04OutboxLiveTests {
                   tokenBaseUrl, identityEnvironment.identityUrl(), evidencePort, connectionsPort));
       awaitHealth("S03", connectionsPort, connectionsProcess, logDirectory);
 
-      String suffix = UUID.randomUUID().toString();
       String connectionId = "connection-" + suffix;
       String ownerId = "owner-" + suffix;
       String bearer =
           LiveM2TestSupport.bearerWithEligibleOwners(
-              identityEnvironment.tenantId(),
-              identityEnvironment.environmentId(),
+              LiveM2TestSupport.TENANT,
+              LiveM2TestSupport.ENVIRONMENT,
               "m2-live-connection-owner",
               "m2-live-connection-owner-subject",
               "S03",
@@ -147,8 +200,8 @@ class M2S03ToS04OutboxLiveTests {
       Delivery delivery =
           awaitDelivery(
               connectionId,
-              identityEnvironment.tenantId(),
-              identityEnvironment.environmentId(),
+              LiveM2TestSupport.TENANT,
+              LiveM2TestSupport.ENVIRONMENT,
               logDirectory);
       assertTrue(delivery.published(), "S03 did not mark the outbox event delivered");
       assertNotNull(delivery.inboxEvent(), "S04 did not retain the event");
@@ -159,6 +212,7 @@ class M2S03ToS04OutboxLiveTests {
       assertEquals(sha256(delivery.inboxEvent().payload()), delivery.inboxEvent().payloadDigest());
       assertTrue(tokenCalls.get() > 0, "S03 did not request a client-credentials token");
       assertTrue(stubFailures.isEmpty(), String.join("; ", stubFailures));
+      identityEnvironment.verifyStubHealth();
 
       HttpResponse<String> overbroadDelegation =
           HTTP.send(
@@ -177,8 +231,8 @@ class M2S03ToS04OutboxLiveTests {
                               Map.of(
                                   "audience", "S04",
                                   "capability_ids", List.of("connections.connection.write"),
-                                  "tenant_id", identityEnvironment.tenantId(),
-                                  "environment_id", identityEnvironment.environmentId()))))
+                                  "tenant_id", LiveM2TestSupport.TENANT,
+                                  "environment_id", LiveM2TestSupport.ENVIRONMENT))))
                   .build(),
               HttpResponse.BodyHandlers.ofString());
       assertEquals(403, overbroadDelegation.statusCode(), overbroadDelegation.body());
@@ -193,6 +247,37 @@ class M2S03ToS04OutboxLiveTests {
       }
       deleteDirectory(logDirectory);
     }
+  }
+
+  private static HttpResponse<String> postIdentity(
+      String identityUrl,
+      String path,
+      String subject,
+      Map<String, Object> body,
+      String idempotencyKey)
+      throws IOException, InterruptedException {
+    HttpRequest.Builder request =
+        HttpRequest.newBuilder(
+                URI.create(
+                    identityUrl
+                        + path
+                        + "?tenant_id="
+                        + LiveM2TestSupport.TENANT
+                        + "&environment_id="
+                        + LiveM2TestSupport.ENVIRONMENT))
+            .timeout(Duration.ofSeconds(5))
+            .header(
+                "Authorization",
+                "Bearer " + LiveM2TestSupport.identityAccessToken(subject))
+            .header("Content-Type", "application/json");
+    if (idempotencyKey != null) {
+      request.header("Idempotency-Key", idempotencyKey);
+    }
+    return HTTP.send(
+        request
+            .POST(HttpRequest.BodyPublishers.ofString(LiveM2TestSupport.json(body)))
+            .build(),
+        HttpResponse.BodyHandlers.ofString());
   }
 
   private static Map<String, String> evidenceEnvironment() {
