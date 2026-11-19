@@ -1,6 +1,7 @@
 package org.uacrf.connections;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,26 @@ import org.uacrf.connections.ProviderCollector.Batch;
 import org.uacrf.connections.ProviderCollector.Observation;
 
 class CollectionRunnerTests {
+  @Test
+  void rejectsBlankClientSecretWhenTheRunnerIsEnabled() {
+    assertThatThrownBy(
+            () ->
+                new CollectionRunner(
+                    mock(CollectionCheckpointStore.class),
+                    List.of(),
+                    "http://localhost/token",
+                    "collector-client",
+                    "  ",
+                    "http://localhost/delegations",
+                    "http://localhost/observations",
+                    60000,
+                    300000,
+                    10,
+                    100))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Collection runner client secret must be configured when enabled.");
+  }
+
   @Test
   void submitsCollectedObservationsUsingANarrowS01Delegation() throws Exception {
     List<String> calls = new CopyOnWriteArrayList<>();

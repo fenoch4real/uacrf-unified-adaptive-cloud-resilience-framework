@@ -57,6 +57,10 @@ class CollectionRunner {
       @Value("${uacrf.collection.runner.lease-ms:300000}") long leaseMs,
       @Value("${uacrf.collection.runner.batch-size:10}") int batchSize,
       @Value("${uacrf.collection.runner.max-observations:100}") int maxObservations) {
+    if (clientSecret == null || clientSecret.isBlank()) {
+      throw new IllegalArgumentException(
+          "Collection runner client secret must be configured when enabled.");
+    }
     if (intervalMs < 1 || leaseMs < 1 || batchSize < 1 || maxObservations < 1) {
       throw new IllegalArgumentException("Collection runner limits must be positive.");
     }

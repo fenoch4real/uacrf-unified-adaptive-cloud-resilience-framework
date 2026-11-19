@@ -81,9 +81,11 @@ The opt-in collection runner claims active source bindings through persisted che
 expiring leases, invokes a registered provider collector, and sends collected observations through
 the same intake. It uses a dedicated OAuth client-credentials identity and a short-lived S01
 delegation limited to `connections.observation.write`; it stores no signing key. The runner is
-disabled by default and requires its client secret to be configured outside the repository.
-Provider-reported retry times are honored, intake failures do not advance checkpoints, and a
-partially accepted batch is persisted and replayed unchanged on retry.
+disabled by default and requires its client secret to be configured outside the repository. If
+enabled with a blank or whitespace-only secret, it fails at startup; this validates configuration
+presence, not credential validity. Provider-reported retry times are honored, intake failures do
+not advance checkpoints, and a partially accepted batch is persisted and replayed unchanged on
+retry.
 
 AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` ExternalId, exposed by
 the authorized connection read endpoint for the target role's trust policy. The first AWS source

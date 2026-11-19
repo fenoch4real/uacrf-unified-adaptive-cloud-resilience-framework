@@ -655,11 +655,14 @@ narrow S01 delegation for `connections.observation.write`; a checkpoint
 advances only after all intake results are durably accepted, duplicated, or
 quarantined. Failed and unimplemented collections retain the prior checkpoint
 for retry, and provider-supplied retry times are honored. The runner is disabled
-by default. AWS, Azure, and GCP remain
+by default and fails at startup if enabled without a nonblank client secret;
+this validates only configuration presence, not production credential validity.
+AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
-data. The full connections module suite passes 17 tests, including runner,
-PostgreSQL lease, and outbox publisher tests. Real provider collection and
-production deployment identity configuration remain unverified. The isolated
+data. The prior full connections module suite passed 17 tests, including runner,
+PostgreSQL lease, and outbox publisher tests; the latest targeted runner and
+application tests passed 18 tests with no failures. Real provider collection
+and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only
 `connections.observation.write` and obtains the matching narrow S03
