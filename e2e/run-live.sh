@@ -61,6 +61,7 @@ e2e_admin_password="$(openssl rand -hex 24)"
 e2e_approver_password="$(openssl rand -hex 24)"
 directory_client_secret="$(openssl rand -hex 24)"
 s03_client_secret="$(openssl rand -hex 24)"
+s03_collection_client_secret="$(openssl rand -hex 24)"
 s07_client_secret="$(openssl rand -hex 24)"
 s08_client_secret="$(openssl rand -hex 24)"
 admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString())')"
@@ -83,6 +84,7 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'KEYCLOAK_LOCAL_ADMIN_PASSWORD=%s\n' "$e2e_admin_password"
   printf 'KEYCLOAK_DIRECTORY_CLIENT_SECRET=%s\n' "$directory_client_secret"
   printf 'KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET=%s\n' "$s03_client_secret"
+  printf 'KEYCLOAK_S03_COLLECTION_CLIENT_SECRET=%s\n' "$s03_collection_client_secret"
   printf 'KEYCLOAK_S07_EVALUATOR_CLIENT_SECRET=%s\n' "$s07_client_secret"
   printf 'KEYCLOAK_S08_RETRIEVER_CLIENT_SECRET=%s\n' "$s08_client_secret"
   printf 'IDENTITY_BOOTSTRAP_ADMIN_EXPIRES_AT=%s\n' "$admin_expires_at"
@@ -129,6 +131,7 @@ cd "$repo_root/e2e"
 KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin \
 KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD="$keycloak_admin_password" \
 KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET="$s03_client_secret" \
+KEYCLOAK_S03_COLLECTION_CLIENT_SECRET="$s03_collection_client_secret" \
 UACRF_E2E_ADMIN_PASSWORD="$e2e_admin_password" \
 UACRF_E2E_APPROVER_PASSWORD="$e2e_approver_password" \
   npm test

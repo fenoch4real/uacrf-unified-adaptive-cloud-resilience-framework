@@ -62,7 +62,13 @@ The same authorized user creates a draft journey, registers and links a service
 through UX01, EDGE01, and S02, then reads the journey and linked service back.
 The user also registers standalone and service-bound agent workloads; S02
 returns a successful mutation receipt, and UX01 confirms that no runtime action
-was performed.
+was performed. Separately, the suite admits the dedicated `uacrf-s03-collector`
+service account as SYSTEM, grants it only `connections.observation.write`
+through the approval workflow, and verifies client-credentials resolution and
+a narrow S03 delegation through S01. An ungranted catalog capability is
+denied. The collection runner remains disabled in this browser stack, so this
+is identity/delegation evidence only—not collection execution or provider
+acceptance.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

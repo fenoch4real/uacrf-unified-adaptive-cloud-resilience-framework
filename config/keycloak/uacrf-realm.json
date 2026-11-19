@@ -45,6 +45,22 @@
       "fullScopeAllowed": false
     },
     {
+      "clientId": "uacrf-s03-collector",
+      "name": "UACRF S03 collection runner",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${KEYCLOAK_S03_COLLECTION_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "uacrf-s01-context"
+      ],
+      "fullScopeAllowed": false
+    },
+    {
       "clientId": "uacrf-s07-evaluator",
       "name": "UACRF S07 assessment receipt verifier",
       "enabled": true,

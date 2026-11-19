@@ -655,7 +655,12 @@ by default. AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
 data. The full connections module suite passes 17 tests, including runner,
 PostgreSQL lease, and outbox publisher tests. Real provider collection and
-deployment identity configuration remain unverified.
+production deployment identity configuration remain unverified. The isolated
+browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
+identity resolves to an admitted SYSTEM principal with only
+`connections.observation.write` and obtains the matching narrow S03
+delegation; the runner remains disabled, so this is not collection execution
+or production deployment-identity evidence.
 
 Sample data lives in `sample-data/` and is generated and validated by Java
 (`./mvnw -pl sample-data test`, add `-Duacrf.sample.regenerate=true` to rewrite).

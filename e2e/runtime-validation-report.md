@@ -30,9 +30,13 @@ The same run authenticates the disposable S03 publisher with Keycloak
 client-credentials, verifies through EDGE01 that S01 resolves it to the
 admitted SYSTEM principal with only its two approved capabilities, and obtains
 a 30-second S04 delegation limited to `evidence.inbox.write`; an ungranted
-`catalog.service.write` delegation is denied. Production deployment identity
-and production identity-provider configuration remain unverified; the suite
-does not cover cross-origin/HTTPS behavior.
+`catalog.service.write` delegation is denied. It also checks the dedicated
+`uacrf-s03-collector` client configured for the collection runner: the client
+resolves to its separately admitted SYSTEM principal with only
+`connections.observation.write` and obtains the matching 30-second S03
+delegation. The runner remains disabled, so no provider collection occurs.
+Production deployment identity and production identity-provider configuration
+remain unverified; the suite does not cover cross-origin/HTTPS behavior.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection
