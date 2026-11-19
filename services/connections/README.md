@@ -83,9 +83,11 @@ the same intake. It uses a dedicated OAuth client-credentials identity and a sho
 delegation limited to `connections.observation.write`; it stores no signing key. The runner is
 disabled by default and requires its client secret to be configured outside the repository. If
 enabled with a blank or whitespace-only secret, it fails at startup; this validates configuration
-presence, not credential validity. Provider-reported retry times are honored, intake failures do
-not advance checkpoints, and a partially accepted batch is persisted and replayed unchanged on
-retry.
+presence, not credential validity. Its identity, delegation, and intake HTTP calls use bounded
+2-second connect and 3-second response timeouts. Timeout failures do not advance checkpoints, and
+any persisted batch is replayed unchanged on retry. Provider-reported retry times are honored,
+intake failures do not advance checkpoints, and a partially accepted batch is persisted and
+replayed unchanged on retry.
 
 AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` ExternalId, exposed by
 the authorized connection read endpoint for the target role's trust policy. The first AWS source

@@ -12,7 +12,7 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Milestone and capability tracker
 
-**Status snapshot: 2026-11-18.** This roll-up summarizes the evidence and gaps
+**Status snapshot: 2026-11-19.** This roll-up summarizes the evidence and gaps
 recorded in the detailed sections below; it is not a percentage-complete
 estimate.
 
@@ -657,11 +657,14 @@ quarantined. Failed and unimplemented collections retain the prior checkpoint
 for retry, and provider-supplied retry times are honored. The runner is disabled
 by default and fails at startup if enabled without a nonblank client secret;
 this validates only configuration presence, not production credential validity.
+Its identity, delegation, and intake HTTP calls use bounded 2-second connect
+and 3-second response timeouts; timeout failures retain the prior checkpoint
+and replay any persisted batch unchanged.
 AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
 data. The prior full connections module suite passed 17 tests, including runner,
 PostgreSQL lease, and outbox publisher tests; the latest targeted runner and
-application tests passed 18 tests with no failures. Real provider collection
+application tests passed 19 tests with no failures. Real provider collection
 and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only

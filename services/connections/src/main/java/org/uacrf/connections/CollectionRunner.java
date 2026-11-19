@@ -1,5 +1,6 @@
 package org.uacrf.connections;
 
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -31,10 +33,12 @@ class CollectionRunner {
   private static final Logger LOG = LoggerFactory.getLogger(CollectionRunner.class);
   private static final List<String> OBSERVATION_WRITE = List.of("connections.observation.write");
   private static final int MAX_CHECKPOINT_LENGTH = 4096;
+  private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(2);
+  private static final Duration HTTP_READ_TIMEOUT = Duration.ofSeconds(3);
 
   private final CollectionCheckpointStore checkpoints;
   private final Map<ConnectionsRequests.Provider, ProviderCollector> collectors;
-  private final RestClient http = RestClient.create();
+  private final RestClient http;
   private final String tokenUrl;
   private final String clientId;
   private final String clientSecret;
@@ -64,6 +68,11 @@ class CollectionRunner {
     if (intervalMs < 1 || leaseMs < 1 || batchSize < 1 || maxObservations < 1) {
       throw new IllegalArgumentException("Collection runner limits must be positive.");
     }
+    HttpClient httpClient =
+        HttpClient.newBuilder().connectTimeout(HTTP_CONNECT_TIMEOUT).build();
+    JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+    requestFactory.setReadTimeout(HTTP_READ_TIMEOUT);
+    this.http = RestClient.builder().requestFactory(requestFactory).build();
     this.checkpoints = checkpoints;
     this.collectors =
         collectors.stream()

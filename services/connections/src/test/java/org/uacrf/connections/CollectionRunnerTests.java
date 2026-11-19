@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -254,6 +256,73 @@ class CollectionRunnerTests {
               any(Instant.class),
               eq(false));
     } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void timesOutSlowIdentityEndpointWithoutAdvancingCheckpoint() throws Exception {
+    CountDownLatch releaseTokenRequest = new CountDownLatch(1);
+    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/token",
+        exchange -> {
+          try {
+            releaseTokenRequest.await(10, TimeUnit.SECONDS);
+            exchange.close();
+          } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            exchange.close();
+          }
+        });
+    server.start();
+    try {
+      String baseUrl = "http://localhost:" + server.getAddress().getPort();
+      CollectionCheckpointStore checkpoints = mock(CollectionCheckpointStore.class);
+      LeasedSource source = source();
+      when(checkpoints.claimDue(1, Duration.ofMillis(2000))).thenReturn(List.of(source));
+      ProviderCollector collector =
+          new ProviderCollector() {
+            @Override
+            public ConnectionsRequests.Provider provider() {
+              return ConnectionsRequests.Provider.AWS;
+            }
+
+            @Override
+            public Batch collect(Request request) {
+              return new Batch(
+                  Batch.Status.COLLECTED,
+                  List.of(
+                      new Observation(
+                          "obs-1",
+                          8,
+                          Instant.parse("2026-11-17T17:00:00Z"),
+                          "aws.config.resources",
+                          "{\"resource\":\"fixture\"}")),
+                  "next-page",
+                  null);
+            }
+          };
+      CollectionRunner runner =
+          runner(checkpoints, collector, baseUrl, 1, 2000, 10);
+      long startedAt = System.nanoTime();
+
+      assertThat(runner.runDue()).isEqualTo(1);
+
+      assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
+          .isLessThan(Duration.ofSeconds(8));
+      verify(checkpoints).storePending(eq(source), any(), eq("next-page"), any());
+      verify(checkpoints)
+          .complete(
+              eq(source),
+              eq("FAILED"),
+              eq("Collection attempt failed; retry scheduled."),
+              eq("previous-page"),
+              eq(source.lastCollectedAt()),
+              any(Instant.class),
+              eq(false));
+    } finally {
+      releaseTokenRequest.countDown();
       server.stop(0);
     }
   }
