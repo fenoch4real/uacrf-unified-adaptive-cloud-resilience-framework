@@ -92,6 +92,30 @@ class CollectionCheckpointStore {
   }
 
   @Transactional
+  void renew(LeasedSource source, Duration leaseDuration) {
+    if (leaseDuration.isZero() || leaseDuration.isNegative()) {
+      throw new IllegalArgumentException("Collection lease duration must be positive.");
+    }
+    int updated =
+        jdbc.update(
+            "UPDATE "
+                + SCHEMA
+                + "collection_checkpoint SET lease_until = now() + "
+                + "(? * interval '1 millisecond'), updated_at = now() WHERE tenant_id = ? "
+                + "AND environment_id = ? AND connection_id = ? AND source_ref = ? "
+                + "AND lease_token = ?",
+            leaseDuration.toMillis(),
+            source.tenantId(),
+            source.environmentId(),
+            source.connectionId(),
+            source.sourceRef(),
+            source.leaseToken());
+    if (updated != 1) {
+      throw new IllegalStateException("The collection lease expired before it could be renewed.");
+    }
+  }
+
+  @Transactional
   void storePending(
       LeasedSource source,
       List<Observation> observations,

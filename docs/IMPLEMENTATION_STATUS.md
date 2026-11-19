@@ -660,13 +660,20 @@ this validates only configuration presence, not production credential validity.
 Its identity, delegation, and intake HTTP calls use bounded 2-second connect
 and 3-second response timeouts; timeout failures retain the prior checkpoint
 and replay any persisted batch unchanged.
+The runner renews leases before provider calls and each outbound request, and
+stale lease tokens cannot renew after another runner takes ownership.
+Failure to record a lost lease is logged without aborting unrelated claims in
+the same collection cycle. Sources are claimed one at a time up to the cycle
+limit, avoiding expiry of leases held by queued sources.
 AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
 data. STS, Config, and CloudWatch SDK calls have a 10-second per-attempt timeout
 and a 30-second total API-call timeout. The full connections module suite passed
-60 tests, and its delegation-auth dependency passed 8 tests (68 total in the
+61 tests, and its delegation-auth dependency passed 8 tests (69 total in the
 selected reactor), with no failures, errors, or skips. This includes the slow
-identity-endpoint and AWS SDK timeout configuration tests. Real provider collection
+identity endpoint, AWS SDK timeout, and active lease renewal cases. The latest
+targeted runner/application rerun passed 20 tests, including stale-token fencing
+and continued processing after a lease is lost. Real provider collection
 and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only

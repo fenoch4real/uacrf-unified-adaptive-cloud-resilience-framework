@@ -273,7 +273,7 @@ class ConnectionsApplicationTests {
             .statusCode());
 
     List<CollectionCheckpointStore.LeasedSource> firstClaims =
-        collectionCheckpoints.claimDue(1000, Duration.ofMinutes(2));
+        collectionCheckpoints.claimDue(1000, Duration.ofMillis(100));
     CollectionCheckpointStore.LeasedSource lease =
         firstClaims.stream()
             .filter(
@@ -283,6 +283,8 @@ class ConnectionsApplicationTests {
             .findFirst()
             .orElseThrow();
     assertThat(lease.lastSequence()).isZero();
+    collectionCheckpoints.renew(lease, Duration.ofMinutes(2));
+    Thread.sleep(150);
     assertThat(
             collectionCheckpoints.claimDue(1000, Duration.ofMinutes(2)))
         .noneMatch(
@@ -316,6 +318,9 @@ class ConnectionsApplicationTests {
             .findFirst()
             .orElseThrow();
     assertThat(retry.leaseToken()).isNotEqualTo(lease.leaseToken());
+    assertThrows(
+        IllegalStateException.class,
+        () -> collectionCheckpoints.renew(lease, Duration.ofMinutes(2)));
     assertThat(retry.checkpoint()).isNull();
     assertThat(retry.lastSequence()).isZero();
     assertThat(retry.pendingObservations()).containsExactly(observation);

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -89,6 +91,8 @@ class CollectionRunnerTests {
 
       assertThat(runner.runDue()).isEqualTo(1);
 
+      verify(checkpoints, atLeastOnce())
+          .renew(eq(source), eq(Duration.ofMillis(2000)));
       assertThat(calls)
           .anyMatch(
               call ->
@@ -152,6 +156,75 @@ class CollectionRunnerTests {
             eq("The provider collector is not implemented."),
             eq("previous-page"),
             eq(source.lastCollectedAt()),
+            any(Instant.class),
+            eq(false));
+  }
+
+  @Test
+  void continuesProcessingWhenAnotherRunnerHasTakenAClaimedLease() {
+    CollectionCheckpointStore checkpoints = mock(CollectionCheckpointStore.class);
+    LeasedSource first = source();
+    LeasedSource second =
+        new LeasedSource(
+            first.tenantId(),
+            first.environmentId(),
+            "connection-2",
+            "source-2",
+            first.provider(),
+            first.readOnlyIdentityRef(),
+            first.awsExternalId(),
+            first.checkpoint(),
+            first.lastCollectedAt(),
+            first.lastSequence(),
+            UUID.randomUUID(),
+            null,
+            null,
+            null);
+    when(checkpoints.claimDue(1, Duration.ofMillis(2000)))
+        .thenReturn(List.of(first), List.of(second));
+    doAnswer(
+            invocation -> {
+              LeasedSource lease = invocation.getArgument(0);
+              if (first.connectionId().equals(lease.connectionId())) {
+                throw new IllegalStateException("Lease was taken by another runner.");
+              }
+              return null;
+            })
+        .when(checkpoints)
+        .renew(any(), any());
+    AtomicInteger collectionCalls = new AtomicInteger();
+    ProviderCollector collector =
+        new ProviderCollector() {
+          @Override
+          public ConnectionsRequests.Provider provider() {
+            return ConnectionsRequests.Provider.AWS;
+          }
+
+          @Override
+          public Batch collect(Request request) {
+            collectionCalls.incrementAndGet();
+            return Batch.notImplemented("No provider collection in this test.");
+          }
+        };
+    CollectionRunner runner =
+        runner(
+            checkpoints,
+            collector,
+            "http://127.0.0.1:1",
+            2,
+            2000,
+            10);
+
+    assertThat(runner.runDue()).isEqualTo(2);
+
+    assertThat(collectionCalls).hasValue(1);
+    verify(checkpoints)
+        .complete(
+            eq(second),
+            eq("NOT_IMPLEMENTED"),
+            eq("The provider collector is not implemented."),
+            eq(second.checkpoint()),
+            eq(second.lastCollectedAt()),
             any(Instant.class),
             eq(false));
   }

@@ -102,23 +102,36 @@ class CollectionRunner {
   }
 
   int runDue() {
-    List<LeasedSource> sources =
-        checkpoints.claimDue(batchSize, Duration.ofMillis(leaseMs));
     Map<String, String> identityTokens = new LinkedHashMap<>();
     Map<String, String> delegations = new LinkedHashMap<>();
     int completed = 0;
-    for (LeasedSource source : sources) {
+    while (completed < batchSize) {
+      List<LeasedSource> sources =
+          checkpoints.claimDue(1, Duration.ofMillis(leaseMs));
+      if (sources.isEmpty()) {
+        break;
+      }
+      LeasedSource source = sources.getFirst();
       try {
         collect(source, identityTokens, delegations);
       } catch (RuntimeException error) {
-        complete(
-            source,
-            "FAILED",
-            "Collection attempt failed; retry scheduled.",
-            source.checkpoint(),
-            source.lastCollectedAt(),
-            false,
-            null);
+        try {
+          checkpoints.renew(source, Duration.ofMillis(leaseMs));
+          complete(
+              source,
+              "FAILED",
+              "Collection attempt failed; retry scheduled.",
+              source.checkpoint(),
+              source.lastCollectedAt(),
+              false,
+              null);
+        } catch (RuntimeException recordError) {
+          LOG.warn(
+              "Could not record failed collection for connection {} source {} ({})",
+              source.connectionId(),
+              source.sourceRef(),
+              recordError.getClass().getSimpleName());
+        }
         LOG.warn(
             "Collection failed for connection {} source {} ({})",
             source.connectionId(),
@@ -164,6 +177,7 @@ class CollectionRunner {
     }
 
     Instant collectedAt = Instant.now();
+    checkpoints.renew(source, Duration.ofMillis(leaseMs));
     Batch batch =
         collector.collect(
             new Request(
@@ -175,6 +189,7 @@ class CollectionRunner {
                 source.lastSequence(),
                 source.lastCollectedAt(),
                 collectedAt));
+    checkpoints.renew(source, Duration.ofMillis(leaseMs));
     if (batch.status() != Batch.Status.COLLECTED) {
       complete(
           source,
@@ -204,6 +219,7 @@ class CollectionRunner {
       Instant collectedAt,
       Map<String, String> identityTokens,
       Map<String, String> delegations) {
+    checkpoints.renew(source, Duration.ofMillis(leaseMs));
     validateBatch(observations, nextCheckpoint);
     String scope = source.tenantId() + "/" + source.environmentId();
     for (ProviderCollector.Observation observation :
@@ -211,13 +227,13 @@ class CollectionRunner {
             .sorted(java.util.Comparator.comparingLong(ProviderCollector.Observation::sequence))
             .toList()) {
       String identityToken =
-          identityTokens.computeIfAbsent(scope, ignored -> identityToken());
+          identityTokens.computeIfAbsent(scope, ignored -> identityToken(source));
       String delegation =
           delegations.computeIfAbsent(
               scope,
               ignored ->
                   delegation(
-                      identityToken, source.tenantId(), source.environmentId()));
+                      source, identityToken, source.tenantId(), source.environmentId()));
       submit(source, observation, delegation);
     }
     complete(
@@ -242,6 +258,7 @@ class CollectionRunner {
 
   private void submit(
       LeasedSource source, ProviderCollector.Observation observation, String delegation) {
+    checkpoints.renew(source, Duration.ofMillis(leaseMs));
     Map<String, Object> request = new LinkedHashMap<>();
     request.put("id", observation.id());
     request.put("source_ref", source.sourceRef());
@@ -269,7 +286,8 @@ class CollectionRunner {
     }
   }
 
-  private String identityToken() {
+  private String identityToken(LeasedSource source) {
+    checkpoints.renew(source, Duration.ofMillis(leaseMs));
     MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
     form.add("grant_type", "client_credentials");
     form.add("client_id", clientId);
@@ -283,7 +301,9 @@ class CollectionRunner {
             .body(Map.class));
   }
 
-  private String delegation(String identityToken, String tenant, String environment) {
+  private String delegation(
+      LeasedSource source, String identityToken, String tenant, String environment) {
+    checkpoints.renew(source, Duration.ofMillis(leaseMs));
     Map<String, Object> request = new LinkedHashMap<>();
     request.put("audience", "S03");
     request.put("capability_ids", OBSERVATION_WRITE);

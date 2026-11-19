@@ -87,7 +87,11 @@ presence, not credential validity. Its identity, delegation, and intake HTTP cal
 2-second connect and 3-second response timeouts. Timeout failures do not advance checkpoints, and
 any persisted batch is replayed unchanged on retry. Provider-reported retry times are honored,
 intake failures do not advance checkpoints, and a partially accepted batch is persisted and
-replayed unchanged on retry.
+replayed unchanged on retry. The runner renews each database lease before provider collection and
+before its token, delegation, and intake calls; renewal fails closed if another runner has replaced
+the lease token. Failure to record one lost lease is logged without stopping unrelated claims in
+the same collection cycle. It claims one source at a time, up to the configured cycle limit, so
+queued sources do not hold expiring leases while earlier collections run.
 
 AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` ExternalId, exposed by
 the authorized connection read endpoint for the target role's trust policy. The first AWS source
