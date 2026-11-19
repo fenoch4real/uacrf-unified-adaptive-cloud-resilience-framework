@@ -3126,7 +3126,7 @@ class WebApplicationTests {
             "test-access-token",
             "S02",
             null,
-            List.of("ownership.transfer", "catalog.journey.write"),
+            List.of("ownership.transfer"),
             "tenant-test",
             "environment-test"))
         .thenReturn(new IdentityAccessClient.Delegation("s02-transfer", "Bearer", 30));
@@ -3156,7 +3156,7 @@ class WebApplicationTests {
             "test-access-token",
             "S02",
             null,
-            List.of("ownership.transfer", "catalog.journey.write"),
+            List.of("ownership.transfer"),
             "tenant-test",
             "environment-test");
     verify(catalog).transferOwnership("s02-transfer", idempotencyKey, transfer);
@@ -3202,7 +3202,7 @@ class WebApplicationTests {
             "test-access-token",
             "S02",
             null,
-            List.of("ownership.transfer", "catalog.journey.write"),
+            List.of("ownership.transfer"),
             "tenant-test",
             "environment-test"))
         .thenReturn(new IdentityAccessClient.Delegation("s02-transfer", "Bearer", 30));
@@ -3315,7 +3315,7 @@ class WebApplicationTests {
             "test-access-token",
             "S02",
             serviceId,
-            List.of("ownership.transfer", "catalog.service.write"),
+            List.of("ownership.transfer"),
             "tenant-test",
             "environment-test"))
         .thenReturn(new IdentityAccessClient.Delegation("s02-service-transfer", "Bearer", 30));
@@ -3344,7 +3344,7 @@ class WebApplicationTests {
             "test-access-token",
             "S02",
             serviceId,
-            List.of("ownership.transfer", "catalog.service.write"),
+            List.of("ownership.transfer"),
             "tenant-test",
             "environment-test");
     verify(catalog).transferOwnership("s02-service-transfer", idempotencyKey, transfer);
@@ -3406,7 +3406,7 @@ class WebApplicationTests {
             "test-access-token",
             "S02",
             null,
-            List.of("ownership.transfer", "catalog.journey.write"),
+            List.of("ownership.transfer"),
             "tenant-test",
             "environment-test");
     verify(catalog, never())

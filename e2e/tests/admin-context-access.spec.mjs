@@ -186,8 +186,8 @@ test('principal admission stays separate from approval-gated membership creation
   }
 });
 
-test('administrator without catalog permission cannot create journeys or transfer ownership', async ({ page }) => {
-  await signIn(page, 'local-admin');
+test('principal without catalog or transfer authority cannot create journeys or transfer ownership', async ({ page }) => {
+  await signIn(page, 'local-approver');
   await selectLocalContext(page);
 
   const formResponse = await page.goto('/journeys/new');
@@ -218,18 +218,16 @@ test('administrator without catalog permission cannot create journeys or transfe
     'S01 or S02 did not authorize reading the target (HTTP 403).',
   );
 
-  await page.goto('/principals');
-  const transferCsrf = await page.locator('input[name="_csrf"]').first().inputValue();
   const unauthorizedTransfer = await page.request.post(
     '/ownership-transfers/JOURNEY/known-journey',
     {
       form: {
         ownerId: 'local-approver',
         expectedRevision: '1',
-        reason: 'Must not bypass S01 catalog authorization.',
+        reason: 'Must not bypass S01 transfer authorization.',
         idempotencyKey: randomUUID(),
         ownerCursor: '',
-        _csrf: transferCsrf,
+        _csrf: csrf,
       },
     },
   );

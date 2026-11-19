@@ -20,7 +20,8 @@ health endpoints, and runs Playwright headlessly. It generates test passwords,
 client secrets, and delegation keys in a private temporary directory;
 credentials are not stored
 in the repository. The runner removes its uniquely named containers, network,
-and database volume on exit.
+and database volume on exit. Playwright uses one worker because scenarios
+mutate the shared bootstrap principals and isolated service data.
 
 The Playwright tests cover administrator and approver capability separation,
 access after a browser reload, invalid-password rejection, protected-route
@@ -64,14 +65,19 @@ source verification and independent grant review before re-enabling is
 available. The suite verifies the approver cannot submit a direct disable
 request and the authorized administrator can disable the principal.
 
-The suite also verifies that an administrator without catalog-write authority
-cannot open the journey owner selector or ownership-transfer page, and that
-CSRF-valid direct journey-creation and ownership-transfer submissions are
-denied by S01. The transfer check exercises only the authorization denial; it
-does not verify a successful ownership transfer. Missing and invalid
-CSRF tokens are rejected for context selection and logout without changing
-the selected context or session; valid browser forms still work. These are
-HTTP rejection checks, not a complete cross-origin or HTTPS review. The suite
-uses the isolated first-admin bootstrap fixture and grants catalog authority
-only through the independent approver/administrator workflow; it does not test
-production identity-provider configuration.
+The isolated bootstrap administrator acts as the transfer operator without
+catalog-write capabilities. The browser flow transfers the draft journey and
+then the unanchored service to a second, separately admitted human with
+independently approved `owner.eligible`, and verifies each updated owner on
+readback. S01 supplies the eligible-owner list and narrow S02 read delegation;
+the transfer mutation delegation contains only `ownership.transfer`. The
+service is transferred before its agent workload is registered. A separate
+principal without transfer authority cannot open the journey owner selector
+or transfer page, and CSRF-valid direct journey-creation and transfer
+submissions remain denied. Missing and invalid CSRF tokens are rejected for
+context selection and logout without changing the selected context or session;
+valid browser forms still work. These are HTTP rejection checks, not a complete
+cross-origin or HTTPS review. The suite uses the isolated first-admin
+bootstrap fixture and grants catalog capabilities only through the independent
+approver/administrator workflow; it does not test production identity-provider
+configuration.

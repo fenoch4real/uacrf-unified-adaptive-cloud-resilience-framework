@@ -88,6 +88,8 @@ class EstateCatalogApplicationTests {
     String token = bearer(actor(tenant, "environment-a",
         List.of("ownership.transfer", "catalog.journey.write", "catalog.service.write"),
         List.of("owner-1", "owner-2", "owner-3"), List.of()));
+    String journeyTransferToken = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer"), List.of("owner-1", "owner-2", "owner-3"), List.of()));
     assertEquals(201, post("/v1/customer-journeys", token, "create-journey", """
         {"id":"journey-transfer","name":"Journey","owner_id":"owner-1","purpose":"Test","lifecycle":"ACTIVE"}
         """).statusCode());
@@ -97,7 +99,7 @@ class EstateCatalogApplicationTests {
     String journey = """
         {"object_kind":"JOURNEY","object_id":"journey-transfer","owner_id":"owner-2","expected_revision":1,"reason":"New owner","expected_anchor_revision":null}
         """;
-    var first = post("/v1/ownership:transfer", token, "journey-transfer-key", journey);
+    var first = post("/v1/ownership:transfer", journeyTransferToken, "journey-transfer-key", journey);
     assertEquals(200, first.statusCode(), first.body());
     var receipt = objectMapper.readTree(first.body());
     assertThat(receipt.size()).isEqualTo(4);
@@ -105,17 +107,17 @@ class EstateCatalogApplicationTests {
     assertThat(receipt.path("revision").asLong()).isEqualTo(2);
     assertThat(receipt.path("result").asText()).isEqualTo("UPDATED");
     assertThat(receipt.path("runtime_effect").asText()).isEqualTo("NONE");
-    var replay = post("/v1/ownership:transfer", token, "journey-transfer-key", journey);
+    var replay = post("/v1/ownership:transfer", journeyTransferToken, "journey-transfer-key", journey);
     assertEquals(200, replay.statusCode(), replay.body());
     assertThat(objectMapper.readTree(replay.body()).path("result").asText()).isEqualTo("REPLAYED");
-    var changed = post("/v1/ownership:transfer", token, "journey-transfer-key",
+    var changed = post("/v1/ownership:transfer", journeyTransferToken, "journey-transfer-key",
         journey.replace("owner-2", "owner-3"));
     assertEquals(409, changed.statusCode());
     assertThat(objectMapper.readTree(changed.body()).path("code").asText()).isEqualTo("IDEMPOTENCY_CONFLICT");
-    var stale = post("/v1/ownership:transfer", token, "stale-journey", journey);
+    var stale = post("/v1/ownership:transfer", journeyTransferToken, "stale-journey", journey);
     assertEquals(409, stale.statusCode());
     assertThat(objectMapper.readTree(stale.body()).path("code").asText()).isEqualTo("REVISION_MISMATCH");
-    var unchanged = post("/v1/ownership:transfer", token, "unchanged-journey",
+    var unchanged = post("/v1/ownership:transfer", journeyTransferToken, "unchanged-journey",
         journey.replace("\"expected_revision\":1", "\"expected_revision\":2"));
     assertEquals(409, unchanged.statusCode());
     assertThat(objectMapper.readTree(unchanged.body()).path("code").asText())
@@ -134,7 +136,7 @@ class EstateCatalogApplicationTests {
 
     String service = journey.replace("JOURNEY", "SERVICE").replace("journey-transfer", "service-transfer");
     String scopedToken = bearer(actor(tenant, "environment-a",
-        List.of("ownership.transfer", "catalog.service.write"),
+        List.of("ownership.transfer"),
         List.of("owner-2"), List.of(), "service-transfer"));
     var serviceResult = post("/v1/ownership:transfer", scopedToken, "service-transfer-key", service);
     assertEquals(200, serviceResult.statusCode(), serviceResult.body());
@@ -193,10 +195,12 @@ class EstateCatalogApplicationTests {
     assertEquals(201, post("/v1/agent-workloads", token, "anchor-agent", """
         {"id":"agent-anchor","service_id":"anchor","name":"Agent","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Work"}
         """).statusCode());
+    String transferOnly = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer"), List.of("owner-2"), List.of(), "anchor"));
     String body = """
         {"object_kind":"SERVICE","object_id":"anchor","owner_id":"owner-2","expected_revision":2,"reason":"Transfer","expected_anchor_revision":null}
         """;
-    var anchor = post("/v1/ownership:transfer", token, "anchor-transfer", body);
+    var anchor = post("/v1/ownership:transfer", transferOnly, "anchor-transfer", body);
     assertEquals(409, anchor.statusCode());
     assertThat(objectMapper.readTree(anchor.body()).path("code").asText()).isEqualTo("SERVICE_IS_AGENT_ANCHOR");
     assertEquals(0, jdbc.queryForObject(
@@ -213,28 +217,26 @@ class EstateCatalogApplicationTests {
         body.replace("\"expected_anchor_revision\":null", "\"expected_anchor_revision\":1")).statusCode());
     assertEquals(400, post("/v1/ownership:transfer", token, "missing",
         body.replace(",\"expected_anchor_revision\":null", "")).statusCode());
-    for (List<String> capabilities : List.of(
-        List.of("catalog.service.write"), List.of("ownership.transfer"))) {
+    for (List<String> capabilities : List.of(List.of("catalog.service.write"))) {
       String limited = bearer(actor(tenant, "environment-a", capabilities, List.of("owner-2"), List.of()));
       assertEquals(403, post("/v1/ownership:transfer", limited, "denied", body).statusCode());
     }
-    for (List<String> capabilities : List.of(
-        List.of("catalog.journey.write"), List.of("ownership.transfer"))) {
+    for (List<String> capabilities : List.of(List.of("catalog.journey.write"))) {
       String limited = bearer(actor(tenant, "environment-a", capabilities, List.of("owner-2"), List.of()));
       assertEquals(403, post("/v1/ownership:transfer", limited, "journey-denied",
           body.replace("SERVICE", "JOURNEY")).statusCode());
     }
     String ineligible = bearer(actor(tenant, "environment-a",
-        List.of("ownership.transfer", "catalog.service.write"), List.of("owner-1"), List.of()));
+        List.of("ownership.transfer"), List.of("owner-1"), List.of()));
     assertEquals(403, post("/v1/ownership:transfer", ineligible, "ineligible", body).statusCode());
     String wrongScope = bearer(actor(tenant, "environment-a",
-        List.of("ownership.transfer", "catalog.service.write", "catalog.journey.write"),
+        List.of("ownership.transfer"),
         List.of("owner-2"), List.of(), "other"));
     assertEquals(403, post("/v1/ownership:transfer", wrongScope, "wrong-scope", body).statusCode());
     assertEquals(403, post("/v1/ownership:transfer", wrongScope, "journey-scope",
         body.replace("SERVICE", "JOURNEY")).statusCode());
     String matchedScope = bearer(actor(tenant, "environment-a",
-        List.of("ownership.transfer", "catalog.service.write"), List.of("owner-2"), List.of(), "anchor"));
+        List.of("ownership.transfer"), List.of("owner-2"), List.of(), "anchor"));
     assertEquals(409, post("/v1/ownership:transfer", matchedScope, "matched-scope", body).statusCode());
   }
 
@@ -244,6 +246,8 @@ class EstateCatalogApplicationTests {
     String token = bearer(actor(tenant, "environment-a",
         List.of("ownership.transfer", "catalog.service.write"),
         List.of("owner-1", "owner-2"), List.of()));
+    String transferOnly = bearer(actor(tenant, "environment-a",
+        List.of("ownership.transfer"), List.of("owner-1", "owner-2"), List.of(), "rollback"));
     assertEquals(201, post("/v1/services", token, "create-rollback", """
         {"reason":"Registration","expected_revision":0,"id":"rollback","name":"Service","owner_id":"owner-1","criticality":3,"lifecycle":"ACTIVE"}
         """).statusCode());
@@ -254,7 +258,7 @@ class EstateCatalogApplicationTests {
     String body = """
         {"object_kind":"SERVICE","object_id":"rollback","owner_id":"owner-2","expected_revision":1,"reason":"Transfer","expected_anchor_revision":null}
         """;
-    assertEquals(409, post("/v1/ownership:transfer", token, "rollback-key", body).statusCode());
+    assertEquals(409, post("/v1/ownership:transfer", transferOnly, "rollback-key", body).statusCode());
     assertEquals("owner-1", jdbc.queryForObject(
         "SELECT owner_id FROM uacrf_catalog.service WHERE tenant_id = ? AND id = 'rollback'",
         String.class, tenant));
@@ -269,7 +273,7 @@ class EstateCatalogApplicationTests {
     assertEquals(1, jdbc.queryForObject(
         "SELECT count(*) FROM uacrf_catalog.service_revision WHERE tenant_id = ?", Integer.class, tenant));
     jdbc.update("DELETE FROM uacrf_catalog.outbox_event WHERE tenant_id = ? AND event_type = 'test.conflict'", tenant);
-    assertEquals(200, post("/v1/ownership:transfer", token, "rollback-key", body).statusCode());
+    assertEquals(200, post("/v1/ownership:transfer", transferOnly, "rollback-key", body).statusCode());
   }
 
   @Test

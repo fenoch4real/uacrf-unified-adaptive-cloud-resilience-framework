@@ -390,12 +390,170 @@ class IdentityApplicationTests {
             "/v1/owner-candidates?object_kind=SERVICE&object_id=svc-other"
                 + "&tenant_id=tenant-test&environment_id=environment-test",
             tokenWithoutContext("keycloak-subject-1"));
-    assertEquals(403, denied.statusCode());
-    assertThat(denied.body()).contains("\"code\":\"PERMISSION_DENIED\"");
+    assertEquals(200, denied.statusCode());
+    assertThat(denied.body()).contains("\"id\":\"owner-a\"", "\"id\":\"owner-b\"");
 
     HttpResponse<String> unauthenticated = get("/v1/me/access", null);
     assertEquals(401, unauthenticated.statusCode());
     assertThat(unauthenticated.body()).contains("\"code\":\"UNAUTHENTICATED\"");
+  }
+
+  @Test
+  void ownershipTransferOperatorCanReadTargetsAndSelectOwnersWithoutCatalogWrite()
+      throws Exception {
+    seedScopedMemberships();
+    String principalId = "transfer-operator-test";
+    UUID ownerSelection = UUID.randomUUID();
+    UUID ownershipTransfer = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO uacrf_identity.principal "
+            + "(id, issuer_uri, subject, display_name, kind, enabled, token_valid_after, revision) "
+            + "VALUES (?, ?, ?, 'Transfer Operator', 'HUMAN', true, now() - interval '1 minute', 1)",
+        principalId,
+        ISSUER,
+        principalId + "-subject");
+    for (Object[] membership :
+        List.of(
+            new Object[] {ownerSelection, "identity.owner.select"},
+            new Object[] {ownershipTransfer, "ownership.transfer"})) {
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+              + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', ?, ?, "
+              + "'*', '2099-12-31T23:59:59Z', 1)",
+          membership[0],
+          principalId,
+          membership[1]);
+    }
+
+    String operator = tokenWithoutContext(principalId + "-subject");
+    String context = "&tenant_id=tenant-test&environment_id=environment-test";
+    try {
+      for (String objectKind : List.of("JOURNEY", "SERVICE")) {
+        String objectId = "JOURNEY".equals(objectKind) ? "journey-1" : "svc-1";
+        HttpResponse<String> owners =
+            get(
+                "/v1/owner-candidates?object_kind="
+                    + objectKind
+                    + "&object_id="
+                    + objectId
+                    + context,
+                operator);
+        assertEquals(200, owners.statusCode());
+        assertThat(owners.body()).contains("\"id\":\"owner-a\"", "\"id\":\"owner-b\"");
+      }
+
+      HttpResponse<String> journeyRead =
+          post(
+              "/internal/v1/delegations",
+              operator,
+              """
+              {"audience":"S02","service_id":null,"capability_ids":["catalog.journey.read"],
+               "tenant_id":"tenant-test","environment_id":"environment-test"}
+              """);
+      assertEquals(200, journeyRead.statusCode(), journeyRead.body());
+      Jwt journeyDelegation =
+          decodeDelegation(
+              journeyRead.body().replaceFirst("^.*\"access_token\":\"([^\"]+)\".*$", "$1"),
+              "S02");
+      assertThat(journeyDelegation.getClaimAsString("service_scope")).isEqualTo("*");
+      assertThat(journeyDelegation.getClaimAsStringList("capabilities"))
+          .containsExactly("catalog.journey.read");
+
+      HttpResponse<String> serviceRead =
+          post(
+              "/internal/v1/delegations",
+              operator,
+              """
+              {"audience":"S02","service_id":"svc-1","capability_ids":["catalog.service.read"],
+               "tenant_id":"tenant-test","environment_id":"environment-test"}
+              """);
+      assertEquals(200, serviceRead.statusCode(), serviceRead.body());
+      Jwt serviceDelegation =
+          decodeDelegation(
+              serviceRead.body().replaceFirst("^.*\"access_token\":\"([^\"]+)\".*$", "$1"),
+              "S02");
+      assertThat(serviceDelegation.getClaimAsString("service_scope")).isEqualTo("svc-1");
+      assertThat(serviceDelegation.getClaimAsStringList("capabilities"))
+          .containsExactly("catalog.service.read");
+
+      jdbc.update(
+          "UPDATE uacrf_identity.membership SET service_scope = 'svc-1' WHERE id = ?",
+          ownershipTransfer);
+      assertEquals(
+          200,
+          get(
+                  "/v1/owner-candidates?object_kind=SERVICE&object_id=svc-1" + context,
+                  operator)
+              .statusCode());
+      assertEquals(
+          200,
+          post(
+                  "/internal/v1/delegations",
+                  operator,
+                  """
+                  {"audience":"S02","service_id":"svc-1","capability_ids":["catalog.service.read"],
+                   "tenant_id":"tenant-test","environment_id":"environment-test"}
+                  """)
+              .statusCode());
+      assertEquals(
+          403,
+          get(
+                  "/v1/owner-candidates?object_kind=SERVICE&object_id=svc-other" + context,
+                  operator)
+              .statusCode());
+      assertEquals(
+          403,
+          get(
+                  "/v1/owner-candidates?object_kind=JOURNEY&object_id=journey-1" + context,
+                  operator)
+              .statusCode());
+      assertEquals(
+          403,
+          post(
+                  "/internal/v1/delegations",
+                  operator,
+                  """
+                  {"audience":"S02","service_id":"svc-other","capability_ids":["catalog.service.read"],
+                   "tenant_id":"tenant-test","environment_id":"environment-test"}
+                  """)
+              .statusCode());
+      assertEquals(
+          403,
+          post(
+                  "/internal/v1/delegations",
+                  operator,
+                  """
+                  {"audience":"S02","service_id":null,"capability_ids":["catalog.journey.read"],
+                   "tenant_id":"tenant-test","environment_id":"environment-test"}
+                  """)
+              .statusCode());
+      assertEquals(
+          403,
+          post(
+                  "/internal/v1/delegations",
+                  operator,
+                  """
+                  {"audience":"S02","service_id":null,"capability_ids":["catalog.journey.write"],
+                   "tenant_id":"tenant-test","environment_id":"environment-test"}
+                  """)
+              .statusCode());
+      jdbc.update(
+          "UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", ownerSelection);
+      assertEquals(
+          403,
+          post(
+                  "/internal/v1/delegations",
+                  operator,
+                  """
+                  {"audience":"S02","service_id":null,"capability_ids":["catalog.journey.read"],
+                   "tenant_id":"tenant-test","environment_id":"environment-test"}
+                  """)
+              .statusCode());
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id = ?", principalId);
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id = ?", principalId);
+    }
   }
 
   @Test

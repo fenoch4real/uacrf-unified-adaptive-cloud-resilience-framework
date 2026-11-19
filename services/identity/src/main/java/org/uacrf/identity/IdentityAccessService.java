@@ -154,7 +154,9 @@ class IdentityAccessService {
       throw denied("Advisory run creation is only available to human principals.");
     }
     for (String capability : requestedCapabilities) {
-      if (!hasCapability(actor, capability, request.serviceId())) {
+      if (!hasCapability(actor, capability, request.serviceId())
+          && !canDelegateCatalogReadForOwnershipTransfer(
+              actor, request.audience(), capability, request.serviceId())) {
         throw denied("The requested delegation exceeds current membership authority.");
       }
     }
@@ -1325,8 +1327,13 @@ class IdentityAccessService {
     String requiredWriteCapability = writeCapability(objectKind);
     Actor actor = resolveActor(jwt, tenantId, environmentId);
     String writeScope = "CONNECTION".equals(objectKind) ? null : objectId;
+    String transferScope = "SERVICE".equals(objectKind) ? objectId : null;
+    boolean canTransfer =
+        objectId != null
+            && ("JOURNEY".equals(objectKind) || "SERVICE".equals(objectKind))
+            && hasCapability(actor, "ownership.transfer", transferScope);
     if (!hasCapability(actor, "identity.owner.select", "*")
-        || !hasCapability(actor, requiredWriteCapability, writeScope)) {
+        || (!hasCapability(actor, requiredWriteCapability, writeScope) && !canTransfer)) {
       throw denied("The current principal cannot select an owner for this target.");
     }
 
@@ -1491,6 +1498,19 @@ class IdentityAccessService {
                 + ")",
             Boolean.class,
             arguments));
+  }
+
+  private boolean canDelegateCatalogReadForOwnershipTransfer(
+      Actor actor, String audience, String capability, String serviceId) {
+    if (!"S02".equals(audience) || !hasCapability(actor, "identity.owner.select", "*")) {
+      return false;
+    }
+    if ("catalog.journey.read".equals(capability)) {
+      return serviceId == null && hasCapability(actor, "ownership.transfer", null);
+    }
+    return "catalog.service.read".equals(capability)
+        && serviceId != null
+        && hasCapability(actor, "ownership.transfer", serviceId);
   }
 
   private static String writeCapability(String objectKind) {

@@ -153,8 +153,6 @@ class OwnershipTransferController {
     }
 
     String serviceId = "SERVICE".equals(objectKind) ? objectId : null;
-    String writeCapability =
-        "JOURNEY".equals(objectKind) ? "catalog.journey.write" : "catalog.service.write";
     String delegationToken;
     try {
       delegationToken =
@@ -163,7 +161,7 @@ class OwnershipTransferController {
                   client.getAccessToken().getTokenValue(),
                   "S02",
                   serviceId,
-                  List.of("ownership.transfer", writeCapability),
+                  List.of("ownership.transfer"),
                   context.tenantId(),
                   context.environmentId())
               .accessToken();

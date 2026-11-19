@@ -7,22 +7,25 @@
 ## Latest live browser run
 
 On 2026-11-18, `npm --prefix e2e run test:live` passed **11 tests** with exit
-code 0. The disposable Compose stack included S02 and a separate PostgreSQL
-catalog database. In addition to the established OIDC, context, membership,
-admission, disable, CSRF, and denial flows, an independently authorized human
-created a draft journey, registered a service, linked it to that journey, and
-verified the journey and linked service through S02 readback. Catalog
-capabilities were granted through the separate approver decision and
-administrator membership workflow; the browser did not bypass owner selection.
-The test also admitted the trusted local S03 publisher service account as a
-SYSTEM principal, granted `runtime.principal.use` through the same independent
-approval flow, and registered standalone and service-bound agent workloads.
-S02 returned successful mutation receipts, and UX01 confirmed that no runtime
-action was performed. An administrator without catalog-write authority remains
-denied when opening journey ownership or transfer flows. The stack was removed
-after the run. Successful ownership transfer, production deployment identity,
-and production identity-provider configuration remain unverified; the suite
-does not cover cross-origin/HTTPS behavior.
+code 0 using one Playwright worker. The disposable Compose stack included S02
+and a separate PostgreSQL catalog database. In addition to the established
+OIDC, context, membership, admission, disable, and CSRF flows, an independently
+authorized human created a draft journey, registered and linked a service,
+and verified the persisted journey and linked service. The bootstrap
+administrator then transferred both owners to a separately admitted human
+with independently approved `owner.eligible`, despite having no catalog-write
+capability. S01 provided owner candidates and read-only S02 target delegations;
+the S02 transfer delegation carried only `ownership.transfer`. The updated
+journey and service owners were verified after redirect, and the service was
+transferred before agent workload registration. A separate principal without
+transfer authority was denied journey creation and both page and CSRF-valid
+direct transfer access. The test also admitted the trusted local S03 publisher
+service account as a SYSTEM principal, granted `runtime.principal.use` through
+the independent approval flow, and registered standalone and service-bound
+agent workloads. S02 returned successful mutation receipts, and UX01 confirmed
+that no runtime action was performed. The stack was removed after the run.
+Production deployment identity and production identity-provider configuration
+remain unverified; the suite does not cover cross-origin/HTTPS behavior.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection
@@ -47,7 +50,7 @@ below; the full Maven reactor was not rerun for the follow-ups.
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
-| Targeted service tests | PASS | 0 | Estate Catalog (20), API Edge (7), and UX01 (76); 103 tests, 0 failures, 0 errors, 0 skipped |
+| Targeted service tests | PASS | 0 | S01 Identity (25), S02 Estate Catalog (12), and UX01 (85); 122 tests, 0 failures, 0 errors, 0 skipped |
 | Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 11 tests in 4 files, all passed |
 
 **Overall**: PASS
@@ -55,7 +58,7 @@ below; the full Maven reactor was not rerun for the follow-ups.
 The targeted service tests were run with:
 
 ```sh
-./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/estate-catalog,services/api-edge,web -am -Dtest='EstateCatalogApplicationTests,OwnerReceiptTests,CatalogRouteControllerTests,WebApplicationTests' -Dsurefire.failIfNoSpecifiedTests=false test
+./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/identity,services/estate-catalog,web -am -Dtest='IdentityApplicationTests,EstateCatalogApplicationTests,WebApplicationTests' -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
 ## Environment
@@ -75,8 +78,8 @@ The targeted service tests were run with:
 - Independent approver decision followed by separate administrator membership creation; direct cross-role decision and membership submissions are denied.
 - Identity manager disables the admitted principal with an audited reason; a direct approver disable submission is denied, and the existing membership remains intact.
 - An independently authorized human creates a draft journey, registers a service, links it to the journey, and reads back the persisted journey and service through the browser.
+- The bootstrap transfer operator, without catalog-write authority, transfers the journey and unanchored service to a separately admitted eligible human; the browser verifies both updated owners and denies transfer to a principal without transfer authority.
 - The same human registers a standalone and a service-bound workload using a separately approved SYSTEM runtime principal; both operations return S02 success receipts without executing runtime actions.
-- An administrator without catalog-write authority cannot open the ownership-transfer page or submit a CSRF-valid direct transfer request; S01 denies both.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
 
@@ -98,9 +101,9 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   trusted channel; the browser does not provide a persisted request inbox.
 - Successful catalog verification covers draft journey creation, service
   registration/linking and readback, plus standalone and service-bound workload
-  registration receipts. There is no UX01 workload readback view, so workload
-  persistence is not independently verified through a read-after-write UI.
-  Successful ownership transfer also remains untested.
+  registration receipts and JOURNEY/SERVICE ownership transfers. There is no
+  UX01 workload readback view, so workload persistence is not independently
+  verified through a read-after-write UI.
 - Catalog authority is granted only through independently approved global
   memberships for human principals; self-grants remain prohibited.
 

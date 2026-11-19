@@ -76,7 +76,6 @@ class CatalogService {
     }
     requireCapability(actor, "ownership.transfer");
     boolean service = "SERVICE".equals(request.objectKind());
-    requireCapability(actor, service ? "catalog.service.write" : "catalog.journey.write");
     if (service) {
       requireServiceScope(actor, request.objectId());
     } else {

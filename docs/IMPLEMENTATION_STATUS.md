@@ -19,7 +19,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite now creates a draft journey, registers and links a service, and registers standalone and service-bound workloads through independent S01 grants and owner selection; journey/service readback and S02 workload mutation receipts are verified. Add successful ownership transfer, deployment-identity verification, and end-to-end acceptance. Re-enabling principals remains unavailable pending verification and independent review. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it also registers standalone and service-bound workloads through independent S01 grants and owner selection. Deployment-identity verification and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; a paginated S03 source-collection outcome report is available through EDGE01. Complete live conformance for AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, and GCP Cloud Asset Inventory and Monitoring metrics (all remain unaccepted), broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement additional reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -416,20 +416,24 @@ test passed with no failures, errors, or skips.
   Ownership transfer for JOURNEY and SERVICE is implemented through UX01,
   EDGE01's fixed internal catalog route, and S02. At submission, UX01
   revalidates the selected human owner with S01 and obtains a fresh,
-  short-lived delegation containing `ownership.transfer` and the target's
-  catalog-write capability; S02 checks the eligible-owner claim and expected
+  short-lived delegation containing only `ownership.transfer` (service-scoped
+  for SERVICE). S01 permits the transfer operator, who has global
+  `identity.owner.select` and non-grantable `ownership.transfer`, to obtain
+  only the S02 target-read capability and list eligible owners without
+  catalog-write authority. S02 requires `ownership.transfer` and the correct
+  global or service scope; it checks the eligible-owner claim and expected
   revision, then atomically updates ownership and revision with immutable
   audit evidence, an idempotency response, and an outbox event. SERVICE
   transfers also append a service revision snapshot. Same-owner transfers are
   rejected, and a service referenced as an agent workload's internal anchor
-  cannot be transferred; AGENT transfer remains out of scope. S02's
-  PostgreSQL-backed tests, EDGE01 route tests, and UX01 tests cover the
-  implementation; the targeted suites pass 103 tests (20 S02, 7 EDGE01,
-  76 UX01). The live browser fixture verifies that an administrator
-  without catalog-write authority cannot open the transfer page or bypass
-  authorization with a CSRF-valid direct submission. This is an S01 denial,
-  not a successful live transfer or an S02 persistence check; the fixture
-  intentionally does not alter the existing authorization policy.
+  cannot be transferred; AGENT transfer remains out of scope. The focused
+  S01, S02, and UX01 suites pass 122 tests (25, 12, and 85 respectively). The
+  live browser suite transfers a journey and an unanchored service from the
+  bootstrap operator to a separately admitted human with independently
+  approved `owner.eligible`, then verifies the updated owner on readback. The
+  operator has no catalog-write grant, and the service transfer precedes
+  workload registration. A separate principal without transfer authority
+  remains denied on both the journey creation and transfer paths.
   The selected-context membership page reads S01's active membership pages and
   submits revision-checked, idempotent revocations with an audit reason; S01
   remains authoritative and prevents removal of the final identity

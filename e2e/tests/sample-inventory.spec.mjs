@@ -4,10 +4,25 @@ import { selectLocalContext, signIn } from './helpers/auth.mjs';
 
 test.use({ actionTimeout: 10_000, navigationTimeout: 30_000 });
 
+async function transferOwner(page, objectKind, objectId, currentOwner, nextOwner) {
+  await page.goto(`/ownership-transfers/${objectKind}/${objectId}`);
+  await expect(page.locator('dl dd').nth(2)).toHaveText(currentOwner);
+  await page.getByLabel('New owner (required)').selectOption(nextOwner);
+  await page.getByLabel('Transfer reason (required)').fill('Validate operator-authorized ownership transfer.');
+  await page.getByRole('button', { name: 'Transfer owner' }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/ownership-transfers/${objectKind}/${objectId}\\?updated=true$`),
+  );
+  await expect(page.getByRole('status')).toHaveText('Ownership was updated successfully.');
+  await expect(page.locator('dl dd').nth(2)).toHaveText(nextOwner);
+}
+
 test('authorized user imports and replays synthetic inventory through S03', async ({ browser, page }) => {
   test.setTimeout(180_000);
   const username = `sample-${randomUUID()}`;
   const password = randomBytes(24).toString('hex');
+  const transfereeUsername = `transferee-${randomUUID()}`;
+  const transfereePassword = randomBytes(24).toString('hex');
   const tokenResponse = await fetch('http://localhost:8180/realms/master/protocol/openid-connect/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -38,6 +53,25 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   expect(users).toHaveLength(1);
   const subject = users[0].id;
 
+  const transfereeResponse = await fetch('http://localhost:8180/admin/realms/uacrf/users', {
+    method: 'POST', headers,
+    body: JSON.stringify({
+      username: transfereeUsername, enabled: true, firstName: 'Browser', lastName: 'Transferee',
+      email: `${transfereeUsername}@example.test`, emailVerified: true,
+      credentials: [{ type: 'password', value: transfereePassword, temporary: false }],
+    }),
+  });
+  expect(transfereeResponse.status).toBe(201);
+  const transfereeLookup = await fetch(
+    `http://localhost:8180/admin/realms/uacrf/users?${new URLSearchParams({
+      username: transfereeUsername, exact: 'true',
+    })}`,
+    { headers },
+  );
+  expect(transfereeLookup.status).toBe(200);
+  const transfereeUsers = await transfereeLookup.json();
+  expect(transfereeUsers).toHaveLength(1);
+
   await signIn(page, 'local-admin');
   await selectLocalContext(page);
   await page.goto('/principals');
@@ -48,6 +82,16 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   const admission = await page.getByRole('status').innerText();
   const principalId = admission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
   expect(principalId).toBeTruthy();
+
+  await page.goto('/principals');
+  await page.getByLabel('Trusted identity provider').selectOption('keycloak-local');
+  await page.getByLabel('Directory subject reference').fill(transfereeUsers[0].id);
+  await page.getByLabel('Reason for admission').fill('Isolated ownership-transfer transferee.');
+  await page.getByRole('button', { name: 'Admit principal' }).click();
+  const transfereeAdmission = await page.getByRole('status').innerText();
+  const transfereePrincipalId =
+    transfereeAdmission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
+  expect(transfereePrincipalId).toBeTruthy();
 
   const runtimeLookup = await fetch(
     `http://localhost:8180/admin/realms/uacrf/users?${new URLSearchParams({
@@ -82,6 +126,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
+      { principalId: transfereePrincipalId, capability: 'owner.eligible' },
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
     ];
     for (const { principalId: targetPrincipalId, capability } of grants) {
@@ -149,6 +194,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('button', { name: 'Create draft journey' }).click();
     await expect(sample.getByRole('heading', { name: journeyName })).toBeVisible();
     await expect(sample.getByText(principalId, { exact: true })).toBeVisible();
+    const journeyId =
+      new URL(sample.url()).pathname.match(/\/journeys\/([^/]+)$/)?.[1];
+    expect(journeyId).toBeTruthy();
 
     await sample.getByRole('link', { name: 'Register and link a service' }).click();
     const serviceName = `Browser service ${randomUUID()}`;
@@ -167,6 +215,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
 
     await sample.goto('/journeys');
     await expect(sample.getByRole('link', { name: journeyName })).toBeVisible();
+
+    await transferOwner(page, 'JOURNEY', journeyId, principalId, transfereePrincipalId);
+    await transferOwner(page, 'SERVICE', serviceId, principalId, transfereePrincipalId);
 
     await sample.goto('/agents/new');
     await expect(sample.getByText('This agent will be standalone, without a service anchor.'))
