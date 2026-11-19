@@ -60,7 +60,8 @@ class IdentitySecurityConfiguration {
       Instant expires = jwt.getExpiresAt();
       boolean valid =
           jwt.getIssuer() != null && issuer.equals(jwt.getIssuer().toString())
-              && List.of("S06").equals(jwt.getAudience())
+              && (List.of("S06").equals(jwt.getAudience())
+                  || List.of("S05").equals(jwt.getAudience()))
               && keyId.equals(jwt.getHeaders().get("kid"))
               && issued != null && !issued.isAfter(now)
               && expires != null && expires.isAfter(now) && expires.isAfter(issued)
@@ -74,7 +75,7 @@ class IdentitySecurityConfiguration {
               && nonblank(jwt.getClaimAsString("actor_subject"));
       return valid ? OAuth2TokenValidatorResult.success()
           : OAuth2TokenValidatorResult.failure(
-              new OAuth2Error("invalid_token", "Invalid S06 delegation", null));
+              new OAuth2Error("invalid_token", "Invalid downstream delegation", null));
     });
     return decoder;
   }

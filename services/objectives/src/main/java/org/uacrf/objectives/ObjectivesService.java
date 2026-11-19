@@ -14,9 +14,11 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
@@ -34,15 +36,22 @@ class ObjectivesService {
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
   private final ObjectiveReviewAuthorityClient reviewerAuthority;
+  private final ObjectiveWorkloadAuthorityClient workloadAuthority;
 
-  ObjectivesService(JdbcTemplate jdbc, ObjectMapper objectMapper, ObjectiveReviewAuthorityClient reviewerAuthority) {
+  ObjectivesService(
+      JdbcTemplate jdbc,
+      ObjectMapper objectMapper,
+      ObjectiveReviewAuthorityClient reviewerAuthority,
+      ObjectiveWorkloadAuthorityClient workloadAuthority) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
     this.reviewerAuthority = reviewerAuthority;
+    this.workloadAuthority = workloadAuthority;
   }
 
   @Transactional
-  Objective propose(DelegationPrincipal actor, ProposeObjective request) {
+  Objective propose(Jwt jwt, ProposeObjective request) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
     requireCapability(actor, "objectives.objective.write");
     requireGlobalScope(actor);
     boolean hasSource =
@@ -64,6 +73,8 @@ class ObjectivesService {
       throw new ObjectivesException(
           HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "A local objective cannot carry import provenance.");
     }
+    workloadAuthority.check(
+        jwt, request.workloadId(), ObjectiveWorkloadAuthorityClient.PROPOSAL_PURPOSE);
     String canonical =
         String.join(
             "|",
@@ -103,6 +114,102 @@ class ObjectivesService {
   }
 
   @Transactional
+  ImportPreviewAdmission previewImport(
+      DelegationPrincipal actor, String idempotencyKey, ImportPreviewRequest request) {
+    requireCapability(actor, "objectives.objective.write");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(idempotencyKey);
+
+    Map<String, Object> requestBody = new TreeMap<>();
+    requestBody.put("connection_id", request.connectionId());
+    requestBody.put("external_objective_id", request.externalObjectiveId());
+    requestBody.put("target_workload_id", request.targetWorkloadId());
+    requestBody.put("mapping_revision", request.mappingRevision());
+    requestBody.put("expected_local_revision", request.expectedLocalRevision());
+    String serializedRequest = serialize(requestBody);
+    String requestDigest = sha256(serializedRequest);
+    String commandId = UUID.randomUUID().toString();
+    int inserted =
+        jdbc.update(
+            "INSERT INTO "
+                + SCHEMA
+                + "objective_import_preview_command (command_id, tenant_id, environment_id, actor_id, "
+                + "idempotency_key, target_workload_id, request_digest, request_body, status) "
+                + "VALUES (?::uuid, ?, ?, ?, ?, ?, ?, ?::jsonb, 'PENDING') "
+                + "ON CONFLICT (tenant_id, environment_id, actor_id, idempotency_key) DO NOTHING",
+            commandId,
+            actor.tenantId(),
+            actor.environmentId(),
+            actor.principalId(),
+            idempotencyKey,
+            request.targetWorkloadId(),
+            requestDigest,
+            serializedRequest);
+    if (inserted == 0) {
+      List<Map<String, Object>> existing =
+          jdbc.queryForList(
+              "SELECT command_id, request_digest FROM "
+                  + SCHEMA
+                  + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+                  + "AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+              actor.tenantId(),
+              actor.environmentId(),
+              actor.principalId(),
+              idempotencyKey);
+      if (existing.isEmpty()) {
+        throw new IllegalStateException("The idempotent import preview command disappeared.");
+      }
+      Map<String, Object> row = existing.getFirst();
+      if (!requestDigest.equals(row.get("request_digest").toString().trim())) {
+        throw conflict(
+            "IDEMPOTENCY_CONFLICT",
+            "The idempotency key was already used for a different import preview request.");
+      }
+      return importPreviewAdmission(row.get("command_id").toString(), false);
+    }
+
+    appendOutbox(
+        actor,
+        "OBJECTIVE_IMPORT_PREVIEW",
+        commandId,
+        1,
+        "uacrf.s05.objective-import.preview.requested.v1",
+        Map.of("status", "PENDING", "request_digest", requestDigest));
+    return importPreviewAdmission(commandId, true);
+  }
+
+  @Transactional(readOnly = true)
+  PendingImportReceipt getImportPreview(DelegationPrincipal actor, String id) {
+    requireCapability(actor, "objectives.objective.read");
+    UUID commandId;
+    try {
+      commandId = UUID.fromString(id);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT target_workload_id, status FROM "
+                + SCHEMA
+                + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+                + "AND command_id = ?",
+            actor.tenantId(),
+            actor.environmentId(),
+            commandId);
+    if (rows.isEmpty()) {
+      throw notFound();
+    }
+    String targetWorkloadId = (String) rows.getFirst().get("target_workload_id");
+    if (!"*".equals(actor.serviceScope()) && !targetWorkloadId.equals(actor.serviceScope())) {
+      throw notFound();
+    }
+    return new PendingImportReceipt(
+        commandId.toString(),
+        rows.getFirst().get("status").toString(),
+        "/v1/objective-imports/" + commandId);
+  }
+
+  @Transactional
   Objective submit(DelegationPrincipal actor, String id, Transition request) {
     requireCapability(actor, "objectives.objective.write");
     requireGlobalScope(actor);
@@ -137,7 +244,8 @@ class ObjectivesService {
   }
 
   @Transactional
-  Objective activate(DelegationPrincipal actor, String id, Transition request) {
+  Objective activate(Jwt jwt, String id, Transition request) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
     requireCapability(actor, "objectives.objective.activate");
     requireGlobalScope(actor);
     Map<String, Object> row = lock(actor, id);
@@ -145,6 +253,10 @@ class ObjectivesService {
     requireState(row, "APPROVED");
     enforceConstraint(actor, row);
     reviewerAuthority.check(actor.tenantId(), actor.environmentId(), (String) row.get("decided_by"));
+    workloadAuthority.check(
+        jwt,
+        (String) row.get("workload_id"),
+        ObjectiveWorkloadAuthorityClient.ACTIVATION_PURPOSE);
     List<Map<String, Object>> previous =
         jdbc.queryForList(
             "SELECT id, revision FROM " + SCHEMA + "objective WHERE tenant_id = ? AND environment_id = ? "
@@ -384,6 +496,16 @@ class ObjectivesService {
 
   private void appendOutbox(
       DelegationPrincipal actor, String aggregateId, long sequence, String eventType, Map<String, Object> body) {
+    appendOutbox(actor, "OBJECTIVE", aggregateId, sequence, eventType, body);
+  }
+
+  private void appendOutbox(
+      DelegationPrincipal actor,
+      String aggregateType,
+      String aggregateId,
+      long sequence,
+      String eventType,
+      Map<String, Object> body) {
     Map<String, Object> envelope = new LinkedHashMap<>();
     envelope.put("actor_id", actor.principalId());
     envelope.put("event_type", eventType);
@@ -399,10 +521,11 @@ class ObjectivesService {
     jdbc.update(
         "INSERT INTO " + SCHEMA + "outbox_event (event_id, tenant_id, environment_id, aggregate_type, "
             + "aggregate_id, aggregate_sequence, event_type, payload, payload_digest) "
-            + "VALUES (?, ?, ?, 'OBJECTIVE', ?, ?, ?, ?::jsonb, ?)",
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)",
         UUID.randomUUID(),
         actor.tenantId(),
         actor.environmentId(),
+        aggregateType,
         aggregateId,
         sequence,
         eventType,
@@ -445,6 +568,33 @@ class ObjectivesService {
       throw new ObjectivesException(
           HttpStatus.FORBIDDEN, "PERMISSION_DENIED", "This objective operation requires a global service scope.");
     }
+  }
+
+  private static void validateIdempotencyKey(String key) {
+    if (key == null
+        || key.isBlank()
+        || key.length() > 200
+        || key.chars().anyMatch(Character::isISOControl)) {
+      throw new ObjectivesException(
+          HttpStatus.BAD_REQUEST,
+          "INVALID_IDEMPOTENCY_KEY",
+          "Idempotency-Key must be non-empty and at most 200 characters.");
+    }
+  }
+
+  private String serialize(Map<String, Object> value) {
+    try {
+      return objectMapper.writeValueAsString(value);
+    } catch (JacksonException error) {
+      throw new IllegalStateException("Could not serialize the import preview request.", error);
+    }
+  }
+
+  private static ImportPreviewAdmission importPreviewAdmission(String id, boolean newlyAccepted) {
+    return new ImportPreviewAdmission(
+        new CommandReceipt(
+            id, "PENDING", "/v1/objective-imports/" + id, "NOT_ESTABLISHED"),
+        newlyAccepted);
   }
 
   private static ObjectivesException notFound() {

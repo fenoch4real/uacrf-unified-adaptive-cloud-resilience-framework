@@ -1,5 +1,6 @@
 package org.uacrf.edge;
 
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
@@ -44,6 +45,15 @@ class ObjectivesRouteControllerTests {
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/objective-imports:preview"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header("Idempotency-Key", "preview-1"))
+        .andRespond(withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
+        .expect(requestTo(URL + "/v1/objective-imports/import-1"))
+        .andExpect(method(HttpMethod.GET))
+        .andRespond(withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/objectives/o-1:decide"))
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -59,6 +69,14 @@ class ObjectivesRouteControllerTests {
         .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(post("/internal/objectives/v1/objectives").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
+    mvc.perform(
+            post("/internal/objectives/v1/objective-imports:preview")
+                .header("Idempotency-Key", "preview-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isAccepted());
+    mvc.perform(get("/internal/objectives/v1/objective-imports/import-1"))
+        .andExpect(status().isAccepted());
     mvc.perform(post("/internal/objectives/v1/objectives/o-1:decide").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(put("/internal/objectives/v1/organization-constraints/latency.p95").contentType(MediaType.APPLICATION_JSON).content("{}"))

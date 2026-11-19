@@ -3,8 +3,8 @@
   "info": {
     "title": "Proposed objective import and collection policy extension",
     "version": "1.0",
-    "description": "Eight unimplemented operations outside the 74 canonical APIs and the seven earlier proposed objective operations. Not deployed or engine tested.",
-    "x-contract-review": "Implementation review 1; typed response addendum, not a deployed handler"
+    "description": "Eight proposed operations outside the 74 canonical APIs and the seven earlier proposed objective operations. S05 implements durable pending-command admission and status readback for the preview path; source-backed candidate processing, worker completion, and extension-wide acceptance remain unimplemented. Not live-source tested.",
+    "x-contract-review": "Implementation review 1; typed response addendum. Preview admission is partial; candidate processing remains proposed."
   },
   "security": [
     {

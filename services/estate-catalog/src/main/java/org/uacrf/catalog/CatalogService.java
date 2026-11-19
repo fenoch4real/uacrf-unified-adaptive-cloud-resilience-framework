@@ -36,7 +36,11 @@ class CatalogService {
       Set.of(
           "topology.dependency-proposal",
           "topology.dependency-review",
-          "topology.graph.current-use");
+          "topology.graph.current-use",
+          "objectives.objective.proposal",
+          "objectives.objective.activation");
+  private static final Set<String> OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES =
+      Set.of("objectives.objective.proposal", "objectives.objective.activation");
   private static final Set<String> SERVICE_REVISION_RECEIPT_PURPOSES =
       Set.of(
           "topology.graph.subgraph-selection",
@@ -494,11 +498,36 @@ class CatalogService {
 
   @Transactional(readOnly = true)
   OwnerReceipt issueOwnerReceipt(Jwt jwt, String workloadId, OwnerReceiptRequest request) {
+    return issueWorkloadOwnerReceipt(
+        jwt,
+        workloadId,
+        request.purpose(),
+        request.requestedVersion(),
+        request.knownRevision(),
+        request.operationDeadline());
+  }
+
+  @Transactional(readOnly = true)
+  OwnerReceipt issueCurrentWorkloadOwnerReceipt(
+      Jwt jwt, String workloadId, CurrentOwnerReceiptRequest request) {
+    if (!OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES.contains(request.purpose())) {
+      throw denied("The current workload receipt purpose is not supported.");
+    }
+    return issueWorkloadOwnerReceipt(
+        jwt, workloadId, request.purpose(), null, null, request.operationDeadline());
+  }
+
+  private OwnerReceipt issueWorkloadOwnerReceipt(
+      Jwt jwt,
+      String workloadId,
+      String purpose,
+      String requestedVersion,
+      Long knownRevision,
+      Instant deadline) {
     DelegationPrincipal actor = DelegationPrincipal.from(jwt);
-    requireOwnerReceiptDelegation(jwt, actor, workloadId, request.purpose());
+    requireOwnerReceiptDelegation(jwt, actor, workloadId, purpose);
 
     Instant issuedAt = clock.instant();
-    Instant deadline = request.operationDeadline();
     if (!deadline.isAfter(issuedAt)
         || deadline.isAfter(issuedAt.plusSeconds(5))
         || jwt.getExpiresAt() == null
@@ -509,7 +538,7 @@ class CatalogService {
     List<Map<String, Object>> rows =
         jdbc.queryForList(
             "SELECT profile.revision, profile.active_version_id, parent_service.lifecycle "
-                + "AS service_lifecycle, version.state AS version_state, version.digest, "
+                + "AS service_lifecycle, profile.owner_id, version.state AS version_state, version.digest, "
                 + "version.manifest::text AS manifest FROM "
                 + SCHEMA
                 + "agent_workload profile "
@@ -535,6 +564,10 @@ class CatalogService {
     Map<String, Object> row = rows.getFirst();
     long profileRevision = ((Number) row.get("revision")).longValue();
     String activeVersionId = (String) row.get("active_version_id");
+    if (OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES.contains(purpose)
+        && !actor.principalId().equals(row.get("owner_id"))) {
+      throw denied("The caller is not the current owner of the agent workload.");
+    }
     String serviceLifecycle = (String) row.get("service_lifecycle");
     String versionState = (String) row.get("version_state");
     String digest = row.get("digest") == null ? null : row.get("digest").toString().trim();
@@ -550,10 +583,10 @@ class CatalogService {
             .equals(digest)) {
       throw conflict("WORKLOAD_MANIFEST_INVALID", "The active workload manifest digest is invalid.");
     }
-    if (!activeVersionId.equals(request.requestedVersion())) {
+    if (requestedVersion != null && !activeVersionId.equals(requestedVersion)) {
       throw conflict("STALE_WORKLOAD_VERSION", "The requested workload version is not active.");
     }
-    if (request.knownRevision() != null && request.knownRevision() != profileRevision) {
+    if (knownRevision != null && knownRevision != profileRevision) {
       throw conflict("STALE_WORKLOAD_REVISION", "The workload profile revision has changed.");
     }
     if (profileRevision < 0 || profileRevision > MAX_SAFE_INTEGER) {
@@ -576,7 +609,7 @@ class CatalogService {
             ownerReceiptSigningKey.keyId(),
             UUID.randomUUID().toString(),
             "S02",
-            "S06",
+            OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES.contains(purpose) ? "S05" : "S06",
             actor.tenantId(),
             actor.environmentId(),
             actor.actorSubject(),
@@ -587,7 +620,7 @@ class CatalogService {
             digest,
             profileRevision,
             true,
-            request.purpose(),
+            purpose,
             issuedAt.toString(),
             validUntil.toString());
     String signature =

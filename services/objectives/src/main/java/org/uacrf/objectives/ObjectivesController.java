@@ -5,6 +5,7 @@ import static org.uacrf.objectives.ObjectivesResponses.*;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,7 +30,26 @@ class ObjectivesController {
   @PostMapping("/v1/objectives")
   @ResponseStatus(HttpStatus.CREATED)
   Objective propose(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProposeObjective request) {
-    return objectives.propose(DelegationPrincipal.from(jwt), request);
+    return objectives.propose(jwt, request);
+  }
+
+  @PostMapping("/v1/objective-imports:preview")
+  ResponseEntity<CommandReceipt> previewImport(
+      @AuthenticationPrincipal Jwt jwt,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody ImportPreviewRequest request) {
+    ImportPreviewAdmission admission =
+        objectives.previewImport(DelegationPrincipal.from(jwt), idempotencyKey, request);
+    return admission.newlyAccepted()
+        ? ResponseEntity.accepted().body(admission.receipt())
+        : ResponseEntity.ok().body(admission.receipt());
+  }
+
+  @GetMapping("/v1/objective-imports/{id}")
+  ResponseEntity<PendingImportReceipt> getImportPreview(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return ResponseEntity.accepted()
+        .body(objectives.getImportPreview(DelegationPrincipal.from(jwt), id));
   }
 
   @GetMapping("/v1/objectives")
@@ -61,7 +82,7 @@ class ObjectivesController {
   @PostMapping("/v1/objectives/{id}:activate")
   Objective activate(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) {
-    return objectives.activate(DelegationPrincipal.from(jwt), id, request);
+    return objectives.activate(jwt, id, request);
   }
 
   @PutMapping("/v1/organization-constraints/{metric}")

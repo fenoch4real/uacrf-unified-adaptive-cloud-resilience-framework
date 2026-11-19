@@ -37,10 +37,10 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Identity (S01) | POST | `/v1/memberships`, `/v1/principals`, `/v1/grant-decisions`, `/v1/memberships/{id}:revoke`, `/v1/principals/{id}:set-status` | `IdentityRequests` records; mutations use idempotency keys | `IdentityResponses.MutationReceipt` |
 | Identity (S01) | POST | `/internal/v1/delegations`, `/internal/v1/delegations:exchange`, `/internal/v1/objective-review-authority:check` | Delegation, exchange, or authority-check JSON | Scoped delegation or authority response |
 | Estate Catalog (S02) | GET, POST | `/v1/services`, `/v1/agent-workloads`, `/v1/agent-workloads/{id}/versions`, `/v1/agent-workloads/{id}:activate`, `/v1/customer-journeys/**` | `CatalogRequests` records, query/path parameters, idempotency key for writes | `CatalogResponses` receipts, pages, agents, services, and journeys |
-| Estate Catalog (S02) | GET, POST | `/internal/v1/workload-versions/{id}`, `/internal/v1/workloads/{id}:receipt`, `/internal/v1/services/{id}:receipt`, `/internal/v1/services/{id}/revisions/{version}` | Delegated bearer JWT; receipt request where applicable | Workload/service owner receipt or exact immutable revision snapshot |
+| Estate Catalog (S02) | GET, POST | `/internal/v1/workload-versions/{id}`, `/internal/v1/workloads/{id}:receipt`, `/internal/v1/workloads/{id}:current-receipt`, `/internal/v1/services/{id}:receipt`, `/internal/v1/services/{id}/revisions/{version}` | Delegated bearer JWT; purpose/deadline receipt request where applicable | Workload/service owner receipt or exact immutable revision snapshot; S05-purpose receipts require the delegated principal to equal the workload's current catalog owner |
 | Connections (S03) | GET, POST | `/v1/connections/**` including source bindings, observations, paginated collection outcome reports, read-only inventory projection, and quarantine | `ConnectionsRequests` records, query/path parameters, idempotency key for registration | `ConnectionsResponses` pages, records, and ingestion result; observation submission returns 202 |
 | Evidence (S04) | GET, POST | `/v1/evidence/**`, `/internal/v1/observations`, `/internal/v1/qualifications/{id}:receipt`, `:measurement`, `:topology-summary`, `/internal/v1/inbox/events` | `EvidenceRequests` records and delegated bearer JWT | Evidence, qualification/measurement/topology-summary receipts, and inbox result; intake/inbox return 202 |
-| Objectives (S05) | GET, POST, PUT | `/v1/objectives/**`, `/v1/organization-constraints/{metric}`, `/internal/v1/workloads/{id}/objectives:receipt` | `ObjectivesRequests` records and query/path parameters | `ObjectivesResponses` objectives, constraints, and receipt |
+| Objectives (S05) | GET, POST, PUT | `/v1/objectives/**`, `/v1/organization-constraints/{metric}`, `/v1/objective-imports:preview`, `/v1/objective-imports/{id}`, `/internal/v1/workloads/{id}/objectives:receipt` | `ObjectivesRequests` records and query/path parameters; preview admission requires `Idempotency-Key` | Objective, constraint, active-objective receipt, and pending import-command receipt; preview admission is partial and remains `PENDING`; proposal and activation optionally require a current signed S02 owner receipt |
 | Topology (S06) | GET, POST | `/v1/dependency-proposals`, `/v1/dependency-proposals:evidence-backed`, `/v1/dependency-proposals/{id}`, `/v1/dependency-proposals/{id}:review`, `/v1/graphs:accept`, `/v1/graphs/{id}/...`, `/internal/v1/graphs/{id}:receipt` | `TopologyRequests` records and query/path parameters | `TopologyResponses` proposals, graph views, impact, and receipt |
 | Topology (S06) | POST, GET | `/v1/graphs/subgraphs:select`, `/v1/graphs/differences:classify`, `/v1/commands/{id}` | `TopologyRequests.SelectSubgraph` / `ClassifyDifferences` and idempotency key; command ID path | 202 admission receipt (`PENDING`, `domain_completion=false`); status projection (`command_id`, `status`, `terminal`, `domain_completion`) and, only on `SUCCEEDED`, a bounded advisory result |
 | Assessment (S07) | GET, POST | `/v1/cases/**`, `/v1/evaluations/{id}`, `/v1/recommendations` | `AssessmentRequests` records and query/path parameters | Case, evaluation, recommendation, and receipt records |
@@ -98,10 +98,10 @@ The API Edge and Experience API generally forward JSON as text and preserve owne
 
 - **Synchronous service calls:** The browser application calls the Experience API for identity operations and the API Edge for catalog operations. The Experience API forwards to S01. The API Edge routes to S01, S02, S03, S04, S05, S06, S07, or S08 without response aggregation.
 - **Versioning:** HTTP APIs use path-based `/v1` versioning; service-only routes are placed beneath `/internal`. No header- or query-based API versioning was found.
-- **Internal proof and receipt calls:** S06 verifies identity delegation, S02 owner receipts and exact catalog revisions, S04 bounded evidence summaries, and S07 case receipts. The S07 receipt's `purpose` is the case's business purpose (for example, `incident`); the topology operation purpose is bound and authorized by the S01 delegation exchanged for that exact case ID and is not required to equal the receipt's purpose. S07 also has optional receipt clients for S04/S05/S06; S08 has an optional S07 case-receipt client. These are direct synchronous REST calls, controlled by environment-configurable base URLs.
+- **Internal proof and receipt calls:** S06 verifies identity delegation, S02 owner receipts and exact catalog revisions, S04 bounded evidence summaries, and S07 case receipts. When enabled, S05 exchanges the caller's S05 JWT with S01 for an exact purpose/resource S02 delegation, requests the current workload receipt, and verifies its signature and context before proposal or activation. S02 also verifies the caller principal matches the workload's current catalog owner for these S05 purposes. The S05 receipt is point-in-time and is not an atomic fence or persisted by S05. The S07 receipt's `purpose` is the case's business purpose (for example, `incident`); the topology operation purpose is bound and authorized by the S01 delegation exchanged for that exact case ID and is not required to equal the receipt's purpose. S07 also has optional receipt clients for S04/S05/S06; S08 has an optional S07 case-receipt client. These are direct synchronous REST calls, controlled by environment-configurable base URLs.
 - **Outbox processing:** S03 can poll its database outbox every 5 seconds (publisher disabled by default), obtain a scoped S01 delegation, then POST events to the S04 inbox. Failed deliveries remain pending for later cycles; S04 `RECEIVED` and `DUPLICATE` responses are acknowledged, and quarantined events are durably acknowledged. S06 uses its own database outbox and scheduled worker for graph commands; no message broker is used for these flows. A 202 receipt reports admission as `PENDING`, while the persisted command starts at `ACCEPTED`. The current worker follows `ACCEPTED` → `RUNNING` → `SUCCEEDED`, with `RUNNING` → `RETRY_SCHEDULED` → `RUNNING` retries and `FAILED` after five attempts or a non-retryable graph-binding failure. The persisted lifecycle schema also permits `WAITING_FOR_DEPENDENCY`, `REJECTED`, `CANCELLED`, `EXPIRED` and `OUTCOME_UNKNOWN`, but the current worker does not transition to these states. `domain_completion` is true only for `SUCCEEDED`; `OUTCOME_UNKNOWN` is nonterminal.
 - **S06 command revision identity:** Selection revisions are keyed by `service_id` and `query_id`; graph, catalog, case and evidence bindings retain the changing context, so a new context advances `expected_revision` on that target. Difference-classification revisions are keyed by `service_id` and `authorized_graph_revision_id`; the current graph, retained selection, case and evidence bindings are retained separately, and subsequent comparisons advance that target's `expected_revision`.
-- **Timeouts and resilience:** API Edge REST clients use a 2-second connect timeout. The browser REST clients use 2-second connect and 3-second read timeouts; receipt clients use bounded 2-second requests. No circuit-breaker or general-purpose retry library/configuration was found. Edge proxy controllers translate upstream connection failures to 502 responses; durable outbox work is retried by later polling cycles.
+- **Timeouts and resilience:** API Edge REST clients use a 2-second connect timeout. The browser REST clients use 2-second connect and 3-second read timeouts; receipt clients use bounded 2-second requests. S05's S01/S02 owner check is constrained by a five-second operation deadline and does not retry. No circuit-breaker or general-purpose retry library/configuration was found. Edge proxy controllers translate upstream connection failures to 502 responses; durable outbox work is retried by later polling cycles.
 - **Discovery and gateway composition:** Services use configurable base URLs with localhost defaults; no service-discovery client is configured. API Edge and Experience API are routing/proxy layers, not aggregators; browser pages combine separate calls at the workflow level.
 - **Security posture:** Browser routes use OAuth2 login and session cookies. Backend APIs use bearer JWT/resource-server authentication and service/resource-scoped capability checks; S01 integrates with OIDC and issues narrowly scoped delegations. API Edge forwards the caller’s bearer token rather than granting downstream authority. The source config does not enable server-side TLS; local inter-service defaults are HTTP, so production TLS must be provided by deployment/network configuration.
 
@@ -167,4 +167,29 @@ sequenceDiagram
     DB-->>S06: Return current status and advisory result
     S06-->>Edge: Return command status
     Edge-->>Client: Return status and result
+~~~
+
+~~~mermaid
+sequenceDiagram
+    participant Client as "Authorized S05 Caller"
+    participant S05 as "S05 Objectives"
+    participant S01 as "S01 Identity"
+    participant S02 as "S02 Catalog"
+    participant DB as "S05 PostgreSQL"
+
+    Client->>S05: Propose or activate objective
+    S05->>S01: Exchange caller JWT for purpose-bound S02 delegation
+    S01->>S01: Check caller capability, global scope and current membership
+    S01-->>S05: Return workload-scoped owner-receipt delegation
+    S05->>S02: Request current receipt for workload and operation purpose
+    S02->>S02: Match caller principal to catalog owner and verify active version/digest
+    S02-->>S05: Return signed receipt for audience S05
+    S05->>S05: Verify signature, actor, context, resource, purpose and validity
+    alt Receipt confirms the caller owns the current eligible workload
+        S05->>DB: Persist proposal or activate after proof succeeds
+        DB-->>S05: Commit objective transition and outbox event
+        S05-->>Client: Return objective result
+    else Denied, stale, invalid or unavailable proof
+        S05-->>Client: Return error without objective mutation
+    end
 ~~~

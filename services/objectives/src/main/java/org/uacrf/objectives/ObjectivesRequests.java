@@ -42,6 +42,13 @@ final class ObjectivesRequests {
       @Size(max = 200) String sourceRevision,
       Instant sourceVerifiedAt) {}
 
+  record ImportPreviewRequest(
+      @NotBlank @Size(max = 200) String connectionId,
+      @NotBlank @Size(max = 1000) String externalObjectiveId,
+      @NotBlank @Size(max = 200) String targetWorkloadId,
+      @Min(1) long mappingRevision,
+      @Min(0) long expectedLocalRevision) {}
+
   record Transition(@Min(1) long expectedRevision) {}
 
   record DecideObjective(

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.uacrf.catalog.CatalogRequests.OwnerReceiptRequest;
+import org.uacrf.catalog.CatalogRequests.CurrentOwnerReceiptRequest;
 import org.uacrf.catalog.CatalogRequests.WorkloadLimits;
 import org.uacrf.catalog.CatalogRequests.WorkloadVersionManifest;
 import org.uacrf.catalog.CatalogResponses.OwnerReceipt;
@@ -88,6 +89,65 @@ class OwnerReceiptTests {
                 receipt.signature(),
                 (RSAPublicKey) keyPair.getPublic()))
         .isFalse();
+  }
+
+  @Test
+  void signsCurrentActiveWorkloadReceiptsForObjectiveProposalAndActivation() throws Exception {
+    CatalogService service = service(profile("ACTIVE", VERSION_ID, 7L));
+    for (String purpose :
+        List.of(
+            "objectives.objective.proposal",
+            "objectives.objective.activation")) {
+      OwnerReceipt receipt =
+          service.issueCurrentWorkloadOwnerReceipt(
+              delegation(WORKLOAD_ID, purpose),
+              WORKLOAD_ID,
+              new CurrentOwnerReceiptRequest(purpose, NOW.plusSeconds(4)));
+
+      assertThat(receipt.audienceService()).isEqualTo("S05");
+      assertThat(receipt.purpose()).isEqualTo(purpose);
+      assertThat(receipt.resourceId()).isEqualTo(WORKLOAD_ID);
+      assertThat(receipt.resourceVersion()).isEqualTo(VERSION_ID);
+      assertThat(receipt.resourceRevision()).isEqualTo(7);
+      assertThat(receipt.contentDigest()).isEqualTo(manifestDigest);
+      assertThat(
+              OwnerReceiptSignature.verify(
+                  objectMapper.writeValueAsString(signingPayload(receipt)),
+                  receipt.signature(),
+                  (RSAPublicKey) keyPair.getPublic()))
+          .isTrue();
+    }
+  }
+
+  @Test
+  void rejectsUnsupportedCurrentWorkloadReceiptPurposesBeforeCatalogRead() {
+    CatalogService service = service(null);
+    CatalogException error =
+        assertThrows(
+            CatalogException.class,
+            () ->
+                service.issueCurrentWorkloadOwnerReceipt(
+                    delegation(WORKLOAD_ID, PURPOSE),
+                    WORKLOAD_ID,
+                    new CurrentOwnerReceiptRequest(PURPOSE, NOW.plusSeconds(3))));
+
+    assertThat(error.code()).isEqualTo("PERMISSION_DENIED");
+  }
+
+  @Test
+  void onlyTheCurrentCatalogOwnerCanObtainObjectiveWorkloadReceipts() {
+    CatalogService service = service(profile("ACTIVE", VERSION_ID, 7L));
+    CatalogException error =
+        assertThrows(
+            CatalogException.class,
+            () ->
+                service.issueCurrentWorkloadOwnerReceipt(
+                    delegation(WORKLOAD_ID, "objectives.objective.proposal", "another-principal"),
+                    WORKLOAD_ID,
+                    new CurrentOwnerReceiptRequest(
+                        "objectives.objective.proposal", NOW.plusSeconds(3))));
+
+    assertThat(error.code()).isEqualTo("PERMISSION_DENIED");
   }
 
   @Test
@@ -437,6 +497,7 @@ class OwnerReceiptTests {
     return Map.of(
         "revision", revision,
         "active_version_id", activeVersion,
+        "owner_id", "s01-delegator",
         "service_lifecycle", serviceLifecycle,
         "version_state", "ACTIVE",
         "digest", manifestDigest,
@@ -444,12 +505,17 @@ class OwnerReceiptTests {
   }
 
   private Jwt delegation(String resourceId, String purpose) {
+    return delegation(resourceId, purpose, "s01-delegator");
+  }
+
+  private Jwt delegation(String resourceId, String purpose, String principalId) {
     return delegation(
         resourceId,
         resourceId,
         purpose,
         List.of("catalog.agent.owner-receipt"),
-        List.of("S02"));
+        List.of("S02"),
+        principalId);
   }
 
   private Jwt delegation(
@@ -458,10 +524,20 @@ class OwnerReceiptTests {
       String purpose,
       List<String> capabilities,
       List<String> audience) {
+    return delegation(scope, resourceId, purpose, capabilities, audience, "s01-delegator");
+  }
+
+  private Jwt delegation(
+      String scope,
+      String resourceId,
+      String purpose,
+      List<String> capabilities,
+      List<String> audience,
+      String principalId) {
     return Jwt.withTokenValue("delegation")
         .header("alg", "RS256")
         .issuer("https://uacrf.local/s01")
-        .subject("s01-delegator")
+        .subject(principalId)
         .audience(audience)
         .issuedAt(NOW.minusSeconds(1))
         .expiresAt(NOW.plusSeconds(5))

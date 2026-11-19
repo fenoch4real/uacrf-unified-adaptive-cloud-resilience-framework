@@ -459,7 +459,7 @@ test passed with no failures, errors, or skips.
   Testcontainers HTTP integration tests for S01 and S02. Compose configuration
   validates, and the pinned Keycloak image successfully imported the realm in
   a temporary smoke test. The persistent Compose services have not been
-  started. The latest full verification passed 334 tests with zero failures,
+  started. The latest full verification passed 571 tests with zero failures,
   errors, or skips.
 - Java 25 and Docker are available in the development environment. The root
   Maven wrapper pins Maven 3.10.0 and verifies its download; the Docker builder
@@ -478,7 +478,7 @@ test passed with no failures, errors, or skips.
 ## Fresh-build delivery tracking
 
 Delivery is measured only by implemented microservices behavior and tests
-executed against this target. The latest full reactor verification passed 334
+executed against this target. The latest full reactor verification passed 571
 tests with zero failures, errors, or skips. CI is configured to run the MS01
 architecture checker, which verifies checked-in inventory allocation,
 contract ownership, and package-manifest hashes for frozen design artifacts.
@@ -844,6 +844,20 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 - `POST /internal/v1/workloads/{id}/objectives:receipt` returns the exact active set
   and a set digest. Events (proposed, submitted, decided, activated, superseded) go
   through the transactional outbox; no publisher yet.
+- S05 now durably admits objective-import preview commands through
+  `POST /v1/objective-imports:preview` and exposes their status at
+  `GET /v1/objective-imports/{id}`. Admission requires `objectives.objective.write`,
+  global scope and an idempotency key. The tenant/environment/actor-scoped command,
+  canonical request digest and outbox event commit together; exact retries return
+  the same receipt, while key reuse for a different request returns a conflict.
+  Status reads require `objectives.objective.read` and either global scope or the
+  exact target-workload scope. The response remains `PENDING` with
+  `runtime_verification=NOT_ESTABLISHED`: no connector is resolved, no source is
+  fetched, and no candidate is normalized or compared. The API Edge forwards the
+  idempotency key and preserves the owner's 200/202 response. This is request
+  admission only; it is not import completion or a provider/source acceptance claim.
+  The focused `./mvnw -q -pl services/objectives,services/api-edge -am test`
+  gate passed 36 S05 and API Edge tests with no failures, errors or skips.
 - S01 registers the `objectives.*` capabilities and issues S05 delegations. EDGE01
   routes only the public operations under `/internal/objectives`.
 - S01 now restricts new `objectives.objective.review` grants to human principals
@@ -883,9 +897,35 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   S01/OIDC. The check is unsigned and point-in-time: no atomic fence prevents
   revocation after the response, and it does not recheck the activator or run
   at decision time. S05 does not retain the check result as a signed receipt.
-- Not yet built: import preview and conflict resolution, workload ownership checks
-  through S02, complete current-authority/fencing checks, retired templates,
-  material change invalidation of pending actions, and the outbox publisher.
+- S05's opt-in workload check now runs before objective proposal and activation.
+  S01 accepts S05 assertions only for the proposal/activation receipt purposes,
+  checks the corresponding existing objective capability and global scope, and
+  issues a resource- and purpose-scoped S02 delegation. S02's
+  `POST /internal/v1/workloads/{id}:current-receipt` checks that the delegated
+  principal is the workload's current catalog `owner_id`, its parent service
+  and active workload version are active, and the retained manifest digest is
+  valid; it then signs an S05-audience receipt. S05 verifies the signature,
+  actor, tenant/environment, workload, purpose, eligibility, revision and
+  validity window. Denial, stale/ineligible state, malformed proof, or service
+  unavailability fails closed before proposal persistence or before activation
+  can supersede an existing objective. The check is disabled by default;
+  enabling it requires the S02 receipt verification key and HTTPS S01/S02
+  endpoints (numeric loopback HTTP is permitted only with the explicit
+  development flag). Focused S01/S02/S05 tests passed: 75 total (38 identity,
+  23 catalog, 14 objectives), with no failures, errors or skips.
+  The M2 Testcontainers gate exercises the enabled check across real S01, S02
+  and S05 HTTP services: the exact catalog owner can propose and activate,
+  while an otherwise authorized non-owner is denied before proposal
+  persistence and activation without superseding the current objective. The
+  suite passed four live journeys with no failures, errors or skips. This is
+  local integration evidence, not deployed or provider acceptance. The signed
+  receipt is point-in-time, is not persisted by S05, and is not an atomic
+  fence: an ownership or workload change after S02 responds can race the later
+  S05 commit.
+- Not yet built: source-backed preview/candidate processing, approved connector
+  resolution, mapping and expected-revision rechecks, conflict resolution,
+  an import worker/outbox publisher, complete current-authority/fencing checks,
+  retired templates, and material change invalidation of pending actions.
 
 ## M2 / S06 topology (first slice)
 
@@ -894,7 +934,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 - The evidence-backed path currently accepts only human-authored `agent_workload DEPENDS_ON agent_workload` proposals. S06 obtains short-lived, resource/purpose-bound delegations from S01, signed active-version receipts from S02, and a bounded qualified-evidence summary from S04. It rechecks owner state during proposal, review, and current-use receipt preparation; stale or unavailable evidence fails closed without rewriting historical accepted revisions. Separate S02 RSA signing-key and S06 public-verification-key settings are required before enabling this path. Focused service tests cover each boundary and the EDGE01 route, but a live S01/S02/S04/S06 deployment integration test has not yet been run.
 - PostgreSQL owns `permitted_relationships`, `dependency_proposals`, `graph_revisions`, `graph_nodes`, `graph_edges`, `graph_edge_conflicts`, `graph_projections`, and `outbox_event`. New revisions receive a `PENDING` projection row transactionally; existing revisions are backfilled. Projection status is `PENDING`, `PROJECTING`, `PROJECTED`, `FAILED`, or `DRIFTED`; only `PROJECTED` with a matching verified digest is eligible. Proposals are tenant/environment scoped and constrained by a relationship allowlist. Observed proposals require source system, source revision, and verification time; authored proposals forbid those observed-source fields. Reviews use expected revisions and require a reviewer distinct from the proposer.
 - Accepting a graph requires the expected current revision for its scope. Accepted proposals are merged deterministically into an immutable graph revision with a canonical digest; new digest version 2 binds edge provenance and proposal IDs, while historical version 1 revisions retain their prior verification semantics. Repeating the same graph content does not create another revision. Conflicting provenance for duplicate accepted relationships is recorded in `graph_edge_conflicts`. Graph acceptance/conflict events are written transactionally to the outbox. The internal receipt reports the projection row's current status and is eligible only after digest verification.
-- S02 now retains immutable service-revision snapshots with deterministically ordered `owned_agent_workload_ids`; membership changes append a new revision, and no historical membership is fabricated. S06 verifies the exact signed S02 receipt, retained snapshot and digest, then uses that membership only as a bounded set of selection roots; it never infers dependency edges from catalog membership. Async selection and difference-classification commands are persisted with an outbox event, idempotency, status lookup, and stable expected-revision targets. Selection binds the accepted graph revision, S02 snapshot, purpose-scoped current S07 case receipt and bounded S04 summaries, then retains a digest and bounded typed node/edge references. `action-relevant-dependencies.v1` preserves the bounded dependency/failure-domain selection; `.v2` additionally selects accepted reachable `READS_FROM` edges from represented `service`/`agent_workload` nodes to `shared_resource` nodes. New `.v3` preserves v2 and adds the point-in-time current S05 active-objective set for the S07 case workload as owner-derived context only; it creates no SLO graph node or `GOVERNED_BY_SLO` edge. S06 requires the case workload in the exact S02 service membership and uses a resource-scoped S01 delegation to read and digest-check S05's bounded active-objective receipt. Classification re-reads that set for the same case workload; each owner response is a point-in-time snapshot, and a changed set digest forces `INDETERMINATE` without treating objective changes as graph widening, narrowing or target changes. The retained query ID binds classification to the same selection semantics. Classification emits advisory dependency, failure-domain and v2/v3 data-read deltas; exact same-source read-target replacements are target-changing, while mixed or unpaired read deltas are indeterminate. The public selection result also carries a digest-bound, count-only reconciliation between the exact S02 membership snapshot and `agent_workload` nodes in the exact accepted graph. Unknown S02 membership is `INDETERMINATE`; nodes outside the service membership are counts, not inventory defects. This is not a provider-inventory, freshness or completeness claim. S06 now accepts canonical `MEMBER_OF_FAILURE_DOMAIN` relationships, normalizes legacy `IN_FAILURE_DOMAIN` proposals, and interprets retained legacy edges equivalently. Read-edge properties do not establish freshness. SLO topology relationships and measurement evaluation, broader ontology, and freshness coverage remain incomplete or indeterminate; these operations do not write graph edges. The focused S06/S01 reactor passed 40 tests (31 topology and 9 identity; no failures, errors or skips), and the generated-contract suite passed 6 tests. The API-only Testcontainers gate now runs S01, S02, S05, S06 and S07 as live HTTP processes with isolated PostgreSQL databases and the S06 Neo4j projection worker enabled. Three live journeys verify S02's signed service receipt and S07's case lifecycle/receipt through their real services, as well as the projected graph digest, reconciliation and eligible graph receipt. The focused module passed 3 tests and the canonical full Maven reactor passed 507 tests with no failures, errors or skips. S04 remains a test-only owner boundary; S07's external evidence/objective/topology receipt verification is disabled for this bounded case-receipt gate. Kafka, artifact storage, browser UX, live provider conformance and full M2 acceptance remain unverified. See [the M2 runtime-validation report](../integration-tests/m2-live/runtime-validation-report.md).
+- S02 now retains immutable service-revision snapshots with deterministically ordered `owned_agent_workload_ids`; membership changes append a new revision, and no historical membership is fabricated. S06 verifies the exact signed S02 receipt, retained snapshot and digest, then uses that membership only as a bounded set of selection roots; it never infers dependency edges from catalog membership. Async selection and difference-classification commands are persisted with an outbox event, idempotency, status lookup, and stable expected-revision targets. Selection binds the accepted graph revision, S02 snapshot, purpose-scoped current S07 case receipt and bounded S04 summaries, then retains a digest and bounded typed node/edge references. `action-relevant-dependencies.v1` preserves the bounded dependency/failure-domain selection; `.v2` additionally selects accepted reachable `READS_FROM` edges from represented `service`/`agent_workload` nodes to `shared_resource` nodes. New `.v3` preserves v2 and adds the point-in-time current S05 active-objective set for the S07 case workload as owner-derived context only; it creates no SLO graph node or `GOVERNED_BY_SLO` edge. S06 requires the case workload in the exact S02 service membership and uses a resource-scoped S01 delegation to read and digest-check S05's bounded active-objective receipt. Classification re-reads that set for the same case workload; each owner response is a point-in-time snapshot, and a changed set digest forces `INDETERMINATE` without treating objective changes as graph widening, narrowing or target changes. The retained query ID binds classification to the same selection semantics. Classification emits advisory dependency, failure-domain and v2/v3 data-read deltas; exact same-source read-target replacements are target-changing, while mixed or unpaired read deltas are indeterminate. The public selection result also carries a digest-bound, count-only reconciliation between the exact S02 membership snapshot and `agent_workload` nodes in the exact accepted graph. Unknown S02 membership is `INDETERMINATE`; nodes outside the service membership are counts, not inventory defects. This is not a provider-inventory, freshness or completeness claim. S06 now accepts canonical `MEMBER_OF_FAILURE_DOMAIN` relationships, normalizes legacy `IN_FAILURE_DOMAIN` proposals, and interprets retained legacy edges equivalently. Read-edge properties do not establish freshness. SLO topology relationships and measurement evaluation, broader ontology, and freshness coverage remain incomplete or indeterminate; these operations do not write graph edges. The focused S06/S01 reactor passed 40 tests (31 topology and 9 identity; no failures, errors or skips), and the generated-contract suite passed 6 tests. The API-only Testcontainers gate now runs S01, S02, S05, S06 and S07 as live HTTP processes with isolated PostgreSQL databases and the S06 Neo4j projection worker enabled. Four live journeys verify S02's signed service receipt and S07's case lifecycle/receipt through their real services, the projected graph digest/reconciliation/eligible graph receipt, and S05's exact workload-owner proposal and activation checks. The focused module passed 4 tests and the canonical full Maven reactor passed 571 tests with no failures, errors or skips. S04 remains a test-only owner boundary; S07's external evidence/objective/topology receipt verification is disabled for this bounded case-receipt gate. Kafka, artifact storage, browser UX, live provider conformance and full M2 acceptance remain unverified. See [the M2 runtime-validation report](../integration-tests/m2-live/runtime-validation-report.md).
 - Still needed: SLO graph relationships and objective-to-measurement evaluation,
   broader classify/select ontology and freshness coverage, and
   S10 consumption pinned to an exact graph revision. S06 produces its own

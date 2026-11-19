@@ -30,6 +30,8 @@ class IdentityExchangeService {
       Set.of("audience", "resource_type", "resource_id", "purpose", "operation_deadline");
   private static final Set<String> GRAPH_OPERATION_PURPOSES =
       Set.of("topology.graph.subgraph-selection", "topology.graph.difference-classification");
+  private static final Set<String> OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES =
+      Set.of("objectives.objective.proposal", "objectives.objective.activation");
   private static final Duration BUDGET = Duration.ofSeconds(5);
 
   private final JdbcTemplate jdbc;
@@ -65,6 +67,11 @@ class IdentityExchangeService {
     String resourceType = text(request, "resource_type");
     String resourceId = text(request, "resource_id");
     String purpose = text(request, "purpose");
+    String expectedCallerAudience =
+        OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES.contains(purpose) ? "S05" : "S06";
+    if (!List.of(expectedCallerAudience).equals(assertion.getAudience())) {
+      throw denied();
+    }
     if (!resourceId.matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")) {
       throw invalid("The resource id is malformed.");
     }
@@ -85,12 +92,14 @@ class IdentityExchangeService {
     } else {
       throw invalid("The audience and resource type are not supported.");
     }
-    String topologyCapability = switch (purpose) {
+    String upstreamCapability = switch (purpose) {
       case "topology.dependency-proposal" -> "topology.proposal.write";
       case "topology.dependency-review" -> "topology.proposal.review";
       case "topology.graph.current-use" -> "topology.graph.read";
       case "topology.graph.subgraph-selection", "topology.graph.difference-classification" ->
           "topology.graph.read";
+      case "objectives.objective.proposal" -> "objectives.objective.write";
+      case "objectives.objective.activation" -> "objectives.objective.activate";
       default -> throw invalid("The purpose is not supported.");
     };
     Instant deadline;
@@ -104,11 +113,11 @@ class IdentityExchangeService {
       throw invalid("The operation deadline must be within five seconds.");
     }
     Object capabilities = assertion.getClaim("capabilities");
-    if (!(capabilities instanceof List<?> list) || !list.contains(topologyCapability)) {
+    if (!(capabilities instanceof List<?> list) || !list.contains(upstreamCapability)) {
       throw denied();
     }
     String scope = assertion.getClaimAsString("service_scope");
-    if (!"topology.graph.read".equals(topologyCapability) && !"*".equals(scope)) {
+    if (!"topology.graph.read".equals(upstreamCapability) && !"*".equals(scope)) {
       throw denied();
     }
     Boolean authorized = jdbc.queryForObject(
@@ -128,7 +137,7 @@ class IdentityExchangeService {
         assertion.getClaimAsString("tenant_id"), assertion.getClaimAsString("environment_id"),
         assertion.getSubject(), assertion.getClaimAsString("actor_issuer"),
         assertion.getClaimAsString("actor_subject"), Timestamp.from(assertion.getIssuedAt()),
-        topologyCapability, topologyCapability, scope);
+        upstreamCapability, upstreamCapability, scope);
     if (!Boolean.TRUE.equals(authorized)) {
       throw denied();
     }
@@ -177,6 +186,6 @@ class IdentityExchangeService {
   }
 
   private static IdentityException denied() {
-    return new IdentityException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Current topology authority is required.");
+    return new IdentityException(HttpStatus.FORBIDDEN, "FORBIDDEN", "Current service authority is required.");
   }
 }

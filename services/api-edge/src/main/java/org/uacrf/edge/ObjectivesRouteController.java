@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.ResourceAccessException;
 
-// Only the public objective and constraint operations are routed; /internal/v1 S05 endpoints stay unrouted.
+// Only public objective, constraint, and import operations are routed; /internal/v1 S05 endpoints stay unrouted.
 @RestController
 @RequestMapping("/internal/objectives")
 class ObjectivesRouteController {
@@ -48,6 +48,21 @@ class ObjectivesRouteController {
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @RequestBody String requestBody) {
     return forward(() -> objectives.proposeObjective(authorization, requestBody));
+  }
+
+  @PostMapping("/v1/objective-imports:preview")
+  ResponseEntity<String> previewImport(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(() -> objectives.previewImport(authorization, idempotencyKey, requestBody));
+  }
+
+  @GetMapping("/v1/objective-imports/{id}")
+  ResponseEntity<String> getImportPreview(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> objectives.getImportPreview(authorization, id));
   }
 
   @PostMapping("/v1/objectives/{id}:submit")

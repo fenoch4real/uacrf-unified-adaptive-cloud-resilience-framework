@@ -47,6 +47,25 @@ class ObjectivesRouteClient {
     return sendBody(HttpMethod.POST, "/v1/objectives", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> previewImport(
+      String authorization, String idempotencyKey, String requestBody) {
+    return sendBody(
+        HttpMethod.POST,
+        "/v1/objective-imports:preview",
+        null,
+        authorization,
+        requestBody,
+        idempotencyKey);
+  }
+
+  ResponseEntity<String> getImportPreview(String authorization, String id) {
+    return send(
+        objectivesRestClient
+            .get()
+            .uri(uriBuilder -> uriBuilder.path("/v1/objective-imports/{id}").build(id)),
+        authorization);
+  }
+
   ResponseEntity<String> transition(String authorization, String id, String action, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/objectives/{id}:" + action, id, authorization, requestBody);
   }
@@ -57,13 +76,27 @@ class ObjectivesRouteClient {
 
   private ResponseEntity<String> sendBody(
       HttpMethod method, String path, String variable, String authorization, String requestBody) {
+    return sendBody(method, path, variable, authorization, requestBody, null);
+  }
+
+  private ResponseEntity<String> sendBody(
+      HttpMethod method,
+      String path,
+      String variable,
+      String authorization,
+      String requestBody,
+      String idempotencyKey) {
     RestClient.RequestBodySpec request =
         objectivesRestClient
             .method(method)
             .uri(
                 uriBuilder ->
                     variable == null ? uriBuilder.path(path).build() : uriBuilder.path(path).build(variable));
-    request.contentType(MediaType.APPLICATION_JSON).body(requestBody);
+    request.contentType(MediaType.APPLICATION_JSON);
+    if (idempotencyKey != null) {
+      request.header("Idempotency-Key", idempotencyKey);
+    }
+    request.body(requestBody);
     return send(request, authorization);
   }
 

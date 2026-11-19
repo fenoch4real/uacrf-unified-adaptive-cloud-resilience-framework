@@ -97,6 +97,14 @@ class CatalogController {
     return catalog.issueOwnerReceipt(jwt, id, request);
   }
 
+  @PostMapping("/internal/v1/workloads/{id}:current-receipt")
+  OwnerReceipt getCurrentWorkloadOwnerReceipt(
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @Valid @RequestBody CurrentOwnerReceiptRequest request) {
+    return catalog.issueCurrentWorkloadOwnerReceipt(jwt, id, request);
+  }
+
   @PostMapping("/internal/v1/services/{id}:receipt")
   OwnerReceipt getServiceOwnerReceipt(
       @AuthenticationPrincipal Jwt jwt,

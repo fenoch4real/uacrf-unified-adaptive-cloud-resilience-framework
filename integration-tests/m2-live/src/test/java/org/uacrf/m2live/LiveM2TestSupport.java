@@ -25,6 +25,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -69,7 +72,15 @@ final class LiveM2TestSupport {
   private LiveM2TestSupport() {}
 
   static Environment environment() throws Exception {
-    Environment created = new Environment();
+    return environment(false);
+  }
+
+  static Environment environmentWithWorkloadOwnerChecks() throws Exception {
+    return environment(true);
+  }
+
+  private static Environment environment(boolean enableWorkloadOwnerChecks) throws Exception {
+    Environment created = new Environment(enableWorkloadOwnerChecks);
     try {
       created.start();
       System.out.printf(
@@ -173,6 +184,7 @@ final class LiveM2TestSupport {
     private final ConcurrentLinkedQueue<String> stubFailures = new ConcurrentLinkedQueue<>();
     private final java.util.concurrent.atomic.AtomicInteger evidenceSummaryCalls =
         new java.util.concurrent.atomic.AtomicInteger();
+    private final boolean enableWorkloadOwnerChecks;
     private HttpServer ownerStubs;
     private Process identityProcess;
     private Process catalogProcess;
@@ -187,7 +199,8 @@ final class LiveM2TestSupport {
     private long startupMillis;
     private boolean closed;
 
-    private Environment() throws IOException {
+    private Environment(boolean enableWorkloadOwnerChecks) throws IOException {
+      this.enableWorkloadOwnerChecks = enableWorkloadOwnerChecks;
       repoRoot =
           Path.of(System.getProperty("uacrf.repo.root", Path.of("../..").toAbsolutePath().toString()))
               .toAbsolutePath()
@@ -285,9 +298,14 @@ final class LiveM2TestSupport {
       return "Bearer " + TOKEN_ISSUER.issue(principal, "S02");
     }
 
-    private void registerCatalogFixture(String serviceId, String workloadId, String suffix)
+    void registerCatalogFixture(String serviceId, String workloadId, String suffix)
         throws IOException, InterruptedException {
-      String ownerId = "owner-" + suffix;
+      registerCatalogFixture(serviceId, workloadId, suffix, "owner-" + suffix);
+    }
+
+    void registerCatalogFixture(
+        String serviceId, String workloadId, String suffix, String ownerId)
+        throws IOException, InterruptedException {
       String runtimePrincipalId = "runtime-" + suffix;
       String token =
           catalogToken(principalId("s02-fixture-actor"), ownerId, runtimePrincipalId);
@@ -325,6 +343,53 @@ final class LiveM2TestSupport {
                       "purpose", "M2 live topology selection fixture")),
               "m2-live-workload-" + suffix);
       requireStatus(201, workload, "S02 workload registration");
+
+      Map<String, Object> limits = new LinkedHashMap<>();
+      limits.put("steps", 10);
+      limits.put("tokens", 1_000);
+      limits.put("cost_units", 100);
+      limits.put("duration_seconds", 300);
+      Map<String, Object> manifest = new LinkedHashMap<>();
+      manifest.put("instructions_digest", "a".repeat(64));
+      manifest.put("model_ref", "m2-live-model");
+      manifest.put("knowledge_refs", List.of());
+      manifest.put("tools", List.of());
+      manifest.put("memory_namespace", "m2-live-memory");
+      manifest.put("evaluation_suite_ref", "m2-live-evaluation");
+      manifest.put("recovery_rules_ref", "m2-live-recovery");
+      manifest.put("runtime_build", "m2-live-runtime");
+      manifest.put("data_policy_ref", "m2-live-data-policy");
+      manifest.put("handoff_ref", "m2-live-handoff");
+      manifest.put("limits", limits);
+      String digest = sha256(json(manifest));
+      String versionId = "version-" + suffix;
+      Response version =
+          request(
+              catalogUrl(),
+              "POST",
+              "/v1/agent-workloads/" + workloadId + "/versions",
+              token,
+              json(
+                  Map.of(
+                      "id", versionId,
+                      "version_number", 1,
+                      "digest", digest,
+                      "object_ref", "artifact:sha256:" + digest,
+                      "manifest", manifest)),
+              "m2-live-workload-version-" + suffix);
+      requireStatus(201, version, "S02 workload version registration");
+
+      String reviewerToken =
+          catalogToken(principalId("s02-version-approver"), ownerId, runtimePrincipalId);
+      Response activatedVersion =
+          request(
+              catalogUrl(),
+              "POST",
+              "/v1/agent-workloads/" + workloadId + ":activate",
+              reviewerToken,
+              json(Map.of("version_id", versionId, "expected_revision", 1)),
+              "m2-live-workload-activate-" + suffix);
+      requireStatus(200, activatedVersion, "S02 workload version activation");
     }
 
     private String registerAssessmentFixture(String workloadId, String graphId, String suffix)
@@ -402,18 +467,24 @@ final class LiveM2TestSupport {
     }
 
     void registerActor(String principalId, String actorSubject) throws SQLException {
+      registerActor(principalId, actorSubject, List.of("topology.graph.read"));
+    }
+
+    void registerActor(String principalId, String actorSubject, List<String> capabilities)
+        throws SQLException {
       try (Connection connection =
               DriverManager.getConnection(
                   identityDb.getJdbcUrl(), identityDb.getUsername(), identityDb.getPassword());
           PreparedStatement tenant =
               connection.prepareStatement(
                   "INSERT INTO uacrf_identity.tenant "
-                      + "(id, display_name, status, revision) VALUES (?, ?, 'ACTIVE', 1)");
+                      + "(id, display_name, status, revision) VALUES (?, ?, 'ACTIVE', 1) "
+                      + "ON CONFLICT (id) DO NOTHING");
           PreparedStatement environment =
               connection.prepareStatement(
                   "INSERT INTO uacrf_identity.environment "
                       + "(tenant_id, id, display_name, status, revision) "
-                      + "VALUES (?, ?, ?, 'ACTIVE', 1)");
+                      + "VALUES (?, ?, ?, 'ACTIVE', 1) ON CONFLICT (tenant_id, id) DO NOTHING");
           PreparedStatement principal =
               connection.prepareStatement(
                   "INSERT INTO uacrf_identity.principal "
@@ -425,7 +496,7 @@ final class LiveM2TestSupport {
                   "INSERT INTO uacrf_identity.membership "
                       + "(id, tenant_id, environment_id, principal_id, capability, "
                       + "service_scope, expires_at, revision) "
-                      + "VALUES (?, ?, ?, ?, 'topology.graph.read', '*', "
+                      + "VALUES (?, ?, ?, ?, ?, '*', "
                       + "'2099-12-31T23:59:59Z', 1)")) {
         tenant.setString(1, tenantId);
         tenant.setString(2, "M2 live test tenant");
@@ -439,11 +510,14 @@ final class LiveM2TestSupport {
         principal.setString(3, actorSubject);
         principal.setString(4, "M2 live test actor");
         principal.executeUpdate();
-        membership.setObject(1, UUID.randomUUID());
-        membership.setString(2, tenantId);
-        membership.setString(3, environmentId);
-        membership.setString(4, principalId);
-        membership.executeUpdate();
+        for (String capability : capabilities) {
+          membership.setObject(1, UUID.randomUUID());
+          membership.setString(2, tenantId);
+          membership.setString(3, environmentId);
+          membership.setString(4, principalId);
+          membership.setString(5, capability);
+          membership.executeUpdate();
+        }
       }
     }
 
@@ -646,12 +720,43 @@ final class LiveM2TestSupport {
       String proposer = principalId("objective-proposer");
       String reviewer = principalId("objective-reviewer");
       String activator = principalId("objective-activator");
+      return createAndActivateObjective(
+          workloadId, id, target, proposer, proposer, reviewer, reviewer, activator, activator);
+    }
+
+    String createAndActivateObjective(
+        String workloadId, String id, String target, String ownerPrincipalId, String ownerActorSubject)
+        throws IOException, InterruptedException {
+      String reviewer = principalId("objective-reviewer");
+      return createAndActivateObjective(
+          workloadId,
+          id,
+          target,
+          ownerPrincipalId,
+          ownerActorSubject,
+          reviewer,
+          reviewer,
+          ownerPrincipalId,
+          ownerActorSubject);
+    }
+
+    private String createAndActivateObjective(
+        String workloadId,
+        String id,
+        String target,
+        String proposerId,
+        String proposerSubject,
+        String reviewerId,
+        String reviewerSubject,
+        String activatorId,
+        String activatorSubject)
+        throws IOException, InterruptedException {
       Response proposed =
           request(
               objectivesUrl(),
               "POST",
               "/v1/objectives",
-              objectiveToken(proposer, proposer, OBJECTIVE_PROPOSER),
+              objectiveToken(proposerId, proposerSubject, OBJECTIVE_PROPOSER),
               json(
                   Map.of(
                       "id", id,
@@ -670,7 +775,7 @@ final class LiveM2TestSupport {
               objectivesUrl(),
               "POST",
               "/v1/objectives/" + id + ":submit",
-              objectiveToken(proposer, proposer, OBJECTIVE_PROPOSER),
+              objectiveToken(proposerId, proposerSubject, OBJECTIVE_PROPOSER),
               json(Map.of("expected_revision", 1)),
               null);
       requireStatus(200, submitted, "S05 objective submission");
@@ -679,7 +784,7 @@ final class LiveM2TestSupport {
               objectivesUrl(),
               "POST",
               "/v1/objectives/" + id + ":decide",
-              objectiveToken(reviewer, reviewer, OBJECTIVE_REVIEWER),
+              objectiveToken(reviewerId, reviewerSubject, OBJECTIVE_REVIEWER),
               json(
                   Map.of(
                       "decision", "APPROVE",
@@ -692,7 +797,7 @@ final class LiveM2TestSupport {
               objectivesUrl(),
               "POST",
               "/v1/objectives/" + id + ":activate",
-              objectiveToken(activator, activator, OBJECTIVE_ACTIVATOR),
+              objectiveToken(activatorId, activatorSubject, OBJECTIVE_ACTIVATOR),
               json(Map.of("expected_revision", 3)),
               null);
       requireStatus(200, activated, "S05 objective activation");
@@ -701,7 +806,7 @@ final class LiveM2TestSupport {
               objectivesUrl(),
               "GET",
               "/v1/objectives/" + id,
-              objectiveToken(activator, activator, OBJECTIVE_ACTIVATOR),
+              objectiveToken(activatorId, activatorSubject, OBJECTIVE_ACTIVATOR),
               null,
               null);
       requireStatus(200, readBack, "S05 objective read-back");
@@ -769,15 +874,30 @@ final class LiveM2TestSupport {
     }
 
     private Map<String, String> objectivesEnvironment() {
-      return Map.of(
-          "SERVER_PORT", Integer.toString(objectivesPort),
-          "OBJECTIVES_JDBC_URL", objectivesDb.getJdbcUrl(),
-          "OBJECTIVES_DB_USER", objectivesDb.getUsername(),
-          "OBJECTIVES_DB_PASSWORD", objectivesDb.getPassword(),
-          "UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS),
-          "UACRF_DELEGATION_KEY_ID", KEY_ID,
-          "UACRF_DELEGATION_ISSUER", ISSUER,
-          "UACRF_OBJECTIVES_REVIEWER_CHECK_ENABLED", "false");
+      Map<String, String> environment = new HashMap<>();
+      environment.put("SERVER_PORT", Integer.toString(objectivesPort));
+      environment.put("OBJECTIVES_JDBC_URL", objectivesDb.getJdbcUrl());
+      environment.put("OBJECTIVES_DB_USER", objectivesDb.getUsername());
+      environment.put("OBJECTIVES_DB_PASSWORD", objectivesDb.getPassword());
+      environment.put("UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS));
+      environment.put("UACRF_DELEGATION_KEY_ID", KEY_ID);
+      environment.put("UACRF_DELEGATION_ISSUER", ISSUER);
+      environment.put("UACRF_OBJECTIVES_REVIEWER_CHECK_ENABLED", "false");
+      if (enableWorkloadOwnerChecks) {
+        environment.put("UACRF_OBJECTIVES_WORKLOAD_CHECK_ENABLED", "true");
+        environment.put(
+            "UACRF_OBJECTIVES_WORKLOAD_CHECK_IDENTITY_BASE_URL",
+            "http://127.0.0.1:" + identityPort);
+        environment.put(
+            "UACRF_OBJECTIVES_WORKLOAD_CHECK_CATALOG_BASE_URL",
+            "http://127.0.0.1:" + catalogPort);
+        environment.put(
+            "UACRF_OBJECTIVES_WORKLOAD_CHECK_ALLOW_LOOPBACK_HTTP", "true");
+        environment.put("UACRF_S02_OWNER_RECEIPT_KEY_ID", S02_KEY_ID);
+        environment.put(
+            "UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64", publicKeyBase64(S02_KEYS));
+      }
+      return Map.copyOf(environment);
     }
 
     private Map<String, String> assessmentEnvironment() {
@@ -967,6 +1087,17 @@ final class LiveM2TestSupport {
 
     private static String privateKeyBase64(KeyPair pair) {
       return Base64.getEncoder().encodeToString(pair.getPrivate().getEncoded());
+    }
+
+    private static String sha256(String value) {
+      try {
+        return HexFormat.of()
+            .formatHex(
+                MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+      } catch (java.security.NoSuchAlgorithmException error) {
+        throw new IllegalStateException(error);
+      }
     }
 
     private static int freePort() throws IOException {

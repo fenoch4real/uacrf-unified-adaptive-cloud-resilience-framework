@@ -39,5 +39,12 @@ final class ObjectivesResponses {
   record ObjectiveReceipt(
       String workloadId, String purpose, List<ActiveObjective> objectives, String setDigest) {}
 
+  record CommandReceipt(
+      String receiptId, String status, String readResource, String runtimeVerification) {}
+
+  record PendingImportReceipt(String receiptId, String status, String readResource) {}
+
+  record ImportPreviewAdmission(CommandReceipt receipt, boolean newlyAccepted) {}
+
   record Error(String code, String message, String requestId) {}
 }

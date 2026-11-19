@@ -113,6 +113,64 @@ class IdentityExchangeTests {
   }
 
   @Test
+  void issuesPurposeBoundObjectiveWorkloadDelegationsFromMatchingCapabilities() {
+    for (var mapping :
+        List.of(
+            List.of("objectives.objective.proposal", "objectives.objective.write"),
+            List.of("objectives.objective.activation", "objectives.objective.activate"))) {
+      Jwt assertion =
+          incoming("S05", mapping.get(1), now.minusSeconds(1), now.plusSeconds(20));
+      Jwt result =
+          decodeOutput(
+              service
+                  .exchange(
+                      assertion,
+                      request("S02", "agent_workload", "workload-1", mapping.get(0)))
+                  .accessToken(),
+              "S02");
+      assertThat(result.getClaimAsStringList("capabilities"))
+          .containsExactly("catalog.agent.owner-receipt");
+      assertThat(result.getClaimAsString("service_scope")).isEqualTo("workload-1");
+      assertThat(result.getClaimAsString("resource_id")).isEqualTo("workload-1");
+      assertThat(result.getClaimAsString("purpose")).isEqualTo(mapping.get(0));
+
+      Jwt wrongCapability =
+          incoming(
+              "S05",
+              mapping.get(0).equals("objectives.objective.proposal")
+                  ? "objectives.objective.activate"
+                  : "objectives.objective.write",
+              now.minusSeconds(1),
+              now.plusSeconds(20));
+      assertThatThrownBy(
+              () ->
+                  service.exchange(
+                      wrongCapability,
+                      request("S02", "agent_workload", "workload-1", mapping.get(0))))
+          .isInstanceOfSatisfying(
+              IdentityException.class, error -> assertThat(error.status().value()).isEqualTo(403));
+    }
+
+    Jwt wrongAudience =
+        incoming(
+            "S06",
+            "objectives.objective.write",
+            now.minusSeconds(1),
+            now.plusSeconds(20));
+    assertThatThrownBy(
+            () ->
+                service.exchange(
+                    wrongAudience,
+                    request(
+                        "S02",
+                        "agent_workload",
+                        "workload-1",
+                        "objectives.objective.proposal")))
+        .isInstanceOfSatisfying(
+            IdentityException.class, error -> assertThat(error.status().value()).isEqualTo(403));
+  }
+
+  @Test
   void narrowsGraphOperationDelegationsToOwnerReceipts() {
     for (String purpose : List.of(
         "topology.graph.subgraph-selection", "topology.graph.difference-classification")) {
@@ -264,13 +322,33 @@ class IdentityExchangeTests {
       Instant instant = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
       String token = encode(signer, "S06", "topology.proposal.write", instant.minusSeconds(1), instant.plusSeconds(20));
       String wrongAudience = encode(signer, "S02", "topology.proposal.write", instant.minusSeconds(1), instant.plusSeconds(20));
+      String objectiveToken =
+          encode(
+              signer,
+              "S05",
+              "objectives.objective.write",
+              instant.minusSeconds(1),
+              instant.plusSeconds(20));
       String json = "{\"audience\":\"S02\",\"resource_type\":\"agent_workload\","
           + "\"resource_id\":\"resource-1\",\"purpose\":\"topology.dependency-proposal\","
           + "\"operation_deadline\":\"" + instant.plusSeconds(4) + "\"}";
+      String objectiveJson =
+          "{\"audience\":\"S02\",\"resource_type\":\"agent_workload\","
+              + "\"resource_id\":\"resource-1\","
+              + "\"purpose\":\"objectives.objective.proposal\","
+              + "\"operation_deadline\":\""
+              + instant.plusSeconds(4)
+              + "\"}";
       mvc.perform(post("/internal/v1/delegations:exchange").header("Authorization", "Bearer " + token)
           .contentType(MediaType.APPLICATION_JSON).content(json)).andExpect(status().isOk());
       mvc.perform(post("/internal/v1/delegations:exchange").header("Authorization", "Bearer " + wrongAudience)
           .contentType(MediaType.APPLICATION_JSON).content(json)).andExpect(status().isUnauthorized());
+      mvc.perform(
+              post("/internal/v1/delegations:exchange")
+                  .header("Authorization", "Bearer " + objectiveToken)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectiveJson))
+          .andExpect(status().isOk());
       mvc.perform(post("/internal/v1/delegations")
           .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
     }
