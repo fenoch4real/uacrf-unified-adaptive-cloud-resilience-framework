@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent workloads | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Agent workloads</h1>
+  <p>
+    Context:
+    <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong>
+  </p>
+  <p><a href="/journeys">Back to customer journeys</a></p>
+  <p><a href="/agents/new">Register a standalone agent workload</a></p>
+  <p role="status" th:if="${agentError != null}" th:text="${agentError}"></p>
+  <p th:if="${agentError == null and #lists.isEmpty(agents)}">No agent workloads are available.</p>
+  <ul th:if="${!#lists.isEmpty(agents)}">
+    <li th:each="agent : ${agents}">
+      <h2 th:text="${agent.name}">Agent workload name</h2>
+      <dl>
+        <dt>Workload ID</dt>
+        <dd th:text="${agent.id}">Agent workload ID</dd>
+        <dt>Kind</dt>
+        <dd th:text="${agent.kind}">SINGLE_AGENT</dd>
+        <dt>Service</dt>
+        <dd th:text="${agent.serviceId != null ? agent.serviceId : 'Standalone'}">Standalone</dd>
+        <dt>Owner</dt>
+        <dd th:text="${agent.ownerId}">Owner ID</dd>
+        <dt>Runtime principal</dt>
+        <dd th:text="${agent.runtimePrincipalId}">Runtime principal ID</dd>
+        <dt>Purpose</dt>
+        <dd th:text="${agent.purpose}">Purpose</dd>
+        <dt>Revision</dt>
+        <dd th:text="${agent.revision}">1</dd>
+      </dl>
+    </li>
+  </ul>
+  <nav aria-label="Agent workload pages" th:if="${nextCursor != null}">
+    <a th:href="@{/agents(cursor=${nextCursor})}">Next agent workloads</a>
+  </nav>
+  <p><a href="/">Back to home</a></p>
+</main>
+</body>
+</html>

@@ -19,7 +19,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it also registers standalone and service-bound workloads through independent S01 grants and owner selection. The isolated S03 client-credentials identity resolves to its admitted SYSTEM principal through EDGE01 and receives only its approved S04 evidence delegation. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; a paginated S03 source-collection outcome report is available through EDGE01. Complete live conformance for AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, and GCP Cloud Asset Inventory and Monitoring metrics (all remain unaccepted), broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement additional reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -127,13 +127,15 @@ sample fixture. An explicit import registers a sample-local connection,
 binds three inventory sources and submits 42 synthetic observations; it
 reports partial results and supports identical retries. It does not import
 fixture metrics, simulated pages, graph records or intentional fault deliveries.
-the focused web suites passed 86 tests. The isolated browser suite passed all
-11 tests, including independently approved memberships, an initial import,
-replay, paginated AWS/Azure/GCP sample views with unknown GCP locations, and an
-authorized S02 flow that creates a journey, registers and links a service,
+The most recent focused UX01 test run passed 87 tests. The isolated browser
+suite passed all 11 tests, including independently approved memberships,
+an initial import, replay, and paginated AWS/Azure/GCP sample views with
+unknown GCP locations, plus an authorized S02 flow that creates a journey,
+registers and links a service,
 reads persisted journey/service state back, and registers standalone and
-service-bound agent workloads without performing runtime actions. No live
-cloud provider is queried.
+service-bound agent workloads, then reads both persisted workloads through the
+UX01 page using a narrow `catalog.agent.read` delegation. No runtime action is
+performed and no live cloud provider is queried.
 
 S01 now supports selecting eligible owners for `CONNECTION` through its
 existing owner-candidates API. The caller must hold both global
@@ -581,19 +583,19 @@ queue. S01 remains authoritative on every mutation and atomically consumes the
 reference with membership creation. The live browser suite verifies the
 approver cannot create memberships, the administrator cannot record grant
 decisions, and the separately approved membership appears only after the
-manager applies it. The focused UX01/experience-api reactor passed 84 tests;
-the isolated Playwright suite now passes 11 tests. Its authorized catalog path
+manager applies it. The earlier focused UX01/experience-api reactor passed 84
+tests; the current targeted `WebApplicationTests` run passed 87 tests. The
+isolated Playwright suite passes 11 tests. Its authorized catalog path
 creates a draft journey, registers and links a service, and verifies S02
 readback after independent approval and membership assignment. It also registers
 standalone and service-bound workloads after separately admitting and granting
-runtime use to a trusted SYSTEM principal; S02 returns success receipts and the
-UI confirms no runtime action occurred. Operator-only ownership transfer is
-verified by the live browser suite. The
-isolated S03 publisher client-credentials flow also resolves to its admitted
-SYSTEM principal through EDGE01 and obtains a 30-second S04 delegation limited
-to `evidence.inbox.write`; an ungranted catalog capability is denied.
-Production deployment identity configuration and full M1 acceptance remain
-unverified.
+runtime use to a trusted SYSTEM principal, then verifies both persisted records
+through UX01 using only `catalog.agent.read`; the UI confirms no runtime action
+occurred. Operator-only ownership transfer is verified by the live browser
+suite. The isolated S03 publisher and collector client-credentials flows also
+resolve to their admitted SYSTEM principals through EDGE01 and receive narrow,
+approved delegations; ungranted catalog capabilities are denied. Production
+deployment identity configuration and full M1 acceptance remain unverified.
 
 ## Trusted-provider principal admission
 
@@ -1400,15 +1402,18 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 
 The live browser suite verifies authorized draft journey creation,
 service registration/linking and readback, standalone and service-bound
-workload registration, operator-only ownership transfer, and isolated S03
-client-credentials delegation through independently granted S01 authority.
+workload registration and persisted UX01/S02 readback, operator-only ownership
+transfer, and isolated S03 publisher/collector client-credentials delegation
+through independently granted S01 authority. The isolated collector runner
+remains disabled.
 Continue M1 with production deployment-identity verification and full
 end-to-end acceptance; do not bypass authorization. Continue integrated work
 with explicitly synthetic samples while live provider validation remains
-deferred. Before enabling collection,
-provision a dedicated S03 system client with only
-`connections.observation.write` and configure its secret outside the
-repository. Keep each cloud provider UNACCEPTED until its live conformance
-suite verifies pagination, permission denial, outages, rate limits, checkpoint
-recovery and out-of-order delivery. Preserve one-owner-per-domain and
-no-cross-database-access boundaries.
+deferred. Before enabling collection, provision production S03 credentials
+outside the repository and complete the live provider conformance suite. The
+isolated `uacrf-s03-collector` identity proves only local client-credentials
+resolution and narrow delegation; it does not execute collection. Keep each
+cloud provider UNACCEPTED until its live conformance suite verifies pagination,
+permission denial, outages, rate limits, checkpoint recovery and out-of-order
+delivery. Preserve one-owner-per-domain and no-cross-database-access
+boundaries.

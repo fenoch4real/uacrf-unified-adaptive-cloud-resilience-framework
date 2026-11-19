@@ -1,12 +1,12 @@
 # Runtime Validation Report
 
-**Generated**: 2026-11-18
+**Generated**: 2026-11-19
 
 **Target**: UACRF repository
 
 ## Latest live browser run
 
-On 2026-11-18, `npm --prefix e2e run test:live` passed **11 tests** with exit
+On 2026-11-19, `npm --prefix e2e run test:live` passed **11 tests** with exit
 code 0 using one Playwright worker. The disposable Compose stack included S02
 and a separate PostgreSQL catalog database. In addition to the established
 OIDC, context, membership, admission, disable, and CSRF flows, an independently
@@ -23,9 +23,11 @@ direct transfer access. The test also admitted the trusted local S03 publisher
 service account as a SYSTEM principal, granted `runtime.principal.use` through
 the independent approval flow, and registered standalone and service-bound
 agent workloads. The same account also received `evidence.inbox.write` through
-independent approval for the client-credentials delegation check. S02 returned
-successful mutation receipts, and UX01 confirmed that no runtime action was
-performed. The stack was removed after the run.
+independent approval for the client-credentials delegation check. After
+registration, UX01 used a separate S01 delegation restricted to
+`catalog.agent.read` to read both persisted workloads from S02 and verify their
+identifiers, kinds, owners, runtime principals, and service association. No
+runtime action was performed. The stack was removed after the run.
 The same run authenticates the disposable S03 publisher with Keycloak
 client-credentials, verifies through EDGE01 that S01 resolves it to the
 admitted SYSTEM principal with only its two approved capabilities, and obtains
@@ -61,15 +63,22 @@ below; the full Maven reactor was not rerun for the follow-ups.
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
-| Targeted service tests | PASS | 0 | S01 Identity (25), S02 Estate Catalog (12), and UX01 (85); 122 tests, 0 failures, 0 errors, 0 skipped |
+| Prior combined targeted tests | PASS | 0 | S01 Identity (25), S02 Estate Catalog (12), and UX01 (85); 122 tests, 0 failures, 0 errors, 0 skipped |
+| Targeted UX01 tests | PASS | 0 | Current focused rerun: `WebApplicationTests`, 87 tests, 0 failures, 0 errors, 0 skipped |
 | Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 11 tests in 4 files, all passed |
 
 **Overall**: PASS
 
-The targeted service tests were run with:
+The prior combined targeted tests were run with:
 
 ```sh
 ./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl services/identity,services/estate-catalog,web -am -Dtest='IdentityApplicationTests,EstateCatalogApplicationTests,WebApplicationTests' -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+The UX01 focused rerun was:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl web -am -Dtest=WebApplicationTests -Dsurefire.failIfNoSpecifiedTests=false test
 ```
 
 ## Environment
@@ -90,7 +99,7 @@ The targeted service tests were run with:
 - Identity manager disables the admitted principal with an audited reason; a direct approver disable submission is denied, and the existing membership remains intact.
 - An independently authorized human creates a draft journey, registers a service, links it to the journey, and reads back the persisted journey and service through the browser.
 - The bootstrap transfer operator, without catalog-write authority, transfers the journey and unanchored service to a separately admitted eligible human; the browser verifies both updated owners and denies transfer to a principal without transfer authority.
-- The same human registers a standalone and a service-bound workload using a separately approved SYSTEM runtime principal; both operations return S02 success receipts without executing runtime actions.
+- The same human registers a standalone and a service-bound workload using a separately approved SYSTEM runtime principal; UX01 reads both persisted records back from S02 through a narrow read delegation, without executing runtime actions.
 - Invalid-password rejection for administrator and approver accounts.
 - Protected-route redirect for an unauthenticated browser and local-session logout.
 
@@ -110,11 +119,11 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   list until an independent membership grant is made.
 - The approval handoff uses an authorization reference shared through a
   trusted channel; the browser does not provide a persisted request inbox.
-- Successful catalog verification covers draft journey creation, service
-  registration/linking and readback, plus standalone and service-bound workload
-  registration receipts and JOURNEY/SERVICE ownership transfers. There is no
-  UX01 workload readback view, so workload persistence is not independently
-  verified through a read-after-write UI.
+- Successful catalog verification covers draft journey creation,
+  service registration/linking and readback, standalone and service-bound
+  workload persistence readback through UX01, and JOURNEY/SERVICE ownership
+  transfers. This remains local isolated-stack evidence, not production
+  deployment-identity or cloud-provider acceptance.
 - Catalog authority is granted only through independently approved global
   memberships for human principals; self-grants remain prohibited.
 

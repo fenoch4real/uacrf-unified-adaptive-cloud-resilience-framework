@@ -17,6 +17,7 @@
   <p th:if="${serviceId != null}">
     Service-bound agent for <strong th:text="${serviceId}">Service identifier</strong>.
   </p>
+  <p><a href="/agents">Browse registered agent workloads</a></p>
   <p><a href="/journeys">Back to customer journeys</a></p>
   <p role="status" th:if="${agentSuccess != null}" th:text="${agentSuccess}"></p>
   <p role="status" th:if="${agentError != null}" th:text="${agentError}"></p>

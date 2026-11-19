@@ -1637,6 +1637,91 @@ class WebApplicationTests {
   }
 
   @Test
+  void listsAgentWorkloadsUsingOnlyTheScopedReadDelegation() throws Exception {
+    BrowserContext context = sessionContext();
+    List<CatalogClient.AgentWorkload> agents =
+        List.of(
+            new CatalogClient.AgentWorkload(
+                "agent-standalone",
+                null,
+                "Standalone helper",
+                "SINGLE_AGENT",
+                "owner-test",
+                "runtime-standalone",
+                "Review evidence",
+                1),
+            new CatalogClient.AgentWorkload(
+                "agent-service",
+                "svc-agent",
+                "Recovery helper",
+                "MULTI_AGENT",
+                "owner-test",
+                "runtime-service",
+                "Coordinate recovery checks",
+                2));
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.agent.read"),
+            context.tenantId(),
+            context.environmentId()))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-agent-read", "Bearer", 30));
+    when(catalog.listAgents("s02-agent-read", "cursor-first"))
+        .thenReturn(new CatalogClient.AgentPage(agents, "cursor-next"));
+
+    mockMvc
+        .perform(
+            get("/agents")
+                .with(browserLogin())
+                .param("cursor", "cursor-first")
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Agent workloads")))
+        .andExpect(content().string(containsString("Standalone helper")))
+        .andExpect(content().string(containsString("runtime-standalone")))
+        .andExpect(content().string(containsString("Recovery helper")))
+        .andExpect(content().string(containsString("svc-agent")))
+        .andExpect(content().string(containsString("Next agent workloads")))
+        .andExpect(content().string(containsString("cursor=cursor-next")))
+        .andExpect(content().string(not(containsString("s02-agent-read"))));
+
+    verify(identity)
+        .createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.agent.read"),
+            context.tenantId(),
+            context.environmentId());
+    verify(catalog).listAgents("s02-agent-read", "cursor-first");
+  }
+
+  @Test
+  void reportsAgentWorkloadReadFailuresWithoutReturningAFalseEmptySuccess() throws Exception {
+    BrowserContext context = sessionContext();
+    when(identity.createDelegation(
+            "test-access-token",
+            "S02",
+            null,
+            List.of("catalog.agent.read"),
+            context.tenantId(),
+            context.environmentId()))
+        .thenReturn(new IdentityAccessClient.Delegation("s02-agent-read", "Bearer", 30));
+    when(catalog.listAgents("s02-agent-read", null))
+        .thenThrow(new ResourceAccessException("S02 is unavailable"));
+
+    mockMvc
+        .perform(
+            get("/agents")
+                .with(browserLogin())
+                .session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("S02 is unavailable")))
+        .andExpect(content().string(not(containsString("No agent workloads are available."))));
+  }
+
+  @Test
   void registersStandaloneAgentWithoutBroadeningItsDelegation() throws Exception {
     String idempotencyKey = "123e4567-e89b-42d3-a456-426614174000";
     BrowserContext context = sessionContext();

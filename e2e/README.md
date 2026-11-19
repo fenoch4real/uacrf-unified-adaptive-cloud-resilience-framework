@@ -60,9 +60,11 @@ qualify evidence.
 
 The same authorized user creates a draft journey, registers and links a service
 through UX01, EDGE01, and S02, then reads the journey and linked service back.
-The user also registers standalone and service-bound agent workloads; S02
-returns a successful mutation receipt, and UX01 confirms that no runtime action
-was performed. Separately, the suite admits the dedicated `uacrf-s03-collector`
+The user also registers standalone and service-bound agent workloads, then
+reads both persisted records back through UX01 using a narrow
+`catalog.agent.read` delegation. The readback verifies workload identifiers,
+kind, owner, runtime principal, and service association; no runtime action is
+performed. Separately, the suite admits the dedicated `uacrf-s03-collector`
 service account as SYSTEM, grants it only `connections.observation.write`
 through the approval workflow, and verifies client-credentials resolution and
 a narrow S03 delegation through S01. An ungranted catalog capability is

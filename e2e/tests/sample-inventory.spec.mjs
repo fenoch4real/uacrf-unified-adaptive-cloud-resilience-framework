@@ -340,27 +340,48 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.goto('/agents/new');
     await expect(sample.getByText('This agent will be standalone, without a service anchor.'))
       .toBeVisible();
-    await sample.getByLabel('Name (required)').fill(`Standalone agent ${randomUUID()}`);
+    const standaloneName = `Standalone agent ${randomUUID()}`;
+    await sample.getByLabel('Name (required)').fill(standaloneName);
     await sample.locator('input[name="kind"][value="SINGLE_AGENT"]').check();
     await sample.getByLabel('Eligible human owner (required)').selectOption(principalId);
     await sample.getByLabel('Runtime principal ID (required)').fill(runtimePrincipalId);
     await sample.getByLabel('Purpose (required)').fill('Validate authorized standalone workload registration.');
     await sample.getByRole('button', { name: 'Register agent workload' }).click();
-    await expect(sample.getByRole('status')).toContainText(
-      'was created. No runtime action was performed.',
-    );
+    const standaloneReceipt = await sample.getByRole('status').innerText();
+    expect(standaloneReceipt).toContain('was created. No runtime action was performed.');
+    const standaloneId = standaloneReceipt.match(/Agent workload (\S+) was created\./)?.[1];
+    expect(standaloneId).toBeTruthy();
 
     await sample.goto(`/services/${serviceId}/agents/new`);
     await expect(sample.locator('main')).toContainText(`Service-bound agent for ${serviceId}`);
-    await sample.getByLabel('Name (required)').fill(`Service-bound agent ${randomUUID()}`);
+    const serviceBoundName = `Service-bound agent ${randomUUID()}`;
+    await sample.getByLabel('Name (required)').fill(serviceBoundName);
     await sample.locator('input[name="kind"][value="MULTI_AGENT"]').check();
     await sample.getByLabel('Eligible human owner (required)').selectOption(principalId);
     await sample.getByLabel('Runtime principal ID (required)').fill(runtimePrincipalId);
     await sample.getByLabel('Purpose (required)').fill('Validate authorized service-bound workload registration.');
     await sample.getByRole('button', { name: 'Register agent workload' }).click();
-    await expect(sample.getByRole('status')).toContainText(
-      'was created. No runtime action was performed.',
-    );
+    const serviceBoundReceipt = await sample.getByRole('status').innerText();
+    expect(serviceBoundReceipt).toContain('was created. No runtime action was performed.');
+    const serviceBoundId = serviceBoundReceipt.match(/Agent workload (\S+) was created\./)?.[1];
+    expect(serviceBoundId).toBeTruthy();
+
+    await sample.goto('/agents');
+    await expect(sample.getByRole('heading', { name: 'Agent workloads' })).toBeVisible();
+    const standaloneRecord = sample.getByRole('listitem').filter({ hasText: standaloneId });
+    await expect(standaloneRecord).toContainText(standaloneName);
+    await expect(standaloneRecord).toContainText('SINGLE_AGENT');
+    await expect(standaloneRecord).toContainText(principalId);
+    await expect(standaloneRecord).toContainText(runtimePrincipalId);
+    await expect(standaloneRecord.locator('dd').nth(2)).toHaveText('Standalone');
+    await expect(standaloneRecord.locator('dd').last()).toHaveText('1');
+    const serviceBoundRecord = sample.getByRole('listitem').filter({ hasText: serviceBoundId });
+    await expect(serviceBoundRecord).toContainText(serviceBoundName);
+    await expect(serviceBoundRecord).toContainText('MULTI_AGENT');
+    await expect(serviceBoundRecord).toContainText(serviceId);
+    await expect(serviceBoundRecord).toContainText(principalId);
+    await expect(serviceBoundRecord).toContainText(runtimePrincipalId);
+    await expect(serviceBoundRecord.locator('dd').last()).toHaveText('1');
   } finally {
     await sampleContext.close();
   }

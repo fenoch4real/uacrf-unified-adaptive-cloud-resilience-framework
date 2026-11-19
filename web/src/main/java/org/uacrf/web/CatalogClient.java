@@ -37,6 +37,45 @@ class CatalogClient {
     return response;
   }
 
+  AgentPage listAgents(String delegationToken, String cursor) {
+    AgentPage response =
+        restClient
+            .get()
+            .uri(
+                uriBuilder -> {
+                  var uri = uriBuilder.path("/v1/agent-workloads").queryParam("pageSize", 25);
+                  if (cursor != null && !cursor.isBlank()) {
+                    uri.queryParam("cursor", cursor);
+                  }
+                  return uri.build();
+                })
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + delegationToken)
+            .retrieve()
+            .body(AgentPage.class);
+    if (response == null
+        || response.items() == null
+        || response.items().stream()
+            .anyMatch(
+                agent ->
+                    agent == null
+                        || agent.id() == null
+                        || agent.id().isBlank()
+                        || agent.name() == null
+                        || agent.name().isBlank()
+                        || agent.kind() == null
+                        || agent.kind().isBlank()
+                        || agent.ownerId() == null
+                        || agent.ownerId().isBlank()
+                        || agent.runtimePrincipalId() == null
+                        || agent.runtimePrincipalId().isBlank()
+                        || agent.purpose() == null
+                        || agent.purpose().isBlank()
+                        || agent.revision() < 1)) {
+      throw new IllegalStateException("S02 returned an invalid agent-workload page.");
+    }
+    return response;
+  }
+
   JourneyDetails getJourney(String delegationToken, String journeyId) {
     JourneyDetails response =
         restClient
@@ -293,9 +332,23 @@ class CatalogClient {
       @JsonProperty("items") List<Journey> items,
       @JsonProperty("next_cursor") String nextCursor) {}
 
+  record AgentPage(
+      @JsonProperty("items") List<AgentWorkload> items,
+      @JsonProperty("next_cursor") String nextCursor) {}
+
   record ServicePage(
       @JsonProperty("items") List<ServiceRecord> items,
       @JsonProperty("next_cursor") String nextCursor) {}
+
+  record AgentWorkload(
+      String id,
+      @JsonProperty("service_id") String serviceId,
+      String name,
+      String kind,
+      @JsonProperty("owner_id") String ownerId,
+      @JsonProperty("runtime_principal_id") String runtimePrincipalId,
+      String purpose,
+      long revision) {}
 
   record ServiceRecord(
       String id,
