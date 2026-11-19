@@ -120,7 +120,11 @@ class OutboxPublisher {
               .body(event)
               .retrieve()
               .body(Map.class);
-      String status = result == null ? null : String.valueOf(result.get("status"));
+      if (result == null || !event.get("event_id").equals(result.get("event_id"))) {
+        throw new IllegalStateException(
+            "S04 inbox response did not identify event " + row.get("event_id"));
+      }
+      String status = String.valueOf(result.get("status"));
       if ("RECEIVED".equals(status) || "DUPLICATE".equals(status)) {
         markPublished(row.get("event_id"));
         delivered++;

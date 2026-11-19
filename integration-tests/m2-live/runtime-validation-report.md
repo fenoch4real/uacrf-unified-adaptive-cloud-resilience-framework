@@ -8,8 +8,8 @@
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Four objective/topology runs started real S01, S02, S05, S06 and S07 HTTP processes; the fifth run started those support services plus real S03 and S04 processes. All health endpoints returned 200. |
-| Focused integration tests | PASS | 0 | The full five-test module passed after adding the failed-acknowledgement retry case: 5 tests, 0 failures, 0 errors, 0 skipped. The targeted S03/S04 process test also passed: 1 test, 0 failures, 0 errors, 0 skipped. |
-| Full Maven reactor | PASS (prior run) | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the initial S03 outbox process-test addition and before the live S01 delegation/admission/grant test enhancements: 584 tests, 0 failures, 0 errors, 0 skipped. The root reactor was not rerun for the latest test-harness change. |
+| Focused integration tests | PASS | 0 | After S03 acknowledgement-ID validation, the targeted S03/S04 process test passed with the rebuilt S03 service: 1 test, 0 failures, 0 errors, 0 skipped. The full five-test module passed after adding the failed-acknowledgement retry case but before the validation change: 5 tests, 0 failures, 0 errors, 0 skipped. |
+| Full Maven reactor | PASS (prior run) | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the initial S03 outbox process-test addition and before the live S01 delegation/admission/grant test enhancements: 584 tests, 0 failures, 0 errors, 0 skipped. The root reactor was not rerun after those changes or S03 acknowledgement-ID validation. |
 | Browser E2E | N/A | n/a | This gate is API-only and renders no HTML. Browser/UX remains a separate acceptance requirement. |
 
 **Overall**: PASS — this focused gate does not establish full M2 acceptance.
@@ -39,8 +39,9 @@ Surefire evidence: `target/surefire-reports/TEST-org.uacrf.m2live.*.xml`. The fu
 ./mvnw --batch-mode --no-transfer-progress -pl integration-tests/m2-live test
 ```
 
-This rerun passed 5 tests, 0 failures, 0 errors, and 0 skips. It used service
-jars produced by the preceding root reactor build. On a clean checkout, use the
+This rerun passed 5 tests, 0 failures, 0 errors, and 0 skips before the later
+S03 acknowledgement-ID validation change. It used service jars produced by
+the preceding root reactor build. On a clean checkout, use the
 canonical root `verify` command below so the service jars are packaged before
 these tests run.
 
@@ -53,7 +54,9 @@ with 1 test, 0 failures, 0 errors, and 0 skips:
 ```
 
 The full five-test module was rerun afterward and passed all 5 tests, with 0
-failures, 0 errors, and 0 skips.
+failures, 0 errors, and 0 skips. After the later S03 acknowledgement-ID
+validation change, S03 was repackaged and the targeted process test was rerun
+successfully (1 test); the full module was not rerun after that change.
 
 The previously recorded full-reactor command was:
 
@@ -61,12 +64,16 @@ The previously recorded full-reactor command was:
 ./mvnw --batch-mode --no-transfer-progress verify
 ```
 
-That 584-test root verification predates the live S01 delegation and public admission/grant test enhancements; only the focused `m2-live` module was rerun afterward.
+That 584-test root verification predates the live S01 delegation and public
+admission/grant test enhancements and the later S03 acknowledgement-ID
+validation. The full `m2-live` module was rerun after the earlier enhancements;
+after the S03 validation change, only the targeted process test was rerun.
 
 ## Boundaries and known gaps
 
 - S01, S02, S05, S06 and S07 ran as real HTTP services in the four objective/topology journeys with separate PostgreSQL databases. S02 service/workload/version and S07 case fixtures were created through their public APIs; S07's case receipt was obtained by S06 under a scoped S01 delegation. S02 used an ephemeral test receipt-signing key. S07 external owner receipt verification was disabled; evaluation with live S04/S05/S06 receipts was not exercised. Neo4j projection and reconciliation were verified for the authored-edge graph fixture; projection retry/failure and drift recovery are not covered by this live gate.
 - The fifth journey ran real S03, S04 and S01 HTTP processes with separate PostgreSQL databases; the shared fixture also started S02, S05, S06 and S07. S03 connection registration and scheduled outbox publication reached S04's retained inbox through S01's real admission, grant-decision, membership and delegation APIs. A test proxy injected a 503 only after S04 persisted the first request, proving the retry is treated as `DUPLICATE` before S03 marks its row published. Principal lookup used a local test-only directory stub, while OAuth client-credentials issuance and OIDC signing/JWKS were also test fixtures. This does not verify production identity or production IdP conformance.
+- S03 now checks that S04's terminal acknowledgement identifies the event sent. Its PostgreSQL-backed publisher tests cover missing and mismatched IDs using an HTTP stub; the real-process journey verifies compatible S04 responses and retry, not malformed acknowledgement injection.
 - S04 evidence-summary calls in the four objective/topology journeys remain a test-only HTTP boundary. The stub was configured to fail if called; it received no calls. Kafka, artifact storage, cloud-provider conformance, EDGE01/UX01, browser rendering and the remaining M2 workflows were not exercised.
 - This result does not claim SLO graph relationships, measurement evaluation, freshness/completeness coverage, production readiness or M2 completion.
 

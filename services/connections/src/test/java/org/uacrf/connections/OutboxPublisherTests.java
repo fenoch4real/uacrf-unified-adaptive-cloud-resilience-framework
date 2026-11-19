@@ -23,6 +23,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @Testcontainers
@@ -38,8 +39,11 @@ class OutboxPublisherTests {
           .withPassword("connections_test");
 
   private static final List<String> CALLS = new CopyOnWriteArrayList<>();
+  private static final JsonMapper JSON = JsonMapper.builder().build();
   private static final HttpServer STUB = startStub();
   private static volatile String inboxStatus = "RECEIVED";
+  private static volatile String responseEventIdOverride;
+  private static volatile boolean omitResponseEventId;
   private static volatile boolean blockToken;
   private static volatile CountDownLatch tokenRelease = new CountDownLatch(0);
 
@@ -115,6 +119,35 @@ class OutboxPublisherTests {
 
     assertThat(published(id)).isTrue();
     assertThat(publisher.publishPending()).isZero();
+  }
+
+  @Test
+  void leavesRowsPendingWhenS04AcknowledgesTheWrongOrMissingEvent() {
+    try {
+      for (String status : List.of("RECEIVED", "DUPLICATE", "QUARANTINED")) {
+        for (boolean missing : List.of(true, false)) {
+          inboxStatus = status;
+          UUID id = insert("agg-unmatched-" + status + "-" + missing);
+          omitResponseEventId = missing;
+          responseEventIdOverride = missing ? null : UUID.randomUUID().toString();
+
+          assertThatThrownBy(publisher::publishPending)
+              .isInstanceOf(IllegalStateException.class)
+              .hasMessage("S04 inbox response did not identify event " + id);
+          assertThat(published(id)).isFalse();
+
+          omitResponseEventId = false;
+          responseEventIdOverride = null;
+          assertThat(publisher.publishPending())
+              .isEqualTo("QUARANTINED".equals(status) ? 0 : 1);
+          assertThat(published(id)).isTrue();
+        }
+      }
+    } finally {
+      omitResponseEventId = false;
+      responseEventIdOverride = null;
+      inboxStatus = "RECEIVED";
+    }
   }
 
   @Test
@@ -224,14 +257,25 @@ class OutboxPublisherTests {
       server.createContext(
           "/inbox",
           exchange -> {
+            String request =
+                new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             if ("FAIL".equals(inboxStatus)) {
-              respond(exchange, "inbox:", "{}", 503);
+              respond(exchange, "inbox:", "{}", 503, request);
             } else {
-              String body = "{\"status\":\"" + inboxStatus + "\"}";
+              String eventId =
+                  responseEventIdOverride == null
+                      ? JSON.readTree(request).path("event_id").asText()
+                      : responseEventIdOverride;
+              String eventIdField =
+                  omitResponseEventId ? "" : "\"event_id\":\"" + eventId + "\",";
+              String body = "{" + eventIdField + "\"status\":\"" + inboxStatus + "\"}";
               if ("QUARANTINED".equals(inboxStatus)) {
-                body = "{\"status\":\"QUARANTINED\",\"reason\":\"DIGEST_MISMATCH\"}";
+                body =
+                    "{"
+                        + eventIdField
+                        + "\"status\":\"QUARANTINED\",\"reason\":\"DIGEST_MISMATCH\"}";
               }
-              respond(exchange, "inbox:", body, 200);
+              respond(exchange, "inbox:", body, 200, request);
             }
           });
       server.start();
@@ -243,8 +287,14 @@ class OutboxPublisherTests {
 
   private static void respond(HttpExchange exchange, String label, String body, int status)
       throws IOException {
-    String auth = exchange.getRequestHeaders().getFirst("Authorization");
     String request = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+    respond(exchange, label, body, status, request);
+  }
+
+  private static void respond(
+      HttpExchange exchange, String label, String body, int status, String request)
+      throws IOException {
+    String auth = exchange.getRequestHeaders().getFirst("Authorization");
     CALLS.add(label + (auth == null ? "" : auth) + "|" + request);
     byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
     exchange.getResponseHeaders().add("Content-Type", "application/json");
