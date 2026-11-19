@@ -81,9 +81,10 @@ The opt-in collection runner claims active source bindings through persisted che
 expiring leases, invokes a registered provider collector, and sends collected observations through
 the same intake. It uses a dedicated OAuth client-credentials identity and a short-lived S01
 delegation limited to `connections.observation.write`; it stores no signing key. The runner is
-disabled by default and requires its client secret to be configured outside the repository. If
-enabled with a blank or whitespace-only secret, it fails at startup; this validates configuration
-presence, not credential validity. Its identity, delegation, and intake HTTP calls use bounded
+disabled by default. When enabled, it requires nonblank client ID and secret values and absolute
+HTTP(S) token, delegation, and intake URLs; invalid configuration fails at startup. The secret
+must be configured outside the repository, and this validation does not establish credential
+validity. Its identity, delegation, and intake HTTP calls use bounded
 2-second connect and 3-second response timeouts. Timeout failures do not advance checkpoints, and
 any persisted batch is replayed unchanged on retry. Provider-reported retry times are honored,
 intake failures do not advance checkpoints, and a partially accepted batch is persisted and

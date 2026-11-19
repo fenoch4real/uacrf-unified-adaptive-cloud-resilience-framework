@@ -655,8 +655,10 @@ narrow S01 delegation for `connections.observation.write`; a checkpoint
 advances only after all intake results are durably accepted, duplicated, or
 quarantined. Failed and unimplemented collections retain the prior checkpoint
 for retry, and provider-supplied retry times are honored. The runner is disabled
-by default and fails at startup if enabled without a nonblank client secret;
-this validates only configuration presence, not production credential validity.
+by default and fails at startup if enabled without a nonblank client ID/secret
+or absolute HTTP(S) token, delegation, and intake URLs. The secret must be
+configured outside the repository; validation does not establish production
+credential validity.
 Its identity, delegation, and intake HTTP calls use bounded 2-second connect
 and 3-second response timeouts; timeout failures retain the prior checkpoint
 and replay any persisted batch unchanged.
@@ -669,11 +671,12 @@ AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
 data. STS, Config, and CloudWatch SDK calls have a 10-second per-attempt timeout
 and a 30-second total API-call timeout. The full connections module suite passed
-61 tests, and its delegation-auth dependency passed 8 tests (69 total in the
+63 tests, and its delegation-auth dependency passed 8 tests (71 total in the
 selected reactor), with no failures, errors, or skips. This includes the slow
 identity endpoint, AWS SDK timeout, and active lease renewal cases. The latest
-targeted runner/application rerun passed 20 tests, including stale-token fencing
-and continued processing after a lease is lost. Real provider collection
+targeted runner/application rerun passed 22 tests, including rejection of
+incomplete identity/endpoints, stale-token fencing, and processing after lease
+loss. Real provider collection
 and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only

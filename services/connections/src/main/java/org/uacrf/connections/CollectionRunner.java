@@ -1,5 +1,6 @@
 package org.uacrf.connections;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -65,6 +66,13 @@ class CollectionRunner {
       throw new IllegalArgumentException(
           "Collection runner client secret must be configured when enabled.");
     }
+    if (clientId == null || clientId.isBlank()) {
+      throw new IllegalArgumentException(
+          "Collection runner client ID must be configured when enabled.");
+    }
+    validateHttpEndpoint(tokenUrl, "token URL");
+    validateHttpEndpoint(delegationUrl, "delegation URL");
+    validateHttpEndpoint(observationBaseUrl, "observation base URL");
     if (intervalMs < 1 || leaseMs < 1 || batchSize < 1 || maxObservations < 1) {
       throw new IllegalArgumentException("Collection runner limits must be positive.");
     }
@@ -88,6 +96,27 @@ class CollectionRunner {
     this.leaseMs = leaseMs;
     this.batchSize = batchSize;
     this.maxObservations = maxObservations;
+  }
+
+  private static void validateHttpEndpoint(String endpoint, String name) {
+    if (endpoint == null || endpoint.isBlank()) {
+      throw new IllegalArgumentException(
+          "Collection runner " + name + " must be configured when enabled.");
+    }
+    URI uri;
+    try {
+      uri = URI.create(endpoint);
+    } catch (IllegalArgumentException error) {
+      throw new IllegalArgumentException(
+          "Collection runner " + name + " must be an absolute HTTP(S) URL.", error);
+    }
+    if (!uri.isAbsolute()
+        || uri.getHost() == null
+        || !("http".equalsIgnoreCase(uri.getScheme())
+            || "https".equalsIgnoreCase(uri.getScheme()))) {
+      throw new IllegalArgumentException(
+          "Collection runner " + name + " must be an absolute HTTP(S) URL.");
+    }
   }
 
   @Scheduled(fixedDelayString = "${uacrf.collection.runner.interval-ms:60000}")

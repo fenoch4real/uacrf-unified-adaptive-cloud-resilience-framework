@@ -52,6 +52,46 @@ class CollectionRunnerTests {
   }
 
   @Test
+  void rejectsBlankClientIdWhenTheRunnerIsEnabled() {
+    assertThatThrownBy(
+            () ->
+                new CollectionRunner(
+                    mock(CollectionCheckpointStore.class),
+                    List.of(),
+                    "http://localhost/token",
+                    " ",
+                    "collector-secret",
+                    "http://localhost/delegations",
+                    "http://localhost/observations",
+                    60000,
+                    300000,
+                    10,
+                    100))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Collection runner client ID must be configured when enabled.");
+  }
+
+  @Test
+  void rejectsRelativeIdentityEndpointWhenTheRunnerIsEnabled() {
+    assertThatThrownBy(
+            () ->
+                new CollectionRunner(
+                    mock(CollectionCheckpointStore.class),
+                    List.of(),
+                    "token",
+                    "collector-client",
+                    "collector-secret",
+                    "http://localhost/delegations",
+                    "http://localhost/observations",
+                    60000,
+                    300000,
+                    10,
+                    100))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Collection runner token URL must be an absolute HTTP(S) URL.");
+  }
+
+  @Test
   void submitsCollectedObservationsUsingANarrowS01Delegation() throws Exception {
     List<String> calls = new CopyOnWriteArrayList<>();
     HttpServer server = startServer(calls);
