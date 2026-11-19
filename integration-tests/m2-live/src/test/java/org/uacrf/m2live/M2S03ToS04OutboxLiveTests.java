@@ -62,7 +62,7 @@ class M2S03ToS04OutboxLiveTests {
           .withPassword("evidence_live");
 
   @Test
-  void publishesS03OutboxEventToTheRealS04Inbox() throws Exception {
+  void retriesWhenS04PersistsTheEventButItsAcknowledgementFails() throws Exception {
     Path repoRoot =
         Path.of(System.getProperty("uacrf.repo.root", Path.of("../..").toAbsolutePath().toString()))
             .toAbsolutePath()
@@ -71,6 +71,7 @@ class M2S03ToS04OutboxLiveTests {
     ConcurrentLinkedQueue<String> stubFailures = new ConcurrentLinkedQueue<>();
     AtomicInteger tokenCalls = new AtomicInteger();
     IdentityStub identityStub = null;
+    S04InboxProxy inboxProxy = null;
     LiveM2TestSupport.Environment identityEnvironment = null;
     Process evidenceProcess = null;
     Process connectionsProcess = null;
@@ -151,6 +152,11 @@ class M2S03ToS04OutboxLiveTests {
               evidencePort,
               evidenceEnvironment());
       awaitHealth("S04", evidencePort, evidenceProcess, logDirectory);
+      inboxProxy =
+          new S04InboxProxy(
+              "http://127.0.0.1:"
+                  + evidencePort
+                  + "/internal/v1/inbox/events");
 
       connectionsProcess =
           startService(
@@ -160,7 +166,10 @@ class M2S03ToS04OutboxLiveTests {
               "connections",
               connectionsPort,
               connectionsEnvironment(
-                  tokenBaseUrl, identityEnvironment.identityUrl(), evidencePort, connectionsPort));
+                  tokenBaseUrl,
+                  identityEnvironment.identityUrl(),
+                  connectionsPort,
+                  inboxProxy.inboxUrl()));
       awaitHealth("S03", connectionsPort, connectionsProcess, logDirectory);
 
       String connectionId = "connection-" + suffix;
@@ -210,6 +219,11 @@ class M2S03ToS04OutboxLiveTests {
       assertEquals(connectionId, delivery.inboxEvent().aggregateId());
       assertEquals(1, delivery.inboxEvent().aggregateSequence());
       assertEquals(sha256(delivery.inboxEvent().payload()), delivery.inboxEvent().payloadDigest());
+      assertEquals(1, inboxProxy.acknowledgementFailures());
+      assertEquals(1, inboxProxy.receivedResponses());
+      assertTrue(inboxProxy.duplicateResponses() > 0, "S04 did not identify the retried event");
+      assertTrue(inboxProxy.requestCount() > 1, "S03 did not retry after the failed acknowledgement");
+      assertTrue(inboxProxy.failures().isEmpty(), String.join("; ", inboxProxy.failures()));
       assertTrue(tokenCalls.get() > 0, "S03 did not request a client-credentials token");
       assertTrue(stubFailures.isEmpty(), String.join("; ", stubFailures));
       identityEnvironment.verifyStubHealth();
@@ -239,6 +253,9 @@ class M2S03ToS04OutboxLiveTests {
     } finally {
       stopProcess(connectionsProcess);
       stopProcess(evidenceProcess);
+      if (inboxProxy != null) {
+        inboxProxy.close();
+      }
       if (identityStub != null) {
         identityStub.server().stop(0);
       }
@@ -292,7 +309,7 @@ class M2S03ToS04OutboxLiveTests {
   }
 
   private static Map<String, String> connectionsEnvironment(
-      String tokenBaseUrl, String identityBaseUrl, int evidencePort, int connectionsPort) {
+      String tokenBaseUrl, String identityBaseUrl, int connectionsPort, String inboxUrl) {
     return Map.ofEntries(
         Map.entry("SERVER_PORT", Integer.toString(connectionsPort)),
         Map.entry("CONNECTIONS_JDBC_URL", CONNECTIONS_DB.getJdbcUrl()),
@@ -313,7 +330,7 @@ class M2S03ToS04OutboxLiveTests {
             identityBaseUrl + "/internal/v1/delegations"),
         Map.entry(
             "UACRF_S03_S04_INBOX_URL",
-            "http://127.0.0.1:" + evidencePort + "/internal/v1/inbox/events"));
+            inboxUrl));
   }
 
   private static IdentityStub startIdentityStub(
@@ -351,9 +368,14 @@ class M2S03ToS04OutboxLiveTests {
   private static void respond(HttpExchange exchange, int status, Map<String, ?> body)
       throws IOException {
     byte[] bytes = LiveM2TestSupport.json(body).getBytes(StandardCharsets.UTF_8);
+    respondBody(exchange, status, bytes);
+  }
+
+  private static void respondBody(HttpExchange exchange, int status, byte[] body)
+      throws IOException {
     exchange.getResponseHeaders().set("Content-Type", "application/json");
-    exchange.sendResponseHeaders(status, bytes.length);
-    exchange.getResponseBody().write(bytes);
+    exchange.sendResponseHeaders(status, body.length);
+    exchange.getResponseBody().write(body);
     exchange.close();
   }
 
@@ -536,6 +558,99 @@ class M2S03ToS04OutboxLiveTests {
   }
 
   private record IdentityStub(HttpServer server) {}
+
+  private static final class S04InboxProxy implements AutoCloseable {
+    private static final String PATH = "/internal/v1/inbox/events";
+    private final String targetInboxUrl;
+    private final HttpServer server;
+    private final AtomicInteger requestCount = new AtomicInteger();
+    private final AtomicInteger acknowledgementFailures = new AtomicInteger();
+    private final AtomicInteger receivedResponses = new AtomicInteger();
+    private final AtomicInteger duplicateResponses = new AtomicInteger();
+    private final ConcurrentLinkedQueue<String> failures = new ConcurrentLinkedQueue<>();
+
+    private S04InboxProxy(String targetInboxUrl) throws IOException {
+      this.targetInboxUrl = targetInboxUrl;
+      server =
+          HttpServer.create(
+              new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
+      server.createContext(PATH, this::forward);
+      server.start();
+    }
+
+    String inboxUrl() {
+      return "http://127.0.0.1:" + server.getAddress().getPort() + PATH;
+    }
+
+    int requestCount() {
+      return requestCount.get();
+    }
+
+    int acknowledgementFailures() {
+      return acknowledgementFailures.get();
+    }
+
+    int receivedResponses() {
+      return receivedResponses.get();
+    }
+
+    int duplicateResponses() {
+      return duplicateResponses.get();
+    }
+
+    ConcurrentLinkedQueue<String> failures() {
+      return failures;
+    }
+
+    private void forward(HttpExchange exchange) throws IOException {
+      int requestNumber = requestCount.incrementAndGet();
+      HttpRequest.Builder request =
+          HttpRequest.newBuilder(URI.create(targetInboxUrl))
+              .timeout(Duration.ofSeconds(5))
+              .header("Content-Type", "application/json")
+              .POST(
+                  HttpRequest.BodyPublishers.ofByteArray(
+                      exchange.getRequestBody().readAllBytes()));
+      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+      if (authorization != null) {
+        request.header("Authorization", authorization);
+      }
+      try {
+        HttpResponse<String> response =
+            HTTP.send(request.build(), HttpResponse.BodyHandlers.ofString());
+        if (response.body().contains("\"RECEIVED\"")) {
+          receivedResponses.incrementAndGet();
+        }
+        if (response.body().contains("\"DUPLICATE\"")) {
+          duplicateResponses.incrementAndGet();
+        }
+        if (requestNumber == 1 && response.statusCode() >= 200 && response.statusCode() < 300) {
+          acknowledgementFailures.incrementAndGet();
+          respond(
+              exchange,
+              503,
+              Map.of("error", "simulated acknowledgement failure after S04 persistence"));
+          return;
+        }
+        respondBody(
+            exchange,
+            response.statusCode(),
+            response.body().getBytes(StandardCharsets.UTF_8));
+      } catch (InterruptedException error) {
+        Thread.currentThread().interrupt();
+        failures.add("Interrupted while forwarding the S03 inbox request.");
+        respond(exchange, 502, Map.of("error", "interrupted while forwarding"));
+      } catch (IOException error) {
+        failures.add("S04 inbox forwarding failed: " + error.getMessage());
+        respond(exchange, 502, Map.of("error", "S04 inbox forwarding failed"));
+      }
+    }
+
+    @Override
+    public void close() {
+      server.stop(0);
+    }
+  }
 
   private record OutboxEvent(UUID eventId, boolean published) {}
 

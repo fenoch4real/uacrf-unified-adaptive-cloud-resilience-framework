@@ -8,7 +8,7 @@
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Four objective/topology runs started real S01, S02, S05, S06 and S07 HTTP processes; the fifth run started those support services plus real S03 and S04 processes. All health endpoints returned 200. |
-| Focused integration tests | PASS | 0 | Final full-module rerun with S06 Neo4j projection, S05 workload-owner checks, and S01 publisher admission/grant/membership API flow enabled; 5 tests, 0 failures, 0 errors, 0 skipped. |
+| Focused integration tests | PASS | 0 | The latest targeted S03/S04 process test passed after adding the failed-acknowledgement retry case: 1 test, 0 failures, 0 errors, 0 skipped. The full five-test module last passed after the S01 admission/grant enhancement and was not rerun after this test-only change. |
 | Full Maven reactor | PASS (prior run) | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the initial S03 outbox process-test addition and before the live S01 delegation/admission/grant test enhancements: 584 tests, 0 failures, 0 errors, 0 skipped. The root reactor was not rerun for the latest test-harness change. |
 | Browser E2E | N/A | n/a | This gate is API-only and renders no HTML. Browser/UX remains a separate acceptance requirement. |
 
@@ -31,9 +31,9 @@ The tests used random loopback ports, test-only credentials and ephemeral RSA ke
 2. **Changed objective set** — persisted a selection, superseded its active S05 objective through the public lifecycle, and classified against the changed set. The result was `INDETERMINATE` with `objective_set_change.changed=true`; the classification command was read back from S06 persistence. An unauthenticated command read returned 401.
 3. **Absent identity membership** — completed and read back an authorized selection, then repeated the request with a caller lacking S01 membership. S06 failed closed with 409 `PROOF_UNAVAILABLE_OR_STALE`; no accepted command response was created.
 4. **Current workload owner enforcement** — enabled the opt-in check across real S01, S02 and S05 services. The exact S02 catalog owner proposed and activated objectives; a separately authorized non-owner was denied proposal with no row persisted and denied activation while the existing active objective remained active. Afterward, the owner activated the approved objective and the previous one was superseded.
-5. **S03 outbox through S01 to S04 inbox** — admitted the publisher through S01's real `/v1/principals` API using a test-only Keycloak-compatible directory stub, then used a separate bootstrap approver to create an `evidence.inbox.write` grant decision and the bootstrap administrator to create the membership through `/v1/memberships`. A test-only client-credentials endpoint issued a test-signed OIDC token validated by real S01 against a test JWKS. S01's real delegation endpoint issued the S04-scoped delegation used by S03 delivery; a request for ungranted `connections.connection.write` was denied with 403.
+5. **S03 outbox through S01 to S04 inbox** — admitted the publisher through S01's real `/v1/principals` API using a test-only Keycloak-compatible directory stub, then used a separate bootstrap approver to create an `evidence.inbox.write` grant decision and the bootstrap administrator to create the membership through `/v1/memberships`. A test-only client-credentials endpoint issued a test-signed OIDC token validated by real S01 against a test JWKS. S01's real delegation endpoint issued the S04-scoped delegation used by S03 delivery. A local proxy let S04 persist the first event but returned 503 to S03; S03 retried, S04 identified the event as `DUPLICATE`, and the event was marked published. A request for ungranted `connections.connection.write` was denied with 403.
 
-Surefire evidence: `target/surefire-reports/TEST-org.uacrf.m2live.*.xml`. The focused command was:
+Surefire evidence: `target/surefire-reports/TEST-org.uacrf.m2live.*.xml`. The full-module command, last run after the S01 admission/grant enhancement, was:
 
 ```sh
 ./mvnw --batch-mode --no-transfer-progress -pl integration-tests/m2-live test
@@ -42,6 +42,14 @@ Surefire evidence: `target/surefire-reports/TEST-org.uacrf.m2live.*.xml`. The fo
 This focused rerun used service jars produced by the preceding root reactor build.
 On a clean checkout, use the canonical root `verify` command below so the service
 jars are packaged before these tests run.
+
+After adding the acknowledgement-failure retry case, the targeted command passed
+with 1 test, 0 failures, 0 errors, and 0 skips:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never \
+  -pl integration-tests/m2-live -Dtest=M2S03ToS04OutboxLiveTests test
+```
 
 The previously recorded full-reactor command was:
 
@@ -54,7 +62,7 @@ That 584-test root verification predates the live S01 delegation and public admi
 ## Boundaries and known gaps
 
 - S01, S02, S05, S06 and S07 ran as real HTTP services in the four objective/topology journeys with separate PostgreSQL databases. S02 service/workload/version and S07 case fixtures were created through their public APIs; S07's case receipt was obtained by S06 under a scoped S01 delegation. S02 used an ephemeral test receipt-signing key. S07 external owner receipt verification was disabled; evaluation with live S04/S05/S06 receipts was not exercised. Neo4j projection and reconciliation were verified for the authored-edge graph fixture; projection retry/failure and drift recovery are not covered by this live gate.
-- The fifth journey ran real S03, S04 and S01 HTTP processes with separate PostgreSQL databases; the shared fixture also started S02, S05, S06 and S07. S03 connection registration and scheduled outbox publication reached S04's retained inbox through S01's real admission, grant-decision, membership and delegation APIs. Principal lookup used a local test-only directory stub, while OAuth client-credentials issuance and OIDC signing/JWKS were also test fixtures. This does not verify production identity or production IdP conformance.
+- The fifth journey ran real S03, S04 and S01 HTTP processes with separate PostgreSQL databases; the shared fixture also started S02, S05, S06 and S07. S03 connection registration and scheduled outbox publication reached S04's retained inbox through S01's real admission, grant-decision, membership and delegation APIs. A test proxy injected a 503 only after S04 persisted the first request, proving the retry is treated as `DUPLICATE` before S03 marks its row published. Principal lookup used a local test-only directory stub, while OAuth client-credentials issuance and OIDC signing/JWKS were also test fixtures. This does not verify production identity or production IdP conformance.
 - S04 evidence-summary calls in the four objective/topology journeys remain a test-only HTTP boundary. The stub was configured to fail if called; it received no calls. Kafka, artifact storage, cloud-provider conformance, EDGE01/UX01, browser rendering and the remaining M2 workflows were not exercised.
 - This result does not claim SLO graph relationships, measurement evaluation, freshness/completeness coverage, production readiness or M2 completion.
 
@@ -62,4 +70,4 @@ That 584-test root verification predates the live S01 delegation and public admi
 
 An initial run exposed a test-harness mismatch: the S07 stub accepted selection-purpose receipts but rejected the classification-purpose receipt, causing a 409. The test stub was corrected to validate the two expected purposes. The first owner-check run also showed the shared S02 fixture lacked an active workload version; the fixture now registers and activates a manifest-digest-verified version through the public API. The final focused suite and full reactor passed. No production code was changed for these harness fixes.
 
-The S03/S01 journey initially mixed its bootstrap identity context with the randomly generated context used by other fixture helpers. The journey now consistently uses S01's bootstrap tenant/environment for admission, grant, membership, delegation, S03 delivery and S04 read-back. The final five-test `m2-live` rerun passed.
+The S03/S01 journey initially mixed its bootstrap identity context with the randomly generated context used by other fixture helpers. The journey now consistently uses S01's bootstrap tenant/environment for admission, grant, membership, delegation, S03 delivery and S04 read-back. The targeted S03/S04 test passes after injecting a post-persistence 503 and verifying the duplicate retry; the full module was not rerun after that latest test-only change.
