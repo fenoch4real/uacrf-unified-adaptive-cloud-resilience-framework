@@ -8,8 +8,8 @@
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Four objective/topology runs started real S01, S02, S05, S06 and S07 HTTP processes; the fifth run started those support services plus real S03 and S04 processes. All health endpoints returned 200. |
-| Focused integration tests | PASS | 0 | After S03 acknowledgement-ID validation, the targeted S03/S04 process test passed with the rebuilt S03 service: 1 test, 0 failures, 0 errors, 0 skipped. The full five-test module passed after adding the failed-acknowledgement retry case but before the validation change: 5 tests, 0 failures, 0 errors, 0 skipped. |
-| Full Maven reactor | PASS (prior run) | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the initial S03 outbox process-test addition and before the live S01 delegation/admission/grant test enhancements: 584 tests, 0 failures, 0 errors, 0 skipped. The root reactor was not rerun after those changes or S03 acknowledgement-ID validation. |
+| Focused integration tests | PASS | 0 | The current root reactor ran all five `m2-live` process tests against rebuilt services: 5 tests, 0 failures, 0 errors, 0 skipped. |
+| Full Maven reactor | PASS | 0 | `./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify` completed after the acknowledgement-ID and collection-token changes: 588 tests, 0 failures, 0 errors, 0 skipped. |
 | Browser E2E | N/A | n/a | This gate is API-only and renders no HTML. Browser/UX remains a separate acceptance requirement. |
 
 **Overall**: PASS — this focused gate does not establish full M2 acceptance.
@@ -56,18 +56,18 @@ with 1 test, 0 failures, 0 errors, and 0 skips:
 The full five-test module was rerun afterward and passed all 5 tests, with 0
 failures, 0 errors, and 0 skips. After the later S03 acknowledgement-ID
 validation change, S03 was repackaged and the targeted process test was rerun
-successfully (1 test); the full module was not rerun after that change.
+successfully (1 test).
 
-The previously recorded full-reactor command was:
+The latest full-reactor command was:
 
 ```sh
-./mvnw --batch-mode --no-transfer-progress verify
+./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never verify
 ```
 
-That 584-test root verification predates the live S01 delegation and public
-admission/grant test enhancements and the later S03 acknowledgement-ID
-validation. The full `m2-live` module was rerun after the earlier enhancements;
-after the S03 validation change, only the targeted process test was rerun.
+This run passed 588 tests, including all five `m2-live` tests, after the
+acknowledgement-ID and collection-token changes. It supersedes the earlier
+584-test root verification. It does not exercise live provider collection or
+prove that a retained collection batch refreshes tokens in a running process.
 
 ## Boundaries and known gaps
 
