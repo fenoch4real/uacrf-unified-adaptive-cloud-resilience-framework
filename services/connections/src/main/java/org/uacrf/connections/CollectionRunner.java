@@ -1,7 +1,5 @@
 package org.uacrf.connections;
 
-import java.net.URI;
-import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -18,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -34,8 +31,6 @@ class CollectionRunner {
   private static final Logger LOG = LoggerFactory.getLogger(CollectionRunner.class);
   private static final List<String> OBSERVATION_WRITE = List.of("connections.observation.write");
   private static final int MAX_CHECKPOINT_LENGTH = 4096;
-  private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(2);
-  private static final Duration HTTP_READ_TIMEOUT = Duration.ofSeconds(3);
 
   private final CollectionCheckpointStore checkpoints;
   private final Map<ConnectionsRequests.Provider, ProviderCollector> collectors;
@@ -70,17 +65,14 @@ class CollectionRunner {
       throw new IllegalArgumentException(
           "Collection runner client ID must be configured when enabled.");
     }
-    validateHttpEndpoint(tokenUrl, "token URL");
-    validateHttpEndpoint(delegationUrl, "delegation URL");
-    validateHttpEndpoint(observationBaseUrl, "observation base URL");
+    ConnectionsHttpClient.validateEndpoint(tokenUrl, "Collection runner token URL");
+    ConnectionsHttpClient.validateEndpoint(delegationUrl, "Collection runner delegation URL");
+    ConnectionsHttpClient.validateEndpoint(
+        observationBaseUrl, "Collection runner observation base URL");
     if (intervalMs < 1 || leaseMs < 1 || batchSize < 1 || maxObservations < 1) {
       throw new IllegalArgumentException("Collection runner limits must be positive.");
     }
-    HttpClient httpClient =
-        HttpClient.newBuilder().connectTimeout(HTTP_CONNECT_TIMEOUT).build();
-    JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-    requestFactory.setReadTimeout(HTTP_READ_TIMEOUT);
-    this.http = RestClient.builder().requestFactory(requestFactory).build();
+    this.http = ConnectionsHttpClient.create();
     this.checkpoints = checkpoints;
     this.collectors =
         collectors.stream()
@@ -96,27 +88,6 @@ class CollectionRunner {
     this.leaseMs = leaseMs;
     this.batchSize = batchSize;
     this.maxObservations = maxObservations;
-  }
-
-  private static void validateHttpEndpoint(String endpoint, String name) {
-    if (endpoint == null || endpoint.isBlank()) {
-      throw new IllegalArgumentException(
-          "Collection runner " + name + " must be configured when enabled.");
-    }
-    URI uri;
-    try {
-      uri = URI.create(endpoint);
-    } catch (IllegalArgumentException error) {
-      throw new IllegalArgumentException(
-          "Collection runner " + name + " must be an absolute HTTP(S) URL.", error);
-    }
-    if (!uri.isAbsolute()
-        || uri.getHost() == null
-        || !("http".equalsIgnoreCase(uri.getScheme())
-            || "https".equalsIgnoreCase(uri.getScheme()))) {
-      throw new IllegalArgumentException(
-          "Collection runner " + name + " must be an absolute HTTP(S) URL.");
-    }
   }
 
   @Scheduled(fixedDelayString = "${uacrf.collection.runner.interval-ms:60000}")

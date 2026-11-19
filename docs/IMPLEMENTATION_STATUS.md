@@ -670,13 +670,17 @@ limit, avoiding expiry of leases held by queued sources.
 AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
 data. STS, Config, and CloudWatch SDK calls have a 10-second per-attempt timeout
-and a 30-second total API-call timeout. The full connections module suite passed
-63 tests, and its delegation-auth dependency passed 8 tests (71 total in the
-selected reactor), with no failures, errors, or skips. This includes the slow
-identity endpoint, AWS SDK timeout, and active lease renewal cases. The latest
-targeted runner/application rerun passed 22 tests, including rejection of
-incomplete identity/endpoints, stale-token fencing, and processing after lease
-loss. Real provider collection
+and a 30-second total API-call timeout. The opt-in outbox publisher now shares
+the runner's bounded 2-second connect and 3-second response timeouts and rejects
+incomplete identity/endpoints or a nonpositive batch size at startup. A slow
+identity-endpoint test verifies a token-endpoint timeout leaves its outbox row
+pending and succeeds on retry. The full connections module suite passed 66 tests,
+and its delegation-auth dependency passed 8 tests (74 total in the selected reactor),
+with no failures, errors, or skips. This includes bounded runner and publisher
+identity calls, AWS SDK timeout, and active lease renewal cases. The latest
+targeted runner/application/publisher rerun passed 27 tests, including rejection
+of incomplete identity/endpoints, timeout retry, stale-token fencing, and
+processing after lease loss. Real provider collection
 and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only
@@ -856,8 +860,13 @@ retains evidence events and decides qualification.
   pending `outbox_event` rows to the S04 inbox. It signs in to Keycloak with the
   client-credentials grant, asks S01 for a 30-second S04 delegation limited to
   `evidence.inbox.write`, and marks rows published only on RECEIVED, DUPLICATE or
-  QUARANTINED (retained by S04). Failures leave rows pending for retry. The digest is
-  recomputed over the exact jsonb text sent. S01 now accepts audience `S04` and
+  QUARANTINED (retained by S04). When enabled, it fails startup on blank client
+  identity, non-absolute/non-HTTP(S) token/delegation/inbox URLs, or nonpositive
+  batch size. Its HTTP calls use a 2-second connect and 3-second response timeout;
+  errors and timeouts leave rows pending for retry, including when S04 accepted
+  delivery but the response was lost. The digest is recomputed over the exact
+  jsonb text sent. Local publisher tests use a stub S04 inbox and do not establish
+  live S03-to-S04 acceptance. S01 now accepts audience `S04` and
   delegates `evidence.inbox.write` to SYSTEM principals only.
 - The Keycloak realm now defines the confidential client `uacrf-s03-publisher`
   (service account id `...0d2`, `uacrf-s01-context` scope, secret from

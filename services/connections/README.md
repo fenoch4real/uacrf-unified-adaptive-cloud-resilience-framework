@@ -94,6 +94,14 @@ the lease token. Failure to record one lost lease is logged without stopping unr
 the same collection cycle. It claims one source at a time, up to the configured cycle limit, so
 queued sources do not hold expiring leases while earlier collections run.
 
+The optional S03 outbox publisher delivers retained events to the S04 inbox using its own
+client-credentials identity and narrow S01 delegation. When enabled, it requires nonblank client
+identity values, absolute HTTP(S) token/delegation/inbox URLs, and a positive batch size; invalid
+configuration fails at startup. Its HTTP calls share the runner's 2-second connect and 3-second
+response timeouts. Errors and timeouts leave outbox rows pending for retry; S04's inbox
+idempotency handles a retry when delivery succeeded but its response was lost. This does not
+establish live S03-to-S04 or production identity conformance.
+
 AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` ExternalId, exposed by
 the authorized connection read endpoint for the target role's trust policy. The first AWS source
 is `aws/<region>/config/inventory`; it uses STS `AssumeRole` and AWS Config

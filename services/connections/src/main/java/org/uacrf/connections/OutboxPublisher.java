@@ -33,7 +33,7 @@ class OutboxPublisher {
   private static final String SCHEMA = "uacrf_connections.";
 
   private final JdbcTemplate jdbc;
-  private final RestClient http = RestClient.create();
+  private final RestClient http;
   private final String tokenUrl;
   private final String clientId;
   private final String clientSecret;
@@ -49,7 +49,22 @@ class OutboxPublisher {
       @Value("${uacrf.outbox.publisher.delegation-url}") String delegationUrl,
       @Value("${uacrf.outbox.publisher.inbox-url}") String inboxUrl,
       @Value("${uacrf.outbox.publisher.batch-size:50}") int batchSize) {
+    if (clientId == null || clientId.isBlank()) {
+          throw new IllegalArgumentException(
+              "Outbox publisher client ID must be configured when enabled.");
+    }
+    if (clientSecret == null || clientSecret.isBlank()) {
+      throw new IllegalArgumentException(
+          "Outbox publisher client secret must be configured when enabled.");
+    }
+    ConnectionsHttpClient.validateEndpoint(tokenUrl, "Outbox publisher token URL");
+    ConnectionsHttpClient.validateEndpoint(delegationUrl, "Outbox publisher delegation URL");
+    ConnectionsHttpClient.validateEndpoint(inboxUrl, "Outbox publisher inbox URL");
+    if (batchSize < 1) {
+      throw new IllegalArgumentException("Outbox publisher batch size must be positive.");
+    }
     this.jdbc = jdbc;
+    this.http = ConnectionsHttpClient.create();
     this.tokenUrl = tokenUrl;
     this.clientId = clientId;
     this.clientSecret = clientSecret;

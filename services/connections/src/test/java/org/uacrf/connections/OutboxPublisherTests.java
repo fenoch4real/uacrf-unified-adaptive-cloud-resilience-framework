@@ -1,15 +1,19 @@
 package org.uacrf.connections;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +40,8 @@ class OutboxPublisherTests {
   private static final List<String> CALLS = new CopyOnWriteArrayList<>();
   private static final HttpServer STUB = startStub();
   private static volatile String inboxStatus = "RECEIVED";
+  private static volatile boolean blockToken;
+  private static volatile CountDownLatch tokenRelease = new CountDownLatch(0);
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry properties) {
@@ -100,6 +106,60 @@ class OutboxPublisherTests {
     assertThat(published(id)).isTrue();
   }
 
+  @Test
+  void rejectsBlankPublisherSecretWhenEnabled() {
+    assertThatThrownBy(
+            () ->
+                new OutboxPublisher(
+                    jdbc,
+                    "http://localhost/token",
+                    "s03-test",
+                    " ",
+                    "http://localhost/delegations",
+                    "http://localhost/inbox",
+                    50))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Outbox publisher client secret must be configured when enabled.");
+  }
+
+  @Test
+  void rejectsNonPositivePublisherBatchSizeWhenEnabled() {
+    assertThatThrownBy(
+            () ->
+                new OutboxPublisher(
+                    jdbc,
+                    "http://localhost/token",
+                    "s03-test",
+                    "s03-secret",
+                    "http://localhost/delegations",
+                    "http://localhost/inbox",
+                    0))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Outbox publisher batch size must be positive.");
+  }
+
+  @Test
+  void leavesRowsPendingWhenIdentityEndpointTimesOut() {
+    CALLS.clear();
+    UUID id = insert("agg-timeout");
+    CountDownLatch release = new CountDownLatch(1);
+    tokenRelease = release;
+    blockToken = true;
+    long startedAt = System.nanoTime();
+    try {
+      assertThatThrownBy(publisher::publishPending).isInstanceOf(RuntimeException.class);
+      assertThat(Duration.ofNanos(System.nanoTime() - startedAt))
+          .isLessThan(Duration.ofSeconds(8));
+      assertThat(published(id)).isFalse();
+    } finally {
+      blockToken = false;
+      release.countDown();
+    }
+
+    assertThat(publisher.publishPending()).isEqualTo(1);
+    assertThat(published(id)).isTrue();
+  }
+
   private UUID insert(String aggregate) {
     UUID id = UUID.randomUUID();
     jdbc.update(
@@ -133,7 +193,20 @@ class OutboxPublisherTests {
   private static HttpServer startStub() {
     try {
       HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-      server.createContext("/token", exchange -> respond(exchange, "token:", "{\"access_token\":\"identity-token\"}", 200));
+      server.createContext(
+          "/token",
+          exchange -> {
+            if (blockToken) {
+              try {
+                tokenRelease.await(10, TimeUnit.SECONDS);
+              } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+              }
+              exchange.close();
+            } else {
+              respond(exchange, "token:", "{\"access_token\":\"identity-token\"}", 200);
+            }
+          });
       server.createContext(
           "/delegations",
           exchange -> respond(exchange, "delegation:", "{\"access_token\":\"delegation-token\"}", 200));
