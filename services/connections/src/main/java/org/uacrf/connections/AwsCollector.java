@@ -18,6 +18,7 @@ import org.uacrf.connections.ProviderCollector.Batch;
 import org.uacrf.connections.ProviderCollector.Observation;
 import org.uacrf.connections.ProviderCollector.Request;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
@@ -54,6 +55,8 @@ final class AwsCollector implements ProviderCollector {
   private static final String KIND = "aws.config.resources";
   private static final String METRIC_KIND = "aws.cloudwatch.metrics";
   private static final Duration MAX_METRIC_WINDOW = Duration.ofHours(24);
+  private static final Duration AWS_API_CALL_TIMEOUT = Duration.ofSeconds(30);
+  private static final Duration AWS_API_CALL_ATTEMPT_TIMEOUT = Duration.ofSeconds(10);
   private static final int METRIC_PERIOD_SECONDS = 300;
   private static final int MAX_METRIC_PAYLOAD_CHARS = 16_384;
   private static final int MAX_METRIC_SELECTOR_BYTES = 337;
@@ -377,7 +380,12 @@ final class AwsCollector implements ProviderCollector {
 
   private static InventorySession openSession(String regionName, String roleArn, String externalId) {
     Region region = Region.of(regionName);
-    StsClient sts = StsClient.builder().region(region).build();
+    ClientOverrideConfiguration clientOverrides = awsClientOverrideConfiguration();
+    StsClient sts =
+        StsClient.builder()
+            .region(region)
+            .overrideConfiguration(clientOverrides)
+            .build();
     StsAssumeRoleCredentialsProvider credentials = null;
     ConfigClient config = null;
     try {
@@ -396,6 +404,7 @@ final class AwsCollector implements ProviderCollector {
           ConfigClient.builder()
               .region(region)
               .credentialsProvider(credentials)
+              .overrideConfiguration(clientOverrides)
               .build();
       StsAssumeRoleCredentialsProvider assumedCredentials = credentials;
       ConfigClient configClient = config;
@@ -422,6 +431,7 @@ final class AwsCollector implements ProviderCollector {
                           ? CloudWatchClient.builder()
                               .region(region)
                               .credentialsProvider(assumedCredentials)
+                              .overrideConfiguration(clientOverrides)
                               .build()
                           : existing);
           GetMetricDataRequest.Builder request =
@@ -457,6 +467,13 @@ final class AwsCollector implements ProviderCollector {
       sts.close();
       throw error;
     }
+  }
+
+  static ClientOverrideConfiguration awsClientOverrideConfiguration() {
+    return ClientOverrideConfiguration.builder()
+        .apiCallTimeout(AWS_API_CALL_TIMEOUT)
+        .apiCallAttemptTimeout(AWS_API_CALL_ATTEMPT_TIMEOUT)
+        .build();
   }
 
   static List<MetricDataQuery> sqsMetricQueries(String queueName, int periodSeconds) {

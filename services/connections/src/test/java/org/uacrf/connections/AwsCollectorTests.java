@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.config.model.SelectResourceConfigResponse;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataResponse;
@@ -30,6 +31,14 @@ class AwsCollectorTests {
       "aws/eu-west-1/cloudwatch/sqs/orders-queue";
   private static final String ROLE_ARN = "arn:aws:iam::123456789012:role/readonly";
   private static final String EXTERNAL_ID = "uacrf-test-external-id";
+
+  @Test
+  void boundsAwsSdkCallAndAttemptDurations() {
+    ClientOverrideConfiguration configuration = AwsCollector.awsClientOverrideConfiguration();
+
+    assertThat(configuration.apiCallTimeout()).contains(Duration.ofSeconds(30));
+    assertThat(configuration.apiCallAttemptTimeout()).contains(Duration.ofSeconds(10));
+  }
 
   @Test
   void readsOneConfigPageAndCreatesSequencedTimestampedObservations() {

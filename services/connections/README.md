@@ -93,7 +93,9 @@ AWS connections use an IAM role ARN and receive a unique `uacrf-<UUID>` External
 the authorized connection read endpoint for the target role's trust policy. The first AWS source
 is `aws/<region>/config/inventory`; it uses STS `AssumeRole` and AWS Config
 `SelectResourceConfig`, processing at most one 100-item page per collection and retaining
-`NextToken` as the checkpoint. A bounded CloudWatch source is also available as
+`NextToken` as the checkpoint. STS, Config, and CloudWatch SDK calls have a 10-second per-attempt
+timeout and a 30-second total API-call timeout. This bounds provider failures but does not
+establish live conformance. A bounded CloudWatch source is also available as
 `aws/<region>/cloudwatch/sqs/<queue-name>`; it requests
 `ApproximateAgeOfOldestMessage` (Maximum) and
 `ApproximateNumberOfMessagesVisible` (Average) from namespace `AWS/SQS` in

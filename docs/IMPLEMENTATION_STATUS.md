@@ -662,9 +662,11 @@ and 3-second response timeouts; timeout failures retain the prior checkpoint
 and replay any persisted batch unchanged.
 AWS, Azure, and GCP remain
 UNACCEPTED, and synthetic sample fixtures are never scheduled as provider
-data. The full connections module suite passed 59 tests, and its delegation-auth
-dependency passed 8 tests (67 total in the selected reactor), with no failures,
-errors, or skips. This includes the slow-identity-endpoint timeout case. Real provider collection
+data. STS, Config, and CloudWatch SDK calls have a 10-second per-attempt timeout
+and a 30-second total API-call timeout. The full connections module suite passed
+60 tests, and its delegation-auth dependency passed 8 tests (68 total in the
+selected reactor), with no failures, errors, or skips. This includes the slow
+identity-endpoint and AWS SDK timeout configuration tests. Real provider collection
 and production deployment identity configuration remain unverified. The isolated
 browser suite also verifies the dedicated `uacrf-s03-collector` client-credentials
 identity resolves to an admitted SYSTEM principal with only
@@ -692,7 +694,9 @@ connection accepted. Current implementation state:
 | Google Cloud | `GcpCollector` | Project-wide `gcp.assetinventory.assets`; bounded `gcp.monitoring.timeseries` | Live conformance |
 
 The AWS collector uses the AWS SDK default credential chain for STS role
-assumption. Its bounded CloudWatch slice accepts
+assumption. STS, Config, and CloudWatch API calls have a 10-second per-attempt
+timeout and a 30-second total timeout; this bounds hangs without establishing
+provider conformance. Its bounded CloudWatch slice accepts
 `aws/<region>/cloudwatch/sqs/<queue-name>` for the two SQS queue metrics, or
 `aws/<region>/cloudwatch/metric/<base64url-selector>` for one exact metric,
 statistic, and dimensions supplied by the source binding. Both use a
