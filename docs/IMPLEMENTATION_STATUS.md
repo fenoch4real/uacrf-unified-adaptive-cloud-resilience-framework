@@ -19,7 +19,7 @@ estimate.
 | Milestone | Services and capabilities | Progress | Remaining milestone-level work |
 | --- | --- | --- | --- |
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it also registers standalone and service-bound workloads through independent S01 grants and owner selection. Deployment-identity verification and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
+| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it also registers standalone and service-bound workloads through independent S01 grants and owner selection. The isolated S03 client-credentials identity resolves to its admitted SYSTEM principal through EDGE01 and receives only its approved S04 evidence delegation. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate now passes with live Neo4j projection and reconciliation; a paginated S03 source-collection outcome report is available through EDGE01. Complete live conformance for AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, and GCP Cloud Asset Inventory and Monitoring metrics (all remain unaccepted), broaden freshness and ontology coverage, complete full live multi-service acceptance, and implement additional reporting capabilities. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | Complete connected assessment/knowledge/advisory workflows. S09 currently has contracts and library groundwork, not connected run admission, authorized dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
@@ -587,8 +587,13 @@ creates a draft journey, registers and links a service, and verifies S02
 readback after independent approval and membership assignment. It also registers
 standalone and service-bound workloads after separately admitting and granting
 runtime use to a trusted SYSTEM principal; S02 returns success receipts and the
-UI confirms no runtime action occurred. Successful ownership transfer and full
-M1 acceptance remain unverified.
+UI confirms no runtime action occurred. Operator-only ownership transfer is
+verified by the live browser suite. The
+isolated S03 publisher client-credentials flow also resolves to its admitted
+SYSTEM principal through EDGE01 and obtains a 30-second S04 delegation limited
+to `evidence.inbox.write`; an ungranted catalog capability is denied.
+Production deployment identity configuration and full M1 acceptance remain
+unverified.
 
 ## Trusted-provider principal admission
 
@@ -1388,12 +1393,13 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 
 ## Next implementation step
 
-The live browser suite now verifies authorized draft journey creation, service
-registration/linking and readback, plus standalone and service-bound workload
-registration through independently granted S01 owner/runtime authority. Continue
-M1 with successful ownership transfer, deployment-identity verification, and
-full end-to-end acceptance; do not bypass authorization. Continue integrated
-work with explicitly synthetic samples while live provider validation remains
+The live browser suite verifies authorized draft journey creation,
+service registration/linking and readback, standalone and service-bound
+workload registration, operator-only ownership transfer, and isolated S03
+client-credentials delegation through independently granted S01 authority.
+Continue M1 with production deployment-identity verification and full
+end-to-end acceptance; do not bypass authorization. Continue integrated work
+with explicitly synthetic samples while live provider validation remains
 deferred. Before enabling collection,
 provision a dedicated S03 system client with only
 `connections.observation.write` and configure its secret outside the

@@ -45,8 +45,14 @@ The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global
 owner selection, S02 journey/service/agent read/write, and S03 read/write access.
 It also admits the local S03 publisher service account as a SYSTEM runtime
-principal and grants `runtime.principal.use` through that same independent
-approval workflow. It imports 42 sample observations,
+principal and grants `runtime.principal.use` and `evidence.inbox.write` through
+that same independent approval workflow. The runner passes the disposable
+publisher secret only to Playwright, which authenticates with client
+credentials, verifies S01 resolves it to that SYSTEM principal through EDGE01,
+and requests a 30-second S04 delegation limited to `evidence.inbox.write`.
+The flow also confirms that an ungranted catalog capability is denied. This
+is isolated local identity evidence, not production deployment-identity or
+provider acceptance. It imports 42 sample observations,
 replays the import, and checks both inventory pages and provider labels. It
 checks the per-source `NEVER_RUN` collection status and the explicit freshness
 limitation on the inventory page. It does not contact cloud providers or

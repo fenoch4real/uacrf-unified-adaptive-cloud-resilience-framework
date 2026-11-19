@@ -22,10 +22,17 @@ transfer authority was denied journey creation and both page and CSRF-valid
 direct transfer access. The test also admitted the trusted local S03 publisher
 service account as a SYSTEM principal, granted `runtime.principal.use` through
 the independent approval flow, and registered standalone and service-bound
-agent workloads. S02 returned successful mutation receipts, and UX01 confirmed
-that no runtime action was performed. The stack was removed after the run.
-Production deployment identity and production identity-provider configuration
-remain unverified; the suite does not cover cross-origin/HTTPS behavior.
+agent workloads. The same account also received `evidence.inbox.write` through
+independent approval for the client-credentials delegation check. S02 returned
+successful mutation receipts, and UX01 confirmed that no runtime action was
+performed. The stack was removed after the run.
+The same run authenticates the disposable S03 publisher with Keycloak
+client-credentials, verifies through EDGE01 that S01 resolves it to the
+admitted SYSTEM principal with only its two approved capabilities, and obtains
+a 30-second S04 delegation limited to `evidence.inbox.write`; an ungranted
+`catalog.service.write` delegation is denied. Production deployment identity
+and production identity-provider configuration remain unverified; the suite
+does not cover cross-origin/HTTPS behavior.
 
 The preceding `npm --prefix e2e run test:live` run on 2026-11-15 passed
 **9 tests** with exit code 0. It additionally checked that context selection

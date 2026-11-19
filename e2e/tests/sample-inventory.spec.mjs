@@ -128,6 +128,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ].map((capability) => ({ principalId, capability })),
       { principalId: transfereePrincipalId, capability: 'owner.eligible' },
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
+      { principalId: runtimePrincipalId, capability: 'evidence.inbox.write' },
     ];
     for (const { principalId: targetPrincipalId, capability } of grants) {
       await approver.goto('/memberships');
@@ -152,6 +153,78 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   } finally {
     await approverContext.close();
   }
+
+  const publisherSecret = process.env.KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET;
+  expect(publisherSecret).toBeTruthy();
+  const publisherTokenResponse = await fetch(
+    'http://localhost:8180/realms/uacrf/protocol/openid-connect/token',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: 'uacrf-s03-publisher',
+        client_secret: publisherSecret,
+      }),
+    },
+  );
+  expect(publisherTokenResponse.status).toBe(200);
+  const publisherToken = (await publisherTokenResponse.json()).access_token;
+  expect(publisherToken).toBeTruthy();
+
+  const currentAccessResponse = await fetch(
+    'http://localhost:8080/v1/me/access?tenant_id=local-dev&environment_id=local',
+    { headers: { authorization: `Bearer ${publisherToken}` } },
+  );
+  expect(currentAccessResponse.status).toBe(200);
+  const currentAccess = await currentAccessResponse.json();
+  expect(currentAccess).toMatchObject({
+    principal_id: runtimePrincipalId,
+    kind: 'SYSTEM',
+    capability_ids: ['evidence.inbox.write', 'runtime.principal.use'],
+  });
+
+  const delegationRequest = {
+    audience: 'S04',
+    capability_ids: ['evidence.inbox.write'],
+    tenant_id: 'local-dev',
+    environment_id: 'local',
+  };
+  const delegationResponse = await fetch('http://localhost:8082/internal/v1/delegations', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${publisherToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(delegationRequest),
+  });
+  expect(delegationResponse.status).toBe(200);
+  const delegation = await delegationResponse.json();
+  expect(delegation.expires_in).toBe(30);
+  const delegationClaims = JSON.parse(
+    Buffer.from(delegation.access_token.split('.')[1], 'base64url').toString('utf8'),
+  );
+  expect(delegationClaims.sub).toBe(runtimePrincipalId);
+  expect(delegationClaims.aud).toBe('S04');
+  expect(delegationClaims.capabilities).toEqual(['evidence.inbox.write']);
+  expect(delegationClaims.tenant_id).toBe('local-dev');
+  expect(delegationClaims.environment_id).toBe('local');
+
+  const excessiveDelegationResponse = await fetch(
+    'http://localhost:8082/internal/v1/delegations',
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${publisherToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...delegationRequest,
+        capability_ids: ['catalog.service.write'],
+      }),
+    },
+  );
+  expect(excessiveDelegationResponse.status).toBe(403);
 
   const sampleContext = await browser.newContext();
   try {

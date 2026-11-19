@@ -128,6 +128,7 @@ wait_for_url web 'http://localhost:8084/actuator/health'
 cd "$repo_root/e2e"
 KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin \
 KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD="$keycloak_admin_password" \
+KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET="$s03_client_secret" \
 UACRF_E2E_ADMIN_PASSWORD="$e2e_admin_password" \
 UACRF_E2E_APPROVER_PASSWORD="$e2e_approver_password" \
   npm test
