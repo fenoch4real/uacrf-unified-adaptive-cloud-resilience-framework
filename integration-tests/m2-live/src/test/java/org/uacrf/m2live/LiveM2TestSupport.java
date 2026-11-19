@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -17,6 +18,8 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.Signature;
+import java.security.interfaces.RSAPublicKey;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -24,6 +27,7 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -62,8 +66,11 @@ final class LiveM2TestSupport {
   private static final String NEO4J_IMAGE = "neo4j:5.26.0-community";
   private static final String KEY_ID = "m2-live-key";
   private static final String S02_KEY_ID = "m2-live-s02-key";
+  private static final String IDP_KEY_ID = "m2-live-idp-key";
+  private static final String IDP_AUDIENCE = "uacrf-s01";
   private static final KeyPair DELEGATION_KEYS = generateKeyPair();
   private static final KeyPair S02_KEYS = generateKeyPair();
+  private static final KeyPair IDP_KEYS = generateKeyPair();
   private static final JwtEncoder DELEGATION_ENCODER =
       DelegationJwtEncoderFactory.create(DELEGATION_KEYS, KEY_ID);
   private static final DelegationTokenIssuer TOKEN_ISSUER =
@@ -146,6 +153,61 @@ final class LiveM2TestSupport {
 
   static String delegationKeyId() {
     return KEY_ID;
+  }
+
+  static Map<String, Object> identityJwkSet() {
+    RSAPublicKey publicKey = (RSAPublicKey) IDP_KEYS.getPublic();
+    return Map.of(
+        "keys",
+        List.of(
+            Map.of(
+                "kty", "RSA",
+                "use", "sig",
+                "alg", "RS256",
+                "kid", IDP_KEY_ID,
+                "n", base64UrlUnsigned(publicKey.getModulus()),
+                "e", base64UrlUnsigned(publicKey.getPublicExponent()))));
+  }
+
+  static String identityAccessToken(String subject) {
+    long issuedAt = Instant.now().getEpochSecond();
+    String header =
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(
+                json(Map.of("alg", "RS256", "kid", IDP_KEY_ID, "typ", "JWT"))
+                    .getBytes(StandardCharsets.UTF_8));
+    String payload =
+        Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(
+                json(
+                        Map.of(
+                            "iss", IDP_ISSUER,
+                            "sub", subject,
+                            "aud", List.of(IDP_AUDIENCE),
+                            "iat", issuedAt,
+                            "exp", issuedAt + 300))
+                    .getBytes(StandardCharsets.UTF_8));
+    String signingInput = header + "." + payload;
+    try {
+      Signature signer = Signature.getInstance("SHA256withRSA");
+      signer.initSign(IDP_KEYS.getPrivate());
+      signer.update(signingInput.getBytes(StandardCharsets.US_ASCII));
+      return signingInput
+          + "."
+          + Base64.getUrlEncoder().withoutPadding().encodeToString(signer.sign());
+    } catch (java.security.GeneralSecurityException error) {
+      throw new IllegalStateException("Could not sign the M2 identity test token.", error);
+    }
+  }
+
+  private static String base64UrlUnsigned(BigInteger value) {
+    byte[] bytes = value.toByteArray();
+    if (bytes.length > 1 && bytes[0] == 0) {
+      bytes = Arrays.copyOfRange(bytes, 1, bytes.length);
+    }
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
   }
 
   static String principalId(String label) {
@@ -502,6 +564,17 @@ final class LiveM2TestSupport {
 
     void registerActor(String principalId, String actorSubject, List<String> capabilities)
         throws SQLException {
+      registerPrincipal(principalId, actorSubject, capabilities, "HUMAN");
+    }
+
+    void registerSystemPrincipal(
+        String principalId, String actorSubject, List<String> capabilities) throws SQLException {
+      registerPrincipal(principalId, actorSubject, capabilities, "SYSTEM");
+    }
+
+    private void registerPrincipal(
+        String principalId, String actorSubject, List<String> capabilities, String kind)
+        throws SQLException {
       try (Connection connection =
               DriverManager.getConnection(
                   identityDb.getJdbcUrl(), identityDb.getUsername(), identityDb.getPassword());
@@ -520,7 +593,7 @@ final class LiveM2TestSupport {
                   "INSERT INTO uacrf_identity.principal "
                       + "(id, issuer_uri, subject, display_name, kind, enabled, "
                       + "token_valid_after, revision) "
-                      + "VALUES (?, ?, ?, ?, 'HUMAN', true, now() - interval '1 minute', 1)");
+                      + "VALUES (?, ?, ?, ?, ?, true, now() - interval '1 minute', 1)");
           PreparedStatement membership =
               connection.prepareStatement(
                   "INSERT INTO uacrf_identity.membership "
@@ -539,6 +612,7 @@ final class LiveM2TestSupport {
         principal.setString(2, IDP_ISSUER);
         principal.setString(3, actorSubject);
         principal.setString(4, "M2 live test actor");
+        principal.setString(5, kind);
         principal.executeUpdate();
         for (String capability : capabilities) {
           membership.setObject(1, UUID.randomUUID());
@@ -576,6 +650,18 @@ final class LiveM2TestSupport {
 
     String topologyUrl() {
       return "http://127.0.0.1:" + topologyPort;
+    }
+
+    String identityUrl() {
+      return "http://127.0.0.1:" + identityPort;
+    }
+
+    String tenantId() {
+      return tenantId;
+    }
+
+    String environmentId() {
+      return environmentId;
     }
 
     String objectivesUrl() {
@@ -989,6 +1075,7 @@ final class LiveM2TestSupport {
       ownerStubs =
           HttpServer.create(
               new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0);
+      ownerStubs.createContext("/unused-jwks", exchange -> send(exchange, 200, identityJwkSet()));
       ownerStubs.createContext("/internal/v1/qualifications/", this::evidenceEndpoint);
       ownerStubs.start();
     }

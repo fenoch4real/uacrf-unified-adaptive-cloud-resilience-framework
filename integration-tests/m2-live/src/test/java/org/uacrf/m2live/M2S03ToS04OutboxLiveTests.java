@@ -42,7 +42,7 @@ class M2S03ToS04OutboxLiveTests {
       "postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81";
   private static final String PUBLISHER_CLIENT_ID = "uacrf-s03-publisher";
   private static final String PUBLISHER_CLIENT_SECRET = "m2-live-publisher-secret";
-  private static final String CLIENT_ACCESS_TOKEN = "m2-live-client-access-token";
+  private static final String PUBLISHER_SUBJECT = "m2-live-publisher-subject";
   private static final String CONNECTION_EVENT = "connections.connection.registered";
   private static final HttpClient HTTP =
       HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
@@ -70,8 +70,8 @@ class M2S03ToS04OutboxLiveTests {
     Path logDirectory = Files.createTempDirectory("uacrf-s03-s04-live-");
     ConcurrentLinkedQueue<String> stubFailures = new ConcurrentLinkedQueue<>();
     AtomicInteger tokenCalls = new AtomicInteger();
-    AtomicInteger delegationCalls = new AtomicInteger();
     IdentityStub identityStub = null;
+    LiveM2TestSupport.Environment identityEnvironment = null;
     Process evidenceProcess = null;
     Process connectionsProcess = null;
     try {
@@ -79,10 +79,13 @@ class M2S03ToS04OutboxLiveTests {
         throw new IllegalStateException("Cannot locate the repository root from " + repoRoot);
       }
 
-      identityStub = startIdentityStub(stubFailures, tokenCalls, delegationCalls);
+      identityEnvironment = LiveM2TestSupport.environment();
+      identityEnvironment.registerSystemPrincipal(
+          PUBLISHER_CLIENT_ID, PUBLISHER_SUBJECT, List.of("evidence.inbox.write"));
+      identityStub = startIdentityStub(stubFailures, tokenCalls);
       int evidencePort = freePort();
       int connectionsPort = freePort();
-      String identityBaseUrl =
+      String tokenBaseUrl =
           "http://127.0.0.1:" + identityStub.server().getAddress().getPort();
 
       evidenceProcess =
@@ -102,7 +105,8 @@ class M2S03ToS04OutboxLiveTests {
               "services/connections/target/connections-service-1.0.0-SNAPSHOT.jar",
               "connections",
               connectionsPort,
-              connectionsEnvironment(identityBaseUrl, evidencePort, connectionsPort));
+              connectionsEnvironment(
+                  tokenBaseUrl, identityEnvironment.identityUrl(), evidencePort, connectionsPort));
       awaitHealth("S03", connectionsPort, connectionsProcess, logDirectory);
 
       String suffix = UUID.randomUUID().toString();
@@ -110,8 +114,8 @@ class M2S03ToS04OutboxLiveTests {
       String ownerId = "owner-" + suffix;
       String bearer =
           LiveM2TestSupport.bearerWithEligibleOwners(
-              LiveM2TestSupport.TENANT,
-              LiveM2TestSupport.ENVIRONMENT,
+              identityEnvironment.tenantId(),
+              identityEnvironment.environmentId(),
               "m2-live-connection-owner",
               "m2-live-connection-owner-subject",
               "S03",
@@ -140,7 +144,12 @@ class M2S03ToS04OutboxLiveTests {
               HttpResponse.BodyHandlers.ofString());
       assertEquals(201, created.statusCode(), created.body());
 
-      Delivery delivery = awaitDelivery(connectionId, logDirectory);
+      Delivery delivery =
+          awaitDelivery(
+              connectionId,
+              identityEnvironment.tenantId(),
+              identityEnvironment.environmentId(),
+              logDirectory);
       assertTrue(delivery.published(), "S03 did not mark the outbox event delivered");
       assertNotNull(delivery.inboxEvent(), "S04 did not retain the event");
       assertEquals("S03", delivery.inboxEvent().sourceService());
@@ -149,13 +158,38 @@ class M2S03ToS04OutboxLiveTests {
       assertEquals(1, delivery.inboxEvent().aggregateSequence());
       assertEquals(sha256(delivery.inboxEvent().payload()), delivery.inboxEvent().payloadDigest());
       assertTrue(tokenCalls.get() > 0, "S03 did not request a client-credentials token");
-      assertTrue(delegationCalls.get() > 0, "S03 did not request an S04 delegation");
       assertTrue(stubFailures.isEmpty(), String.join("; ", stubFailures));
+
+      HttpResponse<String> overbroadDelegation =
+          HTTP.send(
+              HttpRequest.newBuilder(
+                      URI.create(
+                          identityEnvironment.identityUrl() + "/internal/v1/delegations"))
+                  .timeout(Duration.ofSeconds(5))
+                  .header(
+                      "Authorization",
+                      "Bearer "
+                          + LiveM2TestSupport.identityAccessToken(PUBLISHER_SUBJECT))
+                  .header("Content-Type", "application/json")
+                  .POST(
+                      HttpRequest.BodyPublishers.ofString(
+                          LiveM2TestSupport.json(
+                              Map.of(
+                                  "audience", "S04",
+                                  "capability_ids", List.of("connections.connection.write"),
+                                  "tenant_id", identityEnvironment.tenantId(),
+                                  "environment_id", identityEnvironment.environmentId()))))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      assertEquals(403, overbroadDelegation.statusCode(), overbroadDelegation.body());
     } finally {
       stopProcess(connectionsProcess);
       stopProcess(evidenceProcess);
       if (identityStub != null) {
         identityStub.server().stop(0);
+      }
+      if (identityEnvironment != null) {
+        identityEnvironment.close();
       }
       deleteDirectory(logDirectory);
     }
@@ -173,7 +207,7 @@ class M2S03ToS04OutboxLiveTests {
   }
 
   private static Map<String, String> connectionsEnvironment(
-      String identityBaseUrl, int evidencePort, int connectionsPort) {
+      String tokenBaseUrl, String identityBaseUrl, int evidencePort, int connectionsPort) {
     return Map.ofEntries(
         Map.entry("SERVER_PORT", Integer.toString(connectionsPort)),
         Map.entry("CONNECTIONS_JDBC_URL", CONNECTIONS_DB.getJdbcUrl()),
@@ -186,7 +220,7 @@ class M2S03ToS04OutboxLiveTests {
         Map.entry("UACRF_DELEGATION_ISSUER", LiveM2TestSupport.ISSUER),
         Map.entry("UACRF_OUTBOX_PUBLISHER_ENABLED", "true"),
         Map.entry("UACRF_OUTBOX_PUBLISHER_INTERVAL_MS", "200"),
-        Map.entry("UACRF_S03_IDENTITY_TOKEN_URL", identityBaseUrl + "/token"),
+        Map.entry("UACRF_S03_IDENTITY_TOKEN_URL", tokenBaseUrl + "/token"),
         Map.entry("UACRF_S03_CLIENT_ID", PUBLISHER_CLIENT_ID),
         Map.entry("UACRF_S03_CLIENT_SECRET", PUBLISHER_CLIENT_SECRET),
         Map.entry(
@@ -198,9 +232,7 @@ class M2S03ToS04OutboxLiveTests {
   }
 
   private static IdentityStub startIdentityStub(
-      ConcurrentLinkedQueue<String> failures,
-      AtomicInteger tokenCalls,
-      AtomicInteger delegationCalls)
+      ConcurrentLinkedQueue<String> failures, AtomicInteger tokenCalls)
       throws IOException {
     HttpServer server =
         HttpServer.create(
@@ -222,45 +254,10 @@ class M2S03ToS04OutboxLiveTests {
               exchange,
               200,
               Map.of(
-                  "access_token", CLIENT_ACCESS_TOKEN,
+                  "access_token",
+                      LiveM2TestSupport.identityAccessToken(PUBLISHER_SUBJECT),
                   "token_type", "Bearer",
                   "expires_in", 300));
-        });
-    server.createContext(
-        "/internal/v1/delegations",
-        exchange -> {
-          delegationCalls.incrementAndGet();
-          Map<String, Object> request =
-              LiveM2TestSupport.readJson(
-                  new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-          Object capabilities = request.get("capability_ids");
-          if (!"POST".equals(exchange.getRequestMethod())
-              || !("Bearer " + CLIENT_ACCESS_TOKEN)
-                  .equals(exchange.getRequestHeaders().getFirst("Authorization"))
-              || !"S04".equals(request.get("audience"))
-              || !List.of("evidence.inbox.write").equals(capabilities)
-              || !LiveM2TestSupport.TENANT.equals(request.get("tenant_id"))
-              || !LiveM2TestSupport.ENVIRONMENT.equals(request.get("environment_id"))) {
-            failures.add("Unexpected S01 delegation request.");
-            respond(exchange, 400, Map.of("error", "invalid delegation request"));
-            return;
-          }
-          String delegation =
-              LiveM2TestSupport.bearer(
-                      LiveM2TestSupport.TENANT,
-                      LiveM2TestSupport.ENVIRONMENT,
-                      PUBLISHER_CLIENT_ID,
-                      "m2-live-publisher-subject",
-                      "S04",
-                      List.of("evidence.inbox.write"))
-                  .substring("Bearer ".length());
-          respond(
-              exchange,
-              200,
-              Map.of(
-                  "access_token", delegation,
-                  "token_type", "Bearer",
-                  "expires_in", 30));
         });
     server.start();
     return new IdentityStub(server);
@@ -275,13 +272,14 @@ class M2S03ToS04OutboxLiveTests {
     exchange.close();
   }
 
-  private static Delivery awaitDelivery(String connectionId, Path logDirectory)
+  private static Delivery awaitDelivery(
+      String connectionId, String tenantId, String environmentId, Path logDirectory)
       throws Exception {
     Instant deadline = Instant.now().plusSeconds(30);
     while (Instant.now().isBefore(deadline)) {
       OutboxEvent outboxEvent = findOutboxEvent(connectionId);
       if (outboxEvent != null) {
-        InboxEvent inboxEvent = findInboxEvent(outboxEvent.eventId());
+        InboxEvent inboxEvent = findInboxEvent(tenantId, environmentId, outboxEvent.eventId());
         if (outboxEvent.published() && inboxEvent != null) {
           return new Delivery(outboxEvent.published(), inboxEvent);
         }
@@ -317,7 +315,8 @@ class M2S03ToS04OutboxLiveTests {
     }
   }
 
-  private static InboxEvent findInboxEvent(UUID eventId) throws SQLException {
+  private static InboxEvent findInboxEvent(String tenantId, String environmentId, UUID eventId)
+      throws SQLException {
     try (Connection connection =
             DriverManager.getConnection(
                 EVIDENCE_DB.getJdbcUrl(), EVIDENCE_DB.getUsername(), EVIDENCE_DB.getPassword());
@@ -327,8 +326,8 @@ class M2S03ToS04OutboxLiveTests {
                     + "payload, payload_digest "
                     + "FROM uacrf_evidence.inbox_event WHERE tenant_id = ? "
                     + "AND environment_id = ? AND event_id = ?")) {
-      query.setString(1, LiveM2TestSupport.TENANT);
-      query.setString(2, LiveM2TestSupport.ENVIRONMENT);
+      query.setString(1, tenantId);
+      query.setString(2, environmentId);
       query.setString(3, eventId.toString());
       try (var rows = query.executeQuery()) {
         if (!rows.next()) {
