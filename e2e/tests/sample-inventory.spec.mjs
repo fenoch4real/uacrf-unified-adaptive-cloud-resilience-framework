@@ -262,7 +262,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
-      'objectives.objective.read', 'assessment.case.read',
+      'objectives.objective.read', 'assessment.case.read', 'assessment.evaluation.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -378,6 +378,15 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       .toContainText('Synthetic browser assessment');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-case-b' }))
       .toContainText('DRAFT');
+    await sample.getByRole('link', { name: 'View evaluations for browser-case-a' }).click();
+    const evaluation = sample.getByRole('listitem').filter({ hasText: 'browser-evaluation-a' });
+    await expect(evaluation).toContainText('INSUFFICIENT_EVIDENCE');
+    await expect(evaluation).toContainText('FAILED');
+    await expect(evaluation).toContainText('OWNER_UNAVAILABLE');
+    await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
+    await sample.getByRole('link', { name: 'View evaluations for browser-case-b' }).click();
+    await expect(sample.getByText('No evaluations are available for this case.')).toBeVisible();
+    await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
     await sample.getByLabel('Workload ID (optional)').fill('browser-case-workload');
     await sample.getByRole('button', { name: 'Show cases' }).click();
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-case-a' })).toBeVisible();
@@ -533,6 +542,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedCases = await restricted.goto('/assessment-cases');
       expect(deniedCases.status()).toBe(403);
       await expect(restricted.getByText('browser-case-a', { exact: true })).toHaveCount(0);
+      const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');
+      expect(deniedEvaluations.status()).toBe(403);
+      await expect(restricted.getByText('browser-evaluation-a', { exact: true })).toHaveCount(0);
       await restricted.goto('/objectives');
       await restricted.getByLabel('Workload ID (optional)').fill('browser-objective-workload');
       const [scopedObjectives] = await Promise.all([

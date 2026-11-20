@@ -23,6 +23,8 @@
   <ul class="inventory-list">
     <li th:each="item : ${cases}">
       <h2 th:text="${item.id}">Case ID</h2>
+      <p><a th:href="@{/assessment-cases/{id}/evaluations(id=${item.id})}"
+            th:text="${'View evaluations for ' + item.id}">View evaluations</a></p>
       <dl>
         <dt>Workload ID</dt><dd th:text="${item.workloadId}">Workload</dd>
         <dt>Purpose</dt><dd th:text="${item.purpose}">Purpose</dd>

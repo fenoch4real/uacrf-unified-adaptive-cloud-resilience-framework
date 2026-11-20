@@ -971,6 +971,39 @@ class WebApplicationTests {
   }
 
   @Test
+  void evaluationHistoryUsesSeparateReadDelegationAndReportsErrors() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S07", null, List.of("assessment.evaluation.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("evaluation-token", "Bearer", 30))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(
+            org.springframework.http.HttpStatus.FORBIDDEN));
+    when(assessment.listEvaluations("evaluation-token", "case-1"))
+        .thenReturn(List.of(new AssessmentClient.Evaluation(
+            "evaluation-1", "case-1", 1L, java.time.Instant.parse("2026-01-01T00:00:00Z"),
+            java.time.Instant.parse("2026-01-01T00:01:00Z"), "SHADOW", "INSUFFICIENT_EVIDENCE",
+            new AssessmentClient.EvaluationDependencies("FAILED", "<unavailable>"), "a".repeat(64))));
+    mockMvc.perform(get("/assessment-cases/case-1/evaluations").with(browserLogin())
+            .session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("&lt;unavailable&gt;")))
+        .andExpect(content().string(containsString("not current evidence qualification or authorization to act")))
+        .andExpect(content().string(not(containsString("evaluation-token"))));
+    verify(identity).createDelegation(
+        "test-access-token", "S07", null, List.of("assessment.evaluation.read"),
+        "tenant-test", "environment-test");
+    mockMvc.perform(get("/assessment-cases/case-1/evaluations").with(browserLogin())
+            .session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Evaluation access failed (HTTP 403)")))
+        .andExpect(content().string(not(containsString("No evaluations are available"))));
+    mockMvc.perform(get("/assessment-cases/case-1/evaluations").with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/contexts"));
+    verify(assessment).listEvaluations("evaluation-token", "case-1");
+  }
+
+  @Test
   void evidenceRequiresContextAndReportsDeniedOrMalformedReads() throws Exception {
     mockMvc.perform(get("/evidence").with(browserLogin()))
         .andExpect(status().is3xxRedirection())

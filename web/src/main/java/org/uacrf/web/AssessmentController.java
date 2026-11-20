@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2Aut
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
@@ -51,5 +52,32 @@ class AssessmentController {
       model.addAttribute("assessmentError", "Identity or assessment service returned an invalid response.");
     }
     return "assessment-cases";
+  }
+
+  @GetMapping("/assessment-cases/{caseId}/evaluations")
+  String evaluations(
+      @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @PathVariable String caseId, Model model) {
+    Object selected = session.getAttribute(BrowserContext.SESSION_KEY);
+    if (!(selected instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("caseId", caseId);
+    model.addAttribute("evaluations", List.of());
+    try {
+      String token = identity.createDelegation(
+          client.getAccessToken().getTokenValue(), "S07", null, List.of("assessment.evaluation.read"),
+          context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("evaluations", assessment.listEvaluations(token, caseId));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("assessmentError", "Identity or assessment service is unavailable; evaluations were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("assessmentError", "Evaluation access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("assessmentError", "Identity or assessment service returned an invalid response.");
+    }
+    return "assessment-evaluations";
   }
 }

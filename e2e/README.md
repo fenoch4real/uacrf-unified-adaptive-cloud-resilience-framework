@@ -75,12 +75,14 @@ denied. The collection runner remains disabled in this browser stack, so this
 is identity/delegation evidence only—not collection execution or provider
 acceptance.
 
-The same user receives an independently approved global
-`assessment.case.read` grant and browses two synthetic draft cases through
-UX01, EDGE01, and S07. The suite checks workload filtering and denial for a
-separately admitted user without that grant. The cases are inserted directly
-into the disposable database, bypassing case creation; they are not qualified
-evidence or provider acceptance. The S07 case-list API is unpaginated.
+The same user receives independently approved global `assessment.case.read`
+and `assessment.evaluation.read` grants and browses synthetic cases and an
+evaluation through UX01, EDGE01, and S07. The suite checks workload filtering,
+an empty evaluation history, and denial for a separately admitted user without
+those grants. The fixture rows and placeholder digests are inserted directly
+into the disposable database, bypassing case creation, sealing and evaluation;
+they are not qualified evidence or provider acceptance. The S07 case and
+evaluation-list APIs are unpaginated.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

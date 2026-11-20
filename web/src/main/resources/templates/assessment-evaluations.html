@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment evaluations | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Assessment evaluations</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Case: <strong th:text="${caseId}">Case ID</strong></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p>These are retained results, not current evidence qualification or authorization to act.
+    Receipt verification describes the check performed when the evaluation was created.</p>
+  <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
+  <p th:if="${assessmentError == null and #lists.isEmpty(evaluations)}">No evaluations are available for this case.</p>
+  <ol class="inventory-list">
+    <li th:each="item : ${evaluations}">
+      <h2 th:text="${item.id}">Evaluation ID</h2>
+      <dl>
+        <dt>Outcome</dt><dd th:text="${item.outcome}">Outcome</dd>
+        <dt>Mode</dt><dd th:text="${item.mode}">Mode</dd>
+        <dt>Receipt verification</dt><dd th:text="${item.dependencyVector.receiptVerification}">Status</dd>
+        <dt th:if="${item.dependencyVector.receiptReasonCode != null}">Verification reason</dt>
+        <dd th:if="${item.dependencyVector.receiptReasonCode != null}"
+            th:text="${item.dependencyVector.receiptReasonCode}">Reason</dd>
+        <dt>Observation cutoff</dt><dd th:text="${item.observationCutoff}">Cutoff</dd>
+        <dt>Received at</dt><dd th:text="${item.receivedAt}">Received</dd>
+        <dt>Revision</dt><dd th:text="${item.revision}">Revision</dd>
+        <dt>Result digest</dt><dd th:text="${item.resultDigest}">Digest</dd>
+      </dl>
+    </li>
+  </ol>
+</main>
+</body>
+</html>

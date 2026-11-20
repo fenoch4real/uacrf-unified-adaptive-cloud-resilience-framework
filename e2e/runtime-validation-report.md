@@ -6,6 +6,17 @@
 
 ## Latest live browser run
 
+On 2026-11-20, a subsequent `npm --prefix e2e run test:live` passed **11
+tests** with exit code 0. Through UX01, EDGE01, S01 and S07, an independently
+authorized user opened a case's evaluation history and saw the synthetic
+insufficient-evidence outcome, failed receipt verification and reason. A
+second case had an empty history; a user without the separate evaluation-read
+grant received HTTP 403 and saw no result. The cases, evaluation, and
+placeholder digests were inserted directly into the disposable S07 database,
+bypassing case creation, sealing, and evaluation; the result is not qualified
+evidence. The case and evaluation-list APIs are unpaginated. The stack was
+removed after the run.
+
 On 2026-11-20, `npm --prefix e2e run test:live` passed **11 tests**
 with exit code 0 against a fresh isolated Compose stack including S07 and its
 own PostgreSQL database. The sample user received an independently approved
@@ -75,7 +86,7 @@ below; the full Maven reactor was not rerun for the follow-ups.
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
-| Full UX01 module | PASS | 0 | Clean Maven run; 114 tests, 0 failures, 0 errors, 0 skipped |
+| Full UX01 module | PASS | 0 | Clean Maven run; 116 tests, 0 failures, 0 errors, 0 skipped |
 | Prior combined targeted tests | PASS | 0 | S01 Identity (25), S02 Estate Catalog (12), and UX01 (85); 122 tests, 0 failures, 0 errors, 0 skipped |
 | Targeted UX01 tests | PASS | 0 | Current focused rerun: `WebApplicationTests`, 87 tests, 0 failures, 0 errors, 0 skipped |
 | Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 11 tests in 4 files, all passed |
@@ -149,8 +160,9 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   deployment-identity or cloud-provider acceptance.
 - Catalog authority is granted only through independently approved global
   memberships for human principals; self-grants remain prohibited.
-- Assessment browser coverage uses synthetic draft rows, not case creation,
-  evaluation, or live-provider evidence; the case-list API is unpaginated.
+- Assessment browser coverage uses synthetic rows and placeholder digests,
+  not case creation, sealing, evaluation, or live-provider evidence; the case
+  and evaluation-list APIs are unpaginated.
 
 ## Issues found
 

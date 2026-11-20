@@ -165,24 +165,33 @@ VALUES
    'DRAFT', 1, 'test-fixture');
 SQL
 
-# Isolated synthetic cases; insertion bypasses the case creation workflow.
+# Isolated synthetic cases and evaluation; insertion bypasses their workflows.
 "${compose[@]}" exec -T assessment-db psql -v ON_ERROR_STOP=1 \
   -U uacrf_assessment_admin -d uacrf_assessment <<'SQL'
 INSERT INTO uacrf_assessment.analysis_case
-  (tenant_id, environment_id, id, workload_id, content, state, revision, created_by)
+  (tenant_id, environment_id, id, workload_id, content, state, revision, case_digest, created_by)
 VALUES
   ('local-dev', 'local', 'browser-case-a', 'browser-case-workload',
    '{"workload_id":"browser-case-workload","purpose":"Synthetic browser assessment","metric":"sample.latency",
      "comparator":"LTE","threshold":10,"unit":"ms","window_seconds":60,
      "objective_ref":{"objective_id":"sample-objective","revision":1,"digest":"sample"},
      "graph_ref":{"graph_id":"sample-graph","revision":1,"digest":"sample"},
-     "required_source_kinds":["measurement.latency"]}'::jsonb, 'DRAFT', 1, 'test-fixture'),
+     "required_source_kinds":["measurement.latency"]}'::jsonb, 'SEALED', 2,
+   'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'test-fixture'),
   ('local-dev', 'local', 'browser-case-b', 'other-case-workload',
    '{"workload_id":"other-case-workload","purpose":"Other synthetic assessment","metric":"sample.latency",
      "comparator":"LTE","threshold":10,"unit":"ms","window_seconds":60,
      "objective_ref":{"objective_id":"sample-objective","revision":1,"digest":"sample"},
      "graph_ref":{"graph_id":"sample-graph","revision":1,"digest":"sample"},
-     "required_source_kinds":["measurement.latency"]}'::jsonb, 'DRAFT', 1, 'test-fixture');
+     "required_source_kinds":["measurement.latency"]}'::jsonb, 'DRAFT', 1, NULL, 'test-fixture');
+INSERT INTO uacrf_assessment.evaluation
+  (tenant_id, environment_id, id, case_id, revision, observation_cutoff,
+   cutoff_epoch_second, cutoff_nano, mode, outcome, dependency_vector, result_digest)
+VALUES
+  ('local-dev', 'local', 'browser-evaluation-a', 'browser-case-a', 1,
+   '2026-01-01T00:00:00Z', 1767225600, 0, 'SHADOW', 'INSUFFICIENT_EVIDENCE',
+   '{"receipt_verification":"FAILED","receipt_reason_code":"OWNER_UNAVAILABLE","measurements":[]}'::jsonb,
+   'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 SQL
 
 cd "$repo_root/e2e"
