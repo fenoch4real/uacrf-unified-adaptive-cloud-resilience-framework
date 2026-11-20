@@ -45,6 +45,7 @@ class M2S03ToS04OutboxLiveTests {
   private static final String PUBLISHER_SUBJECT = "m2-live-publisher-subject";
   private static final String CONNECTION_EVENT = "connections.connection.registered";
   private static final String SOURCE_BINDING_EVENT = "connections.source-binding.created";
+  private static final String OBSERVATION_EVENT = "connections.observation.accepted";
   private static final HttpClient HTTP =
       HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
 
@@ -182,7 +183,7 @@ class M2S03ToS04OutboxLiveTests {
               "m2-live-connection-owner",
               "m2-live-connection-owner-subject",
               "S03",
-              List.of("connections.connection.write"),
+              List.of("connections.connection.write", "connections.observation.write"),
               List.of(ownerId));
       Map<String, Object> request =
           Map.of(
@@ -231,6 +232,35 @@ class M2S03ToS04OutboxLiveTests {
               HttpResponse.BodyHandlers.ofString());
       assertEquals(201, bound.statusCode(), bound.body());
 
+      String observationPayload = "{\"observation\":\"M2 live aggregate collision\"}";
+      HttpResponse<String> observation =
+          HTTP.send(
+              HttpRequest.newBuilder(
+                      URI.create(
+                          "http://127.0.0.1:"
+                              + connectionsPort
+                              + "/v1/connections/"
+                              + connectionId
+                              + "/observations"))
+                  .timeout(Duration.ofSeconds(5))
+                  .header("Authorization", bearer)
+                  .header("Content-Type", "application/json")
+                  .POST(
+                      HttpRequest.BodyPublishers.ofString(
+                          LiveM2TestSupport.json(
+                              Map.of(
+                                  "id", connectionId,
+                                  "source_ref", "source/" + suffix,
+                                  "sequence", 1,
+                                  "observed_at", Instant.now().toString(),
+                                  "kind", "sample.inventory",
+                                  "payload", observationPayload,
+                                  "payload_digest", sha256(observationPayload)))))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      assertEquals(202, observation.statusCode(), observation.body());
+      assertTrue(observation.body().contains("\"status\":\"ACCEPTED\""), observation.body());
+
       Delivery delivery =
           awaitDelivery(
               connectionId,
@@ -260,8 +290,24 @@ class M2S03ToS04OutboxLiveTests {
       assertEquals("SOURCE_BINDING", bindingDelivery.inboxEvent().aggregateType());
       assertEquals(connectionId, bindingDelivery.inboxEvent().aggregateId());
       assertEquals(1, bindingDelivery.inboxEvent().aggregateSequence());
+
+      Delivery observationDelivery =
+          awaitDelivery(
+              connectionId,
+              OBSERVATION_EVENT,
+              LiveM2TestSupport.TENANT,
+              LiveM2TestSupport.ENVIRONMENT,
+              logDirectory);
+      assertTrue(
+          observationDelivery.published(), "S03 did not mark the observation event delivered");
+      assertNotNull(
+          observationDelivery.inboxEvent(), "S04 did not retain the observation event");
+      assertEquals(OBSERVATION_EVENT, observationDelivery.inboxEvent().eventType());
+      assertEquals("OBSERVATION", observationDelivery.inboxEvent().aggregateType());
+      assertEquals(connectionId, observationDelivery.inboxEvent().aggregateId());
+      assertEquals(1, observationDelivery.inboxEvent().aggregateSequence());
       assertEquals(1, inboxProxy.acknowledgementFailures());
-      assertEquals(2, inboxProxy.receivedResponses());
+      assertEquals(3, inboxProxy.receivedResponses());
       assertTrue(inboxProxy.duplicateResponses() > 0, "S04 did not identify the retried event");
       assertTrue(inboxProxy.requestCount() > 1, "S03 did not retry after the failed acknowledgement");
       assertTrue(inboxProxy.failures().isEmpty(), String.join("; ", inboxProxy.failures()));
