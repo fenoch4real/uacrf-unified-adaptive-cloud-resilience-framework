@@ -7,6 +7,14 @@
 ## Latest live browser run
 
 On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
+stack. An independently authorized user attempted incident creation for a
+case with a `SKIPPED` evaluation and synthetic evidence; the request was
+rejected, retained its form and key, and produced no incident. An ungranted
+user was denied creation. This does not demonstrate successful creation with
+verified evidence, provider acceptance, or authorization to act. The stack was
+removed after the run.
+
+On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
 stack. An independently authorized user browsed paginated incident and
 learning-record pages through UX01, EDGE01, S01 and S07, and an ungranted user
 was denied both. The 51 incident and 51 learning rows were inserted directly

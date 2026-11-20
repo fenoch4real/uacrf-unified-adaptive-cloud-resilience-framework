@@ -143,6 +143,23 @@ class AssessmentClient {
     return new IncidentPage(List.copyOf(page.items()), page.nextCursor());
   }
 
+  Incident createIncident(String token, String key, IncidentCreation request) {
+    Incident item = restClient.post().uri("/v1/incidents:idempotent-create")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key).body(request).retrieve().body(Incident.class);
+    if (item == null || !validCursor(item.id()) || !request.sourceCaseId().equals(item.sourceCaseId())
+        || !request.workloadId().equals(item.workloadId()) || !request.observedFrom().equals(item.observedFrom())
+        || !request.description().equals(item.description()) || !request.reason().equals(item.reason())
+        || !validStrings(item.evidenceRefs())
+        || !new TreeSet<>(request.evidenceRefs()).equals(new TreeSet<>(item.evidenceRefs()))
+        || item.evidenceRefs().size() != new TreeSet<>(item.evidenceRefs()).size()
+        || !validStrings(item.sourceEvaluationIds()) || item.revision() == null || item.revision() != 1
+        || !present(item.createdBy()) || item.createdAt() == null) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched incident receipt.");
+    }
+    return item;
+  }
+
   LearningRecordPage listLearningRecords(String token, String incidentId, String after) {
     LearningRecordPage page = restClient.get()
         .uri(uri -> {
@@ -274,6 +291,9 @@ class AssessmentClient {
       Boolean executable) {}
   record RecommendationBounds(String metric, String comparator, BigDecimal threshold, String unit, String effect) {}
   record IncidentPage(List<Incident> items, @JsonProperty("next_cursor") String nextCursor) {}
+  record IncidentCreation(@JsonProperty("workload_id") String workloadId,
+      @JsonProperty("source_case_id") String sourceCaseId, @JsonProperty("observed_from") Instant observedFrom,
+      String description, @JsonProperty("evidence_refs") List<String> evidenceRefs, String reason) {}
   record Incident(String id, @JsonProperty("workload_id") String workloadId,
       @JsonProperty("source_case_id") String sourceCaseId, @JsonProperty("observed_from") Instant observedFrom,
       String description, @JsonProperty("evidence_refs") List<String> evidenceRefs,

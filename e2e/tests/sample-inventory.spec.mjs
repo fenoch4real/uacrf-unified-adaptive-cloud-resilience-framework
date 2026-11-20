@@ -279,7 +279,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
       'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
-      'assessment.evaluation.run',
+      'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
@@ -496,6 +496,24 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     expect(await evaluationReplay.text()).toContain(evaluationId);
     await sample.getByRole('link', { name: 'View evaluation history' }).click();
     await expect(sample.getByRole('listitem').filter({ hasText: evaluationId })).toHaveCount(1);
+    await sample.goto(`/assessment-cases/${createdId}/incidents/new`);
+    await expect(sample.getByText('SKIPPED or synthetic evidence', { exact: false })).toBeVisible();
+    await sample.getByLabel('Observed from (required)').fill('2026-01-01T12:00:00Z');
+    await sample.getByLabel('Description (required)').fill('Synthetic incident must not be accepted');
+    await sample.getByLabel('Evidence IDs, one per line (required)').fill('sample-receipt');
+    await sample.getByLabel('Reason (required)').fill('Verify evidence gate');
+    const incidentKey = await sample.locator('input[name="idempotencyKey"]').inputValue();
+    const [incidentResponse] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === `/assessment-cases/${createdId}/incidents`),
+      sample.getByRole('button', { name: 'Create incident' }).click(),
+    ]);
+    expect(incidentResponse.status()).toBe(409);
+    await expect(sample.getByRole('alert')).toContainText('Incident creation failed');
+    await expect(sample.locator('input[name="idempotencyKey"]')).toHaveValue(incidentKey);
+    await expect(sample.getByLabel('Evidence IDs, one per line (required)')).toHaveValue('sample-receipt');
+    await sample.goto(`/assessment-cases/${createdId}/incidents`);
+    await expect(sample.getByText('Synthetic incident must not be accepted')).toHaveCount(0);
     await sample.goto('/evidence');
     const evidenceRow = sample.getByRole('listitem').filter({ hasText: fixtureId });
     await expect(evidenceRow).toContainText('Synthetic sample; never qualified evidence.');
@@ -669,6 +687,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       });
       expect(deniedEvaluation.status()).toBe(403);
       expect(await deniedEvaluation.text()).toContain('Evaluation was not authorized');
+      const deniedIncident = await restricted.request.post(`/assessment-cases/${createdId}/incidents`, {
+        form: { _csrf: csrfToken, tenantId: 'local-dev', environmentId: 'local',
+          idempotencyKey: randomUUID(), workloadId: 'browser-case-workload',
+          observedFrom: '2026-01-01T12:00:00Z', description: 'Denied incident',
+          evidenceRefs: 'sample-receipt', reason: 'Verify authorization' },
+      });
+      expect(deniedIncident.status()).toBe(403);
+      expect(await deniedIncident.text()).toContain('Incident creation was not authorized');
       await sample.goto('/assessment-cases/browser-case-b/seal');
       await expect(sample.getByRole('button', { name: 'Seal this draft' })).toBeVisible();
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');

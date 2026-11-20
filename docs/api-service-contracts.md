@@ -45,7 +45,7 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Topology (S06) | POST, GET | `/v1/graphs/subgraphs:select`, `/v1/graphs/differences:classify`, `/v1/commands/{id}` | `TopologyRequests.SelectSubgraph` / `ClassifyDifferences` and idempotency key; command ID path | 202 admission receipt (`PENDING`, `domain_completion=false`); status projection (`command_id`, `status`, `terminal`, `domain_completion`) and, only on `SUCCEEDED`, a bounded advisory result |
 | Assessment (S07) | GET, POST | `/v1/cases/**`, `/v1/cases:idempotent-create`, `/v1/evaluations/{id}`, `/v1/recommendations` | `AssessmentRequests` records and query/path parameters; `Idempotency-Key` required on the dedicated creation and `/v1/cases/{id}:idempotent-evaluate` routes | Case, evaluation, recommendation, and receipt records |
 | Assessment (S07) | GET, POST | `/v1/model-versions/**`, `/internal/v1/model-evaluation-declarations/**` | Model-version and evaluation-declaration request records | Model version or declaration/page |
-| Assessment (S07) | GET, POST | `/v1/incidents/**`, `/v1/learning-records/**`, `/internal/v1/learning-records/{id}:review-receipt`, `/internal/v1/adaptation-proposals/**` | Incident, learning, review, and adaptation request records | Incident, learning/review receipt, or adaptation proposal/page |
+| Assessment (S07) | GET, POST | `/v1/incidents/**`, `/v1/incidents:idempotent-create`, `/v1/learning-records/**`, `/internal/v1/learning-records/{id}:review-receipt`, `/internal/v1/adaptation-proposals/**` | Incident, learning, review, and adaptation request records; `Idempotency-Key` required on the dedicated incident creation route | Incident, learning/review receipt, or adaptation proposal/page |
 | Knowledge (S08) | GET, POST | `/v1/knowledge-items/**`, `/v1/retrievals/**`, `/internal/v1/retrievals/{id}:receipt` | `KnowledgeRequests` records and query/path parameters | Versioned item, retrieval, or retrieval receipt |
 
 Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
@@ -130,6 +130,14 @@ For S06 command status, `TopologyController.commandStatus` returns the compact m
 The persisted S06 selection coverage map records `graph_edge_count`, `verified_summary_count`, `unverified_summary_count`, up to ten verified `summaries`, `truncated`, `complete`, and `reason_codes` drawn from `SUMMARY_INVALIDATED`, `SUMMARY_STALE`, `SUMMARY_UNAVAILABLE`, `SUMMARY_LIMIT_REACHED`, and `SUMMARY_COVERAGE_GAP`. Difference-classification snapshots retain the corresponding authorized and current evidence-coverage maps; none of these internal coverage fields are returned by `GET /v1/commands/{id}`.
 
 The API Edge and Experience API generally forward JSON as text and preserve owner-service response bodies rather than composing gateway-level DTOs. The browser application uses form inputs and Thymeleaf views. Backend JSON uses snake_case naming where configured. S07's dedicated keyed case-creation route scopes the key to tenant, environment and actor; matching retries return the same case's current state and differing content conflicts. The legacy `/v1/cases` POST is unkeyed. Neither creation route verifies objective or graph references. The MS01 OpenAPI source is [openapi.json](../design/ms01/contracts/source/api_reference/openapi.json); no protobuf or GraphQL schemas were found.
+
+The dedicated `POST /v1/incidents:idempotent-create` route, also forwarded by
+EDGE01, scopes its required key to tenant, environment and actor. Matching
+canonical requests return the original historical incident; changed content
+conflicts. Creation still requires verified evaluation evidence and current
+owner-receipt revalidation; replay does not recheck owners. The legacy
+`POST /v1/incidents` route remains unkeyed. Deploy S07 and EDGE01 before UX01;
+the browser does not fall back to the unkeyed route.
 
 ## Communication Patterns
 

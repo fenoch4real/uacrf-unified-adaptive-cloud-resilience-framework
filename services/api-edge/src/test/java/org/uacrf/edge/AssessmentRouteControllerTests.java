@@ -68,6 +68,25 @@ class AssessmentRouteControllerTests {
   }
 
   @Test
+  void forwardsIncidentIdempotencyKeyAndRequiresHeader() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new AssessmentRouteController(new AssessmentRouteClient(builder.build()))).build();
+    server.expect(requestTo(URL + "/v1/incidents:idempotent-create"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header("Idempotency-Key", "incident-key"))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    mvc.perform(post("/internal/assessment/v1/incidents:idempotent-create")
+        .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isBadRequest());
+    mvc.perform(post("/internal/assessment/v1/incidents:idempotent-create")
+        .header("Idempotency-Key", "incident-key").header(HttpHeaders.AUTHORIZATION, "Bearer writer")
+        .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isCreated());
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsAndLeavesInternalReceiptUnrouted() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

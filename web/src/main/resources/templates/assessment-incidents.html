@@ -13,6 +13,7 @@
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p>Case: <strong th:text="${caseId}">Case ID</strong></p>
   <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p><a th:href="@{/assessment-cases/{id}/incidents/new(id=${caseId})}">Prepare an incident</a></p>
   <p>These are retained historical records, not current evidence qualification or authorization to act.</p>
   <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
   <p th:if="${assessmentError == null and #lists.isEmpty(items)}">No incidents are available on this page.</p>

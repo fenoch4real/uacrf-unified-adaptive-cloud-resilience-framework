@@ -160,6 +160,13 @@ class AssessmentRouteController {
     return forward(() -> assessment.createIncident(authorization, requestBody));
   }
 
+  @PostMapping("/v1/incidents:idempotent-create")
+  ResponseEntity<String> createIncidentIdempotently(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String key, @RequestBody String requestBody) {
+    return forward(() -> assessment.createIncidentIdempotently(authorization, key, requestBody));
+  }
+
   @GetMapping("/v1/incidents/{id}")
   ResponseEntity<String> getIncident(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

@@ -60,6 +60,31 @@ class AssessmentClientTests {
       """;
 
   @Test
+  void createsIncidentsOnlyWithKeyAndValidatesReceipt() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    String url = "http://edge.test/v1/incidents:idempotent-create";
+    server.expect(requestTo(url)).andExpect(method(HttpMethod.POST))
+        .andExpect(header("Idempotency-Key", "incident-key"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+        .andExpect(content().json("""
+            {"workload_id":"workload-1","source_case_id":"case-1","observed_from":"2026-01-01T00:00:00Z",
+             "description":"Synthetic incident","evidence_refs":["receipt-1"],"reason":"test"}
+            """)).andRespond(withSuccess(INCIDENT, MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withSuccess(INCIDENT.replace("\"case-1\"", "\"other\""), MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withSuccess(INCIDENT.replace("[\"evaluation-1\"]", "null"), MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withStatus(HttpStatus.NOT_FOUND));
+    var request = new AssessmentClient.IncidentCreation("workload-1", "case-1",
+        java.time.Instant.parse("2026-01-01T00:00:00Z"), "Synthetic incident", List.of("receipt-1"), "test");
+    var client = new AssessmentClient(builder.build());
+    assertThat(client.createIncident("writer", "incident-key", request).sourceCaseId()).isEqualTo("case-1");
+    assertThatThrownBy(() -> client.createIncident("writer", "incident-key", request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.createIncident("writer", "incident-key", request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.createIncident("writer", "incident-key", request)).isInstanceOf(HttpClientErrorException.NotFound.class);
+    server.verify();
+  }
+
+  @Test
   void readsIncidentAndLearningPagesAndRejectsMismatchedData() {
     String incidentId = "00000000-0000-0000-0000-000000000001";
     String after = "00000000-0000-0000-0000-000000000000";

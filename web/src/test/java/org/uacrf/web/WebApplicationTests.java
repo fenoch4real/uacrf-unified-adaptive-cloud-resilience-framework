@@ -119,6 +119,63 @@ class WebApplicationTests {
   }
 
   @Test
+  void incidentFormPreservesRetryAndUsesIndependentWriteAuthorization() throws Exception {
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    Instant time = Instant.parse("2026-01-01T00:00:00Z");
+    var item = new AssessmentClient.AssessmentCase("case-1", "workload-1", "assessment",
+        "latency", "LTE", new java.math.BigDecimal("10"), "ms", 60, "SEALED", 2L, "a".repeat(64),
+        new AssessmentClient.ObjectiveRef("o", 1L, "d"), new AssessmentClient.GraphRef("g", 1L, "d"),
+        List.of("measurement.latency"));
+    var request = new AssessmentClient.IncidentCreation("workload-1", "case-1", time,
+        "Synthetic incident", List.of("receipt-1"), "test");
+    var result = new AssessmentClient.Incident("00000000-0000-0000-0000-000000000001",
+        "workload-1", "case-1", time, "Synthetic incident", List.of("receipt-1"),
+        List.of("evaluation-1"), "test", 1L, "user", time);
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.case.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("case-reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.incident.write"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("incident-writer", "Bearer", 30));
+    when(assessment.getCase("case-reader", "case-1")).thenReturn(item);
+    when(assessment.createIncident("incident-writer", key, request))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(result);
+    mockMvc.perform(get("/assessment-cases/case-1/incidents/new").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("SKIPPED or synthetic evidence")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")));
+    mockMvc.perform(incidentRequest(key).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(incidentRequest(key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable()).andExpect(content().string(containsString("creation is unconfirmed")))
+        .andExpect(content().string(containsString(key))).andExpect(content().string(containsString("receipt-1")));
+    mockMvc.perform(incidentRequest(key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Incident receipt")))
+        .andExpect(content().string(containsString("without rechecking owners")))
+        .andExpect(content().string(not(containsString("incident-writer"))));
+    verify(assessment, times(2)).createIncident("incident-writer", key, request);
+  }
+
+  @Test
+  void incidentFormRejectsChangedContextAndInvalidInputBeforeDelegation() throws Exception {
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    mockMvc.perform(incidentRequest(key).with(request -> {
+      request.setParameter("tenantId", "other"); return request;
+    }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())).andExpect(status().isConflict());
+    mockMvc.perform(incidentRequest(key).with(request -> {
+      request.setParameter("observedFrom", "2026-01-01T00:00:00");
+      request.setParameter("evidenceRefs", "r1\nr1"); return request;
+    }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest()).andExpect(content().string(containsString("unique evidence IDs")))
+        .andExpect(content().string(containsString("observed-error")));
+    verifyNoInteractions(identity, assessment);
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder incidentRequest(String key) {
+    return post("/assessment-cases/case-1/incidents").param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("workloadId", "workload-1").param("observedFrom", "2026-01-01T00:00:00Z")
+        .param("description", "Synthetic incident").param("evidenceRefs", "receipt-1").param("reason", "test");
+  }
+
+  @Test
   void startsAuthorizationCodeFlowWithPkce() throws Exception {
     MvcResult result =
         mockMvc

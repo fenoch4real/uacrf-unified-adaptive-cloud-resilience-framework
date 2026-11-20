@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident receipt | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Incident receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <dl>
+    <dt>Incident ID</dt><dd th:text="${incident.id}">ID</dd>
+    <dt>Case ID</dt><dd th:text="${incident.sourceCaseId}">Case</dd>
+    <dt>Workload ID</dt><dd th:text="${incident.workloadId}">Workload</dd>
+    <dt>Observed from</dt><dd th:text="${incident.observedFrom}">Time</dd>
+    <dt>Evidence references</dt><dd th:text="${#strings.listJoin(incident.evidenceRefs, ', ')}">References</dd>
+    <dt>Source evaluations</dt><dd th:text="${#strings.listJoin(incident.sourceEvaluationIds, ', ')}">Evaluations</dd>
+  </dl>
+  <p>This is a historical record, not current evidence qualification or authorization to act.
+    A retry returns the original incident without rechecking owners.</p>
+  <p><a th:href="@{/assessment-cases/{id}/incidents(id=${incident.sourceCaseId})}">View incidents</a></p>
+</main>
+</body>
+</html>

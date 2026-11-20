@@ -104,7 +104,12 @@ class AssessmentController {
   }
   @PostMapping("/v1/incidents") @ResponseStatus(HttpStatus.CREATED)
   Incident createIncident(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateIncident request) {
-    return incidentLearning.createIncident(DelegationPrincipal.from(jwt), request);
+    return incidentLearning.createIncident(DelegationPrincipal.from(jwt), request, null);
+  }
+  @PostMapping("/v1/incidents:idempotent-create") @ResponseStatus(HttpStatus.CREATED)
+  Incident createIncidentIdempotently(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateIncident request,
+      @RequestHeader("Idempotency-Key") String key) {
+    return incidentLearning.createIncident(DelegationPrincipal.from(jwt), request, key);
   }
   @GetMapping("/v1/incidents/{id}")
   Incident getIncident(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {

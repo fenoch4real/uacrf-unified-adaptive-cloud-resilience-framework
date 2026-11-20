@@ -86,6 +86,7 @@ class AssessmentApplicationTests {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
   @Autowired private AssessmentService assessment;
+  @Autowired private IncidentLearningService incidentLearning;
   @Autowired private org.springframework.transaction.PlatformTransactionManager transactionManager;
   private final HttpClient http = HttpClient.newHttpClient();
 
@@ -861,6 +862,63 @@ class AssessmentApplicationTests {
         token("t-incident-other", "*", ALL)).statusCode());
     assertEquals(403, get("/v1/incidents/" + incident.get("id").asString(),
         token("t-incident-valid", "*", List.of("assessment.incident.write"))).statusCode());
+  }
+
+  @Test void keyedIncidentCreationIsAtomicScopedAndReplaysHistoricalReceipt() throws Exception {
+    String tenant = "t-incident-fresh-idempotent";
+    String writer = token(tenant, "*", List.of("assessment.case.write", "assessment.evaluation.run",
+        "assessment.incident.write"));
+    String caseId = sealed(writer, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00Z";
+    eval(writer, caseId, cutoff, "LIVE", measurement("r-key", "a", "2026-01-01T00:59:00Z", "5", "ms"));
+    String path = "/v1/incidents:idempotent-create";
+    String input = incidentJson(caseId, "w1", cutoff, "[\"r-key\",\"r-key\"]");
+    assertEquals(400, post(path, writer, input).statusCode());
+    assertEquals(400, postAdaptation(path, writer, input, "invalid key").statusCode());
+    assertEquals(403, postAdaptation(path, token(tenant, "*", List.of("assessment.incident.read")), input, "key").statusCode());
+    JsonNode first = body(postAdaptation(path, writer, input, "key"), 201);
+    String equivalent = incidentJson(caseId, "w1", "2026-01-01T01:00:00.000Z", "[\"r-key\"]");
+    assertEquals(first, body(postAdaptation(path, writer, equivalent, "key"), 201));
+    assertEquals(409, postAdaptation(path, writer, input.replace("retain incident evidence", "changed"), "key").statusCode());
+    ModelReceiptFixture.UNAVAILABLE.add(tenant);
+    try {
+      assertEquals(first, body(postAdaptation(path, writer, input, "key"), 201));
+      assertEquals(409, postAdaptation(path, writer, input, "unavailable").statusCode());
+      assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.incident_idempotency "
+          + "WHERE tenant_id=? AND idempotency_key='unavailable'", Integer.class, tenant));
+    } finally {
+      ModelReceiptFixture.UNAVAILABLE.remove(tenant);
+    }
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var one = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "race"); });
+      var two = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, equivalent, "race"); });
+      gate.countDown();
+      assertEquals(body(one.get(), 201).get("id").asString(), body(two.get(), 201).get("id").asString());
+    }
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var one = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "competing"); });
+      var two = executor.submit(() -> { gate.await(); return postAdaptation(path, writer,
+          input.replace("retain incident evidence", "different reason"), "competing"); });
+      gate.countDown();
+      assertEquals(List.of(201, 409), java.util.stream.Stream.of(one.get().statusCode(), two.get().statusCode())
+          .sorted().toList());
+    }
+    String otherActor = token(tenant, "*", List.of("assessment.incident.write"), "other-user");
+    JsonNode otherResult = body(postAdaptation(path, otherActor, input, "key"), 201);
+    assertNotEquals(first.get("id").asString(), otherResult.get("id").asString());
+    var actor = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-1", "*",
+        "https://idp.example.test", "user", List.of("assessment.incident.write"), List.of(), List.of());
+    var request = json.readValue(input, AssessmentRequests.CreateIncident.class);
+    new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      incidentLearning.createIncident(actor, request, "rollback");
+      status.setRollbackOnly();
+    });
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.incident_idempotency "
+        + "WHERE tenant_id=? AND idempotency_key='rollback'", Integer.class, tenant));
+    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.incident WHERE tenant_id=?", Integer.class, tenant));
+    assertEquals(201, postAdaptation(path, writer, input, "rollback").statusCode());
   }
 
   @Test void incidentRejectsUnverifiedMissingAndStaleEvaluationEvidence() throws Exception {

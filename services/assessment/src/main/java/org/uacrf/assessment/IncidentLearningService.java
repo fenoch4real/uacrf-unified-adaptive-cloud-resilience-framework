@@ -40,8 +40,35 @@ class IncidentLearningService {
   }
 
   @Transactional
-  Incident createIncident(DelegationPrincipal actor, CreateIncident request) {
+  Incident createIncident(DelegationPrincipal actor, CreateIncident request, String key) {
     permit(actor, "assessment.incident.write", "assessment.learning.write");
+    List<String> evidenceRefs = canonicalRefs(request.evidenceRefs());
+    if (key != null) {
+      if (key.isBlank() || key.length() > 200 || key.chars().anyMatch(Character::isWhitespace)) {
+        throw new AssessmentException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+            "Idempotency-Key must be a non-empty token of at most 200 characters.");
+      }
+      String digest = hash(write(new CreateIncident(request.workloadId(), request.sourceCaseId(),
+          request.observedFrom(), request.description(), evidenceRefs, request.reason())));
+      int inserted = jdbc.update("INSERT INTO " + DB + "incident_idempotency "
+              + "(tenant_id,environment_id,actor_id,idempotency_key,payload_digest) VALUES (?,?,?,?,?) "
+              + "ON CONFLICT DO NOTHING",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+      if (inserted == 0) {
+        List<IncidentRequest> prior = jdbc.query("SELECT payload_digest,incident_id FROM " + DB
+                + "incident_idempotency WHERE tenant_id=? AND environment_id=? AND actor_id=? "
+                + "AND idempotency_key=? FOR UPDATE",
+            (rs, row) -> new IncidentRequest(rs.getString("payload_digest"), rs.getString("incident_id")),
+            actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+        if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+          throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+        }
+        if (prior.getFirst().incidentId() == null) {
+          throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+        }
+        return findIncident(actor, prior.getFirst().incidentId(), false);
+      }
+    }
     CaseRef sourceCase = findCase(actor, request.sourceCaseId());
     if (!sourceCase.workloadId().equals(request.workloadId())) {
       throw notFound();
@@ -74,7 +101,6 @@ class IncidentLearningService {
           "An incident requires a VERIFIED evaluation with qualified S04, S05, and S06 receipts at or before observed_from.");
     }
 
-    List<String> evidenceRefs = canonicalRefs(request.evidenceRefs());
     if (!qualifiedReceiptIds.containsAll(evidenceRefs)) {
       throw conflict("EVIDENCE_NOT_IN_VERIFIED_EVALUATION",
           "Incident evidence_refs must be measurement receipts from a qualifying verified evaluation.");
@@ -105,8 +131,15 @@ class IncidentLearningService {
         Timestamp.from(request.observedFrom()), request.observedFrom().getEpochSecond(),
         request.observedFrom().getNano(), request.description(), write(evidenceRefs),
         write(sourceEvaluationIds), request.reason(), actor.principalId());
+    if (key != null) {
+      jdbc.update("UPDATE " + DB + "incident_idempotency SET incident_id=? "
+              + "WHERE tenant_id=? AND environment_id=? AND actor_id=? AND idempotency_key=?",
+          id, actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    }
     return findIncident(actor, id, false);
   }
+
+  private record IncidentRequest(String digest, String incidentId) {}
 
   @Transactional(readOnly = true)
   Incident getIncident(DelegationPrincipal actor, String id) {

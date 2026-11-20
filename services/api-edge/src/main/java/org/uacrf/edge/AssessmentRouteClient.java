@@ -134,6 +134,14 @@ class AssessmentRouteClient {
     return sendBody(HttpMethod.POST, "/v1/incidents", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> createIncidentIdempotently(String authorization, String key, String requestBody) {
+    RestClient.RequestBodySpec request = assessmentRestClient.post()
+        .uri("/v1/incidents:idempotent-create").contentType(MediaType.APPLICATION_JSON);
+    request.header("Idempotency-Key", key);
+    request.body(requestBody);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> getIncident(String authorization, String id) {
     return send(assessmentRestClient.get()
         .uri(uriBuilder -> uriBuilder.path("/v1/incidents/{id}").build(id)), authorization);
