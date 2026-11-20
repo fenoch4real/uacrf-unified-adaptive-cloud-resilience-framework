@@ -24,10 +24,11 @@ final class RequesterAccessClient {
     private final Set<String> capabilities;
     private final Instant capabilityExpiryHorizon;
     private final Instant sessionExpiresAt;
+    private final String membershipSnapshotDigest;
 
     private Principal(
         String id, String kind, String tenantId, String environmentId, Set<String> capabilities,
-        Instant capabilityExpiryHorizon, Instant sessionExpiresAt) {
+        Instant capabilityExpiryHorizon, Instant sessionExpiresAt, String membershipSnapshotDigest) {
       this.id = id;
       this.kind = kind;
       this.tenantId = tenantId;
@@ -35,6 +36,7 @@ final class RequesterAccessClient {
       this.capabilities = Set.copyOf(capabilities);
       this.capabilityExpiryHorizon = capabilityExpiryHorizon;
       this.sessionExpiresAt = sessionExpiresAt;
+      this.membershipSnapshotDigest = membershipSnapshotDigest;
     }
 
     String id() {
@@ -63,6 +65,10 @@ final class RequesterAccessClient {
 
     Instant sessionExpiresAt() {
       return sessionExpiresAt;
+    }
+
+    String membershipSnapshotDigest() {
+      return membershipSnapshotDigest;
     }
   }
 
@@ -99,7 +105,9 @@ final class RequesterAccessClient {
         || !"HUMAN".equals(kind)
         || !"GLOBAL_GRANTS_ONLY".equals(body.get("scope"))
         || !body.containsKey("service_id") || body.get("service_id") != null
-        || !(body.get("capability_ids") instanceof List<?> values)) {
+        || !(body.get("capability_ids") instanceof List<?> values)
+        || !(body.get("membership_snapshot_digest") instanceof String membershipDigest)
+        || !membershipDigest.matches("[a-f0-9]{64}")) {
       throw new IOException("S01 returned invalid requester access.");
     }
     Instant horizon = futureExpiry(body.get("capability_expiry_horizon"), "capability expiry horizon");
@@ -127,7 +135,8 @@ final class RequesterAccessClient {
             && !capabilities.contains("knowledge.classification.restricted.read"))) {
       throw new IOException("Requester lacks required advisory or source access capabilities.");
     }
-    return new Principal(principalId, kind, tenantId, environmentId, capabilities, horizon, sessionExpiresAt);
+    return new Principal(
+        principalId, kind, tenantId, environmentId, capabilities, horizon, sessionExpiresAt, membershipDigest);
   }
 
   private static Instant futureExpiry(Object value, String field) throws IOException {

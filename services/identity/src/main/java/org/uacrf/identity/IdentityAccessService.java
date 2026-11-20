@@ -1,5 +1,6 @@
 package org.uacrf.identity;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -10,6 +11,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -290,17 +292,36 @@ class IdentityAccessService {
         serviceId == null
             ? new Object[] {actor.tenantId(), actor.environmentId(), actor.principalId()}
             : new Object[] {actor.tenantId(), actor.environmentId(), actor.principalId(), serviceId};
-    List<CapabilityExpiry> grants =
-        jdbc.query(
-            "SELECT capability, max(expires_at) AS expires_at FROM uacrf_identity.membership "
-                + "WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? "
-                + "AND revoked_at IS NULL AND expires_at > now() "
-                + serviceScopeClause
-                + "GROUP BY capability ORDER BY capability",
-            (rs, row) ->
-                new CapabilityExpiry(
-                    rs.getString("capability"), rs.getTimestamp("expires_at").toInstant()),
-            membershipArguments);
+    Map<String, Instant> expirations = new LinkedHashMap<>();
+    MessageDigest membershipDigest;
+    try {
+      membershipDigest = MessageDigest.getInstance("SHA-256");
+    } catch (NoSuchAlgorithmException error) {
+      throw new IllegalStateException("SHA-256 is required by the runtime.", error);
+    }
+    updateMembershipDigest(membershipDigest, "UACRF_S01_MEMBERSHIP_SNAPSHOT_V1");
+    updateMembershipDigest(membershipDigest, actor.tenantId());
+    updateMembershipDigest(membershipDigest, actor.environmentId());
+    updateMembershipDigest(membershipDigest, actor.principalId());
+    updateMembershipDigest(membershipDigest, serviceId == null ? "*" : serviceId);
+    jdbc.query(
+        "SELECT id::text AS id, capability, service_scope, expires_at, revision "
+            + "FROM uacrf_identity.membership "
+            + "WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? "
+            + "AND revoked_at IS NULL AND expires_at > now() "
+            + serviceScopeClause
+            + "ORDER BY capability, id",
+        rs -> {
+          String capability = rs.getString("capability");
+          Instant expiry = rs.getTimestamp("expires_at").toInstant();
+          expirations.merge(capability, expiry, (first, second) -> first.isAfter(second) ? first : second);
+          updateMembershipDigest(membershipDigest, rs.getString("id"));
+          updateMembershipDigest(membershipDigest, capability);
+          updateMembershipDigest(membershipDigest, rs.getString("service_scope"));
+          updateMembershipDigest(membershipDigest, expiry.toString());
+          updateMembershipDigest(membershipDigest, Long.toString(rs.getLong("revision")));
+        },
+        membershipArguments);
     String scope =
         serviceId == null
             ? "GLOBAL_GRANTS_ONLY"
@@ -311,9 +332,16 @@ class IdentityAccessService {
         actor.kind(),
         serviceId,
         scope,
-        grants.stream().map(CapabilityExpiry::capability).toList(),
-        grants.stream().map(CapabilityExpiry::expiresAt).min(Instant::compareTo).orElse(null),
-        jwt.getExpiresAt());
+        List.copyOf(expirations.keySet()),
+        expirations.values().stream().min(Instant::compareTo).orElse(null),
+        jwt.getExpiresAt(),
+        HexFormat.of().formatHex(membershipDigest.digest()));
+  }
+
+  private static void updateMembershipDigest(MessageDigest digest, String value) {
+    byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+    digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+    digest.update(bytes);
   }
 
   @Transactional(readOnly = true)
@@ -1652,8 +1680,6 @@ class IdentityAccessService {
 
   private record MembershipState(
       String capability, String serviceScope, long revision, boolean revoked) {}
-
-  private record CapabilityExpiry(String capability, Instant expiresAt) {}
 
   private record ContextCursor(String tenantId, String environmentId) {}
 

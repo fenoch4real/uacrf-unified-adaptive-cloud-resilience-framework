@@ -58,11 +58,16 @@ metadata, not a validity guarantee: revocations, additions, principal or
 context changes, and token expiry can take effect sooner. It is not a
 reservation or a commit fence.
 The same response includes `session_expires_at`, the authenticated JWT's
-expiration, or null if absent. S09's preparation check requires both
-expirations to be parseable and future, and rejects changes between its two
-S01 reads. Its journal also rejects expired snapshots at method entry, not
-atomically at commit. Deploy the S01 response changes before the S09 client;
-older S01 responses fail closed.
+expiration, or null if absent, and `membership_snapshot_digest`, a SHA-256
+fingerprint of active memberships in the selected scope. The digest includes
+tenant, environment, principal, scope, and ordered membership IDs,
+capabilities, scopes, expirations and revisions, using versioned,
+length-prefixed UTF-8 fields. S09 requires both expirations to be parseable
+and future and the digest to be valid; it rejects changes between its two
+S01 reads. The fingerprint is not monotonic and cannot detect a change that
+is fully reversed between reads. Its journal also rejects expired snapshots
+at method entry, not atomically at commit. Deploy the S01 response changes
+before the S09 client; older S01 responses fail closed.
 
 S02's active workload-version receipt accepts `profile_id` to identify a
 version within its workload. Without it, a version ID matching multiple

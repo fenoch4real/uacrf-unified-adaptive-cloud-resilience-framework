@@ -21,7 +21,8 @@ class RequesterAccessClientTests {
   private static final String PUBLIC_ACCESS = """
       {"principal_id":"human-1","display_name":"User","kind":"HUMAN","service_id":null,
        "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read"],
-       "capability_expiry_horizon":"2099-01-01T00:00:00Z","session_expires_at":"2098-01-01T00:00:00Z"}
+       "capability_expiry_horizon":"2099-01-01T00:00:00Z","session_expires_at":"2098-01-01T00:00:00Z",
+       "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
       """;
   private HttpServer server;
   private URI base;
@@ -109,6 +110,10 @@ class RequesterAccessClientTests {
         PUBLIC_ACCESS.replace(",\"session_expires_at\":\"2098-01-01T00:00:00Z\"", ""),
         PUBLIC_ACCESS.replace("2098-01-01T00:00:00Z", "not-an-instant"),
         PUBLIC_ACCESS.replace("2098-01-01T00:00:00Z", "2000-01-01T00:00:00Z"),
+        PUBLIC_ACCESS.replace("\"membership_snapshot_digest\":\"" + "a".repeat(64) + "\"",
+            "\"membership_snapshot_digest\":null"),
+        PUBLIC_ACCESS.replace(",\n \"membership_snapshot_digest\":\"" + "a".repeat(64) + "\"", ""),
+        PUBLIC_ACCESS.replace("a".repeat(64), "A".repeat(64)),
         PUBLIC_ACCESS + "{}")) {
       body.set(invalid);
       assertThrows(IOException.class, () -> client.check("requester-token", "tenant-1", "env-1", PUBLIC));

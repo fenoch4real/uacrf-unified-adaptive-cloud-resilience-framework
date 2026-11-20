@@ -97,6 +97,7 @@ class AssessmentAdvisoryIntegrationTests {
           {"principal_id":"requester","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
            "capability_expiry_horizon":"2099-01-01T00:00:00Z",
            "session_expires_at":"2098-01-01T00:00:00Z",
+           "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
            "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
            "knowledge.classification.internal.read"]}
           """ : "{}");

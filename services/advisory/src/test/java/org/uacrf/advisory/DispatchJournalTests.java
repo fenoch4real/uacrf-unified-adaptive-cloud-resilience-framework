@@ -71,7 +71,8 @@ class DispatchJournalTests {
           {"principal_id":"%s","display_name":"Test user","kind":"HUMAN","service_id":null,
            "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read",
            "knowledge.retrieval.read"],"capability_expiry_horizon":"2099-01-01T00:00:00Z",
-           "session_expires_at":"2098-01-01T00:00:00Z"}
+           "session_expires_at":"2098-01-01T00:00:00Z",
+           "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
           """.formatted(principalId);
       byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
       exchange.sendResponseHeaders(200, bytes.length);

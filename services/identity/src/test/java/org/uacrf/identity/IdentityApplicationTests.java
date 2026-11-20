@@ -250,12 +250,46 @@ class IdentityApplicationTests {
           .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(7200) + "\"")
           .contains("\"session_expires_at\":\"" + sessionExpiry + "\"")
           .doesNotContain("test.beta", "test.other", "test.revoked", "test.expired");
+      var json = tools.jackson.databind.json.JsonMapper.builder().build();
+      String digest = json.readTree(global.body()).path("membership_snapshot_digest").asString();
+      assertThat(digest).matches("[a-f0-9]{64}");
+      assertEquals(digest, json.readTree(get(path, actor).body())
+          .path("membership_snapshot_digest").asString());
+      UUID redundant = UUID.randomUUID();
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+              + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', ?, "
+              + "'test.alpha', '*', ?, 1)",
+          redundant, principal, java.sql.Timestamp.from(now.plusSeconds(1800)));
+      HttpResponse<String> withRedundantGrant = get(path, actor);
+      assertThat(withRedundantGrant.body())
+          .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(7200) + "\"");
+      assertEquals(json.readTree(global.body()).path("capability_ids"),
+          json.readTree(withRedundantGrant.body()).path("capability_ids"));
+      assertThat(json.readTree(withRedundantGrant.body()).path("membership_snapshot_digest").asString())
+          .isNotEqualTo(digest);
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", redundant);
+      assertEquals(digest, json.readTree(get(path, actor).body())
+          .path("membership_snapshot_digest").asString());
       HttpResponse<String> scoped = get(path + "&service_id=svc-1", actor);
       assertEquals(200, scoped.statusCode());
       assertThat(scoped.body())
           .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(1800) + "\"")
           .contains("test.alpha", "test.beta")
           .doesNotContain("test.other", "test.revoked", "test.expired");
+      String scopedDigest = json.readTree(scoped.body()).path("membership_snapshot_digest").asString();
+      assertThat(scopedDigest).isNotEqualTo(digest);
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+              + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', ?, "
+              + "'test.other', 'svc-2', ?, 1)",
+          UUID.randomUUID(), principal, java.sql.Timestamp.from(now.plusSeconds(500)));
+      assertEquals(digest, json.readTree(get(path, actor).body())
+          .path("membership_snapshot_digest").asString());
+      assertEquals(scopedDigest, json.readTree(get(path + "&service_id=svc-1", actor).body())
+          .path("membership_snapshot_digest").asString());
 
       jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", laterGlobal);
       assertThat(get(path, actor).body())

@@ -292,11 +292,17 @@ test passed with no failures, errors, or skips.
   capabilities, principal or context changes, and token expiry can change
   authority sooner. It is not a cross-service reservation or commit fence.
   S01 also reports `session_expires_at` from the authenticated JWT, or null
-  when absent. S09 requires both expirations to be parseable and future and
-  rejects changes between initial and refreshed requester reads. Deploy S01's
-  response changes before that S09 client; older responses fail closed. A web
-  client regression verifies that the additive S01 fields do not break current
-  access deserialization; the web suite passed 110 tests.
+  when absent, and a scoped `membership_snapshot_digest` covering the active
+  membership IDs, capabilities, scopes, expirations and revisions. S09
+  requires both expirations to be parseable and future, validates the digest,
+  and rejects changes between initial and refreshed requester reads. A
+  PostgreSQL regression shows a redundant grant changes the digest even when
+  the capability list and expiry horizon do not; unrelated service-scoped
+  grants do not change it. The digest is not monotonic and cannot detect a
+  change fully reversed between reads. Deploy S01's response changes before
+  that S09 client; older responses fail closed. A web client regression
+  verifies that the additive S01 fields do not break current access
+  deserialization; the web suite passed 110 tests.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed
   capabilities, owners, and runtime principals. S01 now issues narrowed
   delegations after checking the user's current membership authority. The
@@ -1467,9 +1473,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   decision. After the final S07, requester and S02 refreshes, preparation
   re-reads the S08 retrieval receipt with a fresh delegation and rejects a
   changed, withdrawn, or unavailable receipt before returning the snapshot.
-  Requester refresh also rejects capability-set, capability-expiry-horizon or
-  session-expiry drift, including a changed set that would still pass minimum
-  authorization checks; regressions cover these cases. These sequential checks
+  Requester refresh also rejects capability-set, capability-expiry-horizon,
+  session-expiry or membership-snapshot drift, including changed grants that
+  leave the capability set and horizon unchanged. These sequential checks
   do not provide an atomic authorization decision. A simulated-owner
   regression covers withdrawal during the requester refresh.
   Preparation now constructs a distinct,
