@@ -57,6 +57,38 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
 
   @Test
+  void readsRetrievalUsingSeparateContextBoundReadDelegation() throws Exception {
+    String id = "a1234567-1234-4234-8234-123456789012";
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.retrieval.read", "knowledge.classification.internal.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    var receipt = new KnowledgeClient.Retrieval(id, null, "NOT_VERIFIED", null, null, "review",
+        KnowledgeClient.Classification.INTERNAL, "hello", Instant.parse("2026-01-01T00:00:00Z"),
+        "c".repeat(64), List.of());
+    when(knowledge.readRetrieval("reader", id, KnowledgeClient.Classification.INTERNAL)).thenReturn(receipt);
+    mockMvc.perform(get("/knowledge/retrievals").param("retrievalId", id).param("classification", "INTERNAL")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString(id)))
+        .andExpect(content().string(containsString("NOT_VERIFIED")));
+    verify(identity).createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.retrieval.read", "knowledge.classification.internal.read"), "tenant-test", "environment-test");
+  }
+
+  @Test
+  void retrievalReadDenialAndInvalidIdDoNotShowResults() throws Exception {
+    mockMvc.perform(get("/knowledge/retrievals").param("retrievalId", "bad").param("classification", "PUBLIC")
+        .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
+    verifyNoInteractions(identity, knowledge);
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.retrieval.read"),
+        "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/knowledge/retrievals/a1234567-1234-4234-8234-123456789012")
+        .param("classification", "PUBLIC").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Retrieval access failed")));
+    verifyNoInteractions(knowledge);
+  }
+
+  @Test
   void retrievalDisplaysEscapedExcerptsAndCaseBinding() throws Exception {
     String key = "123e4567-e89b-42d3-a456-426614174000";
     when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.retrieval.run"),

@@ -26,6 +26,8 @@
     <pre class="knowledge-content" th:if="${result.excerpt != null}" th:text="${result.excerpt}">Excerpt</pre>
     <p th:text="|Source digest: ${result.sourceDigest}|">Digest</p>
   </li></ul>
+  <p><a th:href="@{/knowledge/retrievals/{id}(id=${receipt.retrievalId},classification=${receipt.maxClassification})}">Recheck this retrieval</a></p>
+  <p><a href="/knowledge/retrievals">Read another retained retrieval</a></p>
   <p><a href="/knowledge/retrieve">Start a new retrieval</a></p>
   <p><a href="/knowledge">Back to knowledge metadata</a></p>
 </main>

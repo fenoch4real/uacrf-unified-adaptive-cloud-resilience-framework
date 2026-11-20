@@ -51,6 +51,36 @@ class KnowledgeClientTests {
   }
 
   @Test
+  void readsOnlyMatchingRetrievalWithinSelectedClearance() {
+    String id = "a1234567-1234-4234-8234-123456789012";
+    String receipt = """
+        {"retrieval_id":"%s","case_id":null,"case_binding":"NOT_VERIFIED","case_digest":null,
+         "workload_id":null,"purpose":"review","max_classification":"INTERNAL","query":"hello",
+         "created_at":"2026-01-01T00:00:00Z",
+         "manifest_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","results":[]}
+        """.formatted(id);
+    for (String body : List.of(receipt, receipt.replace(id, "b1234567-1234-4234-8234-123456789012"))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/retrievals/" + id))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      KnowledgeClient client = new KnowledgeClient(builder.build());
+      if (body.equals(receipt)) assertThat(client.readRetrieval("reader", id, KnowledgeClient.Classification.INTERNAL).retrievalId()).isEqualTo(id);
+      else assertThatThrownBy(() -> client.readRetrieval("reader", id, KnowledgeClient.Classification.INTERNAL))
+          .isInstanceOf(IllegalStateException.class);
+      server.verify();
+    }
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/retrievals/" + id))
+        .andRespond(withSuccess(receipt, MediaType.APPLICATION_JSON));
+    assertThatThrownBy(() -> new KnowledgeClient(builder.build()).readRetrieval("reader", id, KnowledgeClient.Classification.PUBLIC))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
   void checksRetrievalAndConcealedOrDigestBoundExcerpts() {
     String digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
     String receipt = """

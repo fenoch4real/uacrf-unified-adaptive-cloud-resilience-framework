@@ -1489,7 +1489,18 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   after a verified case changed. The 11-test isolated browser suite verified
   synthetic retrieval and replay, ungranted denial and concealment after
   withdrawal. Its case binding was `NOT_VERIFIED`; it is not provider
-  acceptance. Historical retrieval browsing is not yet connected in UX01.
+  acceptance.
+- UX01 can recheck a known retained retrieval ID through EDGE01 using a
+  separate context-bound `knowledge.retrieval.read` delegation and explicitly
+  selected classification clearance. It validates the returned ID,
+  classification ceiling, manifest metadata and available excerpt digests;
+  excerpts are escaped and owner-side current case/source checks can conceal
+  them. Denial or malformed data is visible, not an empty result or fallback.
+  The lookup is by known ID; listing retrieval history is not implemented.
+  Clean focused web tests passed 138 tests, with additional tests for
+  mismatched IDs and denial. The 11-test isolated browser suite verified an
+  ungranted read denial and readback after synthetic source withdrawal;
+  this does not establish provider acceptance.
 - `services/knowledge` (port 8090, audience S08, database/schema
   `uacrf_knowledge`) owns its own retained material, version lifecycle,
   retrieval manifests, and transactional outbox. Its PostgreSQL database has a

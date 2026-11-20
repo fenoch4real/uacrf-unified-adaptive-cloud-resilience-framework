@@ -137,7 +137,9 @@ withdrawn state. This lifecycle test does not establish provider acceptance.
 The same flow runs and replays a keyed exact-term retrieval, denies a user
 without `knowledge.retrieval.run`, then verifies the replay conceals the
 withdrawn excerpt. Its synthetic manifest is `NOT_VERIFIED`, not a verified
-case binding or provider acceptance.
+case binding or provider acceptance. A separate read grant is required to
+recheck the known retrieval ID: the ungranted reviewer is denied, while the
+authorized reader sees the excerpt concealed after withdrawal.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

@@ -20,13 +20,16 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 @Controller
 class KnowledgeRetrievalController {
+  private static final String RETRIEVAL_ID = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
   private final IdentityAccessClient identity;
   private final KnowledgeClient knowledge;
 
@@ -42,6 +45,53 @@ class KnowledgeRetrievalController {
     model.addAttribute("retrievalForm", new RetrievalForm("", "", "PUBLIC", "", 10,
         UUID.randomUUID().toString(), context.tenantId(), context.environmentId()));
     return "knowledge-retrieve";
+  }
+
+  @GetMapping("/knowledge/retrievals")
+  String lookup(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @RequestParam(required = false) String retrievalId,
+      @RequestParam(defaultValue = "PUBLIC") String classification, Model model) {
+    if (retrievalId != null) return read(client, session, response, retrievalId, classification, model);
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("classification", classification);
+    return "knowledge-retrieval-lookup";
+  }
+
+  @GetMapping("/knowledge/retrievals/{id}")
+  String read(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @PathVariable String id,
+      @RequestParam String classification, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("retrievalId", id);
+    model.addAttribute("classification", classification);
+    if (!id.matches(RETRIEVAL_ID) || !List.of("PUBLIC", "INTERNAL", "RESTRICTED").contains(classification)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("lookupError", "Invalid retrieval ID or classification.");
+      return "knowledge-retrieval-lookup";
+    }
+    var ceiling = KnowledgeClient.Classification.valueOf(classification);
+    List<String> capabilities = new ArrayList<>(List.of("knowledge.retrieval.read"));
+    if (ceiling == KnowledgeClient.Classification.INTERNAL) capabilities.add("knowledge.classification.internal.read");
+    if (ceiling == KnowledgeClient.Classification.RESTRICTED) capabilities.add("knowledge.classification.restricted.read");
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S08", null,
+          List.copyOf(capabilities), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("receipt", knowledge.readRetrieval(token, id, ceiling));
+      return "knowledge-retrieved";
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("lookupError", "Identity or knowledge service is unavailable; retrieval was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("lookupError", "Retrieval access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("lookupError", "Retrieval details were invalid or exceed the selected classification.");
+    }
+    return "knowledge-retrieval-lookup";
   }
 
   @PostMapping("/knowledge/retrieve")

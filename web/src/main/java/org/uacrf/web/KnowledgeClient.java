@@ -111,18 +111,38 @@ class KnowledgeClient {
     Retrieval receipt = restClient.post().uri("/v1/retrievals:idempotent")
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
         .body(request).retrieve().body(Retrieval.class);
-    if (receipt == null || receipt.retrievalId() == null
-        || !receipt.retrievalId().matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    if (!validRetrieval(receipt, request.maxClassification())
         || !Objects.equals(request.caseId(), receipt.caseId())
         || !request.purpose().equals(receipt.purpose()) || !request.query().equals(receipt.query())
         || request.maxClassification() != receipt.maxClassification()
-        || receipt.manifestDigest() == null || !receipt.manifestDigest().matches("^[0-9a-f]{64}$")
-        || receipt.createdAt() == null || receipt.results() == null || receipt.results().size() > request.maxResults()
-        || !validCaseBinding(receipt)
-        || receipt.results().stream().anyMatch(result -> !validResult(result, request))) {
+        || receipt.results().size() > request.maxResults()) {
       throw new IllegalStateException("S08 returned an invalid or mismatched retrieval.");
     }
     return receipt;
+  }
+
+  Retrieval readRetrieval(String token, String id, Classification ceiling) {
+    Retrieval receipt = restClient.get()
+        .uri(uri -> uri.path("/v1/retrievals/{id}").build(id))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(Retrieval.class);
+    if (!validRetrieval(receipt, ceiling) || !id.equals(receipt.retrievalId())) {
+      throw new IllegalStateException("S08 returned invalid or mismatched retrieval metadata.");
+    }
+    return receipt;
+  }
+
+  private static boolean validRetrieval(Retrieval receipt, Classification ceiling) {
+    return receipt != null && receipt.retrievalId() != null
+        && receipt.retrievalId().matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        && (receipt.caseId() == null || receipt.caseId().matches(IDENTIFIER))
+        && receipt.purpose() != null && receipt.purpose().matches(IDENTIFIER)
+        && present(receipt.query()) && receipt.query().length() <= 2000
+        && receipt.maxClassification() != null && receipt.maxClassification().ordinal() <= ceiling.ordinal()
+        && receipt.manifestDigest() != null && receipt.manifestDigest().matches("^[0-9a-f]{64}$")
+        && receipt.createdAt() != null && receipt.results() != null && receipt.results().size() <= 10
+        && validCaseBinding(receipt)
+        && receipt.results().stream().allMatch(result -> validResult(result, receipt.purpose(), receipt.maxClassification()));
   }
 
   private static boolean validCaseBinding(Retrieval receipt) {
@@ -132,7 +152,7 @@ class KnowledgeClient {
         && receipt.workloadId() != null && receipt.workloadId().matches(IDENTIFIER);
   }
 
-  private static boolean validResult(RetrievalResult result, RetrievalRequest request) {
+  private static boolean validResult(RetrievalResult result, String purpose, Classification ceiling) {
     return result != null && result.itemId() != null && result.itemId().matches(IDENTIFIER)
         && result.version() != null && result.version().matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$")
         && result.chunkIndex() != null && result.chunkIndex() >= 0
@@ -141,8 +161,8 @@ class KnowledgeClient {
         && result.endOffset() - result.startOffset() <= 1000
         && result.sourceDigest() != null && result.sourceDigest().matches("^[0-9a-f]{64}$")
         && result.excerptDigest() != null && result.excerptDigest().matches("^[0-9a-f]{64}$")
-        && validIdentifiers(result.allowedPurposes(), false) && result.allowedPurposes().contains(request.purpose())
-        && result.classification() != null && result.classification().ordinal() <= request.maxClassification().ordinal()
+        && validIdentifiers(result.allowedPurposes(), false) && result.allowedPurposes().contains(purpose)
+        && result.classification() != null && result.classification().ordinal() <= ceiling.ordinal()
         && result.score() != null && result.score() > 0
         && (result.excerpt() == null || (result.excerpt().codePointCount(0, result.excerpt().length())
             == result.endOffset() - result.startOffset() && sha256(result.excerpt()).equals(result.excerptDigest())));

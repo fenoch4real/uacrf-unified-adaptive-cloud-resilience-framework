@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Read retained retrieval | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body>
+<main>
+  <h1>Read a retained retrieval</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/knowledge">Back to knowledge metadata</a></p>
+  <p>Enter a retained retrieval ID and its maximum classification. A current read grant and the
+    chosen classification clearance are required. The ID appears in the URL. This is not a list of all retrievals.</p>
+  <p role="alert" th:if="${lookupError != null}" th:text="${lookupError}"></p>
+  <search>
+    <form method="get" th:action="@{/knowledge/retrievals}">
+      <p><label for="retrievalId">Retrieval ID (required)</label>
+        <input id="retrievalId" name="retrievalId" type="text" th:value="${retrievalId}" maxlength="36" required
+               autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+      <fieldset><legend>Maximum classification (required)</legend>
+        <input id="public" type="radio" name="classification" value="PUBLIC" th:checked="${classification == 'PUBLIC'}"><label for="public">Public</label>
+        <input id="internal" type="radio" name="classification" value="INTERNAL" th:checked="${classification == 'INTERNAL'}"><label for="internal">Internal and public</label>
+        <input id="restricted" type="radio" name="classification" value="RESTRICTED" th:checked="${classification == 'RESTRICTED'}"><label for="restricted">Restricted and lower</label>
+      </fieldset>
+      <button type="submit">Read retrieval</button>
+    </form>
+  </search>
+</main>
+</body>
+</html>

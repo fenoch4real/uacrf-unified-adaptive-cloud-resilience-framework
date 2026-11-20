@@ -312,7 +312,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
       'knowledge.item.read', 'knowledge.item.write', 'knowledge.item.review', 'knowledge.item.withdraw',
-      'knowledge.retrieval.run', 'knowledge.classification.internal.read',
+      'knowledge.retrieval.run', 'knowledge.retrieval.read', 'knowledge.classification.internal.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -534,6 +534,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       expect(retrievalResponse.status()).toBe(200);
       await expect(sample.getByText('NOT_VERIFIED', { exact: true })).toBeVisible();
       await expect(sample.getByText('Synthetic material for withdrawal.')).toBeVisible();
+      const readRetrievalUrl = await sample.getByRole('link', { name: 'Recheck this retrieval' }).getAttribute('href');
+      const deniedRead = await reviewer.goto(readRetrievalUrl);
+      expect(deniedRead.status()).toBe(403);
       const retryRetrieval = await sample.request.post('/knowledge/retrieve', {
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         data: retrievalResponse.request().postData(),
@@ -567,6 +570,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const concealedHtml = await concealedReplay.text();
       expect(concealedHtml).not.toContain('Synthetic material for withdrawal.');
       expect(concealedHtml).toContain('Excerpt unavailable after current checks.');
+      await sample.goto(readRetrievalUrl);
+      await expect(sample.getByText('Excerpt unavailable after current checks.')).toBeVisible();
+      await expect(sample.getByText('Synthetic material for withdrawal.')).toHaveCount(0);
     } finally {
       await reviewerContext.close();
     }
