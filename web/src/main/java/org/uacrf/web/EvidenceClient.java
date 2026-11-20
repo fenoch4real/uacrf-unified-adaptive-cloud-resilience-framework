@@ -15,7 +15,7 @@ class EvidenceClient {
     this.restClient = restClient;
   }
 
-  EvidencePage list(String token, String cursor) {
+  EvidencePage list(String token, String cursor, String serviceId) {
     EvidencePage page = restClient.get()
         .uri(uri -> {
           var request = uri.path("/v1/evidence").queryParam("pageSize", 25);
@@ -28,7 +28,8 @@ class EvidenceClient {
         .retrieve().body(EvidencePage.class);
     if (page == null || page.items() == null
         || (page.nextCursor() != null && page.nextCursor().isBlank())
-        || page.items().stream().anyMatch(item -> !valid(item))) {
+        || page.items().stream().anyMatch(item -> !valid(item)
+            || (serviceId != null && !serviceId.equals(item.serviceId())))) {
       throw new IllegalStateException("S04 returned an incomplete evidence page.");
     }
     return page;

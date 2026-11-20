@@ -15,6 +15,13 @@
   <p>These are records retained by S04. S03 connection observations do not automatically
     appear here. A recorded qualification state does not establish current usability:
     purpose, freshness, conflicts, and other checks still apply.</p>
+  <form method="get" th:action="@{/evidence}">
+    <label for="serviceId">Service ID (optional)</label>
+    <input id="serviceId" name="serviceId" type="text" maxlength="200" th:value="${serviceId}">
+    <button type="submit">Show evidence</button>
+  </form>
+  <p>Leave the service ID empty for all records, including unbound records; this requires
+    global evidence-read authority. A service ID requests only that service's records.</p>
   <p role="status" th:if="${evidenceError != null}" th:text="${evidenceError}"></p>
   <p th:if="${evidenceError == null and #lists.isEmpty(evidence)}">No evidence records are available on this page.</p>
   <ul class="inventory-list">
@@ -40,7 +47,8 @@
     </li>
   </ul>
   <nav aria-label="Evidence pages" th:if="${nextCursor != null}">
-    <a th:href="@{/evidence(cursor=${nextCursor})}">Next evidence records</a>
+    <a th:if="${serviceId == null}" th:href="@{/evidence(cursor=${nextCursor})}">Next evidence records</a>
+    <a th:if="${serviceId != null}" th:href="@{/evidence(cursor=${nextCursor},serviceId=${serviceId})}">Next evidence records</a>
   </nav>
 </main>
 </body>

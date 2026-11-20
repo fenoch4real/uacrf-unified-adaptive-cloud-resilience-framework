@@ -28,7 +28,7 @@ class EvidenceClientTests {
             "payload_byte_length":2,"submitted_by":"test","qualification_state":"SAMPLE_ONLY",
             "revision":1,"reviewed_by":null,"review_reason":null}],"next_cursor":"next"}
             """, MediaType.APPLICATION_JSON));
-    var page = new EvidenceClient(builder.build()).list("delegated", "start");
+    var page = new EvidenceClient(builder.build()).list("delegated", "start", null);
     assertThat(page.nextCursor()).isEqualTo("next");
     assertThat(page.items()).singleElement().satisfies(item -> {
       assertThat(item.sourceClass()).isEqualTo("SAMPLE_LOCAL");
@@ -56,9 +56,27 @@ class EvidenceClientTests {
       server.expect(requestTo("http://edge.test/v1/evidence?pageSize=25"))
           .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
       EvidenceClient client = new EvidenceClient(builder.build());
-      assertThatThrownBy(() -> client.list("delegated", null))
+      assertThatThrownBy(() -> client.list("delegated", null, null))
           .isInstanceOf(IllegalStateException.class);
       server.verify();
     }
+  }
+
+  @Test
+  void rejectsRecordsOutsideTheRequestedServiceScope() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/evidence?pageSize=25"))
+        .andRespond(withSuccess("""
+            {"items":[{"id":"sample","source_class":"SAMPLE_LOCAL","source_ref":"sample:source",
+            "sequence":1,"observed_at":"2026-11-12T09:05:00Z","kind":"sample.metric",
+            "service_id":"other","payload_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "payload_byte_length":2,"submitted_by":"test","qualification_state":"SAMPLE_ONLY",
+            "revision":1}],"next_cursor":null}
+            """, MediaType.APPLICATION_JSON));
+    EvidenceClient client = new EvidenceClient(builder.build());
+    assertThatThrownBy(() -> client.list("delegated", null, "requested"))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
   }
 }

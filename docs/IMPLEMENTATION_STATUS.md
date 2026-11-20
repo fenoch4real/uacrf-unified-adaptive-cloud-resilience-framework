@@ -810,13 +810,18 @@ sample-only records and does not expose payloads or treat a recorded
 qualification state as proof of current usability. S03 connection observations
 do not automatically become S04 evidence. Invalid upstream pages and denied
 or unavailable reads are reported rather than shown as empty results.
-The clean web-module suite passed 103 tests with no failures, errors or skips.
+An optional service ID requests an exact-service delegation and is retained
+across pages; an empty selection requires global authority. UX01 rejects a
+service-scoped response containing an unbound or differently bound record.
+The clean web-module suite passed 105 tests with no failures, errors or skips.
 The isolated live browser suite passed all 11 tests with S04 and its own database
 added to the stack. A separately admitted SYSTEM fixture writer receives only
 `evidence.event.write`; the browser reader receives `evidence.event.read` via
 independently approved memberships. The S04 image's required contract schemas
 are now included in the Docker build context; their prior omission prevented
-the image from starting.
+the image from starting. A separate human with only a service-scoped evidence
+grant is denied global and different-service reads, and can read the matching
+synthetic service-bound record through the browser.
 
 S04 evidence list, detail, qualification receipt and measurement reads now
 filter service-scoped delegations to records with the same `service_id`;
@@ -825,9 +830,8 @@ applying the limit, and mismatched or unbound detail/receipt reads return 404.
 The separate resource- and purpose-scoped topology summary contract is unchanged.
 The evidence and delegation modules passed 35 tests; a subsequent targeted
 PostgreSQL test also verified pagination past records outside the delegated
-scope. The live browser suite uses a global read delegation and does not
-independently exercise scoped reads. Production identity, provider conformance,
-and full M2 acceptance remain unverified.
+scope. Production identity, provider conformance, and full M2 acceptance
+remain unverified.
 
 - `POST /internal/v1/observations` retains submitted payload text. Admission
   computes its UTF-8 bytes once to verify SHA-256 and byte length. Accepted rows

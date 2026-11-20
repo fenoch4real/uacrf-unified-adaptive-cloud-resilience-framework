@@ -28,18 +28,21 @@ class EvidenceController {
   String list(
       @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,
-      @RequestParam(required = false) String cursor, Model model) {
+      @RequestParam(required = false) String cursor,
+      @RequestParam(required = false) String serviceId, Model model) {
     Object selected = session.getAttribute(BrowserContext.SESSION_KEY);
     if (!(selected instanceof BrowserContext context)) {
       return "redirect:/contexts";
     }
     model.addAttribute("selectedContext", context);
     model.addAttribute("evidence", List.of());
+    String scope = serviceId == null || serviceId.isBlank() ? null : serviceId.strip();
+    model.addAttribute("serviceId", scope);
     try {
       String token = identity.createDelegation(
-          client.getAccessToken().getTokenValue(), "S04", null, List.of("evidence.event.read"),
+          client.getAccessToken().getTokenValue(), "S04", scope, List.of("evidence.event.read"),
           context.tenantId(), context.environmentId()).accessToken();
-      EvidenceClient.EvidencePage page = evidence.list(token, cursor);
+      EvidenceClient.EvidencePage page = evidence.list(token, cursor, scope);
       model.addAttribute("evidence", page.items());
       model.addAttribute("nextCursor", page.nextCursor());
     } catch (ResourceAccessException error) {

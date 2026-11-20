@@ -902,7 +902,7 @@ class WebApplicationTests {
             "test-access-token", "S04", null, List.of("evidence.event.read"),
             "tenant-test", "environment-test"))
         .thenReturn(new IdentityAccessClient.Delegation("s04-delegation", "Bearer", 30));
-    when(evidence.list("s04-delegation", "current"))
+    when(evidence.list("s04-delegation", "current", null))
         .thenReturn(new EvidenceClient.EvidencePage(List.of(new EvidenceClient.Evidence(
             "sample", "SAMPLE_LOCAL", "sample:<source>", 1L, "2026-11-12T09:05:00Z",
             "sample.metric", null, null, "a".repeat(64), 2L, "submitter",
@@ -939,11 +939,30 @@ class WebApplicationTests {
         .andExpect(content().string(containsString("Evidence access failed (HTTP 403)")))
         .andExpect(content().string(not(containsString("No evidence records are available"))));
     verifyNoInteractions(evidence);
-    when(evidence.list("s04-delegation", null)).thenThrow(new IllegalStateException("invalid"));
+    when(evidence.list("s04-delegation", null, null)).thenThrow(new IllegalStateException("invalid"));
     mockMvc.perform(get("/evidence").with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isBadGateway())
         .andExpect(content().string(containsString("returned an invalid response")))
         .andExpect(content().string(not(containsString("No evidence records are available"))));
+  }
+
+  @Test
+  void preservesServiceScopeInEvidenceDelegationAndPagination() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S04", "service-a", List.of("evidence.event.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("scoped-delegation", "Bearer", 30));
+    when(evidence.list("scoped-delegation", "current", "service-a"))
+        .thenReturn(new EvidenceClient.EvidencePage(List.of(), "next-page"));
+    mockMvc.perform(get("/evidence").param("serviceId", "service-a").param("cursor", "current")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("value=\"service-a\"")))
+        .andExpect(content().string(containsString("/evidence?cursor=next-page&amp;serviceId=service-a")))
+        .andExpect(content().string(not(containsString("scoped-delegation"))));
+    verify(identity).createDelegation(
+        "test-access-token", "S04", "service-a", List.of("evidence.event.read"),
+        "tenant-test", "environment-test");
   }
 
   @Test

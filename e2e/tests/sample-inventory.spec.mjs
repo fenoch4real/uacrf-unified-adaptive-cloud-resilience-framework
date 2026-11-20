@@ -102,6 +102,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   const password = randomBytes(24).toString('hex');
   const transfereeUsername = `transferee-${randomUUID()}`;
   const transfereePassword = randomBytes(24).toString('hex');
+  const fixtureServiceId = `fixture-service-${randomUUID()}`;
   const tokenResponse = await fetch('http://localhost:8180/realms/master/protocol/openid-connect/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -265,16 +266,17 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
       { principalId: transfereePrincipalId, capability: 'owner.eligible' },
+      { principalId: transfereePrincipalId, capability: 'evidence.event.read', scope: fixtureServiceId },
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
       { principalId: runtimePrincipalId, capability: 'evidence.inbox.write' },
       { principalId: collectorPrincipalId, capability: 'connections.observation.write' },
       { principalId: evidencePrincipalId, capability: 'evidence.event.write' },
     ];
-    for (const { principalId: targetPrincipalId, capability } of grants) {
+    for (const { principalId: targetPrincipalId, capability, scope = '*' } of grants) {
       await approver.goto('/memberships');
       await approver.getByLabel('Target principal ID (required)').fill(targetPrincipalId);
       await approver.getByLabel('Capability (required)').fill(capability);
-      await approver.getByLabel('Service scope (required)').fill('*');
+      await approver.getByLabel('Service scope (required)').fill(scope);
       await approver.getByLabel('Membership expiry (UTC, ISO-8601; required)').fill(expiresAt);
       await approver.getByLabel('Approval reason (required)').fill('Approve isolated sample test.');
       await approver.getByRole('button', { name: 'Record approval decision' }).click();
@@ -283,7 +285,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await page.goto('/memberships');
       await page.getByLabel('Target principal ID (required)').fill(targetPrincipalId);
       await page.getByLabel('Capability (required)').fill(capability);
-      await page.getByLabel('Service scope (required)').fill('*');
+      await page.getByLabel('Service scope (required)').fill(scope);
       await page.getByLabel('Approved membership expiry (UTC, ISO-8601; required)').fill(expiresAt);
       await page.getByLabel('Membership reason (required)').fill('Approve isolated sample test.');
       await page.getByLabel('Authorization reference (required)').fill(authorizationRef);
@@ -342,6 +344,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     body: JSON.stringify({
       id: fixtureId, source_class: 'SAMPLE_LOCAL', source_ref: 'sample:browser-evidence',
       sequence: 1, observed_at: new Date().toISOString(), kind: 'sample.metric',
+      service_id: fixtureServiceId,
       payload: fixturePayload, payload_digest: createHash('sha256').update(fixturePayload).digest('hex'),
     }),
   });
@@ -503,6 +506,21 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ).toBeVisible();
       await selectLocalContext(restricted);
       await expectCurrentAccess(restricted, 'Browser Transferee', ['owner.eligible']);
+
+      const globalEvidence = await restricted.goto('/evidence');
+      expect(globalEvidence.status()).toBe(403);
+      await restricted.getByLabel('Service ID (optional)').fill(fixtureServiceId);
+      await restricted.getByRole('button', { name: 'Show evidence' }).click();
+      await expect(restricted.getByRole('listitem').filter({ hasText: fixtureId }))
+        .toContainText('SAMPLE_ONLY');
+      await restricted.getByLabel('Service ID (optional)').fill('other-service');
+      const [deniedEvidence] = await Promise.all([
+        restricted.waitForResponse((response) =>
+          response.url().includes('/evidence?') && response.request().isNavigationRequest()),
+        restricted.getByRole('button', { name: 'Show evidence' }).click(),
+      ]);
+      expect(deniedEvidence.status()).toBe(403);
+      await expect(restricted.getByText(fixtureId, { exact: true })).toHaveCount(0);
 
       const deniedResponse = await restricted.goto('/agents');
       expect(deniedResponse.status()).toBe(403);
