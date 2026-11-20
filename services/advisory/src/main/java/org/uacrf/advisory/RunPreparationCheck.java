@@ -3,6 +3,7 @@ package org.uacrf.advisory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,6 +36,9 @@ final class RunPreparationCheck {
     List<DispatchJournal.Intent> journalIntents(DispatchJournal.RunKey runKey, long generation,
                                                 Map<String, String> assignmentIds) {
       Objects.requireNonNull(runKey, "runKey");
+      if (!preparation.request().deadline().isAfter(Instant.now())) {
+        throw new IllegalArgumentException("Advisory run deadline has expired.");
+      }
       if (generation < 1 || !runKey.tenantId().equals(preparation.tenantId())
           || !runKey.environmentId().equals(preparation.environmentId())) {
         throw new IllegalArgumentException("Journal run identity does not match the prepared request.");

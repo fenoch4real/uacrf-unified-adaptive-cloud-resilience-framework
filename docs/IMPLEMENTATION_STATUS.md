@@ -1370,7 +1370,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   match its tenant/environment and allocation profiles; each intent uses the
   generated attempt ID and exact packet bytes, with context digest equal to the
   packet-byte digest. This rejects mismatched gateway attempts, models, limits
-  or contexts, but only derives intents: it does not persist or admit them.
+  or contexts. Intent derivation rechecks the original run deadline, so a
+  prepared snapshot cannot derive new journal intents after expiry. This
+  remains only intent derivation: it does not persist or admit them.
   Future profile changes, run-boundary authorization, complete graph/evidence
   inputs, and current eligibility beyond point-in-time owner checks remain
   unestablished; provider dispatch remains disabled. Preparation rejects a
