@@ -446,6 +446,7 @@ final class DispatchJournal {
     Objects.requireNonNull(claim, "claim");
     Objects.requireNonNull(retryDelay, "retryDelay");
     if (retryDelay.isNegative() || retryDelay.isZero()
+        || retryDelay.compareTo(outboxRetryBackoff(claim.attemptCount())) < 0
         || retryDelay.compareTo(Duration.ofMinutes(15)) > 0) {
       throw new IllegalArgumentException("Invalid outbox retry delay.");
     }
@@ -481,6 +482,14 @@ final class DispatchJournal {
         throw failure;
       }
     }
+  }
+
+  static Duration outboxRetryBackoff(int attemptCount) {
+    if (attemptCount < 1) {
+      throw new IllegalArgumentException("Outbox attempt count must be positive.");
+    }
+    int exponent = Math.min(attemptCount - 1, 10);
+    return Duration.ofSeconds(Math.min(1L << exponent, Duration.ofMinutes(15).toSeconds()));
   }
 
   boolean markOutboxPublished(OutboxClaim claim) throws SQLException {
