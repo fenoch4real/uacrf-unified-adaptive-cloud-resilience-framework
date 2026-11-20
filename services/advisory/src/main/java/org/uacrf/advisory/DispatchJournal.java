@@ -350,7 +350,7 @@ final class DispatchJournal {
           FROM uacrf_advisory.outbox_delivery delivery
           JOIN uacrf_advisory.outbox_event event ON event.event_id = delivery.event_id
           WHERE event.tenant_id = ? AND event.environment_id = ? AND event.state = 'PENDING'
-            AND (delivery.state = 'PENDING'
+            AND ((delivery.state = 'PENDING' AND delivery.available_at <= clock_timestamp())
               OR (delivery.state = 'CLAIMED' AND delivery.lease_expires_at <= clock_timestamp()))
           ORDER BY event.created_at, event.event_id
           LIMIT ?
@@ -431,6 +431,47 @@ final class DispatchJournal {
         boolean renewed = statement.executeUpdate() == 1;
         connection.commit();
         return renewed;
+      } catch (SQLException | RuntimeException failure) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        throw failure;
+      }
+    }
+  }
+
+  boolean releaseOutboxClaim(OutboxClaim claim, Duration retryDelay) throws SQLException {
+    Objects.requireNonNull(claim, "claim");
+    Objects.requireNonNull(retryDelay, "retryDelay");
+    if (retryDelay.isNegative() || retryDelay.isZero()
+        || retryDelay.compareTo(Duration.ofMinutes(15)) > 0) {
+      throw new IllegalArgumentException("Invalid outbox retry delay.");
+    }
+    long retryDelayMillis = retryDelay.toMillis();
+    if (retryDelayMillis < 1) {
+      throw new IllegalArgumentException("Outbox retry delay must be at least one millisecond.");
+    }
+    try (Connection connection = committedConnection()) {
+      connection.setAutoCommit(false);
+      try (PreparedStatement statement = connection.prepareStatement("""
+          UPDATE uacrf_advisory.outbox_delivery AS delivery
+          SET state = 'PENDING', claim_token = NULL, lease_expires_at = NULL,
+              available_at = clock_timestamp()
+                + make_interval(secs => ?::double precision / 1000.0)
+          FROM uacrf_advisory.outbox_event event
+          WHERE delivery.event_id = ? AND event.event_id = delivery.event_id
+            AND event.tenant_id = ? AND event.environment_id = ? AND event.run_id = ?
+            AND event.generation = ? AND event.event_type = ?
+            AND delivery.state = 'CLAIMED' AND delivery.claim_token = ?
+            AND delivery.lease_expires_at > clock_timestamp()
+          """)) {
+        statement.setLong(1, retryDelayMillis);
+        bindOutboxClaim(statement, claim, 2);
+        boolean released = statement.executeUpdate() == 1;
+        connection.commit();
+        return released;
       } catch (SQLException | RuntimeException failure) {
         try {
           connection.rollback();

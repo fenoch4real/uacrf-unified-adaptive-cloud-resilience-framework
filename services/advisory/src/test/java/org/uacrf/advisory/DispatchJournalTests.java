@@ -184,7 +184,8 @@ class DispatchJournalTests {
     try (Connection connection = dataSource.getConnection();
          var statement = connection.prepareStatement("""
              SELECT event.event_id, event.state, delivery.state, delivery.attempt_count,
-                    delivery.published_at IS NOT NULL
+                    delivery.published_at IS NOT NULL,
+                    delivery.available_at <= clock_timestamp()
              FROM uacrf_advisory.outbox_event event
              JOIN uacrf_advisory.outbox_delivery delivery USING (event_id)
              WHERE event.tenant_id = 'migration-backfill'
@@ -197,6 +198,7 @@ class DispatchJournalTests {
       assertEquals("PENDING", result.getString(3));
       assertEquals(0, result.getInt(4));
       assertFalse(result.getBoolean(5));
+      assertTrue(result.getBoolean(6));
 
       assertTrue(result.next());
       assertEquals("legacy-published", result.getString(1));
@@ -204,6 +206,7 @@ class DispatchJournalTests {
       assertEquals("PUBLISHED", result.getString(3));
       assertEquals(0, result.getInt(4));
       assertTrue(result.getBoolean(5));
+      assertTrue(result.getBoolean(6));
       assertFalse(result.next());
     }
   }
@@ -402,6 +405,7 @@ class DispatchJournalTests {
     Thread.sleep(20);
     assertFalse(journal.markOutboxPublished(initialClaim));
     assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
+    assertFalse(journal.releaseOutboxClaim(initialClaim, Duration.ofSeconds(1)));
     var reclaimed = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofSeconds(1))
         .getFirst();
     assertEquals(initialClaim.eventId(), reclaimed.eventId());
@@ -409,6 +413,7 @@ class DispatchJournalTests {
     assertFalse(initialClaim.claimToken().equals(reclaimed.claimToken()));
     assertFalse(journal.markOutboxPublished(initialClaim));
     assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
+    assertFalse(journal.releaseOutboxClaim(initialClaim, Duration.ofSeconds(1)));
     assertTrue(journal.markOutboxPublished(reclaimed));
     assertFalse(journal.markOutboxPublished(reclaimed));
     try (Connection connection = dataSource.getConnection();
@@ -440,6 +445,31 @@ class DispatchJournalTests {
     Thread.sleep(150);
     assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
     assertTrue(journal.markOutboxPublished(claim));
+  }
+
+  @Test
+  void failedOutboxClaimCanBeReleasedWithBoundedRetryDelay() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-retry";
+    admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-1"),
+        admissionRequest(TEST_DEADLINE, "Outbox retry schedule test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-outbox-retry");
+    var claim = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofMinutes(1)).getFirst();
+    assertThrows(IllegalArgumentException.class,
+        () -> journal.releaseOutboxClaim(claim, Duration.ZERO));
+    assertThrows(IllegalArgumentException.class,
+        () -> journal.releaseOutboxClaim(claim, Duration.ofMinutes(16)));
+    assertTrue(journal.releaseOutboxClaim(claim, Duration.ofMillis(100)));
+    assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
+    assertFalse(journal.markOutboxPublished(claim));
+    assertFalse(journal.releaseOutboxClaim(claim, Duration.ofSeconds(1)));
+
+    Thread.sleep(150);
+    var retry = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).getFirst();
+    assertEquals(claim.eventId(), retry.eventId());
+    assertEquals(2, retry.attemptCount());
+    assertFalse(claim.claimToken().equals(retry.claimToken()));
+    assertTrue(journal.markOutboxPublished(retry));
   }
 
   @Test
