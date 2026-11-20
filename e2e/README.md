@@ -1,12 +1,12 @@
 # Browser E2E tests
 
 The live browser suite verifies the local Keycloak OIDC login and UX01 →
-EDGE01 → S01/S02 workflows against disposable infrastructure.
+EDGE01 → S01/S02/S07 workflows against disposable infrastructure.
 
 ## Run
 
 Prerequisites: Docker with a running daemon, Node.js, npm, and free loopback
-ports 8080, 8081, 8082, 8083, 8084, 8085, and 8180.
+ports 8080–8087, 8089, and 8180.
 
 ```sh
 npm ci --prefix e2e
@@ -15,7 +15,7 @@ npm --prefix e2e run test:live
 ```
 
 `test:live` builds the required application images, starts an isolated
-PostgreSQL/Keycloak/application stack, including S02 and S03, waits for service
+PostgreSQL/Keycloak/application stack, including S02, S03, and S07, waits for service
 health endpoints, and runs Playwright headlessly. It generates test passwords,
 client secrets, and delegation keys in a private temporary directory;
 credentials are not stored
@@ -74,6 +74,13 @@ a narrow S03 delegation through S01. An ungranted catalog capability is
 denied. The collection runner remains disabled in this browser stack, so this
 is identity/delegation evidence only—not collection execution or provider
 acceptance.
+
+The same user receives an independently approved global
+`assessment.case.read` grant and browses two synthetic draft cases through
+UX01, EDGE01, and S07. The suite checks workload filtering and denial for a
+separately admitted user without that grant. The cases are inserted directly
+into the disposable database, bypassing case creation; they are not qualified
+evidence or provider acceptance. The S07 case-list API is unpaginated.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

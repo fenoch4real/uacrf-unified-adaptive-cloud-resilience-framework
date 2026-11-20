@@ -1,10 +1,20 @@
 # Runtime Validation Report
 
-**Generated**: 2026-11-19
+**Updated**: 2026-11-20
 
 **Target**: UACRF repository
 
 ## Latest live browser run
+
+On 2026-11-20, `npm --prefix e2e run test:live` passed **11 tests**
+with exit code 0 against a fresh isolated Compose stack including S07 and its
+own PostgreSQL database. The sample user received an independently approved
+global `assessment.case.read` grant and browsed two synthetic draft cases
+through UX01, EDGE01, and S07, including workload filtering. A separately
+admitted user without the grant received HTTP 403 and saw no case. The fixture
+cases were inserted directly into the disposable database, bypassing case
+creation; the unpaginated case list does not prove evaluation or provider
+acceptance. The runner removed the disposable stack.
 
 On 2026-11-19, `npm --prefix e2e run test:live` passed **11 tests** with exit
 code 0 using one Playwright worker. The disposable Compose stack included S02
@@ -65,11 +75,18 @@ below; the full Maven reactor was not rerun for the follow-ups.
 | Step | Status | Exit Code | Details |
 |---|---|---:|---|
 | Startup | PASS | 0 | Isolated Compose stack; Keycloak realm discovery and all application actuator health endpoints returned 2xx |
+| Full UX01 module | PASS | 0 | Clean Maven run; 114 tests, 0 failures, 0 errors, 0 skipped |
 | Prior combined targeted tests | PASS | 0 | S01 Identity (25), S02 Estate Catalog (12), and UX01 (85); 122 tests, 0 failures, 0 errors, 0 skipped |
 | Targeted UX01 tests | PASS | 0 | Current focused rerun: `WebApplicationTests`, 87 tests, 0 failures, 0 errors, 0 skipped |
 | Browser E2E | PASS | 0 | `npm --prefix e2e run test:live`; 11 tests in 4 files, all passed |
 
 **Overall**: PASS
+
+The full UX01 module was run with:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dstyle.color=never -pl web -am clean test
+```
 
 The prior combined targeted tests were run with:
 
@@ -132,6 +149,8 @@ added. Existing Java/MockMvc tests are retained and run through Maven.
   deployment-identity or cloud-provider acceptance.
 - Catalog authority is granted only through independently approved global
   memberships for human principals; self-grants remain prohibited.
+- Assessment browser coverage uses synthetic draft rows, not case creation,
+  evaluation, or live-provider evidence; the case-list API is unpaginated.
 
 ## Issues found
 

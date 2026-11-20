@@ -60,6 +60,8 @@ evidence_admin_password="$(openssl rand -hex 24)"
 evidence_runtime_password="$(openssl rand -hex 24)"
 objectives_admin_password="$(openssl rand -hex 24)"
 objectives_runtime_password="$(openssl rand -hex 24)"
+assessment_admin_password="$(openssl rand -hex 24)"
+assessment_runtime_password="$(openssl rand -hex 24)"
 keycloak_admin_password="$(openssl rand -hex 24)"
 e2e_admin_password="$(openssl rand -hex 24)"
 e2e_approver_password="$(openssl rand -hex 24)"
@@ -91,6 +93,10 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'OBJECTIVES_DB_ADMIN_PASSWORD=%s\n' "$objectives_admin_password"
   printf 'OBJECTIVES_DB_USER=uacrf_objectives_runtime\n'
   printf 'OBJECTIVES_DB_PASSWORD=%s\n' "$objectives_runtime_password"
+  printf 'ASSESSMENT_DB_ADMIN_USER=uacrf_assessment_admin\n'
+  printf 'ASSESSMENT_DB_ADMIN_PASSWORD=%s\n' "$assessment_admin_password"
+  printf 'ASSESSMENT_DB_USER=uacrf_assessment_runtime\n'
+  printf 'ASSESSMENT_DB_PASSWORD=%s\n' "$assessment_runtime_password"
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin\n'
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$keycloak_admin_password"
   printf 'KEYCLOAK_LOCAL_ADMIN_PASSWORD=%s\n' "$e2e_admin_password"
@@ -137,6 +143,7 @@ wait_for_url estate-catalog 'http://localhost:8083/actuator/health'
 wait_for_url connections 'http://localhost:8085/actuator/health'
 wait_for_url evidence 'http://localhost:8086/actuator/health'
 wait_for_url objectives 'http://localhost:8087/actuator/health'
+wait_for_url assessment 'http://localhost:8089/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'
 wait_for_url web 'http://localhost:8084/actuator/health'
@@ -156,6 +163,26 @@ VALUES
    'Other synthetic objective', 'sample.latency', 'LTE', 99.5, 'ms', 60, 'LOCAL',
    '3b374d98d7f9dbe4578f776d21aa4ef6d99952ec93a9a01695b9a8674a67be3f',
    'DRAFT', 1, 'test-fixture');
+SQL
+
+# Isolated synthetic cases; insertion bypasses the case creation workflow.
+"${compose[@]}" exec -T assessment-db psql -v ON_ERROR_STOP=1 \
+  -U uacrf_assessment_admin -d uacrf_assessment <<'SQL'
+INSERT INTO uacrf_assessment.analysis_case
+  (tenant_id, environment_id, id, workload_id, content, state, revision, created_by)
+VALUES
+  ('local-dev', 'local', 'browser-case-a', 'browser-case-workload',
+   '{"workload_id":"browser-case-workload","purpose":"Synthetic browser assessment","metric":"sample.latency",
+     "comparator":"LTE","threshold":10,"unit":"ms","window_seconds":60,
+     "objective_ref":{"objective_id":"sample-objective","revision":1,"digest":"sample"},
+     "graph_ref":{"graph_id":"sample-graph","revision":1,"digest":"sample"},
+     "required_source_kinds":["measurement.latency"]}'::jsonb, 'DRAFT', 1, 'test-fixture'),
+  ('local-dev', 'local', 'browser-case-b', 'other-case-workload',
+   '{"workload_id":"other-case-workload","purpose":"Other synthetic assessment","metric":"sample.latency",
+     "comparator":"LTE","threshold":10,"unit":"ms","window_seconds":60,
+     "objective_ref":{"objective_id":"sample-objective","revision":1,"digest":"sample"},
+     "graph_ref":{"graph_id":"sample-graph","revision":1,"digest":"sample"},
+     "required_source_kinds":["measurement.latency"]}'::jsonb, 'DRAFT', 1, 'test-fixture');
 SQL
 
 cd "$repo_root/e2e"

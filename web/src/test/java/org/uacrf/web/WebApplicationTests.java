@@ -52,6 +52,7 @@ class WebApplicationTests {
   @MockitoBean private ConnectionsClient connections;
   @MockitoBean private EvidenceClient evidence;
   @MockitoBean private ObjectivesClient objectives;
+  @MockitoBean private AssessmentClient assessment;
 
   @Test
   void offersAnOidcSignInWithoutRequiringAuthentication() throws Exception {
@@ -920,6 +921,53 @@ class WebApplicationTests {
     verify(identity).createDelegation(
         "test-access-token", "S04", null, List.of("evidence.event.read"),
         "tenant-test", "environment-test");
+  }
+
+  @Test
+  void displaysAssessmentCasesWithScopedDelegationAndEscapedContent() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S07", null, List.of("assessment.case.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s07-delegation", "Bearer", 30));
+    when(assessment.listCases("s07-delegation", "workload-1"))
+        .thenReturn(List.of(new AssessmentClient.AssessmentCase(
+            "case-1", "workload-1", "<assessment>", "latency", "LTE", new java.math.BigDecimal("10"),
+            "ms", 3600, "SEALED", 2L, "a".repeat(64))));
+
+    mockMvc.perform(get("/assessment-cases").param("workloadId", "workload-1")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("&lt;assessment&gt;")))
+        .andExpect(content().string(containsString("case-1")))
+        .andExpect(content().string(containsString("not an evaluation result or authorization to act")))
+        .andExpect(content().string(not(containsString("s07-delegation"))));
+    verify(identity).createDelegation(
+        "test-access-token", "S07", null, List.of("assessment.case.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
+  void assessmentCasesRequireContextAndReportDeniedOrInvalidReads() throws Exception {
+    mockMvc.perform(get("/assessment-cases").with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/contexts"));
+    verifyNoInteractions(assessment);
+    when(identity.createDelegation(
+            "test-access-token", "S07", null, List.of("assessment.case.read"),
+            "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(
+            org.springframework.http.HttpStatus.FORBIDDEN))
+        .thenReturn(new IdentityAccessClient.Delegation("s07-delegation", "Bearer", 30));
+    mockMvc.perform(get("/assessment-cases").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Assessment access failed (HTTP 403)")))
+        .andExpect(content().string(not(containsString("No assessment cases are available"))));
+    verifyNoInteractions(assessment);
+    when(assessment.listCases("s07-delegation", null)).thenThrow(new IllegalStateException("invalid"));
+    mockMvc.perform(get("/assessment-cases").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("returned an invalid response")))
+        .andExpect(content().string(not(containsString("No assessment cases are available"))));
   }
 
   @Test

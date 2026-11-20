@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment cases | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Assessment cases</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/access">Back to current access</a></p>
+  <p>These are cases retained by S07. A sealed case is not an evaluation result or authorization to act.</p>
+  <form method="get" th:action="@{/assessment-cases}">
+    <label for="workloadId">Workload ID (optional)</label>
+    <input id="workloadId" name="workloadId" type="text" maxlength="200" th:value="${workloadId}">
+    <button type="submit">Show cases</button>
+  </form>
+  <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
+  <p th:if="${assessmentError == null and #lists.isEmpty(cases)}">No assessment cases are available.</p>
+  <ul class="inventory-list">
+    <li th:each="item : ${cases}">
+      <h2 th:text="${item.id}">Case ID</h2>
+      <dl>
+        <dt>Workload ID</dt><dd th:text="${item.workloadId}">Workload</dd>
+        <dt>Purpose</dt><dd th:text="${item.purpose}">Purpose</dd>
+        <dt>State</dt><dd th:text="${item.state}">State</dd>
+        <dt>Metric</dt><dd th:text="${item.metric}">Metric</dd>
+        <dt>Comparator</dt><dd th:text="${item.comparator}">Comparator</dd>
+        <dt>Threshold</dt><dd th:text="${item.threshold}">Threshold</dd>
+        <dt>Unit</dt><dd th:text="${item.unit}">Unit</dd>
+        <dt>Window in seconds</dt><dd th:text="${item.windowSeconds}">Window</dd>
+        <dt>Revision</dt><dd th:text="${item.revision}">Revision</dd>
+        <dt>Case digest</dt><dd th:text="${item.caseDigest != null ? item.caseDigest : 'Not sealed'}">Digest</dd>
+      </dl>
+    </li>
+  </ul>
+</main>
+</body>
+</html>
