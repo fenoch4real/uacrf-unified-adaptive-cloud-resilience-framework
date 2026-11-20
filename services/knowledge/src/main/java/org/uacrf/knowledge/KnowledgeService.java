@@ -295,6 +295,16 @@ class KnowledgeService {
 
   @Transactional
   ItemVersion withdraw(DelegationPrincipal actor, String itemId, WithdrawItem request) {
+    return withdraw(actor, itemId, request, null);
+  }
+
+  @Transactional
+  ItemVersion withdrawBound(DelegationPrincipal actor, String itemId, BoundWithdrawItem request) {
+    requireCapability(actor, "knowledge.item.read");
+    return withdraw(actor, itemId, new WithdrawItem(request.expectedRevision(), request.reason()), request);
+  }
+
+  private ItemVersion withdraw(DelegationPrincipal actor, String itemId, WithdrawItem request, BoundWithdrawItem bound) {
     requireCapability(actor, "knowledge.item.withdraw");
     requireGlobalScope(actor);
     List<VersionRow> approved =
@@ -311,6 +321,14 @@ class KnowledgeService {
       throw notFound();
     }
     VersionRow current = approved.getFirst();
+    if (bound != null) {
+      requireClassification(actor, current.classification());
+      if (!current.version().equals(bound.expectedVersion())
+          || !current.sourceDigest().equals(bound.expectedSourceDigest())
+          || !sha256(current.content().getBytes(StandardCharsets.UTF_8)).equals(current.sourceDigest())) {
+        throw conflict("APPROVED_VERSION_MISMATCH", "The approved version differs from the version presented for withdrawal.");
+      }
+    }
     requireRevision(current.revision(), request.expectedRevision());
     if (itemWithdrawn(actor, itemId)) {
       throw conflict("ITEM_WITHDRAWN", "The knowledge item is already withdrawn.");

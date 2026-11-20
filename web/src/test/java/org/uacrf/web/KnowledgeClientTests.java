@@ -51,6 +51,35 @@ class KnowledgeClientTests {
   }
 
   @Test
+  void checksBoundWithdrawalReceipt() {
+    String digest = "a".repeat(64);
+    String receipt = RECORD.replace("\"state\":\"CANDIDATE\",\"revision\":1",
+        "\"state\":\"WITHDRAWN\",\"revision\":3,\"withdrawn_by\":\"withdrawer\",\"withdrawal_reason\":\"obsolete\"");
+    var command = new KnowledgeClient.BoundWithdrawRequest(2, "v1", digest, "obsolete");
+    for (String body : List.of(receipt, receipt.replace("\"version\":\"v1\"", "\"version\":\"v2\""),
+        receipt.replace(digest, "b".repeat(64)), receipt.replace("\"revision\":3", "\"revision\":2"),
+        receipt.replace("\"withdrawal_reason\":\"obsolete\"", "\"withdrawal_reason\":\"other\""))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/knowledge-items/item%3Aone:withdraw-bound"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(jsonPath("$.expected_version").value("v1"))
+          .andExpect(jsonPath("$.expected_revision").value(2))
+          .andExpect(jsonPath("$.expected_source_digest").value(digest))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      KnowledgeClient client = new KnowledgeClient(builder.build());
+      if (body.equals(receipt)) {
+        assertThat(client.withdraw("delegated", "item:one", command, KnowledgeClient.Classification.PUBLIC).state())
+            .isEqualTo(KnowledgeClient.State.WITHDRAWN);
+      } else {
+        assertThatThrownBy(() -> client.withdraw("delegated", "item:one", command, KnowledgeClient.Classification.PUBLIC))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void stagingChecksReceiptAgainstContentAndCommand() {
     String digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
     String receipt = RECORD.replace("item:one", "item-1").replace("risk:review", "review")

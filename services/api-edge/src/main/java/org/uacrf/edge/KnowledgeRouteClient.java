@@ -66,6 +66,10 @@ class KnowledgeRouteClient {
     return sendBody(HttpMethod.POST, "/v1/knowledge-items/{id}:withdraw", id, authorization, requestBody);
   }
 
+  ResponseEntity<String> withdrawBound(String authorization, String id, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/knowledge-items/{id}:withdraw-bound", id, authorization, requestBody);
+  }
+
   ResponseEntity<String> runRetrieval(String authorization, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/retrievals", null, authorization, requestBody);
   }

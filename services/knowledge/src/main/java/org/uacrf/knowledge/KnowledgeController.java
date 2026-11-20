@@ -75,6 +75,12 @@ class KnowledgeController {
     return knowledge.withdraw(DelegationPrincipal.from(jwt), id, request);
   }
 
+  @PostMapping("/v1/knowledge-items/{id}:withdraw-bound")
+  ItemVersion withdrawBound(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @Valid @RequestBody BoundWithdrawItem request) {
+    return knowledge.withdrawBound(DelegationPrincipal.from(jwt), id, request);
+  }
+
   @PostMapping("/v1/retrievals")
   @ResponseStatus(HttpStatus.CREATED)
   Retrieval run(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody RunRetrieval request) {

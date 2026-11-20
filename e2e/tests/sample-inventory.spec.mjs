@@ -311,7 +311,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
-      'knowledge.item.read', 'knowledge.item.write', 'knowledge.item.review', 'knowledge.classification.internal.read',
+      'knowledge.item.read', 'knowledge.item.write', 'knowledge.item.review', 'knowledge.item.withdraw',
+      'knowledge.classification.internal.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -493,6 +494,45 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await reviewer.getByRole('link', { name: 'Read current metadata' }).click();
       await expect(reviewer.getByRole('listitem').filter({ hasText: stagedItemId })).toContainText('REJECTED');
       await expect(reviewer.getByRole('link', { name: `Review candidate ${stagedItemId} version v1` })).toHaveCount(0);
+
+      const approvedItemId = `synthetic-approval-${randomUUID()}`;
+      await sample.goto('/knowledge/new');
+      await sample.getByLabel('Item ID (required)').fill(approvedItemId);
+      await sample.getByLabel('Version (required)').fill('v1');
+      await sample.getByLabel('Title (required)').fill('Synthetic withdrawal candidate');
+      await sample.getByLabel('Plaintext content (required)').fill('Synthetic material for withdrawal.');
+      await sample.getByLabel('Allowed purposes, one per line (required)').fill('sample:review');
+      await sample.getByLabel('Review deadline in UTC (required)').fill(new Date(Date.now() + 86400000).toISOString());
+      await sample.getByLabel('Reason (required)').fill('Synthetic approval and withdrawal test.');
+      await sample.getByRole('button', { name: 'Stage candidate' }).click();
+      await expect(sample.getByRole('status')).toContainText('original receipt');
+      await reviewer.goto('/knowledge');
+      await reviewer.getByLabel('Item ID', { exact: true }).fill(approvedItemId);
+      await reviewer.getByRole('button', { name: 'Show metadata' }).click();
+      await reviewer.getByRole('link', { name: `Review candidate ${approvedItemId} version v1` }).click();
+      await reviewer.getByLabel('Approve', { exact: true }).check();
+      await reviewer.getByLabel('Reason (required)').fill('Independent synthetic approval.');
+      await reviewer.getByRole('button', { name: 'Record review decision' }).click();
+      await expect(reviewer.getByText('APPROVED', { exact: true })).toBeVisible();
+      await reviewer.getByRole('link', { name: 'Read current metadata' }).click();
+      await reviewer.getByRole('link', { name: `Withdraw approved ${approvedItemId} version v1` }).click();
+      await reviewer.getByLabel('Withdrawal reason (required)').fill('Ungranted withdrawal.');
+      const [deniedWithdrawal] = await Promise.all([
+        reviewer.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname.endsWith('/withdraw')),
+        reviewer.getByRole('button', { name: 'Permanently withdraw this item' }).click(),
+      ]);
+      expect(deniedWithdrawal.status()).toBe(403);
+      await sample.goto(`/knowledge?itemId=${approvedItemId}`);
+      await sample.getByRole('link', { name: `Withdraw approved ${approvedItemId} version v1` }).click();
+      await expect(sample.getByText('This action cannot be undone.', { exact: false })).toBeVisible();
+      await sample.getByLabel('Withdrawal reason (required)').fill('Synthetic item is obsolete.');
+      await sample.getByRole('button', { name: 'Permanently withdraw this item' }).click();
+      await expect(sample.getByRole('heading', { name: 'Knowledge withdrawal receipt' })).toBeVisible();
+      await expect(sample.getByText('WITHDRAWN', { exact: true })).toBeVisible();
+      await sample.getByRole('link', { name: 'Read current metadata' }).click();
+      await expect(sample.getByRole('listitem').filter({ hasText: approvedItemId })).toContainText('WITHDRAWN');
+      await expect(sample.getByRole('link', { name: `Withdraw approved ${approvedItemId} version v1` })).toHaveCount(0);
     } finally {
       await reviewerContext.close();
     }

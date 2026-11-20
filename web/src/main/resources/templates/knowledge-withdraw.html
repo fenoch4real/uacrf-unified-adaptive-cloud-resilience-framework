@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Withdraw knowledge | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Withdraw approved knowledge</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Item: <strong th:text="${itemId}">ID</strong>, version <strong th:text="${version}">Version</strong></p>
+  <p><a th:href="@{/knowledge(itemId=${itemId},classification=${classification})}">Read current metadata</a></p>
+  <p>Withdrawal permanently withdraws the item, prevents new versions and excludes it from future retrieval.
+    A pending candidate cannot be approved after withdrawal. This action cannot be undone.</p>
+  <p>If submission is unconfirmed, read current metadata before attempting another withdrawal.
+    A failed or missing read does not prove that withdrawal did not occur.</p>
+  <p role="alert" th:if="${withdrawError != null}" th:text="${withdrawError}"></p>
+  <section th:if="${item != null}">
+    <h2 th:text="${item.title}">Approved version</h2>
+    <dl>
+      <dt>Classification</dt><dd th:text="${item.classification}">Classification</dd>
+      <dt>Revision</dt><dd th:text="${item.revision}">Revision</dd>
+      <dt>Source digest</dt><dd th:text="${item.sourceDigest}">Digest</dd>
+      <dt>Source reference (inert)</dt><dd th:text="${item.sourceRef != null ? item.sourceRef : 'Not specified'}">Source</dd>
+      <dt>Reviewed by</dt><dd th:text="${item.reviewedBy}">Reviewer</dd>
+    </dl>
+  </section>
+  <form th:if="${showForm == true}" method="post"
+        th:action="@{/knowledge/{id}/versions/{version}/withdraw(id=${itemId},version=${version})}" th:object="${withdrawForm}">
+    <input type="hidden" th:field="*{expectedRevision}">
+    <input type="hidden" th:field="*{sourceDigest}">
+    <input type="hidden" th:field="*{classification}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <p><label for="reason">Withdrawal reason (required)</label>
+      <textarea id="reason" th:field="*{reason}" maxlength="2000" required></textarea></p>
+    <button type="submit">Permanently withdraw this item</button>
+  </form>
+</main>
+</body>
+</html>

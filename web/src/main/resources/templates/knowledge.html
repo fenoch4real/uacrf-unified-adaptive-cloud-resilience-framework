@@ -66,6 +66,10 @@
         <a th:href="@{/knowledge/{id}/versions/{version}/review(id=${item.itemId},version=${item.version},classification=${item.classification})}"
            th:text="|Review candidate ${item.itemId} version ${item.version}|">Review candidate</a>
       </p>
+      <p th:if="${item.state.name() == 'APPROVED'}">
+        <a th:href="@{/knowledge/{id}/versions/{version}/withdraw(id=${item.itemId},version=${item.version},classification=${item.classification})}"
+           th:text="|Withdraw approved ${item.itemId} version ${item.version}|">Withdraw approved item</a>
+      </p>
     </li>
   </ul>
 </main>

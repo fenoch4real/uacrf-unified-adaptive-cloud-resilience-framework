@@ -51,6 +51,12 @@ final class KnowledgeRequests {
       @Min(1) long expectedRevision,
       @NotBlank @Size(max = 2000) String reason) {}
 
+  record BoundWithdrawItem(
+      @Min(1) long expectedRevision,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$") String expectedVersion,
+      @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String expectedSourceDigest,
+      @NotBlank @Size(max = 2000) String reason) {}
+
   record RunRetrieval(
       @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$") String caseId,
       @NotBlank @Size(max = 200) String purpose,

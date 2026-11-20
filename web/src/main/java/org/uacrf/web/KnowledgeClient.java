@@ -91,6 +91,22 @@ class KnowledgeClient {
     return receipt;
   }
 
+  ItemVersion withdraw(String token, String itemId, BoundWithdrawRequest request, Classification classification) {
+    ItemVersion receipt = restClient.post()
+        .uri(uri -> uri.path("/v1/knowledge-items/{id}:withdraw-bound").build(itemId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .body(request).retrieve().body(ItemVersion.class);
+    if (!valid(receipt, itemId, null, classification)
+        || !request.expectedVersion().equals(receipt.version())
+        || !request.expectedSourceDigest().equals(receipt.sourceDigest())
+        || receipt.classification() != classification || receipt.state() != State.WITHDRAWN
+        || receipt.revision() != request.expectedRevision() + 1
+        || !present(receipt.withdrawnBy()) || !request.reason().equals(receipt.withdrawalReason())) {
+      throw new IllegalStateException("S08 returned an invalid or mismatched withdrawal receipt.");
+    }
+    return receipt;
+  }
+
   private static String sha256(String content) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
@@ -136,6 +152,10 @@ class KnowledgeClient {
   record CandidateContent(ItemVersion metadata, String content) {}
 
   record BoundReviewRequest(String decision, @JsonProperty("expected_revision") long expectedRevision,
+      @JsonProperty("expected_version") String expectedVersion,
+      @JsonProperty("expected_source_digest") String expectedSourceDigest, String reason) {}
+
+  record BoundWithdrawRequest(@JsonProperty("expected_revision") long expectedRevision,
       @JsonProperty("expected_version") String expectedVersion,
       @JsonProperty("expected_source_digest") String expectedSourceDigest, String reason) {}
 

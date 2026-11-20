@@ -67,6 +67,12 @@ class KnowledgeRouteControllerTests {
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/knowledge-items/item-1:withdraw-bound"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer withdrawer"))
+        .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/retrievals"))
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -92,6 +98,9 @@ class KnowledgeRouteControllerTests {
             .header(HttpHeaders.AUTHORIZATION, "Bearer reviewer").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(post("/internal/knowledge/v1/knowledge-items/item-1:withdraw").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk());
+    mvc.perform(post("/internal/knowledge/v1/knowledge-items/item-1:withdraw-bound")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer withdrawer").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(post("/internal/knowledge/v1/retrievals").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());

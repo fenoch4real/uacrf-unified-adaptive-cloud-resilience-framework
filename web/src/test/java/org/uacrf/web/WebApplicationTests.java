@@ -57,6 +57,55 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
 
   @Test
+  void withdrawalConfirmsExactMetadataAndHidesFormAfterUncertainty() throws Exception {
+    String digest = "a".repeat(64);
+    var item = new KnowledgeClient.ItemVersion("item-1", "v1", "<title>", "sample:source",
+        KnowledgeClient.Classification.INTERNAL, List.of("review"), List.of(),
+        Instant.parse("2030-01-01T00:00:00Z"), "Reason", digest,
+        KnowledgeClient.State.APPROVED, 2L, "author", "reviewer", "approved", null, null,
+        Instant.parse("2026-01-01T00:00:00Z"));
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.classification.internal.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(knowledge.list("reader", "item-1", null, KnowledgeClient.Classification.INTERNAL)).thenReturn(List.of(item));
+    mockMvc.perform(get("/knowledge/item-1/versions/v1/withdraw").param("classification", "INTERNAL")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("&lt;title&gt;")))
+        .andExpect(content().string(containsString("Permanently withdraw this item")))
+        .andExpect(content().string(containsString("cannot be undone")));
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.item.withdraw", "knowledge.classification.internal.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("withdrawer", "Bearer", 30));
+    var command = new KnowledgeClient.BoundWithdrawRequest(2, "v1", digest, "obsolete");
+    when(knowledge.withdraw("withdrawer", "item-1", command, KnowledgeClient.Classification.INTERNAL))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(post("/knowledge/item-1/versions/v1/withdraw")
+            .param("expectedRevision", "2").param("sourceDigest", digest).param("classification", "INTERNAL")
+            .param("reason", "obsolete").param("tenantId", "tenant-test").param("environmentId", "environment-test")
+            .with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable()).andExpect(content().string(containsString("Withdrawal is unconfirmed")))
+        .andExpect(content().string(not(containsString("Permanently withdraw this item"))));
+  }
+
+  @Test
+  void withdrawalRejectsChangedContextMissingCsrfAndUnauthorizedAccess() throws Exception {
+    var request = post("/knowledge/item-1/versions/v1/withdraw")
+        .param("expectedRevision", "2").param("sourceDigest", "a".repeat(64)).param("classification", "PUBLIC")
+        .param("reason", "obsolete").param("tenantId", "other").param("environmentId", "environment-test")
+        .with(browserLogin()).session(sessionWithSelectedContext());
+    mockMvc.perform(request).andExpect(status().isForbidden());
+    mockMvc.perform(request.with(csrf())).andExpect(status().isConflict());
+    verifyNoInteractions(identity, knowledge);
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.item.read"),
+        "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/knowledge/item-1/versions/v1/withdraw").param("classification", "PUBLIC")
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Metadata access failed")));
+    verifyNoInteractions(knowledge);
+  }
+
+  @Test
   void knowledgeReviewShowsEscapedCandidateAndHidesFormAfterUncertainty() throws Exception {
     String digest = "a".repeat(64);
     var candidate = new KnowledgeClient.ItemVersion("item-1", "v1", "Title", "sample:source",

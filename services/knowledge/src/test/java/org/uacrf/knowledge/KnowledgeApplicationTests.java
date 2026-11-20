@@ -97,6 +97,44 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void boundWithdrawalCannotWithdrawAReplacementVersion() throws Exception {
+    String tenant = "t-bound-withdraw";
+    String writer = bearer("author", tenant, WRITER);
+    String reviewer = bearer("reviewer", tenant, REVIEWER);
+    String withdrawer = bearer("withdrawer", tenant,
+        List.of("knowledge.item.read", "knowledge.item.withdraw", "knowledge.classification.internal.read"));
+    String item = "bound-withdraw";
+    stageAndApprove(item, "v1", "first approved content", writer, reviewer);
+    JsonNode first = objectMapper.readTree(get("/v1/knowledge-items?item_id=" + item, writer).body()).get(0);
+    String digest = first.get("source_digest").asString();
+    String path = "/v1/knowledge-items/" + item + ":withdraw-bound";
+    String stale = "{\"expected_revision\":2,\"expected_version\":\"v1\",\"expected_source_digest\":\""
+        + digest + "\",\"reason\":\"withdraw old source\"}";
+    assertEquals(403, post(path, bearer("withdrawer", tenant,
+        List.of("knowledge.item.withdraw", "knowledge.classification.internal.read")), stale).statusCode());
+    assertEquals(403, post(path, bearer("withdrawer", tenant,
+        List.of("knowledge.item.read", "knowledge.item.withdraw")), stale).statusCode());
+    assertEquals(403, post(path, token("withdrawer", tenant, "workload-1",
+        List.of("knowledge.item.read", "knowledge.item.withdraw", "knowledge.classification.internal.read")), stale).statusCode());
+    assertEquals(409, post(path, withdrawer, stale.replace(digest, "f".repeat(64))).statusCode());
+    stageAndApprove(item, "v2", "replacement approved content", writer, reviewer);
+    var rejected = post(path, withdrawer, stale);
+    assertEquals(409, rejected.statusCode());
+    assertThat(rejected.body()).contains("APPROVED_VERSION_MISMATCH");
+    JsonNode rows = objectMapper.readTree(get("/v1/knowledge-items?item_id=" + item, writer).body());
+    JsonNode replacement = rows.get(1);
+    assertEquals("APPROVED", replacement.get("state").asString());
+    String current = "{\"expected_revision\":2,\"expected_version\":\"v2\",\"expected_source_digest\":\""
+        + replacement.get("source_digest").asString() + "\",\"reason\":\"withdraw replacement\"}";
+    var withdrawn = post(path, withdrawer, current);
+    assertEquals(200, withdrawn.statusCode());
+    assertThat(withdrawn.body()).contains("\"state\":\"WITHDRAWN\"").contains("withdraw replacement");
+    assertEquals(404, post(path, withdrawer, current).statusCode());
+    assertThat(post("/v1/knowledge-items", writer, stage(item, "v3", "no reactivation")).body())
+        .contains("ITEM_WITHDRAWN");
+  }
+
+  @Test
   void boundReviewRequiresClearanceAndCannotDecideAReplacementCandidate() throws Exception {
     String writer = bearer("author", "t-bound-review", WRITER);
     String reader = bearer("reviewer", "t-bound-review", REVIEWER);

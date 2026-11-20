@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowledge withdrawn | UACRF</title></head>
+<body>
+<main>
+  <h1>Knowledge withdrawal receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p role="status">The item has been withdrawn; this action cannot be undone.</p>
+  <dl>
+    <dt>Item</dt><dd th:text="${receipt.itemId}">ID</dd>
+    <dt>Version</dt><dd th:text="${receipt.version}">Version</dd>
+    <dt>State</dt><dd th:text="${receipt.state}">State</dd>
+    <dt>Withdrawn by</dt><dd th:text="${receipt.withdrawnBy}">Withdrawer</dd>
+    <dt>Withdrawal reason</dt><dd th:text="${receipt.withdrawalReason}">Reason</dd>
+    <dt>Source digest</dt><dd th:text="${receipt.sourceDigest}">Digest</dd>
+  </dl>
+  <p><a th:href="@{/knowledge(itemId=${itemId},classification=${classification})}">Read current metadata</a></p>
+</main>
+</body>
+</html>

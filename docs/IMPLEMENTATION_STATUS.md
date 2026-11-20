@@ -1455,7 +1455,23 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   denial with synthetic data; it did not demonstrate approval or provider
   acceptance. Clean focused tests passed 20 S08, 1 EDGE01 and 128 UX01 tests,
   and 11 browser tests passed.
-- UX01 does not yet withdraw or retrieve knowledge. Retrieval
+- UX01 supports irreversible withdrawal of an approved knowledge item using
+  S08 `:withdraw-bound` through EDGE01. Confirmation reads current metadata
+  using a context-bound read delegation; submission requires global read and
+  withdrawal capabilities and applicable classification clearance. S08 locks
+  the approved version and checks its exact version, revision and source
+  digest before withdrawal. The legacy unbound `:withdraw` remains available
+  for compatibility and is not safe against a replacement version with the
+  same revision; UX01 does not use it. Withdrawal is not keyed. An uncertain
+  submission hides the form and directs the user to current metadata; a failed
+  or missing read does not prove that withdrawal did not occur. Withdrawal
+  permanently prevents new versions and subsequent candidate approval. Clean
+  focused tests passed 19 S08, 1 EDGE01 and 131 UX01 tests; a subsequent
+  focused S08 test also verified wrong-digest and scoped denial. The isolated
+  11-test browser suite independently approved and withdrew synthetic
+  material, denied an ungranted withdrawal and read back the withdrawn state.
+  This is not provider acceptance.
+- UX01 does not yet retrieve knowledge. Retrieval
   creates a retained manifest through an unkeyed POST and must not be treated
   as retry-safe without further design.
 - `services/knowledge` (port 8090, audience S08, database/schema

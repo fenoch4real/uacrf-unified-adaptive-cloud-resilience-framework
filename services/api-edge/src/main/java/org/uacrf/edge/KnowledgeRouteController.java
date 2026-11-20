@@ -79,6 +79,13 @@ class KnowledgeRouteController {
     return forward(() -> knowledge.withdrawItem(authorization, id, requestBody));
   }
 
+  @PostMapping("/v1/knowledge-items/{id}:withdraw-bound")
+  ResponseEntity<String> withdrawBound(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @RequestBody String requestBody) {
+    return forward(() -> knowledge.withdrawBound(authorization, id, requestBody));
+  }
+
   @PostMapping("/v1/retrievals")
   ResponseEntity<String> run(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
