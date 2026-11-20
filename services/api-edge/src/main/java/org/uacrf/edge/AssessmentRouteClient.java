@@ -166,6 +166,14 @@ class AssessmentRouteClient {
     return sendBody(HttpMethod.POST, "/v1/learning-records", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> proposeLearningRecordIdempotently(String authorization, String key, String requestBody) {
+    RestClient.RequestBodySpec request = assessmentRestClient.post()
+        .uri("/v1/learning-records:idempotent-propose").contentType(MediaType.APPLICATION_JSON);
+    request.header("Idempotency-Key", key);
+    request.body(requestBody);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> getLearningRecord(String authorization, String id) {
     return send(assessmentRestClient.get()
         .uri(uriBuilder -> uriBuilder.path("/v1/learning-records/{id}").build(id)), authorization);

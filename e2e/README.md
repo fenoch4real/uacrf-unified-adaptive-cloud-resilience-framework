@@ -93,15 +93,18 @@ they are not qualified evidence or provider acceptance. The S07 case,
 evaluation, and recommendation list APIs are unpaginated.
 
 The browser suite also grants `assessment.incident.write`,
-`assessment.incident.read`, and
-`assessment.learning.read` independently and follows the case-to-incident and
+`assessment.incident.read`, `assessment.learning.read` and
+`assessment.learning.write` independently and follows the case-to-incident and
 incident-to-learning links, including the second page of each. An ungranted
 user is denied both views and incident creation. A creation attempt using
 synthetic evidence against a SKIPPED evaluation is rejected, with the key and
 input retained; no incident is created. The 51 incidents and 51 learning records are
 directly inserted synthetic fixtures with placeholder provenance and digests;
-the test does not demonstrate successful verified incident creation, evidence
-qualification or learning review and cannot establish provider acceptance.
+the test submits and replays a learning proposal for one synthetic incident and
+verifies only one retained proposal. An ungranted user is denied proposal
+submission. Proposal creation does not revalidate evidence or establish review
+or adoption. The test does not demonstrate successful verified incident creation,
+evidence qualification or learning review and cannot establish provider acceptance.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

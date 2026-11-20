@@ -190,6 +190,13 @@ class AssessmentRouteController {
     return forward(() -> assessment.proposeLearningRecord(authorization, requestBody));
   }
 
+  @PostMapping("/v1/learning-records:idempotent-propose")
+  ResponseEntity<String> proposeLearningRecordIdempotently(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String key, @RequestBody String requestBody) {
+    return forward(() -> assessment.proposeLearningRecordIdempotently(authorization, key, requestBody));
+  }
+
   @GetMapping("/v1/learning-records/{id}")
   ResponseEntity<String> getLearningRecord(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

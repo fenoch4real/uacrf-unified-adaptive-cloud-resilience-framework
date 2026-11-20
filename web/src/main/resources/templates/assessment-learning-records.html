@@ -13,6 +13,7 @@
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p>Incident: <strong th:text="${incidentId}">Incident ID</strong></p>
   <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p><a th:href="@{/assessment-incidents/{id}/learning-records/new(id=${incidentId})}">Prepare a learning proposal</a></p>
   <p>These are retained proposals, not evidence of adoption or authorization to act.</p>
   <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
   <p th:if="${assessmentError == null and #lists.isEmpty(items)}">No learning records are available on this page.</p>

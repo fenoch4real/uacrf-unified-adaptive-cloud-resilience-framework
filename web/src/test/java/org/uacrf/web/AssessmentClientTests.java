@@ -60,6 +60,36 @@ class AssessmentClientTests {
       """;
 
   @Test
+  void proposesLearningOnlyThroughKeyedRouteAndValidatesReceipt() {
+    String incidentId = "00000000-0000-0000-0000-000000000001";
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    String url = "http://edge.test/v1/learning-records:idempotent-propose";
+    server.expect(requestTo(url)).andExpect(method(HttpMethod.POST))
+        .andExpect(header("Idempotency-Key", "learning-key"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+        .andExpect(content().json("""
+            {"incident_id":"00000000-0000-0000-0000-000000000001","experiment_id":null,
+             "hypotheses":["Synthetic hypothesis"],"action_items":[{"description":"Check",
+             "owner_id":"owner","due_at":"2026-01-02T00:00:00Z","proposed_version_ref":null,
+             "closure_test":"Verify"}],"evidence_refs":["receipt-1"],"expected_revision":1,"reason":"test"}
+            """)).andRespond(withSuccess(LEARNING, MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withSuccess(LEARNING.replace("\"Verify\"", "\"Changed\""), MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withSuccess(LEARNING.replace("\"PROPOSED\"", "\"ACTIVE\""), MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withStatus(HttpStatus.NOT_FOUND));
+    var action = new AssessmentClient.LearningAction("Check", "owner",
+        java.time.Instant.parse("2026-01-02T00:00:00Z"), null, "Verify");
+    var request = new AssessmentClient.LearningProposal(incidentId, null, List.of("Synthetic hypothesis"),
+        List.of(action), List.of("receipt-1"), 1L, "test");
+    var client = new AssessmentClient(builder.build());
+    assertThat(client.proposeLearningRecord("writer", "learning-key", request).state()).isEqualTo("PROPOSED");
+    assertThatThrownBy(() -> client.proposeLearningRecord("writer", "learning-key", request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.proposeLearningRecord("writer", "learning-key", request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.proposeLearningRecord("writer", "learning-key", request)).isInstanceOf(HttpClientErrorException.NotFound.class);
+    server.verify();
+  }
+
+  @Test
   void createsIncidentsOnlyWithKeyAndValidatesReceipt() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

@@ -280,7 +280,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
       'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.evaluation.run', 'assessment.incident.write',
-      'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read',
+      'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -416,6 +416,33 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Next learning records' }).click();
     await expect(sample.getByRole('heading', { name: '10000000-0000-0000-0000-000000000051' })).toBeVisible();
     await expect(sample.getByRole('link', { name: 'Next learning records' })).toHaveCount(0);
+    await sample.getByRole('link', { name: 'Prepare a learning proposal' }).click();
+    await expect(sample.getByText('Creation does not revalidate evidence.', { exact: false })).toBeVisible();
+    await sample.getByLabel('Hypotheses, one per line (required)').fill('Synthetic proposal hypothesis');
+    await sample.getByLabel('Proposed action items JSON (required)').fill(JSON.stringify([{
+      description: 'Investigate synthetic data', owner_id: 'sample-owner',
+      due_at: '2026-12-01T12:00:00Z', closure_test: 'Document findings',
+    }]));
+    await sample.getByLabel('Reason (required)').fill('Exercise proposal workflow');
+    const [proposalRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/assessment-incidents/00000000-0000-0000-0000-000000000001/learning-records'),
+      sample.getByRole('button', { name: 'Submit learning proposal' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Learning proposal receipt' })).toBeVisible();
+    const proposalId = await sample.locator('dt').filter({ hasText: 'Proposal ID' }).locator('+ dd').innerText();
+    const proposalReplay = await sample.request.post('/assessment-incidents/00000000-0000-0000-0000-000000000001/learning-records', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: proposalRequest.postData(),
+    });
+    expect(proposalReplay.status()).toBe(200);
+    expect(await proposalReplay.text()).toContain(proposalId);
+    await sample.getByRole('link', { name: 'View learning records' }).click();
+    let matchingProposals = await sample.getByRole('heading', { name: proposalId }).count();
+    if (await sample.getByRole('link', { name: 'Next learning records' }).count()) {
+      await sample.getByRole('link', { name: 'Next learning records' }).click();
+      matchingProposals += await sample.getByRole('heading', { name: proposalId }).count();
+    }
+    expect(matchingProposals).toBe(1);
     await sample.goto('/assessment-cases/browser-case-a/incidents');
     await sample.getByRole('link', { name: 'Next incidents' }).click();
     await expect(sample.getByText('Synthetic browser incident 51', { exact: true })).toBeVisible();
@@ -695,6 +722,15 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       });
       expect(deniedIncident.status()).toBe(403);
       expect(await deniedIncident.text()).toContain('Incident creation was not authorized');
+      const deniedProposal = await restricted.request.post('/assessment-incidents/00000000-0000-0000-0000-000000000001/learning-records', {
+        form: { _csrf: csrfToken, tenantId: 'local-dev', environmentId: 'local',
+          idempotencyKey: randomUUID(), expectedRevision: '1', hypotheses: 'Synthetic hypothesis',
+          actionsJson: JSON.stringify([{ description: 'Investigate', owner_id: 'sample-owner',
+            due_at: '2026-12-01T12:00:00Z', closure_test: 'Document findings' }]),
+          evidenceRefs: 'sample-receipt', reason: 'Verify authorization' },
+      });
+      expect(deniedProposal.status()).toBe(403);
+      expect(await deniedProposal.text()).toContain('Learning proposal was not authorized');
       await sample.goto('/assessment-cases/browser-case-b/seal');
       await expect(sample.getByRole('button', { name: 'Seal this draft' })).toBeVisible();
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');

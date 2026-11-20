@@ -87,6 +87,26 @@ class AssessmentRouteControllerTests {
   }
 
   @Test
+  void forwardsLearningProposalIdempotencyKeyAndRequiresHeader() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new AssessmentRouteController(new AssessmentRouteClient(builder.build()))).build();
+    server.expect(requestTo(URL + "/v1/learning-records:idempotent-propose"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header("Idempotency-Key", "learning-key"))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    mvc.perform(post("/internal/assessment/v1/learning-records:idempotent-propose")
+        .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isBadRequest());
+    mvc.perform(post("/internal/assessment/v1/learning-records:idempotent-propose")
+        .header("Idempotency-Key", "learning-key").header(HttpHeaders.AUTHORIZATION, "Bearer writer")
+        .contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isCreated());
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsAndLeavesInternalReceiptUnrouted() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

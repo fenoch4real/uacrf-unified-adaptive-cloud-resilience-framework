@@ -176,6 +176,68 @@ class WebApplicationTests {
   }
 
   @Test
+  void learningProposalPreservesRetryAndUsesSeparatePermissions() throws Exception {
+    String incidentId = "00000000-0000-0000-0000-000000000001";
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    Instant time = Instant.parse("2026-01-01T00:00:00Z");
+    var incident = new AssessmentClient.Incident(incidentId, "w", "case", time, "incident",
+        List.of("receipt-1"), List.of("evaluation-1"), "test", 1L, "user", time);
+    var action = new AssessmentClient.LearningAction("Check", "owner", time, null, "Verify");
+    var request = new AssessmentClient.LearningProposal(incidentId, null, List.of("Hypothesis"),
+        List.of(action), List.of("receipt-1"), 1L, "test");
+    var result = new AssessmentClient.LearningRecord("00000000-0000-0000-0000-000000000002",
+        incidentId, null, List.of("Hypothesis"), List.of(action), List.of("receipt-1"), 1L,
+        "test", "PROPOSED", 1L, "user", time);
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.incident.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("incident-reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.learning.write"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("learning-writer", "Bearer", 30));
+    when(assessment.getIncident("incident-reader", incidentId)).thenReturn(incident);
+    when(assessment.proposeLearningRecord("learning-writer", key, request))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(result);
+    mockMvc.perform(get("/assessment-incidents/" + incidentId + "/learning-records/new")
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Creation does not revalidate evidence")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")));
+    mockMvc.perform(learningProposalRequest(incidentId, key).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(learningProposalRequest(incidentId, key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable()).andExpect(content().string(containsString("proposal is unconfirmed")))
+        .andExpect(content().string(containsString(key))).andExpect(content().string(containsString("receipt-1")));
+    mockMvc.perform(learningProposalRequest(incidentId, key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Learning proposal receipt")))
+        .andExpect(content().string(not(containsString("learning-writer"))));
+    verify(assessment, times(2)).proposeLearningRecord("learning-writer", key, request);
+  }
+
+  @Test
+  void learningProposalRejectsChangedContextAndMalformedActionsBeforeDelegation() throws Exception {
+    String id = "00000000-0000-0000-0000-000000000001";
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    mockMvc.perform(learningProposalRequest(id, key).with(request -> {
+      request.setParameter("tenantId", "other"); return request;
+    }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())).andExpect(status().isConflict());
+    for (String actions : List.of("[]", "[{\"description\":\"a\",\"description\":\"b\"}]",
+        "[{\"description\":\"Check\",\"owner_id\":\"owner\",\"due_at\":\"2026-01-01T00:00:00\",\"closure_test\":\"Verify\"}]",
+        "[{\"description\":\"Check\",\"owner_id\":\"owner\",\"due_at\":\"2026-01-01T00:00:00Z\",\"closure_test\":\"Verify\",\"extra\":\"x\"}]")) {
+      mockMvc.perform(learningProposalRequest(id, key).with(request -> {
+        request.setParameter("actionsJson", actions); return request;
+      }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+          .andExpect(status().isBadRequest()).andExpect(content().string(containsString("actions-error")));
+    }
+    verifyNoInteractions(identity, assessment);
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder learningProposalRequest(String id, String key) {
+    return post("/assessment-incidents/" + id + "/learning-records").param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("expectedRevision", "1").param("hypotheses", "Hypothesis").param("evidenceRefs", "receipt-1")
+        .param("actionsJson", "[{\"description\":\"Check\",\"owner_id\":\"owner\","
+            + "\"due_at\":\"2026-01-01T00:00:00Z\",\"closure_test\":\"Verify\"}]")
+        .param("reason", "test");
+  }
+
+  @Test
   void startsAuthorizationCodeFlowWithPkce() throws Exception {
     MvcResult result =
         mockMvc

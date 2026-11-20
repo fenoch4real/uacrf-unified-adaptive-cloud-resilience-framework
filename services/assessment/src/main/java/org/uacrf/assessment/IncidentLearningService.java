@@ -167,23 +167,47 @@ class IncidentLearningService {
   }
 
   @Transactional
-  LearningRecord proposeLearningRecord(DelegationPrincipal actor, ProposeLearningRecord request) {
+  LearningRecord proposeLearningRecord(DelegationPrincipal actor, ProposeLearningRecord request, String key) {
     permit(actor, "assessment.learning.write", "assessment.incident.write");
+    List<String> evidenceRefs = canonicalRefs(request.evidenceRefs());
+    ProposeLearningRecord content = new ProposeLearningRecord(
+        request.incidentId(), request.experimentId(), List.copyOf(request.hypotheses()),
+        List.copyOf(request.actionItems()), evidenceRefs, request.expectedRevision(), request.reason());
+    String serialized = write(content);
+    String digest = hash(serialized);
+    if (key != null) {
+      if (key.isBlank() || key.length() > 200 || key.chars().anyMatch(Character::isWhitespace)) {
+        throw new AssessmentException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+            "Idempotency-Key must be a non-empty token of at most 200 characters.");
+      }
+      int inserted = jdbc.update("INSERT INTO " + DB + "learning_proposal_idempotency "
+              + "(tenant_id,environment_id,actor_id,idempotency_key,payload_digest) VALUES (?,?,?,?,?) "
+              + "ON CONFLICT DO NOTHING",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+      if (inserted == 0) {
+        List<LearningRequest> prior = jdbc.query("SELECT payload_digest,learning_record_id FROM " + DB
+                + "learning_proposal_idempotency WHERE tenant_id=? AND environment_id=? AND actor_id=? "
+                + "AND idempotency_key=? FOR UPDATE",
+            (rs, row) -> new LearningRequest(rs.getString("payload_digest"), rs.getString("learning_record_id")),
+            actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+        if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+          throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+        }
+        if (prior.getFirst().recordId() == null) {
+          throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+        }
+        return findLearningRecord(actor, prior.getFirst().recordId());
+      }
+    }
     Incident incident = findIncident(actor, request.incidentId(), true);
     if (incident.revision() != request.expectedRevision()) {
       throw conflict("REVISION_MISMATCH", "The incident changed since it was read.");
     }
-    List<String> evidenceRefs = canonicalRefs(request.evidenceRefs());
     if (!new HashSet<>(incident.evidenceRefs()).containsAll(evidenceRefs)) {
       throw conflict("EVIDENCE_NOT_IN_INCIDENT",
           "Learning evidence_refs must be retained on the linked incident.");
     }
-    ProposeLearningRecord content = new ProposeLearningRecord(
-        incident.id(), request.experimentId(), List.copyOf(request.hypotheses()),
-        List.copyOf(request.actionItems()), evidenceRefs, request.expectedRevision(), request.reason());
     String id = UUID.randomUUID().toString();
-    String serialized = write(content);
-    String digest = hash(serialized);
     jdbc.update("INSERT INTO " + DB
             + "learning_record (tenant_id,environment_id,id,incident_id,content,evidence_refs,"
             + "content_digest,state,revision,proposed_by) "
@@ -191,8 +215,15 @@ class IncidentLearningService {
         actor.tenantId(), actor.environmentId(), id, incident.id(), serialized,
         write(evidenceRefs), digest, actor.principalId());
     event(actor, id, digest, content);
+    if (key != null) {
+      jdbc.update("UPDATE " + DB + "learning_proposal_idempotency SET learning_record_id=? "
+              + "WHERE tenant_id=? AND environment_id=? AND actor_id=? AND idempotency_key=?",
+          id, actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    }
     return findLearningRecord(actor, id);
   }
+
+  private record LearningRequest(String digest, String recordId) {}
 
   @Transactional(readOnly = true)
   LearningRecord getLearningRecord(DelegationPrincipal actor, String id) {

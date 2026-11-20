@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learning proposal receipt | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Learning proposal receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <dl>
+    <dt>Proposal ID</dt><dd th:text="${proposal.id}">ID</dd>
+    <dt>Incident ID</dt><dd th:text="${proposal.incidentId}">Incident</dd>
+    <dt>State</dt><dd th:text="${proposal.state}">Proposed</dd>
+    <dt>Evidence references</dt><dd th:text="${#strings.listJoin(proposal.evidenceRefs, ', ')}">References</dd>
+  </dl>
+  <p>This proposal is not evidence of review, adoption, current qualification, or authorization to act.</p>
+  <p><a th:href="@{/assessment-incidents/{id}/learning-records(id=${proposal.incidentId})}">View learning records</a></p>
+</main>
+</body>
+</html>

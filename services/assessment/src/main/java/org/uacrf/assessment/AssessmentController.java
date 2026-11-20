@@ -124,7 +124,12 @@ class AssessmentController {
   @PostMapping("/v1/learning-records") @ResponseStatus(HttpStatus.CREATED)
   LearningRecord proposeLearningRecord(@AuthenticationPrincipal Jwt jwt,
       @Valid @RequestBody ProposeLearningRecord request) {
-    return incidentLearning.proposeLearningRecord(DelegationPrincipal.from(jwt), request);
+    return incidentLearning.proposeLearningRecord(DelegationPrincipal.from(jwt), request, null);
+  }
+  @PostMapping("/v1/learning-records:idempotent-propose") @ResponseStatus(HttpStatus.CREATED)
+  LearningRecord proposeLearningRecordIdempotently(@AuthenticationPrincipal Jwt jwt,
+      @Valid @RequestBody ProposeLearningRecord request, @RequestHeader("Idempotency-Key") String key) {
+    return incidentLearning.proposeLearningRecord(DelegationPrincipal.from(jwt), request, key);
   }
   @PostMapping("/v1/learning-records/{id}:review")
   LearningReview reviewLearningRecord(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,

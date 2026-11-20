@@ -961,6 +961,59 @@ class AssessmentApplicationTests {
         incidentJson(caseId, "w1", "2026-01-01T01:00:00Z", "[\"r-other\"]")).statusCode());
   }
 
+  @Test void keyedLearningProposalReplaysWithoutDuplicateEventsAndRollsBack() throws Exception {
+    String tenant = "t-learning-keyed";
+    String owner = token(tenant, "*", ALL);
+    String caseId = sealed(owner, "[\"a\"]", "LTE");
+    String cutoff = "2026-01-01T01:00:00Z";
+    eval(owner, caseId, cutoff, "LIVE", measurement("r-learning-key", "a", "2026-01-01T00:59:00Z", "5", "ms"));
+    String incidentId = body(post("/v1/incidents", owner,
+        incidentJson(caseId, "w1", cutoff, "[\"r-learning-key\"]")), 201).get("id").asString();
+    String writer = token(tenant, "*", List.of("assessment.learning.write"));
+    String input = learningJson(incidentId, 1, "[\"r-learning-key\",\"r-learning-key\"]");
+    String equivalent = learningJson(incidentId, 1, "[\"r-learning-key\"]");
+    String path = "/v1/learning-records:idempotent-propose";
+    assertEquals(400, post(path, writer, input).statusCode());
+    assertEquals(400, postAdaptation(path, writer, input, "invalid key").statusCode());
+    assertEquals(403, postAdaptation(path, token(tenant, "*", List.of("assessment.learning.read")), input, "key").statusCode());
+    JsonNode first = body(postAdaptation(path, writer, input, "key"), 201);
+    assertEquals(first, body(postAdaptation(path, writer, equivalent, "key"), 201));
+    assertEquals(409, postAdaptation(path, writer, input.replace("owner-1", "other"), "key").statusCode());
+    assertEquals(409, postAdaptation(path, writer, learningJson(incidentId, 2, "[\"r-learning-key\"]"), "failed").statusCode());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.learning_proposal_idempotency "
+        + "WHERE tenant_id=? AND idempotency_key='failed'", Integer.class, tenant));
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var one = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "race"); });
+      var two = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, equivalent, "race"); });
+      gate.countDown();
+      assertEquals(body(one.get(), 201).get("id").asString(), body(two.get(), 201).get("id").asString());
+    }
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var one = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "competing"); });
+      var two = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input.replace("owner-1", "other"), "competing"); });
+      gate.countDown();
+      assertEquals(List.of(201, 409), java.util.stream.Stream.of(one.get().statusCode(), two.get().statusCode()).sorted().toList());
+    }
+    JsonNode other = body(postAdaptation(path, token(tenant, "*", List.of("assessment.learning.write"), "other"),
+        input, "key"), 201);
+    assertNotEquals(first.get("id").asString(), other.get("id").asString());
+    var actor = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-1", "*",
+        "https://idp.example.test", "user", List.of("assessment.learning.write"), List.of(), List.of());
+    var request = json.readValue(input, AssessmentRequests.ProposeLearningRecord.class);
+    new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      incidentLearning.proposeLearningRecord(actor, request, "rollback");
+      status.setRollbackOnly();
+    });
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.learning_proposal_idempotency "
+        + "WHERE tenant_id=? AND idempotency_key='rollback'", Integer.class, tenant));
+    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.learning_record WHERE tenant_id=?", Integer.class, tenant));
+    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event WHERE tenant_id=? "
+        + "AND event_type='uacrf.s07.learning.proposed.v1'", Integer.class, tenant));
+    assertEquals(201, postAdaptation(path, writer, input, "rollback").statusCode());
+  }
+
   @Test void learningRecordsAreImmutableRevisionFencedProposalsWithTransactionalOutbox() throws Exception {
     String owner = token("t-learning-proposal", "*", ALL);
     String caseId = sealed(owner, "[\"a\"]", "LTE");

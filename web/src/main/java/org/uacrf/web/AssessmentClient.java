@@ -160,6 +160,38 @@ class AssessmentClient {
     return item;
   }
 
+  Incident getIncident(String token, String incidentId) {
+    Incident item = restClient.get().uri(uri -> uri.path("/v1/incidents/{id}").build(incidentId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(Incident.class);
+    if (item == null || !validCursor(item.id()) || !incidentId.equals(item.id())
+        || !present(item.workloadId()) || !present(item.sourceCaseId()) || item.observedFrom() == null
+        || !present(item.description()) || !validStrings(item.evidenceRefs())
+        || (item.sourceEvaluationIds() != null && !validStrings(item.sourceEvaluationIds()))
+        || !present(item.reason()) || item.revision() == null || item.revision() != 1
+        || !present(item.createdBy()) || item.createdAt() == null) {
+      throw new IllegalStateException("S07 returned incomplete or mismatched incident details.");
+    }
+    return item;
+  }
+
+  LearningRecord proposeLearningRecord(String token, String key, LearningProposal request) {
+    LearningRecord item = restClient.post().uri("/v1/learning-records:idempotent-propose")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key).body(request).retrieve().body(LearningRecord.class);
+    if (item == null || !validCursor(item.id()) || !request.incidentId().equals(item.incidentId())
+        || !Objects.equals(request.experimentId(), item.experimentId())
+        || !request.hypotheses().equals(item.hypotheses())
+        || !request.actionItems().equals(item.actionItems()) || !validStrings(item.evidenceRefs())
+        || !new TreeSet<>(request.evidenceRefs()).equals(new TreeSet<>(item.evidenceRefs()))
+        || item.evidenceRefs().size() != new TreeSet<>(item.evidenceRefs()).size()
+        || !Objects.equals(request.expectedRevision(), item.expectedRevision())
+        || !request.reason().equals(item.reason()) || !"PROPOSED".equals(item.state())
+        || item.revision() == null || item.revision() != 1 || !present(item.proposedBy()) || item.createdAt() == null) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched learning proposal.");
+    }
+    return item;
+  }
+
   LearningRecordPage listLearningRecords(String token, String incidentId, String after) {
     LearningRecordPage page = restClient.get()
         .uri(uri -> {
@@ -300,13 +332,20 @@ class AssessmentClient {
       @JsonProperty("source_evaluation_ids") List<String> sourceEvaluationIds, String reason, Long revision,
       @JsonProperty("created_by") String createdBy, @JsonProperty("created_at") Instant createdAt) {}
   record LearningRecordPage(List<LearningRecord> items, @JsonProperty("next_cursor") String nextCursor) {}
+  record LearningProposal(@JsonProperty("incident_id") String incidentId,
+      @JsonProperty("experiment_id") String experimentId, List<String> hypotheses,
+      @JsonProperty("action_items") List<LearningAction> actionItems,
+      @JsonProperty("evidence_refs") List<String> evidenceRefs,
+      @JsonProperty("expected_revision") Long expectedRevision, String reason) {}
   record LearningRecord(String id, @JsonProperty("incident_id") String incidentId,
       @JsonProperty("experiment_id") String experimentId, List<String> hypotheses,
       @JsonProperty("action_items") List<LearningAction> actionItems,
       @JsonProperty("evidence_refs") List<String> evidenceRefs,
       @JsonProperty("expected_revision") Long expectedRevision, String reason, String state, Long revision,
       @JsonProperty("proposed_by") String proposedBy, @JsonProperty("created_at") Instant createdAt) {}
-  record LearningAction(String description, @JsonProperty("owner_id") String ownerId,
-      @JsonProperty("due_at") Instant dueAt, @JsonProperty("proposed_version_ref") String proposedVersionRef,
-      @JsonProperty("closure_test") String closureTest) {}
+  record LearningAction(@NotBlank @Size(max=2000) String description,
+      @JsonProperty("owner_id") @NotBlank @Size(max=200) String ownerId,
+      @JsonProperty("due_at") @NotNull Instant dueAt,
+      @JsonProperty("proposed_version_ref") @Size(max=1000) String proposedVersionRef,
+      @JsonProperty("closure_test") @NotBlank @Size(max=2000) String closureTest) {}
 }

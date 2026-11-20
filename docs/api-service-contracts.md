@@ -45,7 +45,7 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Topology (S06) | POST, GET | `/v1/graphs/subgraphs:select`, `/v1/graphs/differences:classify`, `/v1/commands/{id}` | `TopologyRequests.SelectSubgraph` / `ClassifyDifferences` and idempotency key; command ID path | 202 admission receipt (`PENDING`, `domain_completion=false`); status projection (`command_id`, `status`, `terminal`, `domain_completion`) and, only on `SUCCEEDED`, a bounded advisory result |
 | Assessment (S07) | GET, POST | `/v1/cases/**`, `/v1/cases:idempotent-create`, `/v1/evaluations/{id}`, `/v1/recommendations` | `AssessmentRequests` records and query/path parameters; `Idempotency-Key` required on the dedicated creation and `/v1/cases/{id}:idempotent-evaluate` routes | Case, evaluation, recommendation, and receipt records |
 | Assessment (S07) | GET, POST | `/v1/model-versions/**`, `/internal/v1/model-evaluation-declarations/**` | Model-version and evaluation-declaration request records | Model version or declaration/page |
-| Assessment (S07) | GET, POST | `/v1/incidents/**`, `/v1/incidents:idempotent-create`, `/v1/learning-records/**`, `/internal/v1/learning-records/{id}:review-receipt`, `/internal/v1/adaptation-proposals/**` | Incident, learning, review, and adaptation request records; `Idempotency-Key` required on the dedicated incident creation route | Incident, learning/review receipt, or adaptation proposal/page |
+| Assessment (S07) | GET, POST | `/v1/incidents/**`, `/v1/incidents:idempotent-create`, `/v1/learning-records/**`, `/v1/learning-records:idempotent-propose`, `/internal/v1/learning-records/{id}:review-receipt`, `/internal/v1/adaptation-proposals/**` | Incident, learning, review, and adaptation request records; `Idempotency-Key` required on the dedicated incident and learning proposal routes | Incident, learning/review receipt, or adaptation proposal/page |
 | Knowledge (S08) | GET, POST | `/v1/knowledge-items/**`, `/v1/retrievals/**`, `/internal/v1/retrievals/{id}:receipt` | `KnowledgeRequests` records and query/path parameters | Versioned item, retrieval, or retrieval receipt |
 
 Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
@@ -138,6 +138,15 @@ conflicts. Creation still requires verified evaluation evidence and current
 owner-receipt revalidation; replay does not recheck owners. The legacy
 `POST /v1/incidents` route remains unkeyed. Deploy S07 and EDGE01 before UX01;
 the browser does not fall back to the unkeyed route.
+
+The dedicated `POST /v1/learning-records:idempotent-propose` route scopes its
+required key to tenant, environment and actor. Matching canonical requests
+return the original proposal and changed content conflicts; the proposal,
+outbox event and binding commit together. Creation checks incident revision
+and retained evidence membership, but does not revalidate evidence or review
+or adopt the proposal. The existing `POST /v1/learning-records` route remains
+unkeyed. Deploy S07 and EDGE01 before UX01; the browser does not fall back to
+the unkeyed route.
 
 ## Communication Patterns
 
