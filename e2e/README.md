@@ -121,6 +121,10 @@ rows, exclude another tenant, and reject an ungranted restricted classification.
 A user without knowledge-read access is denied. These metadata fixtures are
 inserted directly into the disposable database, bypass the knowledge lifecycle,
 and are not provider acceptance or evidence of current eligibility.
+The same suite stages synthetic plaintext through UX01, EDGE01 and S08, replays
+the identical keyed request, confirms one visible candidate, and denies an
+ungranted user. A staging receipt is historical and does not establish approval
+or retrieval eligibility.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

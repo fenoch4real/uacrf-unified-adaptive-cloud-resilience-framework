@@ -1,8 +1,13 @@
 package org.uacrf.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -33,6 +38,36 @@ class KnowledgeClient {
     return List.copyOf(items);
   }
 
+  ItemVersion stage(String token, String key, StageRequest request) {
+    ItemVersion receipt = restClient.post().uri("/v1/knowledge-items:idempotent")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(request).retrieve().body(ItemVersion.class);
+    if (!valid(receipt, request.itemId(), null, request.classification())
+        || !request.version().equals(receipt.version()) || !request.title().equals(receipt.title())
+        || !Objects.equals(request.sourceRef(), receipt.sourceRef())
+        || request.classification() != receipt.classification()
+        || !request.allowedPurposes().equals(receipt.allowedPurposes())
+        || !request.targetWorkloadIds().equals(receipt.targetWorkloadIds())
+        || !request.reviewDeadline().equals(receipt.reviewDeadline())
+        || !request.reason().equals(receipt.reason())
+        || !sha256(request.content()).equals(receipt.sourceDigest())
+        || receipt.state() != State.CANDIDATE || receipt.revision() != 1
+        || receipt.reviewedBy() != null || receipt.reviewReason() != null
+        || receipt.withdrawnBy() != null || receipt.withdrawalReason() != null) {
+      throw new IllegalStateException("S08 returned an incomplete or mismatched staging receipt.");
+    }
+    return receipt;
+  }
+
+  private static String sha256(String content) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+          .digest(content.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException error) {
+      throw new IllegalStateException("SHA-256 is required by the runtime.", error);
+    }
+  }
+
   private static boolean valid(ItemVersion item, String itemId, String purpose, Classification ceiling) {
     return item != null && item.itemId() != null && item.itemId().matches(IDENTIFIER)
         && (itemId == null || itemId.equals(item.itemId()))
@@ -59,6 +94,12 @@ class KnowledgeClient {
 
   enum Classification { PUBLIC, INTERNAL, RESTRICTED }
   enum State { CANDIDATE, APPROVED, REJECTED, SUPERSEDED, WITHDRAWN }
+
+  record StageRequest(@JsonProperty("item_id") String itemId, String version, String title,
+      @JsonProperty("source_ref") String sourceRef, String content, Classification classification,
+      @JsonProperty("allowed_purposes") List<String> allowedPurposes,
+      @JsonProperty("target_workload_ids") List<String> targetWorkloadIds,
+      @JsonProperty("review_deadline") Instant reviewDeadline, String reason) {}
 
   record ItemVersion(@JsonProperty("item_id") String itemId, String version, String title,
       @JsonProperty("source_ref") String sourceRef, Classification classification,

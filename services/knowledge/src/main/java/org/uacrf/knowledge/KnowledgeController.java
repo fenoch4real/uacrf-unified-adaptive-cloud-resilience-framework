@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,6 +30,13 @@ class KnowledgeController {
   @ResponseStatus(HttpStatus.CREATED)
   ItemVersion stage(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody StageItem request) {
     return knowledge.stage(DelegationPrincipal.from(jwt), request);
+  }
+
+  @PostMapping("/v1/knowledge-items:idempotent")
+  @ResponseStatus(HttpStatus.CREATED)
+  ItemVersion stageIdempotent(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody StageItem request,
+      @RequestHeader("Idempotency-Key") String key) {
+    return knowledge.stageIdempotent(DelegationPrincipal.from(jwt), request, key);
   }
 
   @GetMapping("/v1/knowledge-items")

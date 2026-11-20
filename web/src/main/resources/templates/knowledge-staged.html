@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowledge staged | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Knowledge staging receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p role="status">The candidate was staged. This is the original receipt, not proof of current
+    status, approval, retrieval eligibility, or authority to act.</p>
+  <dl>
+    <dt>Item ID</dt><dd th:text="${receipt.itemId}">ID</dd>
+    <dt>Version</dt><dd th:text="${receipt.version}">Version</dd>
+    <dt>Title</dt><dd th:text="${receipt.title}">Title</dd>
+    <dt>Classification</dt><dd th:text="${receipt.classification}">Classification</dd>
+    <dt>State at staging</dt><dd th:text="${receipt.state}">Candidate</dd>
+    <dt>Source digest</dt><dd th:text="${receipt.sourceDigest}">Digest</dd>
+  </dl>
+  <p><a href="/knowledge">Browse current metadata</a></p>
+</main>
+</body>
+</html>

@@ -56,6 +56,58 @@ class KnowledgeService {
   }
 
   @Transactional
+  ItemVersion stageIdempotent(DelegationPrincipal actor, StageItem request, String key) {
+    requireCapability(actor, "knowledge.item.write");
+    requireGlobalScope(actor);
+    if (key == null || !key.matches("^[\\x21-\\x7e]{1,200}$")) {
+      throw invalid("INVALID_REQUEST", "Idempotency-Key must be a non-empty token of at most 200 characters.");
+    }
+    String digest = digestJson(request);
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA
+            + "stage_idempotency (tenant_id, environment_id, actor_id, idempotency_key, payload_digest) "
+            + "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+    if (inserted == 0) {
+      List<StageReceipt> prior = jdbc.query(
+          "SELECT payload_digest, item_id, version, receipt::text AS receipt FROM " + SCHEMA
+              + "stage_idempotency WHERE tenant_id = ? AND environment_id = ? "
+              + "AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+          (rs, row) -> new StageReceipt(rs.getString("payload_digest"), rs.getString("item_id"),
+              rs.getString("version"), rs.getString("receipt")),
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+      if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+      }
+      StageReceipt retained = prior.getFirst();
+      if (retained.receipt() == null) {
+        throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+      }
+      try {
+        ItemVersion receipt = objectMapper.readValue(retained.receipt(), ItemVersion.class);
+        if (receipt == null || !request.itemId().equals(retained.itemId())
+            || !request.version().equals(retained.version())
+            || !request.itemId().equals(receipt.itemId()) || !request.version().equals(receipt.version())
+            || !"CANDIDATE".equals(receipt.state()) || receipt.revision() != 1) {
+          throw new IllegalStateException("Retained staging receipt does not match the request.");
+        }
+        return receipt;
+      } catch (JacksonException error) {
+        throw new IllegalStateException("Retained staging receipt is invalid.", error);
+      }
+    }
+    ItemVersion receipt = stage(actor, request);
+    jdbc.update("UPDATE " + SCHEMA
+            + "stage_idempotency SET item_id = ?, version = ?, receipt = ?::jsonb "
+            + "WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? AND idempotency_key = ?",
+        receipt.itemId(), receipt.version(), writeJson(receipt),
+        actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    return receipt;
+  }
+
+  private record StageReceipt(String digest, String itemId, String version, String receipt) {}
+
+  @Transactional
   ItemVersion stage(DelegationPrincipal actor, StageItem request) {
     requireCapability(actor, "knowledge.item.write");
     requireGlobalScope(actor);

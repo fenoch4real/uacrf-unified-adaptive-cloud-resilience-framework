@@ -41,6 +41,12 @@ class KnowledgeRouteClient {
     return sendBody(HttpMethod.POST, "/v1/knowledge-items", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> stageItemIdempotent(String authorization, String key, String requestBody) {
+    RestClient.RequestBodySpec request = knowledgeRestClient.post().uri("/v1/knowledge-items:idempotent");
+    request.header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON).body(requestBody);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> reviewItem(
       String authorization, String id, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/knowledge-items/{id}:review", id, authorization, requestBody);

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stage knowledge | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Stage a knowledge candidate</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/knowledge">Back to knowledge metadata</a></p>
+  <p>Staging retains plaintext as a candidate. It does not approve the content,
+    establish retrieval eligibility, or authorize action. Source references are inert and are not fetched.</p>
+  <p>If staging is unconfirmed, retry this same form unchanged in the same context.
+    A changed request requires a new form; check the metadata before starting again.</p>
+  <p role="alert" th:if="${stageError != null}" th:text="${stageError}"></p>
+  <div role="alert" th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the candidate details</h2>
+    <ul><li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li></ul>
+  </div>
+  <form method="post" th:action="@{/knowledge}" th:object="${stageForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <p id="identifier-help">Identifiers begin with a letter or digit and use letters, digits, dots, underscores, colons, or hyphens.</p>
+    <p><label for="itemId">Item ID (required)</label>
+      <input id="itemId" th:field="*{itemId}" maxlength="200" required aria-describedby="identifier-help"
+             th:attr="aria-invalid=${#fields.hasErrors('itemId') ? 'true' : null}" autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+    <p><label for="version">Version (required)</label>
+      <input id="version" th:field="*{version}" maxlength="100" required aria-describedby="identifier-help"
+             th:attr="aria-invalid=${#fields.hasErrors('version') ? 'true' : null}" autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+    <p><label for="title">Title (required)</label>
+      <input id="title" th:field="*{title}" maxlength="200" required th:attr="aria-invalid=${#fields.hasErrors('title') ? 'true' : null}"></p>
+    <p><label for="sourceRef">Source reference (optional, inert)</label>
+      <input id="sourceRef" th:field="*{sourceRef}" maxlength="500" th:attr="aria-invalid=${#fields.hasErrors('sourceRef') ? 'true' : null}"></p>
+    <fieldset>
+      <legend>Classification (required)</legend>
+      <input id="stage-public" type="radio" th:field="*{classification}" value="PUBLIC"><label for="stage-public">Public</label>
+      <input id="stage-internal" type="radio" th:field="*{classification}" value="INTERNAL"><label for="stage-internal">Internal</label>
+      <input id="stage-restricted" type="radio" th:field="*{classification}" value="RESTRICTED"><label for="stage-restricted">Restricted</label>
+    </fieldset>
+    <p><label for="content">Plaintext content (required)</label>
+      <textarea id="content" th:field="*{content}" maxlength="262144" required aria-describedby="content-help"
+                th:attr="aria-invalid=${#fields.hasErrors('content') ? 'true' : null}"></textarea>
+      <span id="content-help">Maximum 256 KiB when encoded as UTF-8. Do not enter credentials.</span></p>
+    <p><label for="purposes">Allowed purposes, one per line (required)</label>
+      <textarea id="purposes" th:field="*{purposes}" maxlength="20100" required aria-describedby="identifier-help"
+                th:attr="aria-invalid=${#fields.hasErrors('purposes') ? 'true' : null}"></textarea></p>
+    <p><label for="workloads">Target workload IDs, one per line (optional)</label>
+      <textarea id="workloads" th:field="*{workloads}" maxlength="20100" aria-describedby="identifier-help"
+                th:attr="aria-invalid=${#fields.hasErrors('workloads') ? 'true' : null}"></textarea></p>
+    <p><label for="reviewDeadline">Review deadline in UTC (required)</label>
+      <input id="reviewDeadline" th:field="*{reviewDeadline}" maxlength="40" required aria-describedby="deadline-help"
+             th:attr="aria-invalid=${#fields.hasErrors('reviewDeadline') ? 'true' : null}" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <span id="deadline-help">For example, 2030-01-01T12:00:00Z. It must be in the future when first staged.</span></p>
+    <p><label for="reason">Reason (required)</label>
+      <textarea id="reason" th:field="*{reason}" maxlength="2000" required
+                th:attr="aria-invalid=${#fields.hasErrors('reason') ? 'true' : null}"></textarea></p>
+    <button type="submit">Stage candidate</button>
+  </form>
+</main>
+</body>
+</html>

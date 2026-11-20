@@ -56,6 +56,52 @@ class WebApplicationTests {
   @MockitoBean private AssessmentClient assessment;
   @MockitoBean private KnowledgeClient knowledge;
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder stageKnowledge() {
+    return post("/knowledge").param("itemId", "item-1").param("version", "v1")
+        .param("title", "Title").param("sourceRef", "sample:source").param("content", "hello")
+        .param("classification", "PUBLIC").param("purposes", "review").param("workloads", "")
+        .param("reviewDeadline", "2030-01-01T00:00:00Z").param("reason", "Reason")
+        .param("idempotencyKey", "123e4567-e89b-42d3-a456-426614174000")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test");
+  }
+
+  @Test
+  void stagesKnowledgeWithContextBoundWriteAndPreservesRetryKey() throws Exception {
+    var command = new KnowledgeClient.StageRequest("item-1", "v1", "Title", "sample:source", "hello",
+        KnowledgeClient.Classification.PUBLIC, List.of("review"), List.of(),
+        Instant.parse("2030-01-01T00:00:00Z"), "Reason");
+    var receipt = new KnowledgeClient.ItemVersion("item-1", "v1", "Title", "sample:source",
+        KnowledgeClient.Classification.PUBLIC, List.of("review"), List.of(),
+        Instant.parse("2030-01-01T00:00:00Z"), "Reason", "a".repeat(64),
+        KnowledgeClient.State.CANDIDATE, 1L, "user", null, null, null, null,
+        Instant.parse("2026-01-01T00:00:00Z"));
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.item.write"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("writer-token", "Bearer", 30));
+    when(knowledge.stage("writer-token", "123e4567-e89b-42d3-a456-426614174000", command))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(receipt);
+    mockMvc.perform(stageKnowledge().with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Retry this same form unchanged")))
+        .andExpect(content().string(containsString("123e4567-e89b-42d3-a456-426614174000")));
+    mockMvc.perform(stageKnowledge().with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("original receipt")))
+        .andExpect(content().string(containsString("CANDIDATE")))
+        .andExpect(content().string(not(containsString("writer-token"))));
+    verify(knowledge, times(2)).stage("writer-token", "123e4567-e89b-42d3-a456-426614174000", command);
+  }
+
+  @Test
+  void stagingRejectsInvalidInputChangedContextAndMissingCsrf() throws Exception {
+    mockMvc.perform(stageKnowledge().with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(stageKnowledge().with(request -> { request.setParameter("tenantId", "other"); return request; }).with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext())).andExpect(status().isConflict());
+    mockMvc.perform(stageKnowledge().with(request -> { request.setParameter("reviewDeadline", "not-a-date"); return request; }).with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
+    verifyNoInteractions(identity, knowledge);
+  }
+
   @Test
   void knowledgeReadsOnlySelectedClassificationAndEscapesMetadata() throws Exception {
     when(identity.createDelegation("test-access-token", "S08", null,

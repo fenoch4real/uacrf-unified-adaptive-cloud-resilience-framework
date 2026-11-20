@@ -97,6 +97,51 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void stagingKeyIsAtomicScopedAndReplaysOriginalReceipt() throws Exception {
+    String writer = bearer("keyed-writer", "t-keyed", WRITER);
+    String body = stage("keyed-item", "v1", "keyed guidance");
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/knowledge-items:idempotent"))
+        .header("Authorization", writer).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "same-key")
+        .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    var firstFuture = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var secondFuture = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var first = firstFuture.get();
+    var second = secondFuture.get();
+    assertEquals(201, first.statusCode());
+    assertEquals(201, second.statusCode());
+    assertEquals(objectMapper.readTree(first.body()), objectMapper.readTree(second.body()));
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM uacrf_knowledge.knowledge_version "
+        + "WHERE tenant_id='t-keyed' AND item_id='keyed-item'", Integer.class)).isEqualTo(1);
+    assertThat(postKeyed(writer, "same-key", body.replace("keyed guidance", "different guidance")).body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertEquals(403, postKeyed(bearer("keyed-writer", "t-keyed", List.of("knowledge.item.read")),
+        "same-key", body).statusCode());
+    assertEquals(403, postKeyed(token("keyed-writer", "t-keyed", "workload-1", WRITER),
+        "same-key", body).statusCode());
+    assertEquals(200, post("/v1/knowledge-items/keyed-item:review",
+        bearer("independent", "t-keyed", REVIEWER), review("REJECT", 1)).statusCode());
+    var replay = postKeyed(writer, "same-key", body);
+    assertEquals(201, replay.statusCode());
+    assertEquals(objectMapper.readTree(first.body()), objectMapper.readTree(replay.body()));
+    assertEquals(201, postKeyed(bearer("another-writer", "t-keyed", WRITER), "same-key",
+        stage("other-item", "v1", "other guidance")).statusCode());
+    assertEquals(201, postKeyed(bearer("keyed-writer", "other-tenant", WRITER), "same-key", body).statusCode());
+  }
+
+  @Test
+  void failedKeyedStagingDoesNotReserveKey() throws Exception {
+    String writer = bearer("writer", "t-keyed-failure", WRITER);
+    String body = stage("retry-item", "v1", "guidance");
+    String expired = body.replaceFirst("\"review_deadline\":\"[^\"]+\"",
+        "\"review_deadline\":\"2020-01-01T00:00:00Z\"");
+    assertEquals(400, postKeyed(writer, "reusable", expired).statusCode());
+    assertEquals(201, postKeyed(writer, "reusable", body).statusCode());
+    assertEquals(400, postKeyed(writer, "bad key", body).statusCode());
+    assertEquals(400, post("/v1/knowledge-items:idempotent", writer, body).statusCode());
+  }
+
+  @Test
   void candidateVersionsAreMetadataOnlyAndNeverSearchableUntilApproved() throws Exception {
     String writer = bearer("proposer", "t-candidate", WRITER);
     assertEquals(201, post("/v1/knowledge-items", writer, stage("candidate", "v1", "secret draft guidance")).statusCode());
@@ -871,6 +916,13 @@ class KnowledgeApplicationTests {
 
   private HttpResponse<String> post(String path, String bearer, String body) throws Exception {
     return send(path, bearer, "POST", body);
+  }
+
+  private HttpResponse<String> postKeyed(String bearer, String key, String body) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/knowledge-items:idempotent"))
+        .header("Authorization", bearer).header("Content-Type", "application/json")
+        .header("Idempotency-Key", key).POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    return http.send(request, HttpResponse.BodyHandlers.ofString());
   }
 
   private HttpResponse<String> get(String path, String bearer) throws Exception {

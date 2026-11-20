@@ -282,7 +282,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
-      'knowledge.item.read', 'knowledge.classification.internal.read',
+      'knowledge.item.read', 'knowledge.item.write', 'knowledge.classification.internal.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -401,6 +401,35 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     ]);
     expect(deniedKnowledge.status()).toBe(403);
     await expect(sample.getByText('Synthetic public knowledge')).toHaveCount(0);
+    const stagedItemId = `synthetic-knowledge-${randomUUID()}`;
+    await sample.goto('/knowledge/new');
+    await sample.getByLabel('Item ID (required)').fill(stagedItemId);
+    await sample.getByLabel('Version (required)').fill('v1');
+    await sample.getByLabel('Title (required)').fill('Synthetic staged browser knowledge');
+    await sample.getByLabel('Source reference (optional, inert)').fill('sample:browser');
+    await sample.getByLabel('Plaintext content (required)').fill('Synthetic browser knowledge content.');
+    await sample.getByLabel('Allowed purposes, one per line (required)').fill('sample:review');
+    await sample.getByLabel('Review deadline in UTC (required)').fill(new Date(Date.now() + 86400000).toISOString());
+    await sample.getByLabel('Reason (required)').fill('Synthetic browser staging test.');
+    const [stageResponse] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === '/knowledge'),
+      sample.getByRole('button', { name: 'Stage candidate' }).click(),
+    ]);
+    expect(stageResponse.status()).toBe(200);
+    await expect(sample.getByRole('status')).toContainText('original receipt');
+    await expect(sample.getByText(stagedItemId, { exact: true })).toBeVisible();
+    const replayStage = await sample.request.post('/knowledge', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      data: stageResponse.request().postData(),
+    });
+    expect(replayStage.status()).toBe(200);
+    expect(await replayStage.text()).toContain('original receipt');
+    await sample.goto('/knowledge');
+    await sample.getByLabel('Item ID', { exact: true }).fill(stagedItemId);
+    await sample.getByRole('button', { name: 'Show metadata' }).click();
+    await expect(sample.getByRole('listitem').filter({ hasText: stagedItemId })).toContainText('CANDIDATE');
+    await expect(sample.getByRole('listitem').filter({ hasText: stagedItemId })).toHaveCount(1);
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -746,6 +775,21 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedKnowledge = await restricted.goto('/knowledge');
       expect(deniedKnowledge.status()).toBe(403);
       await expect(restricted.getByText('Synthetic public knowledge')).toHaveCount(0);
+      await restricted.goto('/knowledge/new');
+      await restricted.getByLabel('Item ID (required)').fill(`denied-knowledge-${randomUUID()}`);
+      await restricted.getByLabel('Version (required)').fill('v1');
+      await restricted.getByLabel('Title (required)').fill('Denied synthetic candidate');
+      await restricted.getByLabel('Plaintext content (required)').fill('Synthetic denied content.');
+      await restricted.getByLabel('Allowed purposes, one per line (required)').fill('sample:review');
+      await restricted.getByLabel('Review deadline in UTC (required)').fill(new Date(Date.now() + 86400000).toISOString());
+      await restricted.getByLabel('Reason (required)').fill('Denied test.');
+      const [deniedStage] = await Promise.all([
+        restricted.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/knowledge'),
+        restricted.getByRole('button', { name: 'Stage candidate' }).click(),
+      ]);
+      expect(deniedStage.status()).toBe(403);
+      await expect(restricted.getByRole('alert')).toContainText('not authorized');
       const globalObjectives = await restricted.goto('/objectives');
       expect(globalObjectives.status()).toBe(403);
       const deniedCases = await restricted.goto('/assessment-cases');

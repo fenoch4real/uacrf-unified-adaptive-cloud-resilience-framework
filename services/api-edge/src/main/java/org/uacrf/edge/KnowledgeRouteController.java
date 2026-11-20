@@ -41,6 +41,14 @@ class KnowledgeRouteController {
     return forward(() -> knowledge.stageItem(authorization, requestBody));
   }
 
+  @PostMapping("/v1/knowledge-items:idempotent")
+  ResponseEntity<String> stageIdempotent(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String key,
+      @RequestBody String requestBody) {
+    return forward(() -> knowledge.stageItemIdempotent(authorization, key, requestBody));
+  }
+
   @PostMapping("/v1/knowledge-items/{id}:review")
   ResponseEntity<String> review(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

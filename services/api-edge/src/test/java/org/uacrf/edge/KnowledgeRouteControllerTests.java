@@ -1,6 +1,7 @@
 package org.uacrf.edge;
 
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -41,6 +42,13 @@ class KnowledgeRouteControllerTests {
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/knowledge-items:idempotent"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header("Idempotency-Key", "retry-key"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/knowledge-items/item-1:review"))
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -60,6 +68,10 @@ class KnowledgeRouteControllerTests {
         .andExpect(status().isOk())
         .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(post("/internal/knowledge/v1/knowledge-items").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    mvc.perform(post("/internal/knowledge/v1/knowledge-items:idempotent")
+            .header("Idempotency-Key", "retry-key").header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
     mvc.perform(post("/internal/knowledge/v1/knowledge-items/item-1:review").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());

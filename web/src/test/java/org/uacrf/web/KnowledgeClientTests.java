@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.util.List;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,6 +23,30 @@ class KnowledgeClientTests {
        "source_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
        "state":"CANDIDATE","revision":1,"proposed_by":"user","created_at":"2026-01-01T00:00:00Z"}
       """;
+
+  @Test
+  void stagingChecksReceiptAgainstContentAndCommand() {
+    String digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+    String receipt = RECORD.replace("item:one", "item-1").replace("risk:review", "review")
+        .replace("https://example.test", "sample:source").replace("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", digest);
+    var command = new KnowledgeClient.StageRequest("item-1", "v1", "Title", "sample:source", "hello",
+        KnowledgeClient.Classification.PUBLIC, List.of("review"), List.of(),
+        Instant.parse("2030-01-01T00:00:00Z"), "Reason");
+    for (boolean valid : List.of(true, false)) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/knowledge-items:idempotent"))
+          .andExpect(header("Idempotency-Key", "key"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(jsonPath("$.item_id").value("item-1"))
+          .andExpect(jsonPath("$.content").value("hello"))
+          .andRespond(withSuccess(valid ? receipt : receipt.replace(digest, "a".repeat(64)), MediaType.APPLICATION_JSON));
+      KnowledgeClient client = new KnowledgeClient(builder.build());
+      if (valid) assertThat(client.stage("delegated", "key", command).state()).isEqualTo(KnowledgeClient.State.CANDIDATE);
+      else assertThatThrownBy(() -> client.stage("delegated", "key", command)).isInstanceOf(IllegalStateException.class);
+      server.verify();
+    }
+  }
 
   @Test
   void readsEncodedExactFiltersFromEdge() {
