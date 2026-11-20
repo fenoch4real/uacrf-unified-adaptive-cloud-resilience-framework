@@ -14,9 +14,39 @@ final class RequesterAccessClient {
   private final URI identityBase;
   private final InternalJsonClient http;
 
-  record Principal(String id, String kind, Set<String> capabilities) {
-    Principal {
-      capabilities = Set.copyOf(capabilities);
+  static final class Principal {
+    private final String id;
+    private final String kind;
+    private final String tenantId;
+    private final String environmentId;
+    private final Set<String> capabilities;
+
+    private Principal(String id, String kind, String tenantId, String environmentId, Set<String> capabilities) {
+      this.id = id;
+      this.kind = kind;
+      this.tenantId = tenantId;
+      this.environmentId = environmentId;
+      this.capabilities = Set.copyOf(capabilities);
+    }
+
+    String id() {
+      return id;
+    }
+
+    String kind() {
+      return kind;
+    }
+
+    String tenantId() {
+      return tenantId;
+    }
+
+    String environmentId() {
+      return environmentId;
+    }
+
+    Set<String> capabilities() {
+      return capabilities;
     }
   }
 
@@ -79,7 +109,7 @@ final class RequesterAccessClient {
             && !capabilities.contains("knowledge.classification.restricted.read"))) {
       throw new IOException("Requester lacks required advisory or source access capabilities.");
     }
-    return new Principal(principalId, kind, capabilities);
+    return new Principal(principalId, kind, tenantId, environmentId, capabilities);
   }
 
   private static String encode(String value) {

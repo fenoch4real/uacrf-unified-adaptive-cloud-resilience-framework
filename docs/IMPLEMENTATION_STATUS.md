@@ -1332,11 +1332,14 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   isolation, immutable plans and records, substitution rejection, and deadline
   failure. A delayed-plan regression confirms that expiration before database
   activation rejects and rolls back the run, idempotency, and outbox rows. The
-  clean advisory suite passed 158 tests with no failures, errors, or skips. No
+  clean advisory suite passed 159 tests with no failures, errors, or skips. No
   service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
-  The primitive still trusts its caller-supplied principal and does not
-  authenticate the principal or recheck that owner context is unchanged at
+  Journal admission now accepts only the private-constructor S01 requester
+  proof, which binds a HUMAN principal with `advisory.run.create` to the exact
+  tenant/environment; a scope-mismatch regression confirms no journal or
+  outbox rows are created. This is a point-in-time check and does not prevent
+  later S01 revocation or establish that owner context remains unchanged at
   commit. No connected handler or current-context commit guard is wired; the
   publisher and provider dispatch remain disabled, and the operation remains
   `PENDING_CONNECTED_VERIFICATION`. The MS01 design check passes 24 consistency

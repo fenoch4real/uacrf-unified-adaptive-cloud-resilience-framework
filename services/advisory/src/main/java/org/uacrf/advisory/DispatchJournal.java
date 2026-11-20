@@ -242,10 +242,18 @@ final class DispatchJournal {
   }
 
   AdmissionResult admitRun(RunKey key, long generation, AdvisoryRunRequest request, List<Intent> dispatchPlan,
-                           String principalId, String operation, String idempotencyKey)
+                           RequesterAccessClient.Principal requester, String operation, String idempotencyKey)
       throws SQLException {
     Objects.requireNonNull(request, "request");
     validateRunAdmission(key, generation, request.budget(), request.deadline());
+    Objects.requireNonNull(requester, "requester");
+    if (!"HUMAN".equals(requester.kind())
+        || !requester.tenantId().equals(key.tenantId())
+        || !requester.environmentId().equals(key.environmentId())
+        || !requester.capabilities().contains("advisory.run.create")) {
+      throw new IllegalArgumentException("Requester authorization does not match the run scope.");
+    }
+    String principalId = requester.id();
     requireId(principalId);
     requireId(operation);
     validateIdempotencyKey(idempotencyKey);

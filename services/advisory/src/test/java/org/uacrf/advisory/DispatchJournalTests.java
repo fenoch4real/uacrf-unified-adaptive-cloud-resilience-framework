@@ -6,6 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -24,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
@@ -40,6 +45,8 @@ class DispatchJournalTests {
       "postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81")
       .withDatabaseName("uacrf_advisory").withUsername("advisory_test").withPassword("advisory_test");
   private static DataSource dataSource;
+  private static HttpServer identityServer;
+  private static URI identityBase;
 
   @BeforeAll
   static void migrate() throws Exception {
@@ -75,6 +82,43 @@ class DispatchJournalTests {
       }
     }
     Flyway.configure().dataSource(dataSource).load().migrate();
+    identityServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    identityServer.createContext("/v1/me/access", exchange -> {
+      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+      String prefix = "Bearer test-";
+      if (authorization == null || !authorization.startsWith(prefix)) {
+        exchange.sendResponseHeaders(401, -1);
+        exchange.close();
+        return;
+      }
+      String principalId = authorization.substring(prefix.length());
+      String body = """
+          {"principal_id":"%s","display_name":"Test user","kind":"HUMAN","service_id":null,
+           "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read",
+           "knowledge.retrieval.read"]}
+          """.formatted(principalId);
+      byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+      exchange.sendResponseHeaders(200, bytes.length);
+      try (var output = exchange.getResponseBody()) {
+        output.write(bytes);
+      }
+    });
+    identityServer.start();
+    identityBase = URI.create("http://127.0.0.1:" + identityServer.getAddress().getPort());
+  }
+
+  @AfterAll
+  static void stopIdentityServer() {
+    if (identityServer != null) {
+      identityServer.stop(0);
+    }
+  }
+
+  private static RequesterAccessClient.Principal requester(DispatchJournal.RunKey key, String principalId)
+      throws IOException, InterruptedException {
+    return new RequesterAccessClient(true, identityBase, true)
+        .check("test-" + principalId, key.tenantId(), key.environmentId(),
+            SourceReceiptConsistency.Classification.PUBLIC);
   }
 
   private static DispatchJournal.Intent intent(String tenant, String attempt, String assignment) {
@@ -174,10 +218,11 @@ class DispatchJournalTests {
 
   private static DispatchJournal.AdmissionResult admit(
       DispatchJournal journal, DispatchJournal.RunKey key, AdvisoryRunRequest request,
-      String principalId, String operation, String idempotencyKey) throws SQLException {
+      String principalId, String operation, String idempotencyKey)
+      throws IOException, InterruptedException, SQLException {
     return journal.admitRun(key, 1, request,
         dispatchPlan(key, 1, request.budget(), request.deadline()),
-        principalId, operation, idempotencyKey);
+        requester(key, principalId), operation, idempotencyKey);
   }
 
   @Test
@@ -262,10 +307,10 @@ class DispatchJournalTests {
     var incompleteRun = new DispatchJournal.RunKey("admission", "env", "run-incomplete");
     assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
         incompleteRun, 1, request, plan.subList(0, 1),
-        "principal-1", "CREATE_ADVISORY_RUN", "idem-incomplete"));
+        requester(incompleteRun, "principal-1"), "CREATE_ADVISORY_RUN", "idem-incomplete"));
     assertTrue(journal.findRun(incompleteRun).isEmpty());
     var created = journal.admitRun(requestedRun, 1, request, plan,
-        "principal-1", "CREATE_ADVISORY_RUN", "idem-1");
+        requester(requestedRun, "principal-1"), "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.CREATED, created.status());
     assertEquals(java.util.Optional.of(requestedRun), created.runKey());
     var original = plan.get(0);
@@ -278,13 +323,13 @@ class DispatchJournalTests {
     assertTrue(journal.begin(original));
 
     var replay = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-replay"),
-        1, request, null, "principal-1", "CREATE_ADVISORY_RUN", "idem-1");
+        1, request, null, requester(requestedRun, "principal-1"), "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.REPLAYED, replay.status());
     assertEquals(java.util.Optional.of(requestedRun), replay.runKey());
 
     var conflict = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-conflict"),
         1, admissionRequest(TEST_DEADLINE, "Changed reason"), null,
-        "principal-1", "CREATE_ADVISORY_RUN", "idem-1");
+        requester(requestedRun, "principal-1"), "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.IDEMPOTENCY_CONFLICT, conflict.status());
     assertTrue(conflict.runKey().isEmpty());
 
@@ -780,6 +825,22 @@ class DispatchJournalTests {
         statement.execute("DROP FUNCTION uacrf_advisory.delay_test_admission_plan()");
       }
     }
+  }
+
+  @Test
+  void admissionRejectsRequesterAuthorizationBoundToAnotherEnvironment() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var runKey = new DispatchJournal.RunKey("admission-scope", "env-1", "run-1");
+    var request = admissionRequest(TEST_DEADLINE, "Mismatched requester scope");
+    var foreignRequester = requester(
+        new DispatchJournal.RunKey(runKey.tenantId(), "env-2", "requester-check"), "principal-1");
+
+    assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
+        runKey, 1, request, dispatchPlan(runKey, 1, request.budget(), request.deadline()),
+        foreignRequester, "CREATE_ADVISORY_RUN", "idem-scope"));
+    assertTrue(journal.findRun(runKey).isEmpty());
+    assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", runKey.tenantId()));
+    assertEquals(0, countForTenant("uacrf_advisory.outbox_event", runKey.tenantId()));
   }
 
   private static int countOutboxDeliveryForTenant(String tenant) throws SQLException {
