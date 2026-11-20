@@ -78,9 +78,11 @@ acceptance.
 The same user receives independently approved global `assessment.case.read`,
 `assessment.case.write`, `assessment.evaluation.read`, and
 `assessment.recommendation.read` grants. The suite creates and replays a draft
-through UX01, EDGE01, S01 and S07, reads it back, and checks denial for a
-separately admitted user. The supplied objective and graph references are
-synthetic and not verified at creation. Separately, the user browses fixture
+through UX01, EDGE01, S01 and S07, reads it back, reviews and seals it, and
+verifies that replaying the old seal request conflicts. A separately admitted
+user is denied both creation and sealing. The supplied objective and graph
+references are synthetic and not verified at creation or sealing. Separately,
+the user browses fixture
 cases, evaluations, and an investigation-only recommendation. Those fixture
 rows and placeholder digests are inserted directly into the disposable database,
 bypassing case creation, sealing, evaluation, and recommendation generation;

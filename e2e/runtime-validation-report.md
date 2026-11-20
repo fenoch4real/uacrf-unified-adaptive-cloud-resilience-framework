@@ -6,6 +6,14 @@
 
 ## Latest live browser run
 
+On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
+stack. An independently authorized user reviewed and sealed a created draft
+through UX01, EDGE01, S01 and S07; an old seal request returned HTTP 409, and
+the current case showed SEALED. An ungranted user was denied sealing and a
+separate draft remained unchanged. The references were synthetic and not
+verified; sealing did not evaluate or qualify evidence or authorize an action.
+The stack was removed after the run.
+
 On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** against an isolated
 stack. An independently authorized user created a real S07 draft through
 UX01, EDGE01 and S01, replayed the same keyed browser request, and read back

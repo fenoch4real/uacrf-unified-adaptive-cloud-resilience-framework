@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review assessment case | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Review assessment case for sealing</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p role="alert" th:if="${caseError != null}" th:text="${caseError}"></p>
+  <section th:if="${caseItem != null}">
+    <h2>Case details</h2>
+    <p>Sealing makes this case immutable. It does not verify its objective or graph references, qualify evidence, evaluate the case, or authorize action.</p>
+    <dl>
+      <dt>Case ID</dt><dd th:text="${caseItem.id}">Case</dd>
+      <dt>State</dt><dd th:text="${caseItem.state}">DRAFT</dd>
+      <dt>Revision</dt><dd th:text="${caseItem.revision}">1</dd>
+      <dt>Workload ID</dt><dd th:text="${caseItem.workloadId}">Workload</dd>
+      <dt>Purpose</dt><dd th:text="${caseItem.purpose}">Purpose</dd>
+      <dt>Metric</dt><dd th:text="${caseItem.metric}">Metric</dd>
+      <dt>Comparator</dt><dd th:text="${caseItem.comparator}">LTE</dd>
+      <dt>Threshold</dt><dd th:text="${caseItem.threshold}">10</dd>
+      <dt>Unit</dt><dd th:text="${caseItem.unit}">ms</dd>
+      <dt>Window (seconds)</dt><dd th:text="${caseItem.windowSeconds}">60</dd>
+      <dt>Objective reference</dt><dd th:text="${caseItem.objectiveRef.id + ' / revision ' + caseItem.objectiveRef.revision + ' / ' + caseItem.objectiveRef.digest}">Objective</dd>
+      <dt>Graph reference</dt><dd th:text="${caseItem.graphRef.id + ' / revision ' + caseItem.graphRef.revision + ' / ' + caseItem.graphRef.digest}">Graph</dd>
+      <dt>Required source kinds</dt><dd><ul><li th:each="kind : ${caseItem.requiredSourceKinds}" th:text="${kind}">Source</li></ul></dd>
+      <dt>Case digest</dt><dd th:text="${caseItem.caseDigest != null ? caseItem.caseDigest : 'Not sealed'}">Digest</dd>
+    </dl>
+    <form th:if="${caseItem.state == 'DRAFT'}" method="post" th:action="@{/assessment-cases/{id}/seal(id=${caseItem.id})}">
+      <input type="hidden" name="expectedRevision" th:value="${caseItem.revision}">
+      <input type="hidden" name="tenantId" th:value="${selectedContext.tenantId}">
+      <input type="hidden" name="environmentId" th:value="${selectedContext.environmentId}">
+      <button type="submit">Seal this draft</button>
+    </form>
+    <p th:if="${caseItem.state != 'DRAFT'}">This case is already sealed; no sealing action is available.</p>
+  </section>
+</main>
+</body>
+</html>

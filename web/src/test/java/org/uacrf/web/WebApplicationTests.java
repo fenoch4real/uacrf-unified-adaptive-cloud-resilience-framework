@@ -1011,6 +1011,73 @@ class WebApplicationTests {
   }
 
   @Test
+  void reviewsAndSealsDraftWithSeparateScopedDelegationsAndCsrf() throws Exception {
+    var objective = new AssessmentClient.ObjectiveRef("objective-1", 1L, "od");
+    var graph = new AssessmentClient.GraphRef("graph-1", 1L, "gd");
+    var draft = new AssessmentClient.AssessmentCase("case-1", "workload-1", "<purpose>",
+        "latency", "LTE", new java.math.BigDecimal("10"), "ms", 60, "DRAFT", 1L, null,
+        objective, graph, List.of("measurement.latency"));
+    var sealed = new AssessmentClient.AssessmentCase("case-1", "workload-1", "<purpose>",
+        "latency", "LTE", new java.math.BigDecimal("10"), "ms", 60, "SEALED", 2L, "a".repeat(64),
+        objective, graph, List.of("measurement.latency"));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.case.read"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("case-reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.case.write"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("case-writer", "Bearer", 30));
+    when(assessment.getCase("case-reader", "case-1")).thenReturn(draft).thenReturn(sealed);
+    when(assessment.sealCase("case-writer", "case-1", 1L))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(sealed)
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(org.springframework.http.HttpStatus.CONFLICT));
+
+    mockMvc.perform(get("/assessment-cases/case-1/seal").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("&lt;purpose&gt;")))
+        .andExpect(content().string(containsString("does not verify its objective or graph references")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")))
+        .andExpect(content().string(containsString("Seal this draft")));
+    mockMvc.perform(sealRequest().with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verify(assessment, never()).sealCase(anyString(), anyString(), org.mockito.ArgumentMatchers.anyLong());
+    mockMvc.perform(sealRequest().with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Sealing is unconfirmed")))
+        .andExpect(content().string(containsString("Review current case state")));
+    mockMvc.perform(sealRequest().with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Sealed case")))
+        .andExpect(content().string(containsString("Sealing did not verify")))
+        .andExpect(content().string(not(containsString("case-writer"))));
+    mockMvc.perform(get("/assessment-cases/case-1/seal").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("already sealed")))
+        .andExpect(content().string(not(containsString("Seal this draft"))));
+    mockMvc.perform(sealRequest().with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isConflict())
+        .andExpect(content().string(containsString("Review the current case state before retrying")))
+        .andExpect(content().string(not(containsString("<h2>Sealed case</h2>"))));
+  }
+
+  @Test
+  void rejectsSealWithChangedContextOrInvalidRevisionBeforeAuthorization() throws Exception {
+    mockMvc.perform(sealRequest().with(request -> {
+              request.setParameter("tenantId", "other"); return request;
+            }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isConflict());
+    mockMvc.perform(sealRequest().with(request -> {
+              request.setParameter("expectedRevision", "0"); return request;
+            }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(identity, assessment);
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder sealRequest() {
+    return post("/assessment-cases/case-1/seal").param("expectedRevision", "1")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test");
+  }
+
+  @Test
   void assessmentCasesRequireContextAndReportDeniedOrInvalidReads() throws Exception {
     mockMvc.perform(get("/assessment-cases").with(browserLogin()))
         .andExpect(status().is3xxRedirection())

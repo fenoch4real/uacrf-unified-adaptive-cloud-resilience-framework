@@ -10,6 +10,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
@@ -52,6 +53,86 @@ class AssessmentController {
       model.addAttribute("assessmentError", "Identity or assessment service returned an invalid response.");
     }
     return "assessment-cases";
+  }
+
+  @GetMapping("/assessment-cases/{caseId}/seal")
+  String sealForm(
+      @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @PathVariable String caseId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) {
+      return "redirect:/contexts";
+    }
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("caseId", caseId);
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S07", null,
+          List.of("assessment.case.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("caseItem", assessment.getCase(token, caseId));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("caseError", "Identity or assessment service is unavailable; the case was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("caseError", "Case access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("caseError", "Identity or assessment service returned invalid case details.");
+    }
+    return "assessment-case-seal";
+  }
+
+  @PostMapping("/assessment-cases/{caseId}/seal")
+  String seal(
+      @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @PathVariable String caseId,
+      @RequestParam long expectedRevision, @RequestParam String tenantId,
+      @RequestParam String environmentId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) {
+      return "redirect:/contexts";
+    }
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("caseId", caseId);
+    if (!context.tenantId().equals(tenantId) || !context.environmentId().equals(environmentId)) {
+      response.setStatus(HttpStatus.CONFLICT.value());
+      model.addAttribute("caseError", "The selected context changed. Return to the original context and review the case before sealing.");
+      return "assessment-case-seal-result";
+    }
+    if (expectedRevision < 1 || expectedRevision == Long.MAX_VALUE) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("caseError", "Invalid case revision. Reload the case before sealing.");
+      return "assessment-case-seal-result";
+    }
+    String token;
+    try {
+      token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S07", null,
+          List.of("assessment.case.write"), context.tenantId(), context.environmentId()).accessToken();
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("caseError", "Identity service is unavailable; sealing was not authorized.");
+      return "assessment-case-seal-result";
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("caseError", "Sealing was not authorized (HTTP " + error.getStatusCode().value() + ").");
+      return "assessment-case-seal-result";
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("caseError", "Identity service returned an invalid response; sealing was not authorized.");
+      return "assessment-case-seal-result";
+    }
+    try {
+      model.addAttribute("caseItem", assessment.sealCase(token, caseId, expectedRevision));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("caseError", "Sealing is unconfirmed. Review the current case state before retrying.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("caseError", "Sealing failed or is unconfirmed (HTTP " + error.getStatusCode().value()
+          + "). Review the current case state before retrying.");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("caseError", "The seal response was invalid; sealing is unconfirmed. Review the current case state before retrying.");
+    }
+    return "assessment-case-seal-result";
   }
 
   @GetMapping("/assessment-cases/{caseId}/evaluations")

@@ -437,6 +437,29 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'View cases for this workload' }).click();
     await expect(sample.getByRole('listitem').filter({ hasText: createdId })).toHaveCount(1);
     await expect(sample.getByRole('listitem').filter({ hasText: createdId })).toContainText('DRAFT');
+    await sample.getByRole('link', { name: `Review draft ${createdId} for sealing` }).click();
+    await expect(sample.getByText('Sealing makes this case immutable.', { exact: false })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('sample-objective');
+    await expect(sample.locator('main')).toContainText('sample-graph');
+    const [sealRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === `/assessment-cases/${createdId}/seal`),
+      sample.getByRole('button', { name: 'Seal this draft' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Sealed case' })).toBeVisible();
+    const sealReplay = await sample.request.post(`/assessment-cases/${createdId}/seal`, {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: sealRequest.postData(),
+    });
+    expect(sealReplay.status()).toBe(409);
+    expect(await sealReplay.text()).toContain('Review the current case state before retrying');
+    const createdReplay = await sample.request.post('/assessment-cases', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: createRequest.postData(),
+    });
+    expect(createdReplay.status()).toBe(200);
+    expect(await createdReplay.text()).toContain('SEALED');
+    await sample.getByRole('link', { name: 'Review current case state' }).click();
+    await expect(sample.getByText('This case is already sealed', { exact: false })).toBeVisible();
+    await expect(sample.getByRole('button', { name: 'Seal this draft' })).toHaveCount(0);
     await sample.goto('/evidence');
     const evidenceRow = sample.getByRole('listitem').filter({ hasText: fixtureId });
     await expect(evidenceRow).toContainText('Synthetic sample; never qualified evidence.');
@@ -597,6 +620,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ]);
       expect(deniedCreation.status()).toBe(403);
       await expect(restricted.getByRole('alert')).toContainText('not authorized');
+      const csrfToken = await restricted.locator('input[name="_csrf"]').inputValue();
+      const deniedSeal = await restricted.request.post('/assessment-cases/browser-case-b/seal', {
+        form: { _csrf: csrfToken, expectedRevision: '1', tenantId: 'local-dev', environmentId: 'local' },
+      });
+      expect(deniedSeal.status()).toBe(403);
+      expect(await deniedSeal.text()).toContain('Sealing was not authorized');
+      await sample.goto('/assessment-cases/browser-case-b/seal');
+      await expect(sample.getByRole('button', { name: 'Seal this draft' })).toBeVisible();
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');
       expect(deniedEvaluations.status()).toBe(403);
       await expect(restricted.getByText('browser-evaluation-a', { exact: true })).toHaveCount(0);

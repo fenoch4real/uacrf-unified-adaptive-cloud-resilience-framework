@@ -55,6 +55,29 @@ class AssessmentClient {
     return item;
   }
 
+  AssessmentCase getCase(String token, String caseId) {
+    AssessmentCase item = restClient.get()
+        .uri(uri -> uri.path("/v1/cases/{id}").build(caseId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(AssessmentCase.class);
+    if (!validCaseDetails(item) || !caseId.equals(item.id())) {
+      throw new IllegalStateException("S07 returned incomplete or mismatched case details.");
+    }
+    return item;
+  }
+
+  AssessmentCase sealCase(String token, String caseId, long expectedRevision) {
+    AssessmentCase item = restClient.post()
+        .uri(uri -> uri.path("/v1/cases/{id}:seal").build(caseId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .body(new CaseTransition(expectedRevision)).retrieve().body(AssessmentCase.class);
+    if (!validCaseDetails(item) || !caseId.equals(item.id()) || !"SEALED".equals(item.state())
+        || item.revision() != expectedRevision + 1) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched seal receipt.");
+    }
+    return item;
+  }
+
   List<Evaluation> listEvaluations(String token, String caseId) {
     List<Evaluation> evaluations = restClient.get()
         .uri(uri -> uri.path("/v1/cases/{id}/evaluations").build(caseId))
@@ -114,6 +137,16 @@ class AssessmentClient {
                 && item.caseDigest().matches("[a-f0-9]{64}")));
   }
 
+  private static boolean validCaseDetails(AssessmentCase item) {
+    return valid(item) && item.objectiveRef() != null && present(item.objectiveRef().id())
+        && item.objectiveRef().revision() != null && item.objectiveRef().revision() > 0
+        && present(item.objectiveRef().digest()) && item.graphRef() != null && present(item.graphRef().id())
+        && item.graphRef().revision() != null && item.graphRef().revision() > 0 && present(item.graphRef().digest())
+        && item.requiredSourceKinds() != null && !item.requiredSourceKinds().isEmpty()
+        && item.requiredSourceKinds().stream().allMatch(AssessmentClient::present)
+        && item.requiredSourceKinds().stream().distinct().count() == item.requiredSourceKinds().size();
+  }
+
   private static boolean present(String value) {
     return value != null && !value.isBlank();
   }
@@ -131,6 +164,7 @@ class AssessmentClient {
       @JsonProperty("required_source_kinds") List<String> requiredSourceKinds) {}
   record ObjectiveRef(@JsonProperty("objective_id") String id, Long revision, String digest) {}
   record GraphRef(@JsonProperty("graph_id") String id, Long revision, String digest) {}
+  record CaseTransition(@JsonProperty("expected_revision") long expectedRevision) {}
   record Evaluation(
       String id, @JsonProperty("case_id") String caseId, Long revision,
       @JsonProperty("observation_cutoff") Instant observationCutoff,

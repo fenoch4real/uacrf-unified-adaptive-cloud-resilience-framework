@@ -28,6 +28,8 @@
             th:text="${'View evaluations for ' + item.id}">View evaluations</a></p>
       <p><a th:href="@{/assessment-recommendations(workloadId=${item.workloadId})}"
             th:text="${'View recommendations for ' + item.workloadId}">View recommendations</a></p>
+      <p th:if="${item.state == 'DRAFT'}"><a th:href="@{/assessment-cases/{id}/seal(id=${item.id})}"
+            th:text="${'Review draft ' + item.id + ' for sealing'}">Review draft for sealing</a></p>
       <dl>
         <dt>Workload ID</dt><dd th:text="${item.workloadId}">Workload</dd>
         <dt>Purpose</dt><dd th:text="${item.purpose}">Purpose</dd>

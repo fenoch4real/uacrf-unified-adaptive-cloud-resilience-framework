@@ -92,6 +92,33 @@ class AssessmentClientTests {
   }
 
   @Test
+  void readsCompleteCaseAndRequiresMatchingSealedReceipt() {
+    String draft = CASE.replace("\"state\":\"SEALED\",\"revision\":2", "\"state\":\"DRAFT\",\"revision\":1")
+        .replace("\"case_digest\":\"" + "a".repeat(64) + "\"", "\"case_digest\":null");
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/cases/case-1"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withSuccess(draft, MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/cases/case-1:seal"))
+        .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+        .andExpect(content().json("{\"expected_revision\":1}"))
+        .andRespond(withSuccess(CASE, MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/cases/case-1:seal"))
+        .andRespond(withSuccess(CASE.replace("\"state\":\"SEALED\",\"revision\":2",
+            "\"state\":\"SEALED\",\"revision\":3"), MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/cases/case-1"))
+        .andRespond(withSuccess(CASE.replace("\"objective_id\":\"objective-1\"", "\"objective_id\":null"),
+            MediaType.APPLICATION_JSON));
+    AssessmentClient client = new AssessmentClient(builder.build());
+    assertThat(client.getCase("reader", "case-1").state()).isEqualTo("DRAFT");
+    assertThat(client.sealCase("writer", "case-1", 1).caseDigest()).isEqualTo("a".repeat(64));
+    assertThatThrownBy(() -> client.sealCase("writer", "case-1", 1)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.getCase("reader", "case-1")).isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
   void readsWorkloadCasesThroughTheAssessmentEdge() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/assessment");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

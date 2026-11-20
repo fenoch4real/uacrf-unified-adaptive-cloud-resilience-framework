@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment sealing result | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Assessment sealing result</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p role="alert" th:if="${caseError != null}" th:text="${caseError}"></p>
+  <section th:if="${caseItem != null}">
+    <h2>Sealed case</h2>
+    <p>Case ID: <strong th:text="${caseItem.id}">Case</strong></p>
+    <p>Revision: <strong th:text="${caseItem.revision}">2</strong></p>
+    <p>Digest: <code th:text="${caseItem.caseDigest}">Digest</code></p>
+    <p>Sealing did not verify objective or graph references, qualify evidence, evaluate the case, or authorize action.</p>
+  </section>
+  <p><a th:href="@{/assessment-cases/{id}/seal(id=${caseId})}">Review current case state</a></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+</main>
+</body>
+</html>
