@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evidence records | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Evidence records</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/access">Back to current access</a></p>
+  <p>These are records retained by S04. S03 connection observations do not automatically
+    appear here. A recorded qualification state does not establish current usability:
+    purpose, freshness, conflicts, and other checks still apply.</p>
+  <p role="status" th:if="${evidenceError != null}" th:text="${evidenceError}"></p>
+  <p th:if="${evidenceError == null and #lists.isEmpty(evidence)}">No evidence records are available on this page.</p>
+  <ul class="inventory-list">
+    <li th:each="item : ${evidence}">
+      <h2 th:text="${item.id}">Evidence ID</h2>
+      <p th:if="${item.sourceClass == 'SAMPLE_LOCAL'}">Synthetic sample; never qualified evidence.</p>
+      <dl>
+        <dt>Recorded qualification state</dt><dd th:text="${item.qualificationState}">State</dd>
+        <dt>Source class</dt><dd th:text="${item.sourceClass}">Source class</dd>
+        <dt>Source reference</dt><dd th:text="${item.sourceRef}">Source</dd>
+        <dt>Sequence</dt><dd th:text="${item.sequence}">1</dd>
+        <dt>Observed at</dt><dd><time th:datetime="${item.observedAt}" th:text="${item.observedAt}">Time</time></dd>
+        <dt>Kind</dt><dd th:text="${item.kind}">Kind</dd>
+        <dt>Service ID</dt><dd th:text="${item.serviceId != null ? item.serviceId : 'Not specified'}">Service</dd>
+        <dt>Schema version</dt><dd th:text="${item.schemaVersion != null ? item.schemaVersion : 'Not specified'}">Schema</dd>
+        <dt>Payload digest</dt><dd th:text="${item.payloadDigest}">Digest</dd>
+        <dt>Payload size in bytes</dt><dd th:text="${item.payloadByteLength}">Size</dd>
+        <dt>Submitted by</dt><dd th:text="${item.submittedBy}">Submitter</dd>
+        <dt>Revision</dt><dd th:text="${item.revision}">Revision</dd>
+        <dt>Reviewed by</dt><dd th:text="${item.reviewedBy != null ? item.reviewedBy : 'Not reviewed'}">Reviewer</dd>
+        <dt>Review reason</dt><dd th:text="${item.reviewReason != null ? item.reviewReason : 'Not recorded'}">Reason</dd>
+      </dl>
+    </li>
+  </ul>
+  <nav aria-label="Evidence pages" th:if="${nextCursor != null}">
+    <a th:href="@{/evidence(cursor=${nextCursor})}">Next evidence records</a>
+  </nav>
+</main>
+</body>
+</html>

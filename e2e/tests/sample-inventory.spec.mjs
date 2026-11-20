@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { expectCurrentAccess, selectLocalContext, signIn } from './helpers/auth.mjs';
 
@@ -114,6 +114,36 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   expect(tokenResponse.status).toBe(200);
   const { access_token: token } = await tokenResponse.json();
   const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  const evidenceClientId = `evidence-fixture-${randomUUID()}`;
+  const evidenceClientSecret = randomBytes(24).toString('hex');
+  const evidenceClient = await fetch('http://localhost:8180/admin/realms/uacrf/clients', {
+    method: 'POST', headers,
+    body: JSON.stringify({
+      clientId: evidenceClientId, enabled: true, publicClient: false,
+      standardFlowEnabled: false, directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true, fullScopeAllowed: false, secret: evidenceClientSecret,
+    }),
+  });
+  expect(evidenceClient.status).toBe(201);
+  const clientUuid = evidenceClient.headers.get('location')?.split('/').pop();
+  expect(clientUuid).toBeTruthy();
+  const scopesResponse = await fetch('http://localhost:8180/admin/realms/uacrf/client-scopes', { headers });
+  expect(scopesResponse.status).toBe(200);
+  const contextScope = (await scopesResponse.json()).find((scope) => scope.name === 'uacrf-s01-context');
+  expect(contextScope?.id).toBeTruthy();
+  const attachScope = await fetch(
+    `http://localhost:8180/admin/realms/uacrf/clients/${clientUuid}/default-client-scopes/${contextScope.id}`,
+    { method: 'PUT', headers },
+  );
+  expect(attachScope.status).toBe(204);
+  const evidenceAccountLookup = await fetch(
+    `http://localhost:8180/admin/realms/uacrf/users?${new URLSearchParams({
+      username: `service-account-${evidenceClientId}`, exact: 'true',
+    })}`, { headers },
+  );
+  expect(evidenceAccountLookup.status).toBe(200);
+  const evidenceAccounts = await evidenceAccountLookup.json();
+  expect(evidenceAccounts).toHaveLength(1);
   const userResponse = await fetch('http://localhost:8180/admin/realms/uacrf/users', {
     method: 'POST', headers,
     body: JSON.stringify({
@@ -212,6 +242,15 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     collectorAdmission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
   expect(collectorPrincipalId).toBeTruthy();
 
+  await page.goto('/principals');
+  await page.getByLabel('Trusted identity provider').selectOption('keycloak-local');
+  await page.getByLabel('Directory subject reference').fill(evidenceAccounts[0].id);
+  await page.getByLabel('Reason for admission').fill('Isolated synthetic evidence fixture writer.');
+  await page.getByRole('button', { name: 'Admit principal' }).click();
+  const evidenceAdmission = await page.getByRole('status').innerText();
+  const evidencePrincipalId = evidenceAdmission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
+  expect(evidencePrincipalId).toBeTruthy();
+
   const approverContext = await browser.newContext();
   try {
     const approver = await approverContext.newPage();
@@ -221,7 +260,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     const grants = [
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
-      'connections.connection.write', 'connections.observation.write',
+      'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -229,6 +268,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
       { principalId: runtimePrincipalId, capability: 'evidence.inbox.write' },
       { principalId: collectorPrincipalId, capability: 'connections.observation.write' },
+      { principalId: evidencePrincipalId, capability: 'evidence.event.write' },
     ];
     for (const { principalId: targetPrincipalId, capability } of grants) {
       await approver.goto('/memberships');
@@ -271,6 +311,43 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     audience: 'S03',
   });
 
+  const fixtureTokenResponse = await fetch(
+    'http://localhost:8180/realms/uacrf/protocol/openid-connect/token',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials', client_id: evidenceClientId,
+        client_secret: evidenceClientSecret,
+      }),
+    },
+  );
+  expect(fixtureTokenResponse.status).toBe(200);
+  const fixtureIdentityToken = (await fixtureTokenResponse.json()).access_token;
+  const fixtureDelegationResponse = await fetch('http://localhost:8082/internal/v1/delegations', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${fixtureIdentityToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      audience: 'S04', capability_ids: ['evidence.event.write'],
+      tenant_id: 'local-dev', environment_id: 'local',
+    }),
+  });
+  expect(fixtureDelegationResponse.status).toBe(200);
+  const fixtureDelegation = (await fixtureDelegationResponse.json()).access_token;
+  const fixturePayload = '{"value":42}';
+  const fixtureId = `browser-evidence-${randomUUID()}`;
+  const submission = await fetch('http://localhost:8086/internal/v1/observations', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${fixtureDelegation}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      id: fixtureId, source_class: 'SAMPLE_LOCAL', source_ref: 'sample:browser-evidence',
+      sequence: 1, observed_at: new Date().toISOString(), kind: 'sample.metric',
+      payload: fixturePayload, payload_digest: createHash('sha256').update(fixturePayload).digest('hex'),
+    }),
+  });
+  expect(submission.status).toBe(202);
+  expect(await submission.json()).toMatchObject({ qualification_state: 'SAMPLE_ONLY' });
+
   const sampleContext = await browser.newContext();
   try {
     const sample = await sampleContext.newPage();
@@ -281,6 +358,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: 'Unified Adaptive Cloud Resilience Framework' }))
       .toBeVisible();
     await selectLocalContext(sample);
+    await sample.goto('/evidence');
+    const evidenceRow = sample.getByRole('listitem').filter({ hasText: fixtureId });
+    await expect(evidenceRow).toContainText('Synthetic sample; never qualified evidence.');
+    await expect(evidenceRow).toContainText('SAMPLE_ONLY');
+    await expect(evidenceRow).toContainText('sample:browser-evidence');
+    await expect(sample.locator('main')).toContainText('S03 connection observations do not automatically');
+    await expect(evidenceRow).not.toContainText(fixturePayload);
     await sample.goto('/connections');
     await sample.getByRole('link', { name: 'Import synthetic estate' }).click();
     await sample.getByLabel('Eligible human owner').selectOption(principalId);

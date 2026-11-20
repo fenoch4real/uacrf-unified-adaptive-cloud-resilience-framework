@@ -56,6 +56,8 @@ catalog_admin_password="$(openssl rand -hex 24)"
 catalog_runtime_password="$(openssl rand -hex 24)"
 connections_admin_password="$(openssl rand -hex 24)"
 connections_runtime_password="$(openssl rand -hex 24)"
+evidence_admin_password="$(openssl rand -hex 24)"
+evidence_runtime_password="$(openssl rand -hex 24)"
 keycloak_admin_password="$(openssl rand -hex 24)"
 e2e_admin_password="$(openssl rand -hex 24)"
 e2e_approver_password="$(openssl rand -hex 24)"
@@ -79,6 +81,10 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'CONNECTIONS_DB_ADMIN_PASSWORD=%s\n' "$connections_admin_password"
   printf 'CONNECTIONS_DB_USER=uacrf_connections_runtime\n'
   printf 'CONNECTIONS_DB_PASSWORD=%s\n' "$connections_runtime_password"
+  printf 'EVIDENCE_DB_ADMIN_USER=uacrf_evidence_admin\n'
+  printf 'EVIDENCE_DB_ADMIN_PASSWORD=%s\n' "$evidence_admin_password"
+  printf 'EVIDENCE_DB_USER=uacrf_evidence_runtime\n'
+  printf 'EVIDENCE_DB_PASSWORD=%s\n' "$evidence_runtime_password"
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin\n'
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$keycloak_admin_password"
   printf 'KEYCLOAK_LOCAL_ADMIN_PASSWORD=%s\n' "$e2e_admin_password"
@@ -123,6 +129,7 @@ wait_for_url keycloak 'http://localhost:8180/realms/uacrf/.well-known/openid-con
 wait_for_url identity 'http://localhost:8082/actuator/health'
 wait_for_url estate-catalog 'http://localhost:8083/actuator/health'
 wait_for_url connections 'http://localhost:8085/actuator/health'
+wait_for_url evidence 'http://localhost:8086/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'
 wait_for_url web 'http://localhost:8084/actuator/health'

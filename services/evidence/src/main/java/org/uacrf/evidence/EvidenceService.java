@@ -326,10 +326,13 @@ class EvidenceService {
     List<Evidence> rows =
         jdbc.query(
             "SELECT " + COLUMNS + " FROM " + SCHEMA + "evidence_event WHERE tenant_id = ? "
-                + "AND environment_id = ? AND id > ? ORDER BY id LIMIT ?",
+                + "AND environment_id = ? AND (? = '*' OR service_id = ?) "
+                + "AND id > ? ORDER BY id LIMIT ?",
             (rs, n) -> evidenceRow(rs),
             actor.tenantId(),
             actor.environmentId(),
+            actor.serviceScope(),
+            actor.serviceScope(),
             decodeCursor(cursor),
             pageSize + 1);
     if (rows.size() <= pageSize) {
@@ -348,10 +351,13 @@ class EvidenceService {
         jdbc.queryForList(
             "SELECT qualification_state, payload_digest, revision, reviewed_at, observed_at, "
                 + HAS_EVIDENCE_CONFLICT + " AS has_conflict FROM " + SCHEMA
-                + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ?",
+                + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ? "
+                + "AND (? = '*' OR service_id = ?)",
             actor.tenantId(),
             actor.environmentId(),
-            id);
+            id,
+            actor.serviceScope(),
+            actor.serviceScope());
     if (rows.isEmpty()) {
       throw notFound();
     }
@@ -461,8 +467,9 @@ class EvidenceService {
     List<Map<String, Object>> rows = jdbc.queryForList(
         "SELECT payload, payload_digest, kind, observed_at, qualification_state, revision, reviewed_at, "
             + HAS_EVIDENCE_CONFLICT + " AS has_conflict FROM "
-            + SCHEMA + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ?",
-        actor.tenantId(), actor.environmentId(), id);
+            + SCHEMA + "evidence_event e WHERE tenant_id = ? AND environment_id = ? AND id = ? "
+            + "AND (? = '*' OR service_id = ?)",
+        actor.tenantId(), actor.environmentId(), id, actor.serviceScope(), actor.serviceScope());
     if (rows.isEmpty()) throw notFound();
     Map<String, Object> row = rows.getFirst();
     String payload = (String) row.get("payload");
@@ -659,11 +666,13 @@ class EvidenceService {
     List<Evidence> rows =
         jdbc.query(
             "SELECT " + COLUMNS + " FROM " + SCHEMA + "evidence_event WHERE tenant_id = ? "
-                + "AND environment_id = ? AND id = ?",
+                + "AND environment_id = ? AND id = ? AND (? = '*' OR service_id = ?)",
             (rs, n) -> evidenceRow(rs),
             actor.tenantId(),
             actor.environmentId(),
-            id);
+            id,
+            actor.serviceScope(),
+            actor.serviceScope());
     if (rows.isEmpty()) {
       throw notFound();
     }

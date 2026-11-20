@@ -1222,6 +1222,45 @@ class EvidenceApplicationTests {
     assertEquals(403, post("/internal/v1/inbox/events", readOnly, event("ev9", 1, "q", null)).statusCode());
   }
 
+  @Test
+  void scopedEvidenceReadsNeverDiscloseOtherServicesOrUnboundSamples() throws Exception {
+    String tenant = "tenant-evidence-read-scope";
+    String global = bearer("submitter", tenant, SUBMITTER);
+    String scoped = token("reader", tenant, "svc-test", List.of("evidence.event.read"));
+    String payload = providerMetricPayload("scope");
+    assertEquals(202, post("/internal/v1/observations", global,
+        evidence("scope-a", "PROVIDER", "scope-source", 1, "scope", null)).statusCode());
+    assertEquals(202, post("/internal/v1/observations", global,
+        evidence("scope-b", "PROVIDER", "scope-source", 2, "other", null)
+            .replace("\"service_id\":\"svc-test\"", "\"service_id\":\"svc-other\"")).statusCode());
+    assertEquals(202, post("/internal/v1/observations", global,
+        evidence("scope-c", "SAMPLE_LOCAL", "scope-source", 3, "sample", null)).statusCode());
+    assertEquals(202, post("/internal/v1/observations", global,
+        evidence("scope-d", "PROVIDER", "scope-source", 4, "second", null)).statusCode());
+
+    HttpResponse<String> page = get("/v1/evidence?pageSize=1", scoped);
+    assertEquals(200, page.statusCode());
+    assertThat(page.body()).contains("scope-a").doesNotContain("scope-b", "scope-c", "scope-d");
+    String cursor = json.readTree(page.body()).path("next_cursor").asString();
+    HttpResponse<String> nextPage = get("/v1/evidence?pageSize=1&cursor=" + cursor, scoped);
+    assertEquals(200, nextPage.statusCode());
+    assertThat(nextPage.body()).contains("scope-d").doesNotContain("scope-a", "scope-b", "scope-c");
+    assertThat(json.readTree(nextPage.body()).path("next_cursor").isNull()).isTrue();
+    assertEquals(200, get("/v1/evidence/scope-a", scoped).statusCode());
+    assertEquals(404, get("/v1/evidence/scope-b", scoped).statusCode());
+    assertEquals(404, get("/v1/evidence/scope-c", scoped).statusCode());
+    String receipt = receiptBody(sha(payload));
+    String measurement = "{\"purpose\":\"assessment\",\"metric\":\"latency\","
+        + "\"cutoff\":\"2999-01-01T00:00:00Z\"}";
+    assertEquals(200, post("/internal/v1/qualifications/scope-a:receipt", scoped, receipt).statusCode());
+    assertEquals(404, post("/internal/v1/qualifications/scope-b:receipt", scoped, receipt).statusCode());
+    assertEquals(404, post("/internal/v1/qualifications/scope-c:receipt", scoped, receipt).statusCode());
+    assertEquals(200, post("/internal/v1/qualifications/scope-a:measurement", scoped, measurement).statusCode());
+    assertEquals(404, post("/internal/v1/qualifications/scope-b:measurement", scoped, measurement).statusCode());
+    assertEquals(404, post("/internal/v1/qualifications/scope-c:measurement", scoped, measurement).statusCode());
+    assertThat(get("/v1/evidence", global).body()).contains("scope-a", "scope-b", "scope-c", "scope-d");
+  }
+
   private String evidence(String id, String sourceClass, String source, long sequence, String payload, String digest)
       throws Exception {
     String storedPayload = payload;

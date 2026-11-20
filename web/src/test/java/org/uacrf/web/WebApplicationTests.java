@@ -50,6 +50,7 @@ class WebApplicationTests {
   @MockitoBean private IdentityAccessClient identity;
   @MockitoBean private CatalogClient catalog;
   @MockitoBean private ConnectionsClient connections;
+  @MockitoBean private EvidenceClient evidence;
 
   @Test
   void offersAnOidcSignInWithoutRequiringAuthentication() throws Exception {
@@ -893,6 +894,56 @@ class WebApplicationTests {
     verify(identity).createDelegation(
         "test-access-token", "S03", null, List.of("connections.connection.read"),
         "tenant-test", "environment-test");
+  }
+
+  @Test
+  void listsEvidenceWithContextBoundReadDelegationAndEscapedProvenance() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S04", null, List.of("evidence.event.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s04-delegation", "Bearer", 30));
+    when(evidence.list("s04-delegation", "current"))
+        .thenReturn(new EvidenceClient.EvidencePage(List.of(new EvidenceClient.Evidence(
+            "sample", "SAMPLE_LOCAL", "sample:<source>", 1L, "2026-11-12T09:05:00Z",
+            "sample.metric", null, null, "a".repeat(64), 2L, "submitter",
+            "SAMPLE_ONLY", 1L, null, null)), "next-page"));
+
+    mockMvc.perform(get("/evidence").param("cursor", "current")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Synthetic sample; never qualified evidence.")))
+        .andExpect(content().string(containsString("sample:&lt;source&gt;")))
+        .andExpect(content().string(containsString("SAMPLE_ONLY")))
+        .andExpect(content().string(containsString("/evidence?cursor=next-page")))
+        .andExpect(content().string(not(containsString("s04-delegation"))));
+    verify(identity).createDelegation(
+        "test-access-token", "S04", null, List.of("evidence.event.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
+  void evidenceRequiresContextAndReportsDeniedOrMalformedReads() throws Exception {
+    mockMvc.perform(get("/evidence").with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/contexts"));
+    verifyNoInteractions(evidence);
+
+    when(identity.createDelegation(
+            "test-access-token", "S04", null, List.of("evidence.event.read"),
+            "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(
+            org.springframework.http.HttpStatus.FORBIDDEN))
+        .thenReturn(new IdentityAccessClient.Delegation("s04-delegation", "Bearer", 30));
+    mockMvc.perform(get("/evidence").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Evidence access failed (HTTP 403)")))
+        .andExpect(content().string(not(containsString("No evidence records are available"))));
+    verifyNoInteractions(evidence);
+    when(evidence.list("s04-delegation", null)).thenThrow(new IllegalStateException("invalid"));
+    mockMvc.perform(get("/evidence").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("returned an invalid response")))
+        .andExpect(content().string(not(containsString("No evidence records are available"))));
   }
 
   @Test
