@@ -144,10 +144,10 @@ final class RequesterSourceCheck {
         .fetch(tenantId, environmentId, expected, caseReceipt);
     var receipts = owners.fetchRetrieval(tenantId, environmentId, expected, caseReceipt, sources);
     Map<String, AgentProfileVersionClient.ActiveVersion> profileVersions = Map.of();
+    AgentProfileVersionClient profileReader = null;
     if (expectedProfiles != null) {
-      profileVersions =
-          new AgentProfileVersionClient(catalogBase, allowLoopbackHttp, s01, http)
-              .fetchActive(tenantId, environmentId, expectedProfiles);
+      profileReader = new AgentProfileVersionClient(catalogBase, allowLoopbackHttp, s01, http);
+      profileVersions = profileReader.fetchActive(tenantId, environmentId, expectedProfiles);
     }
     var refreshedCase = owners.fetchCase(tenantId, environmentId, expected);
     if (!caseReceipt.equals(refreshedCase)) {
@@ -162,6 +162,10 @@ final class RequesterSourceCheck {
             expectedProfiles != null);
     if (!requester.id().equals(refreshed.id())) {
       throw new IOException("Requester identity changed during source checking.");
+    }
+    if (profileReader != null
+        && !profileVersions.equals(profileReader.fetchActive(tenantId, environmentId, expectedProfiles))) {
+      throw new IOException("S02 active workload versions changed during source checking.");
     }
     http.requireBudget();
     return new Snapshot(refreshed, receipts, caseMaterial, profileVersions);

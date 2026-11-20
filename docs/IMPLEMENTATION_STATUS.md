@@ -1323,7 +1323,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   fails, and single-winner concurrent acknowledgments. The broader
   PostgreSQL-backed regressions cover concurrent same-key admission, scope
   isolation, immutable plans and records, substitution rejection, and deadline
-  failure. The clean advisory suite passed 152 tests with no failures, errors,
+  failure. The clean advisory suite passed 153 tests with no failures, errors,
   or skips. No service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
   The primitive still trusts its caller-supplied principal and does not
@@ -1496,9 +1496,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   delegations obtained with the same requester token, rather than a service
   actor. It validates case material before fetching the retrieval, then
   refreshes S08 eligibility after the excerpts. After those reads it refreshes
-  the S07 case receipt and rejects any change, then checks requester grants
-  again and rejects a changed principal; this narrows but does not eliminate
-  source or revocation races. It requests a restricted
+  the S07 case receipt and any requested S02 active workload versions, rejecting
+  any change, then checks requester grants again and rejects a changed
+  principal; this narrows but does not eliminate source or revocation races.
+  It requests a restricted
   classification delegation for an internal retrieval when that is the
   requester's applicable grant. The combined flow has also been tested against
   a real S01 instance and simulated owners that validate its signed requester
@@ -1509,10 +1510,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   The post-read requester refresh has also been tested against real S01 with
   revocation during a simulated owner content read.
   An optional variant validates caller-supplied full knowledge bytes against
-  every excerpt and the manifest before the final S08 eligibility and S01
-  requester refreshes. It has been exercised against real S01, S07 and S08,
-  including altered bytes, withdrawal and grant revocation. Supplied bytes are
-  not proof of artifact ownership or disclosure authorization.
+  every excerpt and the manifest before the final S08 eligibility, S07 case,
+  S02 active workload-version, and S01 requester refreshes. It has been
+  exercised against real S01, S07 and S08, including altered bytes, withdrawal
+  and grant revocation. Supplied bytes are not proof of artifact ownership or
+  disclosure authorization.
   The combined check shares a five-second monotonic preparation budget across
   requester access, delegation and owner HTTP calls, in addition to the
   two-second per-call bound. Timeout fails closed; it is not a run deadline or

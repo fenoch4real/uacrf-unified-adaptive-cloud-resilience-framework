@@ -108,6 +108,8 @@ class OwnerReceiptClientTests {
   private final AtomicReference<Reply> requesterReplyAfterCaseMaterial = new AtomicReference<>();
   private final AtomicReference<Reply> activeVersionReply =
       new AtomicReference<>(new Reply(200, ACTIVE_VERSION_BODY));
+  private final AtomicReference<Reply> activeVersionReplyAfterFirstRead = new AtomicReference<>();
+  private final AtomicInteger activeVersionCalls = new AtomicInteger();
   private final AtomicReference<Reply> knowledgeDelegationFailure = new AtomicReference<>();
   private final List<String> identityAuthorizations = new CopyOnWriteArrayList<>();
   private final List<String> identityRequests = new CopyOnWriteArrayList<>();
@@ -188,12 +190,15 @@ class OwnerReceiptClientTests {
           """.formatted(token)));
     });
     server.createContext("/internal/v1/workload-versions/version-1", exchange -> {
+      activeVersionCalls.incrementAndGet();
       if (!"GET".equals(exchange.getRequestMethod())
           || !"Bearer test-token-S02".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
         respond(exchange, new Reply(403, "{}"));
         return;
       }
       respond(exchange, activeVersionReply.get());
+      Reply changedReply = activeVersionReplyAfterFirstRead.getAndSet(null);
+      if (changedReply != null) activeVersionReply.set(changedReply);
     });
     server.createContext("/v1/me/access", exchange -> {
       requesterAccessCalls.incrementAndGet();
@@ -688,6 +693,21 @@ class OwnerReceiptClientTests {
     assertEquals(2, caseCalls.get());
     assertEquals(2, retrievalCalls.get());
     assertEquals(1, contentCalls.get());
+  }
+
+  @Test
+  void rejectsActiveProfileVersionChangeDuringSourceChecking() {
+    activeVersionReplyAfterFirstRead.set(
+        new Reply(200, ACTIVE_VERSION_BODY.replace("\"version_number\":1", "\"version_number\":2")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, base, true);
+    var source = new DigestBoundArtifact(
+        "artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST, EXCERPT.getBytes(StandardCharsets.UTF_8));
+    var profiles = Map.of("analyst", profilePins("model-a", "a".repeat(64)));
+    assertEquals("S02 active workload versions changed during source checking.",
+        assertThrows(IOException.class,
+            () -> verifier.checkWithProfiles("requester-token", "tenant-1", "env-1", EXPECTED,
+                Map.of(EXCERPT_DIGEST, source), profiles)).getMessage());
+    assertEquals(2, activeVersionCalls.get());
   }
 
   @Test
