@@ -83,20 +83,25 @@ final class LiveM2TestSupport {
   private LiveM2TestSupport() {}
 
   static Environment environment() throws Exception {
-    return environment(false);
+    return environment(false, false);
   }
 
   static Environment environmentWithWorkloadOwnerChecks() throws Exception {
-    return environment(true);
+    return environment(true, false);
   }
 
-  private static Environment environment(boolean enableWorkloadOwnerChecks) throws Exception {
-    Environment created = new Environment(enableWorkloadOwnerChecks);
+  static Environment environmentWithEvidence() throws Exception {
+    return environment(false, true);
+  }
+
+  private static Environment environment(boolean enableWorkloadOwnerChecks, boolean enableEvidence)
+      throws Exception {
+    Environment created = new Environment(enableWorkloadOwnerChecks, enableEvidence);
     try {
       created.start();
       System.out.printf(
-          "M2 live services ready: S01, S02, S05, S06, S07; startup_ms=%d%n",
-          created.startupMillis());
+          "M2 live services ready: S01, S02%s, S05, S06, S07; startup_ms=%d%n",
+          enableEvidence ? ", S04" : "", created.startupMillis());
       return created;
     } catch (Exception error) {
       try {
@@ -272,6 +277,11 @@ final class LiveM2TestSupport {
             .withDatabaseName("uacrf_topology")
             .withUsername("topology_test")
             .withPassword(UUID.randomUUID().toString());
+    private final PostgreSQLContainer evidenceDb =
+        new PostgreSQLContainer(POSTGRES_IMAGE)
+            .withDatabaseName("uacrf_evidence")
+            .withUsername("evidence_test")
+            .withPassword(UUID.randomUUID().toString());
     private final String neo4jPassword = UUID.randomUUID().toString();
     private final Neo4jContainer neo4j =
         new Neo4jContainer(NEO4J_IMAGE).withAdminPassword(neo4jPassword);
@@ -282,22 +292,26 @@ final class LiveM2TestSupport {
     private final java.util.concurrent.atomic.AtomicInteger evidenceSummaryCalls =
         new java.util.concurrent.atomic.AtomicInteger();
     private final boolean enableWorkloadOwnerChecks;
+    private final boolean enableEvidence;
     private HttpServer ownerStubs;
     private Process identityProcess;
     private Process catalogProcess;
     private Process assessmentProcess;
     private Process objectivesProcess;
     private Process topologyProcess;
+    private Process evidenceProcess;
     private int identityPort;
     private int catalogPort;
     private int assessmentPort;
     private int objectivesPort;
     private int topologyPort;
+    private int evidencePort;
     private long startupMillis;
     private boolean closed;
 
-    private Environment(boolean enableWorkloadOwnerChecks) throws IOException {
+    private Environment(boolean enableWorkloadOwnerChecks, boolean enableEvidence) throws IOException {
       this.enableWorkloadOwnerChecks = enableWorkloadOwnerChecks;
+      this.enableEvidence = enableEvidence;
       repoRoot =
           Path.of(System.getProperty("uacrf.repo.root", Path.of("../..").toAbsolutePath().toString()))
               .toAbsolutePath()
@@ -315,6 +329,7 @@ final class LiveM2TestSupport {
       assessmentDb.start();
       objectivesDb.start();
       topologyDb.start();
+      if (enableEvidence) evidenceDb.start();
       neo4j.start();
       startOwnerStubs();
 
@@ -354,6 +369,21 @@ final class LiveM2TestSupport {
               objectivesPort,
               objectivesEnvironment());
       awaitHealth("S05", objectivesPort, objectivesProcess);
+
+      if (enableEvidence) {
+        evidencePort = freePort();
+        evidenceProcess = startService(
+            "services/evidence/target/evidence-service-1.0.0-SNAPSHOT.jar", "evidence",
+            evidencePort, Map.of(
+                "SERVER_PORT", Integer.toString(evidencePort),
+                "EVIDENCE_JDBC_URL", evidenceDb.getJdbcUrl(),
+                "EVIDENCE_DB_USER", evidenceDb.getUsername(),
+                "EVIDENCE_DB_PASSWORD", evidenceDb.getPassword(),
+                "UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS),
+                "UACRF_DELEGATION_KEY_ID", KEY_ID,
+                "UACRF_DELEGATION_ISSUER", ISSUER));
+        awaitHealth("S04", evidencePort, evidenceProcess);
+      }
 
       topologyPort = freePort();
       topologyProcess =
@@ -733,6 +763,21 @@ final class LiveM2TestSupport {
           tenantId, environmentId, principalId, actorSubject, "S06", TOPOLOGY_CAPABILITIES);
     }
 
+    String humanTopologyToken(String principalId, String actorSubject) {
+      return bearerWithEligibleOwners(
+          tenantId, environmentId, principalId, actorSubject, "S06", TOPOLOGY_CAPABILITIES,
+          List.of(principalId));
+    }
+
+    String evidenceToken(String principalId, String actorSubject, List<String> capabilities) {
+      return bearer(tenantId, environmentId, principalId, actorSubject, "S04", capabilities);
+    }
+
+    String evidenceUrl() {
+      if (!enableEvidence) throw new IllegalStateException("Live evidence is not enabled.");
+      return "http://127.0.0.1:" + evidencePort;
+    }
+
     String scopedTopologyToken(String principalId, String actorSubject, String serviceId) {
       DelegationPrincipal principal =
           new DelegationPrincipal(
@@ -1088,7 +1133,7 @@ final class LiveM2TestSupport {
           Map.entry("UACRF_TOPOLOGY_IDENTITY_URL", "http://127.0.0.1:" + identityPort),
           Map.entry("UACRF_TOPOLOGY_OBJECTIVES_URL", "http://127.0.0.1:" + objectivesPort),
           Map.entry("UACRF_TOPOLOGY_CATALOG_URL", catalogUrl()),
-          Map.entry("UACRF_TOPOLOGY_EVIDENCE_URL", stubs),
+          Map.entry("UACRF_TOPOLOGY_EVIDENCE_URL", enableEvidence ? evidenceUrl() : stubs),
           Map.entry("UACRF_TOPOLOGY_ASSESSMENT_URL", assessmentUrl()),
           Map.entry("UACRF_TOPOLOGY_S02_KEY_ID", S02_KEY_ID),
           Map.entry("UACRF_TOPOLOGY_S02_PUBLIC_KEY_BASE64", publicKeyBase64(S02_KEYS)),
@@ -1323,6 +1368,7 @@ final class LiveM2TestSupport {
       }
       closed = true;
       stopProcess(topologyProcess);
+      stopProcess(evidenceProcess);
       stopProcess(objectivesProcess);
       stopProcess(assessmentProcess);
       stopProcess(catalogProcess);
@@ -1335,6 +1381,9 @@ final class LiveM2TestSupport {
       }
       if (topologyDb.isRunning()) {
         topologyDb.stop();
+      }
+      if (evidenceDb.isRunning()) {
+        evidenceDb.stop();
       }
       if (objectivesDb.isRunning()) {
         objectivesDb.stop();

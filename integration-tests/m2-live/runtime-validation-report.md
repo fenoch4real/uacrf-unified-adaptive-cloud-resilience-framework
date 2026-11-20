@@ -1,5 +1,39 @@
 # M2 Focused Runtime Validation Report
 
+## 2026-11-20: evidence-backed topology process journey
+
+The local API-only test starts real S01, S02, S04, S05, S06 and S07 processes
+with six isolated PostgreSQL databases and Neo4j. It uses test-signed caller
+assertions and seeded memberships, not a production identity provider. It
+creates two active S02 workload versions and an explicitly synthetic
+provider-format observation in S04, qualifies the observation independently,
+and uses real S01 resource exchanges, signed S02 workload receipts and the S04
+topology summary to propose and independently review an S06 dependency.
+The test verifies the persisted edge, Neo4j reconciliation and eligible graph
+receipt, then submits a conflicting replay: S04 reports the qualification
+unusable due to the retained conflict, a new S06 proposal fails closed and the
+graph receipt becomes ineligible. It also checks sample-only qualification and
+proposal denial, absence of the rejected proposal, and a missing-token denial.
+
+After the preceding rebuilt-service scope verification, S04 was packaged with
+`./mvnw --batch-mode --no-transfer-progress -pl services/evidence -am -DskipTests package`
+(exit 0). The final run was:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -pl integration-tests/m2-live -am \
+  -Dtest=M2EvidenceBackedTopologyLiveTests,M2AuthorizedSelectionLiveTests \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+Exit 0: two tests passed, with no failures, errors or skips. The existing
+selection journey used the original environment without S04 (45.2 seconds to
+readiness); the new evidence journey included S04 (51.2 seconds). Docker was
+available; browser testing is not applicable to this API-only scope.
+
+These are simulated provider data and test identities; this is not evidence
+of real provider conformance, production identity, browser acceptance, or
+complete M2 acceptance.
+
 ## 2026-11-20: rebuilt-service scope verification
 
 The following targeted API-only rerun repackaged the live S01, S02, S05, S06
@@ -28,9 +62,9 @@ browser E2E is not applicable to this API-only scope.
 The later five-test run previously described in the S05 tracker used Maven
 `test` without repackaging the service JARs, so it cannot establish that the
 then-current S05 scope changes were exercised. This rebuilt two-test run
-supersedes that claim for the covered paths only. Production identity and
-provider conformance, S04 evidence-backed topology and full M2 acceptance
-remain unverified.
+supersedes that claim for the covered paths only. Production identity, provider
+conformance and full M2 acceptance remain unverified. The later evidence-backed
+process test above addresses that specific local integration gap only.
 
 **Generated**: 2026-11-19
 **Target**: UACRF objective-context API and S03-to-S04 outbox process flow
