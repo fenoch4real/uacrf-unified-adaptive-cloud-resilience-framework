@@ -6,7 +6,7 @@ EDGE01 → S01/S02/S07 workflows against disposable infrastructure.
 ## Run
 
 Prerequisites: Docker with a running daemon, Node.js, npm, and free loopback
-ports 8080–8087, 8089, 8090, and 8180.
+ports 8080–8087, 8089–8091, and 8180.
 
 ```sh
 npm ci --prefix e2e
@@ -15,7 +15,7 @@ npm --prefix e2e run test:live
 ```
 
 `test:live` builds the required application images, starts an isolated
-PostgreSQL/Keycloak/application stack, including S02, S03, S07, and S08, waits for service
+PostgreSQL/Keycloak/application stack, including S02, S03, S07, S08, and S10, waits for service
 health endpoints, and runs Playwright headlessly. It generates test passwords,
 client secrets, and delegation keys in a private temporary directory;
 credentials are not stored
@@ -40,6 +40,13 @@ matching grant details. S01 consumes that reference with membership creation.
 The approver's direct membership submission and the administrator's direct
 decision submission are both denied. This is a manual trusted-channel
 handoff—there is no persisted request inbox or browser approval queue.
+
+The browser stack also gives the sample user a service-scoped policy-read
+grant and a separate test SYSTEM principal a policy-write grant. It proposes
+26 synthetic drafts through S01, EDGE01 and S10, creates a second revision,
+and verifies two-page UX01 browsing, exact current and historical reads, and
+denials for another service and an ungranted user. No signing trust set or
+approved review is exercised; these drafts do not authorize actions.
 
 The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global

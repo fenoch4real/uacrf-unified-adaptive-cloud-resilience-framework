@@ -325,6 +325,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       { principalId: runtimePrincipalId, capability: 'evidence.inbox.write' },
       { principalId: collectorPrincipalId, capability: 'connections.observation.write' },
       { principalId: evidencePrincipalId, capability: 'evidence.event.write' },
+      { principalId, capability: 'authorization.policy.read', scope: fixtureServiceId },
+      { principalId: evidencePrincipalId, capability: 'authorization.policy.write', scope: fixtureServiceId },
     ];
     for (const { principalId: targetPrincipalId, capability, scope = '*' } of grants) {
       await approver.goto('/memberships');
@@ -405,6 +407,38 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   expect(submission.status).toBe(202);
   expect(await submission.json()).toMatchObject({ qualification_state: 'SAMPLE_ONLY' });
 
+  const policyDelegationResponse = await fetch('http://localhost:8082/internal/v1/delegations', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${fixtureIdentityToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      audience: 'S10', service_id: fixtureServiceId, capability_ids: ['authorization.policy.write'],
+      tenant_id: 'local-dev', environment_id: 'local',
+    }),
+  });
+  expect(policyDelegationResponse.status).toBe(200);
+  const policyToken = (await policyDelegationResponse.json()).access_token;
+  const policyId = `browser-policy-${randomUUID()}`;
+  async function proposePolicy(id, expectedRevision) {
+    const result = await fetch('http://localhost:8080/internal/decision-governance/v1/authorization-policy-bundles', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${policyToken}`, 'content-type': 'application/json',
+        'Idempotency-Key': randomUUID() },
+      body: JSON.stringify({
+        id, service_id: fixtureServiceId, expected_revision: expectedRevision,
+        expires_at: '2035-01-01T00:00:00Z', effective_from: '2026-01-01T00:00:00Z',
+        reason: 'Synthetic browser policy',
+        definition: { allowed_action_kinds: ['READ'], allowed_actor_ids: ['sample-actor'],
+          allowed_resource_ids: ['sample-resource'], permitted_providers: ['AZURE'],
+          permitted_regions: ['sample-region'], required_approver_count: 1,
+          eligible_approver_ids: ['sample-reviewer'], maximum_cost_usd: 10 },
+      }),
+    });
+    expect(result.status).toBe(200);
+  }
+  await proposePolicy(policyId, 0);
+  await proposePolicy(policyId, 1);
+  for (let i = 0; i < 25; i++) await proposePolicy(`browser-policy-page-${i}-${randomUUID()}`, 0);
+
   const sampleContext = await browser.newContext();
   try {
     const sample = await sampleContext.newPage();
@@ -415,6 +449,20 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: 'Unified Adaptive Cloud Resilience Framework' }))
       .toBeVisible();
     await selectLocalContext(sample);
+    await sample.goto(`/policies?serviceId=${fixtureServiceId}`);
+    await expect(sample.getByRole('heading', { name: 'Service policy bundles' })).toBeVisible();
+    await expect(sample.getByText('governance records, not permits', { exact: false })).toBeVisible();
+    await expect(sample.getByRole('link', { name: 'Next policies' })).toBeVisible();
+    await sample.getByRole('link', { name: 'Next policies' }).click();
+    await sample.getByRole('link', { name: `${policyId} - revision 2` }).click();
+    await expect(sample.getByRole('heading', { name: `${policyId} - revision 2` })).toBeVisible();
+    await expect(sample.getByText('Synthetic browser policy')).toBeVisible();
+    await expect(sample.getByText('No votes recorded.')).toBeVisible();
+    await sample.goto(`/policies/detail?serviceId=${fixtureServiceId}&id=${policyId}&revision=1`);
+    await expect(sample.getByRole('heading', { name: `${policyId} - revision 1` })).toBeVisible();
+    const deniedOtherPolicy = await sample.goto('/policies?serviceId=other-service');
+    expect(deniedOtherPolicy.status()).toBe(403);
+    await expect(sample.getByText(policyId, { exact: false })).toHaveCount(0);
     await sample.goto('/knowledge');
     await expect(sample.getByText('Synthetic public knowledge')).toBeVisible();
     await expect(sample.getByText('Synthetic internal knowledge')).toHaveCount(0);
@@ -1032,6 +1080,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ]);
       expect(deniedObjectives.status()).toBe(403);
       await expect(restricted.getByText('browser-objective-b', { exact: true })).toHaveCount(0);
+
+      const deniedPolicies = await restricted.goto(`/policies?serviceId=${fixtureServiceId}`);
+      expect(deniedPolicies.status()).toBe(403);
+      await expect(restricted.getByText(policyId, { exact: false })).toHaveCount(0);
 
       const globalEvidence = await restricted.goto('/evidence');
       expect(globalEvidence.status()).toBe(403);

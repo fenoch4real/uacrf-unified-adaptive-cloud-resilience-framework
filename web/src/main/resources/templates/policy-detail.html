@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Policy revision | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body><main>
+  <h1>Policy revision</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a th:href="@{/policies(serviceId=${serviceId})}">Back to service policies</a></p>
+  <p>Review and trust are point-in-time results. This record is not an action permit or authorization.</p>
+  <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
+  <section th:if="${policy != null}">
+    <h2 th:text="|${policy.id} - revision ${policy.revision}|">Policy revision</h2>
+    <dl>
+      <dt>Service</dt><dd th:text="${policy.serviceId}">Service</dd>
+      <dt>Review state</dt><dd th:text="${policy.decision}">State</dd>
+      <dt>Currently eligible</dt><dd th:text="${policy.currentEligible ? 'Yes' : 'No'}">No</dd>
+      <dt>Proposed by</dt><dd th:text="${policy.proposedBy}">Proposer</dd>
+      <dt>Reason</dt><dd th:text="${policy.proposalReason}">Reason</dd>
+      <dt>Proposed at</dt><dd th:text="${policy.proposedAt}">Time</dd>
+      <dt>Effective from</dt><dd th:text="${policy.effectiveFrom}">Time</dd>
+      <dt>Expires at</dt><dd th:text="${policy.expiresAt}">Time</dd>
+      <dt>Material SHA-256</dt><dd th:text="${policy.digest}">Digest</dd>
+      <dt>Required approvals</dt><dd th:text="${policy.review.requiredApprovalCount}">0</dd>
+      <dt>Approvals / currently trusted</dt><dd th:text="|${policy.review.approvalCount} / ${policy.review.validApprovalCount}|">0</dd>
+      <dt>Rejections</dt><dd th:text="${policy.review.rejectionCount}">0</dd>
+    </dl>
+    <h3>Canonical policy material</h3>
+    <pre th:text="${policy.material.canonicalText}">Material</pre>
+    <h3>Recorded votes</h3>
+    <p th:if="${#lists.isEmpty(policy.review.votes)}">No votes recorded.</p>
+    <ul><li th:each="vote : ${policy.review.votes}">
+      <span th:text="${vote.reviewerId}">Reviewer</span>:
+      <span th:text="${vote.decision}">Decision</span> at
+      <time th:text="${vote.reviewedAt}">Time</time> -
+      <span th:text="${vote.reason}">Reason</span>
+      (currently trusted: <span th:text="${vote.currentlyTrusted ? 'yes' : 'no'}">no</span>)
+    </li></ul>
+  </section>
+</main></body></html>

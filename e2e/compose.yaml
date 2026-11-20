@@ -118,6 +118,23 @@ services:
       timeout: 3s
       retries: 12
 
+  decision-governance-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: uacrf_decision_governance
+      POSTGRES_USER: ${DECISION_GOVERNANCE_DB_ADMIN_USER:?}
+      POSTGRES_PASSWORD: ${DECISION_GOVERNANCE_DB_ADMIN_PASSWORD:?}
+      APP_DB_USER: ${DECISION_GOVERNANCE_DB_USER:?}
+      APP_DB_PASSWORD: ${DECISION_GOVERNANCE_DB_PASSWORD:?}
+    volumes:
+      - decision-governance-data:/var/lib/postgresql
+      - ../config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
     command: ["start-dev", "--import-realm"]
@@ -212,6 +229,7 @@ services:
       UACRF_EDGE_OBJECTIVES_BASE_URL: http://objectives:8087
       UACRF_EDGE_ASSESSMENT_BASE_URL: http://assessment:8089
       UACRF_EDGE_KNOWLEDGE_BASE_URL: http://knowledge:8090
+      UACRF_EDGE_DECISION_GOVERNANCE_BASE_URL: http://decision-governance:8080
     depends_on:
       - identity
       - estate-catalog
@@ -323,6 +341,23 @@ services:
     ports:
       - "127.0.0.1:8090:8090"
 
+  decision-governance:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: decision-governance
+    environment:
+      DECISION_GOVERNANCE_JDBC_URL: jdbc:postgresql://decision-governance-db:5432/uacrf_decision_governance
+      DECISION_GOVERNANCE_DB_USER: ${DECISION_GOVERNANCE_DB_USER:?}
+      DECISION_GOVERNANCE_DB_PASSWORD: ${DECISION_GOVERNANCE_DB_PASSWORD:?}
+      UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?}
+      UACRF_DELEGATION_KEY_ID: uacrf-e2e-key
+    depends_on:
+      decision-governance-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8091:8080"
+
   web:
     build:
       context: ..
@@ -341,6 +376,7 @@ services:
       UACRF_OBJECTIVES_BASE_URL: http://api-edge:8080/internal/objectives
       UACRF_ASSESSMENT_BASE_URL: http://api-edge:8080/internal/assessment
       UACRF_KNOWLEDGE_BASE_URL: http://api-edge:8080/internal/knowledge
+      UACRF_POLICY_BASE_URL: http://api-edge:8080/internal/decision-governance
       UACRF_SESSION_COOKIE_SECURE: "false"
     depends_on:
       - experience-api
@@ -356,3 +392,4 @@ volumes:
   objectives-data:
   assessment-data:
   knowledge-data:
+  decision-governance-data:

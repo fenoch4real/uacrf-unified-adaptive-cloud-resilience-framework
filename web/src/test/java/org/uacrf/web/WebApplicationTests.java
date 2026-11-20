@@ -55,6 +55,58 @@ class WebApplicationTests {
   @MockitoBean private ObjectivesClient objectives;
   @MockitoBean private AssessmentClient assessment;
   @MockitoBean private KnowledgeClient knowledge;
+  @MockitoBean private PolicyClient policies;
+
+  @Test
+  void policyBrowsingUsesExactServiceGrantAndEscapesMetadata() throws Exception {
+    Instant time = Instant.parse("2026-01-01T00:00:00Z");
+    when(identity.createDelegation("test-access-token", "S10", "service-a",
+        List.of("authorization.policy.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("policy-reader", "Bearer", 30));
+    var summary = new PolicyClient.PolicySummary("policy-a", 2L, "service-a", time, "a".repeat(64),
+        "proposer", "<script>reason</script>", time, "DRAFT", false,
+        "SIGNED_POLICY_CONFIGURATION_NOT_ACTION_AUTHORIZATION", time);
+    when(policies.list("policy-reader", "service-a", null))
+        .thenReturn(new PolicyClient.PolicyPage(List.of(summary), "next", "AUTHORIZED_VISIBLE_SCOPE_ONLY"));
+    var policy = new PolicyClient.Policy("policy-a", 2L, "service-a", time, "a".repeat(64),
+        "proposer", "<script>reason</script>", time, "DRAFT", false,
+        "SIGNED_POLICY_CONFIGURATION_NOT_ACTION_AUTHORIZATION", time,
+        new PolicyClient.Material("SHA-256", "UTF-8", "<script>material</script>", "a".repeat(64)),
+        new PolicyClient.Review(1, 0, 0, 0, List.of()));
+    when(policies.read("policy-reader", "service-a", "policy-a", 2)).thenReturn(policy);
+    mockMvc.perform(get("/policies").param("serviceId", "service-a")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("policy-a")))
+        .andExpect(content().string(containsString("Next policies")))
+        .andExpect(content().string(containsString("not permits")));
+    mockMvc.perform(get("/policies/detail").param("serviceId", "service-a")
+            .param("id", "policy-a").param("revision", "2")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("&lt;script&gt;material&lt;/script&gt;")))
+        .andExpect(content().string(containsString("&lt;script&gt;reason&lt;/script&gt;")))
+        .andExpect(content().string(not(containsString("<script>material</script>"))));
+    verify(identity, times(2)).createDelegation("test-access-token", "S10", "service-a",
+        List.of("authorization.policy.read"), "tenant-test", "environment-test");
+  }
+
+  @Test
+  void policyBrowsingRejectsInvalidInputsAndShowsDenial() throws Exception {
+    mockMvc.perform(get("/policies").param("serviceId", "../bad")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(get("/policies/detail").param("serviceId", "service-a").param("id", "policy-a")
+            .param("revision", "9223372036854775808").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(identity, policies);
+    when(identity.createDelegation("test-access-token", "S10", "service-a",
+        List.of("authorization.policy.read"), "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/policies").param("serviceId", "service-a")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Policy access failed")))
+        .andExpect(content().string(not(containsString("No policies are visible"))));
+    verifyNoInteractions(policies);
+  }
 
   @Test
   void retrievalHistoryUsesReadGrantAndDoesNotMaskDenial() throws Exception {

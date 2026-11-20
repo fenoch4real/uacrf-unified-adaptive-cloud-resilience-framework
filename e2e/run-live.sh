@@ -64,6 +64,8 @@ assessment_admin_password="$(openssl rand -hex 24)"
 assessment_runtime_password="$(openssl rand -hex 24)"
 knowledge_admin_password="$(openssl rand -hex 24)"
 knowledge_runtime_password="$(openssl rand -hex 24)"
+policy_admin_password="$(openssl rand -hex 24)"
+policy_runtime_password="$(openssl rand -hex 24)"
 keycloak_admin_password="$(openssl rand -hex 24)"
 e2e_admin_password="$(openssl rand -hex 24)"
 e2e_approver_password="$(openssl rand -hex 24)"
@@ -103,6 +105,10 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'KNOWLEDGE_DB_ADMIN_PASSWORD=%s\n' "$knowledge_admin_password"
   printf 'KNOWLEDGE_DB_USER=uacrf_knowledge_runtime\n'
   printf 'KNOWLEDGE_DB_PASSWORD=%s\n' "$knowledge_runtime_password"
+  printf 'DECISION_GOVERNANCE_DB_ADMIN_USER=uacrf_policy_admin\n'
+  printf 'DECISION_GOVERNANCE_DB_ADMIN_PASSWORD=%s\n' "$policy_admin_password"
+  printf 'DECISION_GOVERNANCE_DB_USER=uacrf_policy_runtime\n'
+  printf 'DECISION_GOVERNANCE_DB_PASSWORD=%s\n' "$policy_runtime_password"
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin\n'
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$keycloak_admin_password"
   printf 'KEYCLOAK_LOCAL_ADMIN_PASSWORD=%s\n' "$e2e_admin_password"
@@ -151,6 +157,7 @@ wait_for_url evidence 'http://localhost:8086/actuator/health'
 wait_for_url objectives 'http://localhost:8087/actuator/health'
 wait_for_url assessment 'http://localhost:8089/actuator/health'
 wait_for_url knowledge 'http://localhost:8090/actuator/health'
+wait_for_url decision-governance 'http://localhost:8091/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'
 wait_for_url web 'http://localhost:8084/actuator/health'

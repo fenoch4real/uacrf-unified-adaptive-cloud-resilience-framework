@@ -1,6 +1,6 @@
 # API & Service Communication Contracts
 
-The repository contains 11 Spring MVC applications with more than 100 API and browser routes, plus a non-HTTP advisory module. The service APIs communicate primarily through synchronous REST calls; S03 also publishes through a durable outbox, and S06 processes graph commands asynchronously.
+The repository contains 12 Spring MVC applications with more than 100 API and browser routes, plus a non-HTTP advisory module. The service APIs communicate primarily through synchronous REST calls; S03 also publishes through a durable outbox, and S06 processes graph commands asynchronously.
 
 ## Service Catalog
 
@@ -17,6 +17,7 @@ The repository contains 11 Spring MVC applications with more than 100 API and br
 | Topology (`services/topology`) | 8088 | Business | Dependency proposals, accepted graph reads, and asynchronous graph commands. |
 | Assessment (`services/assessment`) | 8089 | Business | Cases, evaluations, model versions, incidents, learning, and adaptation proposals. |
 | Knowledge (`services/knowledge`) | 8090 | Business | Versioned knowledge items and case-bound retrievals. |
+| Decision governance (`services/decision-governance`) | 8091 | Business | Scoped policy-bundle proposal, independent review, and historical read. |
 | Advisory (`services/advisory`) | Not configured | Business module | Maven module with advisory orchestration code; no HTTP controller or standalone application port was found. |
 
 The HTTP applications use Spring Boot and Spring MVC. Backend service dependencies include PostgreSQL/JDBC and Flyway; S06 additionally uses the Neo4j driver. The API Edge and Experience API use Spring `RestClient`; the browser application uses Spring MVC, Spring Security OAuth2 Client, Thymeleaf, and REST clients.
@@ -28,11 +29,12 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Service | Method | Path | Request Type | Response Type |
 |---|---|---|---|---|
 | Browser Experience | GET | `/`, `/access`, `/contexts`, `/principals`, `/memberships`, `/journeys`, `/journeys/{id}`, `/connections`, `/connections/{id}/inventory`, `/connections/sample-import` | Query parameters | Thymeleaf HTML view or redirect |
+| Browser Experience | GET | `/policies`, `/policies/detail` | Service ID, optional cursor or exact policy ID and revision | Service-scoped policy summaries or immutable revision view |
 | Browser Experience | POST | `/memberships/{membershipId}:revoke`, `/agents`, `/services/{serviceId}/agents`, `/journeys`, `/journeys/{id}/steps`, `/journeys/{journeyId}/services`, `/journeys/{journeyId}/agents/link`, `/connections/sample-import` | Form data | Thymeleaf HTML view or redirect |
 | Experience API | GET | `/v1/me/access`, `/v1/me/contexts`, `/v1/identity-providers`, `/v1/principals`, `/v1/memberships`, `/v1/owner-candidates` | Query parameters and bearer token | Identity JSON pass-through |
 | Experience API | POST | `/v1/memberships/{id}:revoke`, `/v1/principals/{id}:set-status`, `/internal/v1/delegations` | JSON body and bearer token; idempotency key for mutations | Identity JSON pass-through |
 | API Edge | GET, POST | `/v1/me/**`, `/v1/identity-providers`, `/v1/principals`, `/v1/memberships/**`, `/v1/owner-candidates` | Query/body JSON and bearer token | Identity JSON pass-through |
-| API Edge | GET, POST | `/internal/catalog/v1/**`, `/internal/connections/v1/**`, `/internal/evidence/v1/**`, `/internal/objectives/v1/**`, `/internal/topology/v1/**`, `/internal/assessment/v1/**`, `/internal/knowledge/v1/**` | JSON pass-through; mutation routes forward bearer and idempotency headers | Owner-service JSON and status pass-through |
+| API Edge | GET, POST | `/internal/catalog/v1/**`, `/internal/connections/v1/**`, `/internal/evidence/v1/**`, `/internal/objectives/v1/**`, `/internal/topology/v1/**`, `/internal/assessment/v1/**`, `/internal/knowledge/v1/**`, `/internal/decision-governance/v1/authorization-policy-bundles/**` | JSON pass-through; mutation routes forward bearer and idempotency headers | Owner-service JSON and status pass-through |
 | Identity (S01) | GET | `/v1/identity-providers`, `/v1/principals`, `/v1/memberships`, `/v1/me/contexts`, `/v1/me/access`, `/v1/owner-candidates` | Query parameters and bearer JWT | `IdentityResponses` list/page/access records |
 | Identity (S01) | POST | `/v1/memberships`, `/v1/principals`, `/v1/grant-decisions`, `/v1/memberships/{id}:revoke`, `/v1/principals/{id}:set-status` | `IdentityRequests` records; mutations use idempotency keys | `IdentityResponses.MutationReceipt` |
 | Identity (S01) | POST | `/internal/v1/delegations`, `/internal/v1/delegations:exchange`, `/internal/v1/objective-review-authority:check` | Delegation, exchange, or authority-check JSON | Scoped delegation or authority response |
@@ -47,6 +49,7 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Assessment (S07) | GET, POST | `/v1/model-versions/**`, `/internal/v1/model-evaluation-declarations/**` | Model-version and evaluation-declaration request records | Model version or declaration/page |
 | Assessment (S07) | GET, POST | `/v1/incidents/**`, `/v1/incidents:idempotent-create`, `/v1/learning-records/**`, `/v1/learning-records:idempotent-propose`, `/internal/v1/learning-records/{id}:review-receipt`, `/internal/v1/adaptation-proposals/**` | Incident, learning, review, and adaptation request records; `Idempotency-Key` required on the dedicated incident and learning proposal routes | Incident, learning/review receipt, or adaptation proposal/page |
 | Knowledge (S08) | GET, POST | `/v1/knowledge-items/**`, `/v1/knowledge-items:idempotent`, `/v1/knowledge-items/{id}/versions/{version}:candidate-content`, `/v1/knowledge-items/{id}:review-bound`, `/v1/knowledge-items/{id}:withdraw-bound`, `/v1/retrievals`, `/v1/retrievals/{id}`, `/v1/retrievals:idempotent`, `/internal/v1/retrievals/{id}:receipt` | `KnowledgeRequests` records and query/path parameters; `Idempotency-Key` required on dedicated staging and retrieval routes; bound review and withdrawal require the expected version, revision and source digest; history uses a bounded exclusive ID cursor | Versioned item, original staging receipt, candidate plaintext, review or withdrawal result, retrieval, retrieval summary page, or retrieval receipt |
+| Decision governance (S10) | GET, POST | `/v1/authorization-policy-bundles`, `/v1/authorization-policy-bundles/{id}`, `/v1/authorization-policy-bundles/{id}:decide` | Service-scoped delegation; proposal and decision require `Idempotency-Key`; detail accepts an optional revision | Policy summaries or exact revision, proposal or review result; governance metadata does not authorize actions |
 
 Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
 
@@ -110,7 +113,7 @@ and owner. No provider is contacted, and no evidence is qualified.
 
 | Service | Endpoint | Custom Metrics (if any) |
 |---|---|---|
-| All 11 Spring applications | `/actuator/health` | No custom metric registrations were found; actuator exposure is limited to health. |
+| All 12 Spring applications | `/actuator/health` | No custom metric registrations were found; actuator exposure is limited to health. |
 
 ## DTOs & Contracts
 

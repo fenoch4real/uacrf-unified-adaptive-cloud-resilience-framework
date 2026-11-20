@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Service policy bundles | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body><main>
+  <h1>Service policy bundles</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/access">Back to current access</a></p>
+  <p>These are governance records, not permits or authorization to perform actions.
+    Current eligibility is a point-in-time policy review result, not an execution decision.
+    Pages are independent reads and may change between requests.</p>
+  <form method="get" th:action="@{/policies}">
+    <label for="serviceId">Service ID</label>
+    <input id="serviceId" name="serviceId" th:value="${serviceId}" maxlength="200" required>
+    <button type="submit">Show policies</button>
+  </form>
+  <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
+  <section th:if="${page != null}">
+    <h2>Latest revision per policy</h2>
+    <p th:if="${#lists.isEmpty(page.items)}">No policies are visible on this page.</p>
+    <ol>
+      <li th:each="item : ${page.items}">
+        <h3><a th:href="@{/policies/detail(serviceId=${serviceId},id=${item.id},revision=${item.revision})}"
+               th:text="|${item.id} - revision ${item.revision}|">Policy</a></h3>
+        <dl>
+          <dt>Review state</dt><dd th:text="${item.decision}">DRAFT</dd>
+          <dt>Currently eligible</dt><dd th:text="${item.currentEligible ? 'Yes' : 'No'}">No</dd>
+          <dt>Proposed by</dt><dd th:text="${item.proposedBy}">Proposer</dd>
+          <dt>Proposed at</dt><dd th:text="${item.proposedAt}">Time</dd>
+          <dt>Effective from</dt><dd th:text="${item.effectiveFrom}">Time</dd>
+          <dt>Expires at</dt><dd th:text="${item.expiresAt}">Time</dd>
+        </dl>
+      </li>
+    </ol>
+    <nav aria-label="Policy pages" th:if="${page.nextCursor != null}">
+      <a th:href="@{/policies(serviceId=${serviceId},cursor=${page.nextCursor})}">Next policies</a>
+    </nav>
+  </section>
+</main></body></html>

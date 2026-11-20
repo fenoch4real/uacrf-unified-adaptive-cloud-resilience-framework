@@ -51,6 +51,8 @@
            th:href="@{/ownership-transfers/SERVICE/{id}(id=${capability.capabilityId})}">
           Transfer service ownership
         </a>
+        <a th:if="${capability.capabilityKind == 'SERVICE'}"
+           th:href="@{/policies(serviceId=${capability.capabilityId})}">View service policy bundles</a>
       </li>
       <li th:if="${#lists.isEmpty(journey.capabilities)}">No capabilities are linked.</li>
     </ul>
