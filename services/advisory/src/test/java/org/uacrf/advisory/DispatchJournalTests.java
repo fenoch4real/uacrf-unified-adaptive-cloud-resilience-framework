@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -405,7 +406,7 @@ class DispatchJournalTests {
     Thread.sleep(20);
     assertFalse(journal.markOutboxPublished(initialClaim));
     assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
-    assertFalse(journal.releaseOutboxClaim(initialClaim, Duration.ofSeconds(1)));
+    assertFalse(journal.releaseOutboxClaim(initialClaim, DispatchJournal.outboxRetryDelay(initialClaim)));
     var reclaimed = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofSeconds(1))
         .getFirst();
     assertEquals(initialClaim.eventId(), reclaimed.eventId());
@@ -413,7 +414,7 @@ class DispatchJournalTests {
     assertFalse(initialClaim.claimToken().equals(reclaimed.claimToken()));
     assertFalse(journal.markOutboxPublished(initialClaim));
     assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
-    assertFalse(journal.releaseOutboxClaim(initialClaim, Duration.ofSeconds(2)));
+    assertFalse(journal.releaseOutboxClaim(initialClaim, DispatchJournal.outboxRetryDelay(initialClaim)));
     assertTrue(journal.markOutboxPublished(reclaimed));
     assertFalse(journal.markOutboxPublished(reclaimed));
     try (Connection connection = dataSource.getConnection();
@@ -448,13 +449,26 @@ class DispatchJournalTests {
   }
 
   @Test
-  void outboxRetryBackoffDoublesAndCaps() {
+  void outboxRetryBackoffDoublesCapsAndJitters() {
     assertThrows(IllegalArgumentException.class, () -> DispatchJournal.outboxRetryBackoff(0));
     assertEquals(Duration.ofSeconds(1), DispatchJournal.outboxRetryBackoff(1));
     assertEquals(Duration.ofSeconds(2), DispatchJournal.outboxRetryBackoff(2));
     assertEquals(Duration.ofSeconds(512), DispatchJournal.outboxRetryBackoff(10));
     assertEquals(Duration.ofMinutes(15), DispatchJournal.outboxRetryBackoff(11));
     assertEquals(Duration.ofMinutes(15), DispatchJournal.outboxRetryBackoff(Integer.MAX_VALUE));
+    assertEquals(Duration.ofSeconds(1), DispatchJournal.outboxRetryDelay(
+        outboxClaimForBackoff(1, 0)));
+    assertEquals(Duration.ofMillis(1500), DispatchJournal.outboxRetryDelay(
+        outboxClaimForBackoff(1, 500)));
+    assertEquals(Duration.ofSeconds(768), DispatchJournal.outboxRetryDelay(
+        outboxClaimForBackoff(10, 256_000)));
+    assertEquals(Duration.ofMinutes(15), DispatchJournal.outboxRetryDelay(
+        outboxClaimForBackoff(11, 0xffff_ffffL)));
+  }
+
+  private static DispatchJournal.OutboxClaim outboxClaimForBackoff(int attemptCount, long tokenBits) {
+    return new DispatchJournal.OutboxClaim("event", "tenant", "env", "run", 1,
+        "uacrf.s09.run.admitted.v1", "{}", new UUID(0, tokenBits), attemptCount);
   }
 
   @Test
@@ -469,26 +483,29 @@ class DispatchJournalTests {
         () -> journal.releaseOutboxClaim(claim, Duration.ZERO));
     assertThrows(IllegalArgumentException.class,
         () -> journal.releaseOutboxClaim(claim, Duration.ofMinutes(16)));
+    Duration retryDelay = DispatchJournal.outboxRetryDelay(claim);
     assertThrows(IllegalArgumentException.class,
-        () -> journal.releaseOutboxClaim(claim, Duration.ofMillis(999)));
+        () -> journal.releaseOutboxClaim(claim, retryDelay.minusMillis(1)));
     try (Connection connection = dataSource.getConnection();
          var statement = connection.prepareStatement("""
              UPDATE uacrf_advisory.outbox_delivery
              SET state = 'PENDING', claim_token = NULL, lease_expires_at = NULL,
-                 available_at = statement_timestamp() + INTERVAL '999 milliseconds'
+                 available_at = statement_timestamp()
+                   + make_interval(secs => ?::double precision / 1000.0)
              WHERE event_id = ? AND state = 'CLAIMED' AND claim_token = ?
              """)) {
-      statement.setString(1, claim.eventId());
-      statement.setObject(2, claim.claimToken());
+      statement.setLong(1, retryDelay.toMillis() - 1);
+      statement.setString(2, claim.eventId());
+      statement.setObject(3, claim.claimToken());
       SQLException failure = assertThrows(SQLException.class, statement::executeUpdate);
       assertTrue(failure.getMessage().contains("invalid outbox delivery transition"));
     }
-    assertTrue(journal.releaseOutboxClaim(claim, Duration.ofSeconds(1)));
+    assertTrue(journal.releaseOutboxClaim(claim, retryDelay));
     assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
     assertFalse(journal.markOutboxPublished(claim));
-    assertFalse(journal.releaseOutboxClaim(claim, Duration.ofSeconds(1)));
+    assertFalse(journal.releaseOutboxClaim(claim, retryDelay));
 
-    Thread.sleep(1200);
+    Thread.sleep(retryDelay.toMillis() + 200);
     var retry = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).getFirst();
     assertEquals(claim.eventId(), retry.eventId());
     assertEquals(2, retry.attemptCount());

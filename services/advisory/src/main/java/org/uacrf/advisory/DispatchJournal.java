@@ -446,7 +446,7 @@ final class DispatchJournal {
     Objects.requireNonNull(claim, "claim");
     Objects.requireNonNull(retryDelay, "retryDelay");
     if (retryDelay.isNegative() || retryDelay.isZero()
-        || retryDelay.compareTo(outboxRetryBackoff(claim.attemptCount())) < 0
+        || retryDelay.compareTo(outboxRetryDelay(claim)) < 0
         || retryDelay.compareTo(Duration.ofMinutes(15)) > 0) {
       throw new IllegalArgumentException("Invalid outbox retry delay.");
     }
@@ -490,6 +490,16 @@ final class DispatchJournal {
     }
     int exponent = Math.min(attemptCount - 1, 10);
     return Duration.ofSeconds(Math.min(1L << exponent, Duration.ofMinutes(15).toSeconds()));
+  }
+
+  static Duration outboxRetryDelay(OutboxClaim claim) {
+    Objects.requireNonNull(claim, "claim");
+    long baseSeconds = outboxRetryBackoff(claim.attemptCount()).toSeconds();
+    long jitterWindowMillis = Math.min(baseSeconds * 500,
+        (Duration.ofMinutes(15).toSeconds() - baseSeconds) * 1_000);
+    long retryTokenBits = claim.claimToken().getLeastSignificantBits() & 0xffff_ffffL;
+    long jitterMillis = retryTokenBits % (jitterWindowMillis + 1);
+    return Duration.ofMillis(baseSeconds * 1_000 + jitterMillis);
   }
 
   boolean markOutboxPublished(OutboxClaim claim) throws SQLException {
