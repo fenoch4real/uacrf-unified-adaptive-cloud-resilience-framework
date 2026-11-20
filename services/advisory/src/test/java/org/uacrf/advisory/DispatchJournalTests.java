@@ -438,6 +438,33 @@ class DispatchJournalTests {
   }
 
   @Test
+  void outboxClaimsAndAcknowledgmentsRemainBoundToTenantAndEnvironment() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    for (var runKey : List.of(
+        new DispatchJournal.RunKey("outbox-scope", "env-a", "run-a"),
+        new DispatchJournal.RunKey("outbox-scope", "env-b", "run-b"),
+        new DispatchJournal.RunKey("outbox-other-tenant", "env-a", "run-other"))) {
+      admit(journal, runKey, admissionRequest(TEST_DEADLINE, "Outbox scope test"),
+          "principal-1", "CREATE_ADVISORY_RUN", "idem-" + runKey.runId());
+    }
+
+    var envA = journal.claimPendingOutbox("outbox-scope", "env-a", 10, Duration.ofMinutes(1));
+    var envB = journal.claimPendingOutbox("outbox-scope", "env-b", 10, Duration.ofMinutes(1));
+    var otherTenant = journal.claimPendingOutbox("outbox-other-tenant", "env-a", 10, Duration.ofMinutes(1));
+    assertEquals(List.of("run-a"), envA.stream().map(DispatchJournal.OutboxClaim::runId).toList());
+    assertEquals(List.of("run-b"), envB.stream().map(DispatchJournal.OutboxClaim::runId).toList());
+    assertEquals(List.of("run-other"), otherTenant.stream().map(DispatchJournal.OutboxClaim::runId).toList());
+
+    var claim = envA.getFirst();
+    var mismatched = new DispatchJournal.OutboxClaim(
+        claim.eventId(), "outbox-other-tenant", claim.environmentId(), claim.runId(), claim.generation(),
+        claim.eventType(), claim.payloadJson(), claim.claimToken(), claim.attemptCount());
+    assertFalse(journal.renewOutboxClaim(mismatched, Duration.ofSeconds(1)));
+    assertFalse(journal.markOutboxPublished(mismatched));
+    assertTrue(journal.markOutboxPublished(claim));
+  }
+
+  @Test
   void concurrentSameKeyAdmissionCreatesOneRunAndOneSchedulingEvent() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var start = new CountDownLatch(1);

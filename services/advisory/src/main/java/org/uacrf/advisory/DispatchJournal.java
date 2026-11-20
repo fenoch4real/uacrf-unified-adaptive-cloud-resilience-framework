@@ -415,16 +415,19 @@ final class DispatchJournal {
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
       try (PreparedStatement statement = connection.prepareStatement("""
-          UPDATE uacrf_advisory.outbox_delivery
+          UPDATE uacrf_advisory.outbox_delivery AS delivery
           SET lease_expires_at = LEAST(
-            lease_expires_at + make_interval(secs => ?::double precision / 1000.0),
+            delivery.lease_expires_at + make_interval(secs => ?::double precision / 1000.0),
             clock_timestamp() + INTERVAL '5 minutes')
-          WHERE event_id = ? AND state = 'CLAIMED' AND claim_token = ?
-            AND lease_expires_at > clock_timestamp()
+          FROM uacrf_advisory.outbox_event event
+          WHERE delivery.event_id = ? AND event.event_id = delivery.event_id
+            AND event.tenant_id = ? AND event.environment_id = ? AND event.run_id = ?
+            AND event.generation = ? AND event.event_type = ?
+            AND delivery.state = 'CLAIMED' AND delivery.claim_token = ?
+            AND delivery.lease_expires_at > clock_timestamp()
           """)) {
         statement.setLong(1, extensionMillis);
-        statement.setString(2, claim.eventId());
-        statement.setObject(3, claim.claimToken());
+        bindOutboxClaim(statement, claim, 2);
         boolean renewed = statement.executeUpdate() == 1;
         connection.commit();
         return renewed;
@@ -445,14 +448,17 @@ final class DispatchJournal {
       connection.setAutoCommit(false);
       try {
         try (PreparedStatement statement = connection.prepareStatement("""
-            UPDATE uacrf_advisory.outbox_delivery
+            UPDATE uacrf_advisory.outbox_delivery AS delivery
             SET state = 'PUBLISHED', claim_token = NULL, lease_expires_at = NULL,
                 published_at = clock_timestamp()
-            WHERE event_id = ? AND state = 'CLAIMED' AND claim_token = ?
-              AND lease_expires_at > clock_timestamp()
+            FROM uacrf_advisory.outbox_event event
+            WHERE delivery.event_id = ? AND event.event_id = delivery.event_id
+              AND event.tenant_id = ? AND event.environment_id = ? AND event.run_id = ?
+              AND event.generation = ? AND event.event_type = ?
+              AND delivery.state = 'CLAIMED' AND delivery.claim_token = ?
+              AND delivery.lease_expires_at > clock_timestamp()
             """)) {
-          statement.setString(1, claim.eventId());
-          statement.setObject(2, claim.claimToken());
+          bindOutboxClaim(statement, claim, 1);
           if (statement.executeUpdate() != 1) {
             connection.rollback();
             return false;
@@ -941,6 +947,17 @@ final class DispatchJournal {
       }
       throw failure;
     }
+  }
+
+  private static void bindOutboxClaim(PreparedStatement statement, OutboxClaim claim, int parameterIndex)
+      throws SQLException {
+    statement.setString(parameterIndex++, claim.eventId());
+    statement.setString(parameterIndex++, claim.tenantId());
+    statement.setString(parameterIndex++, claim.environmentId());
+    statement.setString(parameterIndex++, claim.runId());
+    statement.setLong(parameterIndex++, claim.generation());
+    statement.setString(parameterIndex++, claim.eventType());
+    statement.setObject(parameterIndex, claim.claimToken());
   }
 
   private static void requireId(String id) {

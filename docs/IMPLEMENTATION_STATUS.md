@@ -1301,16 +1301,18 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   leases with fresh claim tokens. Migration V7 allows the current token to
   extend an active lease without incrementing attempts; each extension is
   bounded and caps the resulting lease at five minutes from renewal. Publication
-  requires the current, unexpired token and atomically marks both delivery and
-  event published. A crash after sending but before acknowledgment can cause
-  redelivery, so any future consumer must be idempotent. PostgreSQL regressions
-  cover existing-event backfill, delivery-row creation failure rolling back
-  admission, concurrent exclusive claims, expired-lease reclamation,
-  active-token renewal, stale/expired-token rejection, and publication state
-  transitions. The broader PostgreSQL-backed regressions cover concurrent
-  same-key admission, scope isolation, immutable plans and records,
-  substitution rejection, and deadline failure. The clean advisory suite
-  passed 146 tests with no failures, errors, or skips. No service handler
+  and renewal also bind the retained tenant, environment, run, generation and
+  event type from the claim. Publication requires the current, unexpired token
+  and atomically marks both delivery and event published. A crash after sending
+  but before acknowledgment can cause redelivery, so any future consumer must
+  be idempotent. PostgreSQL regressions cover existing-event backfill,
+  delivery-row creation failure rolling back admission, concurrent exclusive
+  claims, tenant/environment isolation, expired-lease reclamation, active-token
+  renewal, stale/expired-token rejection, and publication state transitions.
+  The broader PostgreSQL-backed regressions cover concurrent same-key
+  admission, scope isolation, immutable plans and records, substitution
+  rejection, and deadline failure. The clean advisory suite passed 147 tests
+  with no failures, errors, or skips. No service handler
   uses the admission or delivery library paths; no outbox publisher or provider
   dispatch is wired.
   The primitive still trusts its caller-supplied principal and does not
