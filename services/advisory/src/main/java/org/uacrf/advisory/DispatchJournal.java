@@ -464,16 +464,6 @@ final class DispatchJournal {
             return false;
           }
         }
-        try (PreparedStatement statement = connection.prepareStatement("""
-            UPDATE uacrf_advisory.outbox_event
-            SET state = 'PUBLISHED', published_at = clock_timestamp()
-            WHERE event_id = ? AND state = 'PENDING'
-            """)) {
-          statement.setString(1, claim.eventId());
-          if (statement.executeUpdate() != 1) {
-            throw new SQLException("Claimed outbox event is not pending.");
-          }
-        }
         connection.commit();
         return true;
       } catch (SQLException | RuntimeException failure) {

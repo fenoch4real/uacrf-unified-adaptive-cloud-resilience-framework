@@ -349,6 +349,11 @@ class DispatchJournalTests {
           SET published_at = clock_timestamp()
           WHERE tenant_id = 'admission' AND run_id = 'run-1'
           """));
+      assertThrows(SQLException.class, () -> statement.executeUpdate("""
+          UPDATE uacrf_advisory.outbox_event
+          SET state = 'PUBLISHED', published_at = clock_timestamp()
+          WHERE tenant_id = 'admission' AND run_id = 'run-1'
+          """));
     }
     var claim = journal.claimPendingOutbox("admission", "env", 100, Duration.ofMinutes(1)).stream()
         .filter(candidate -> candidate.runId().equals("run-1")).findFirst().orElseThrow();
@@ -461,6 +466,58 @@ class DispatchJournalTests {
         claim.eventType(), claim.payloadJson(), claim.claimToken(), claim.attemptCount());
     assertFalse(journal.renewOutboxClaim(mismatched, Duration.ofSeconds(1)));
     assertFalse(journal.markOutboxPublished(mismatched));
+    assertTrue(journal.markOutboxPublished(claim));
+  }
+
+  @Test
+  void eventPublicationFailureRollsBackDeliveryAcknowledgment() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-event-rollback";
+    admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-1"),
+        admissionRequest(TEST_DEADLINE, "Outbox publication rollback test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-outbox-event-rollback");
+    var claim = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofMinutes(1)).getFirst();
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.createStatement()) {
+      statement.execute("""
+          CREATE FUNCTION uacrf_advisory.fail_test_outbox_event_publish() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN
+            IF OLD.tenant_id = 'outbox-event-rollback' AND NEW.state = 'PUBLISHED' THEN
+              RAISE EXCEPTION 'simulated event publication failure' USING ERRCODE = '23514';
+            END IF;
+            RETURN NEW;
+          END $$
+          """);
+      statement.execute("""
+          CREATE TRIGGER fail_test_outbox_event_publish
+          BEFORE UPDATE OF state ON uacrf_advisory.outbox_event
+          FOR EACH ROW EXECUTE FUNCTION uacrf_advisory.fail_test_outbox_event_publish()
+          """);
+    }
+
+    try {
+      assertThrows(SQLException.class, () -> journal.markOutboxPublished(claim));
+    } finally {
+      try (Connection connection = dataSource.getConnection();
+           var statement = connection.createStatement()) {
+        statement.execute("DROP TRIGGER fail_test_outbox_event_publish ON uacrf_advisory.outbox_event");
+        statement.execute("DROP FUNCTION uacrf_advisory.fail_test_outbox_event_publish()");
+      }
+    }
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT delivery.state, event.state
+             FROM uacrf_advisory.outbox_delivery delivery
+             JOIN uacrf_advisory.outbox_event event USING (event_id)
+             WHERE event.event_id = ?
+             """)) {
+      statement.setString(1, claim.eventId());
+      try (var result = statement.executeQuery()) {
+        assertTrue(result.next());
+        assertEquals("CLAIMED", result.getString(1));
+        assertEquals("PENDING", result.getString(2));
+      }
+    }
     assertTrue(journal.markOutboxPublished(claim));
   }
 
