@@ -41,12 +41,38 @@ class DispatchJournalTests {
   private static DataSource dataSource;
 
   @BeforeAll
-  static void migrate() {
+  static void migrate() throws Exception {
     PGSimpleDataSource postgres = new PGSimpleDataSource();
     postgres.setURL(POSTGRES.getJdbcUrl());
     postgres.setUser(POSTGRES.getUsername());
     postgres.setPassword(POSTGRES.getPassword());
     dataSource = postgres;
+    Flyway.configure().dataSource(dataSource).target("5").load().migrate();
+    var journal = new DispatchJournal(dataSource);
+    for (String runId : List.of("pending", "published")) {
+      var runKey = new DispatchJournal.RunKey("migration-backfill", "env", runId);
+      assertTrue(registerRun(journal, runKey, 1, budget(), TEST_DEADLINE));
+      String eventId = "legacy-" + runId;
+      String state = runId.equals("published") ? "PUBLISHED" : "PENDING";
+      try (Connection connection = dataSource.getConnection();
+           var statement = connection.prepareStatement("""
+               INSERT INTO uacrf_advisory.outbox_event
+                 (event_id, tenant_id, environment_id, run_id, generation, event_type, payload, state, published_at)
+               VALUES (?, ?, ?, ?, 1, 'uacrf.s09.run.admitted.v1',
+                 jsonb_build_object('run_id', ?, 'generation', 1, 'request_digest', ?), ?,
+                 CASE WHEN ? = 'PUBLISHED' THEN clock_timestamp() END)
+               """)) {
+        statement.setString(1, eventId);
+        statement.setString(2, runKey.tenantId());
+        statement.setString(3, runKey.environmentId());
+        statement.setString(4, runKey.runId());
+        statement.setString(5, runKey.runId());
+        statement.setString(6, "a".repeat(64));
+        statement.setString(7, state);
+        statement.setString(8, state);
+        assertEquals(1, statement.executeUpdate());
+      }
+    }
     Flyway.configure().dataSource(dataSource).load().migrate();
   }
 
@@ -154,6 +180,76 @@ class DispatchJournalTests {
   }
 
   @Test
+  void outboxDeliveryMigrationBackfillsPendingAndPublishedEvents() throws Exception {
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT event.event_id, event.state, delivery.state, delivery.attempt_count,
+                    delivery.published_at IS NOT NULL
+             FROM uacrf_advisory.outbox_event event
+             JOIN uacrf_advisory.outbox_delivery delivery USING (event_id)
+             WHERE event.tenant_id = 'migration-backfill'
+             ORDER BY event.event_id
+             """);
+         var result = statement.executeQuery()) {
+      assertTrue(result.next());
+      assertEquals("legacy-pending", result.getString(1));
+      assertEquals("PENDING", result.getString(2));
+      assertEquals("PENDING", result.getString(3));
+      assertEquals(0, result.getInt(4));
+      assertFalse(result.getBoolean(5));
+
+      assertTrue(result.next());
+      assertEquals("legacy-published", result.getString(1));
+      assertEquals("PUBLISHED", result.getString(2));
+      assertEquals("PUBLISHED", result.getString(3));
+      assertEquals(0, result.getInt(4));
+      assertTrue(result.getBoolean(5));
+      assertFalse(result.next());
+    }
+  }
+
+  @Test
+  void outboxDeliveryInsertFailureRollsBackAdmissionTransaction() throws Exception {
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.createStatement()) {
+      statement.execute("""
+          CREATE FUNCTION uacrf_advisory.fail_test_delivery_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM uacrf_advisory.outbox_event
+              WHERE event_id = NEW.event_id AND tenant_id = 'admission-delivery-rollback'
+            ) THEN
+              RAISE EXCEPTION 'simulated delivery persistence failure' USING ERRCODE = '23514';
+            END IF;
+            RETURN NEW;
+          END $$
+          """);
+      statement.execute("""
+          CREATE TRIGGER fail_test_delivery_insert
+          BEFORE INSERT ON uacrf_advisory.outbox_delivery
+          FOR EACH ROW EXECUTE FUNCTION uacrf_advisory.fail_test_delivery_insert()
+          """);
+    }
+
+    var runKey = new DispatchJournal.RunKey("admission-delivery-rollback", "env", "run-1");
+    try {
+      assertThrows(SQLException.class, () -> admit(new DispatchJournal(dataSource), runKey,
+          admissionRequest(TEST_DEADLINE, "Delivery persistence failure"),
+          "principal-1", "CREATE_ADVISORY_RUN", "idem-delivery-rollback"));
+    } finally {
+      try (Connection connection = dataSource.getConnection();
+           var statement = connection.createStatement()) {
+        statement.execute("DROP TRIGGER fail_test_delivery_insert ON uacrf_advisory.outbox_delivery");
+        statement.execute("DROP FUNCTION uacrf_advisory.fail_test_delivery_insert()");
+      }
+    }
+    assertEquals(0, countForTenant("uacrf_advisory.run_fence", runKey.tenantId()));
+    assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", runKey.tenantId()));
+    assertEquals(0, countForTenant("uacrf_advisory.outbox_event", runKey.tenantId()));
+    assertEquals(0, countOutboxDeliveryForTenant(runKey.tenantId()));
+  }
+
+  @Test
   void admissionAtomicallyPersistsRunIdempotencyAndSchedulingEvent() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var requestedRun = new DispatchJournal.RunKey("admission", "env", "run-1");
@@ -210,9 +306,12 @@ class DispatchJournalTests {
                (SELECT payload->>'run_id' FROM uacrf_advisory.outbox_event
                  WHERE tenant_id = ? AND run_id = 'run-1'),
                (SELECT count(*) FROM uacrf_advisory.run_dispatch_plan
-                 WHERE tenant_id = ? AND run_id = 'run-1')
+                 WHERE tenant_id = ? AND run_id = 'run-1'),
+               (SELECT count(*) FROM uacrf_advisory.outbox_delivery delivery
+                 JOIN uacrf_advisory.outbox_event event USING (event_id)
+                 WHERE event.tenant_id = ?)
              """)) {
-      for (int index = 1; index <= 5; index++) {
+      for (int index = 1; index <= 6; index++) {
         statement.setString(index, "admission");
       }
       try (var result = statement.executeQuery()) {
@@ -222,6 +321,7 @@ class DispatchJournalTests {
         assertEquals(4, result.getInt(3));
         assertEquals("run-1", result.getString(4));
         assertEquals(2, result.getInt(5));
+        assertEquals(4, result.getInt(6));
       }
     }
     assertEquals(1, countForTenant("uacrf_advisory.run_idempotency", "admission-other-tenant"));
@@ -244,16 +344,79 @@ class DispatchJournalTests {
               + " WHERE tenant_id = 'admission' AND run_id = 'run-1'"));
       assertThrows(SQLException.class, () -> statement.executeUpdate(
           "DELETE FROM uacrf_advisory.outbox_event WHERE tenant_id = 'admission' AND run_id = 'run-1'"));
-      assertEquals(1, statement.executeUpdate("""
-          UPDATE uacrf_advisory.outbox_event
-          SET state = 'PUBLISHED', published_at = clock_timestamp()
-          WHERE tenant_id = 'admission' AND run_id = 'run-1' AND state = 'PENDING'
-          """));
       assertThrows(SQLException.class, () -> statement.executeUpdate("""
           UPDATE uacrf_advisory.outbox_event
           SET published_at = clock_timestamp()
           WHERE tenant_id = 'admission' AND run_id = 'run-1'
           """));
+    }
+    var claim = journal.claimPendingOutbox("admission", "env", 100, Duration.ofMinutes(1)).stream()
+        .filter(candidate -> candidate.runId().equals("run-1")).findFirst().orElseThrow();
+    assertEquals("uacrf.s09.run.admitted.v1", claim.eventType());
+    assertTrue(claim.payloadJson().contains("\"run_id\": \"run-1\""));
+    assertTrue(journal.markOutboxPublished(claim));
+  }
+
+  @Test
+  void outboxClaimsAreExclusiveAndPublicationRequiresCurrentLeaseToken() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-claim";
+    for (int index = 1; index <= 4; index++) {
+      assertEquals(DispatchJournal.AdmissionStatus.CREATED,
+          admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-" + index),
+              admissionRequest(TEST_DEADLINE, "Outbox claim test"),
+              "principal-1", "CREATE_ADVISORY_RUN", "idem-" + index).status());
+    }
+
+    var start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      Future<List<DispatchJournal.OutboxClaim>> first = executor.submit(() -> {
+        start.await();
+        return journal.claimPendingOutbox(tenant, "env", 2, Duration.ofMinutes(1));
+      });
+      Future<List<DispatchJournal.OutboxClaim>> second = executor.submit(() -> {
+        start.await();
+        return journal.claimPendingOutbox(tenant, "env", 2, Duration.ofMinutes(1));
+      });
+      start.countDown();
+      var firstClaims = first.get(20, TimeUnit.SECONDS);
+      var secondClaims = second.get(20, TimeUnit.SECONDS);
+      assertEquals(2, firstClaims.size());
+      assertEquals(2, secondClaims.size());
+      for (var firstClaim : firstClaims) {
+        assertFalse(secondClaims.stream().anyMatch(claim -> claim.eventId().equals(firstClaim.eventId())));
+      }
+    }
+
+    String expiringTenant = "outbox-expiry";
+    admit(journal, new DispatchJournal.RunKey(expiringTenant, "env", "run-1"),
+        admissionRequest(TEST_DEADLINE, "Outbox lease expiry test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-expiry");
+    var initialClaim = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofMillis(1))
+        .getFirst();
+    Thread.sleep(20);
+    assertFalse(journal.markOutboxPublished(initialClaim));
+    var reclaimed = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofSeconds(1))
+        .getFirst();
+    assertEquals(initialClaim.eventId(), reclaimed.eventId());
+    assertEquals(2, reclaimed.attemptCount());
+    assertFalse(initialClaim.claimToken().equals(reclaimed.claimToken()));
+    assertFalse(journal.markOutboxPublished(initialClaim));
+    assertTrue(journal.markOutboxPublished(reclaimed));
+    assertFalse(journal.markOutboxPublished(reclaimed));
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT delivery.state, event.state
+             FROM uacrf_advisory.outbox_delivery delivery
+             JOIN uacrf_advisory.outbox_event event USING (event_id)
+             WHERE event.event_id = ?
+             """)) {
+      statement.setString(1, reclaimed.eventId());
+      try (var result = statement.executeQuery()) {
+        assertTrue(result.next());
+        assertEquals("PUBLISHED", result.getString(1));
+        assertEquals("PUBLISHED", result.getString(2));
+      }
     }
   }
 
@@ -284,6 +447,7 @@ class DispatchJournalTests {
       assertEquals(1, countForTenant("uacrf_advisory.run_fence", "admission-race"));
       assertEquals(1, countForTenant("uacrf_advisory.run_idempotency", "admission-race"));
       assertEquals(1, countForTenant("uacrf_advisory.outbox_event", "admission-race"));
+      assertEquals(1, countOutboxDeliveryForTenant("admission-race"));
     }
   }
 
@@ -297,6 +461,23 @@ class DispatchJournalTests {
     assertTrue(journal.findRun(runKey).isEmpty());
     assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", "admission-rollback"));
     assertEquals(0, countForTenant("uacrf_advisory.outbox_event", "admission-rollback"));
+    assertEquals(0, countOutboxDeliveryForTenant("admission-rollback"));
+  }
+
+  private static int countOutboxDeliveryForTenant(String tenant) throws SQLException {
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT count(*)
+             FROM uacrf_advisory.outbox_delivery delivery
+             JOIN uacrf_advisory.outbox_event event USING (event_id)
+             WHERE event.tenant_id = ?
+             """)) {
+      statement.setString(1, tenant);
+      try (var result = statement.executeQuery()) {
+        result.next();
+        return result.getInt(1);
+      }
+    }
   }
 
   private static int countForTenant(String table, String tenant) throws SQLException {

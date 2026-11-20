@@ -114,6 +114,22 @@ final class DispatchJournal {
     }
   }
 
+  record OutboxClaim(String eventId, String tenantId, String environmentId, String runId, long generation,
+                     String eventType, String payloadJson, UUID claimToken, int attemptCount) {
+    OutboxClaim {
+      requireId(eventId);
+      requireId(tenantId);
+      requireId(environmentId);
+      requireId(runId);
+      requireId(eventType);
+      Objects.requireNonNull(payloadJson, "payloadJson");
+      Objects.requireNonNull(claimToken, "claimToken");
+      if (generation < 1 || attemptCount < 1) {
+        throw new IllegalArgumentException("Invalid outbox claim.");
+      }
+    }
+  }
+
   enum UnresolvedState {
     DISPATCH_INTENT, UNKNOWN
   }
@@ -282,8 +298,9 @@ final class DispatchJournal {
             VALUES (?, ?, ?, ?, ?, 'uacrf.s09.run.admitted.v1',
               jsonb_build_object('run_id', ?, 'generation', ?, 'request_digest', ?), 'PENDING')
             """;
+        String eventId = UUID.randomUUID().toString();
         try (PreparedStatement statement = connection.prepareStatement(outboxSql)) {
-          statement.setString(1, UUID.randomUUID().toString());
+          statement.setString(1, eventId);
           statement.setString(2, key.tenantId());
           statement.setString(3, key.environmentId());
           statement.setString(4, key.runId());
@@ -293,9 +310,128 @@ final class DispatchJournal {
           statement.setString(8, requestDigest);
           statement.executeUpdate();
         }
+        try (PreparedStatement statement = connection.prepareStatement("""
+            INSERT INTO uacrf_advisory.outbox_delivery (event_id, state, attempt_count)
+            VALUES (?, 'PENDING', 0)
+            """)) {
+          statement.setString(1, eventId);
+          statement.executeUpdate();
+        }
         activateRun(connection, key);
         connection.commit();
         return new AdmissionResult(AdmissionStatus.CREATED, Optional.of(key));
+      } catch (SQLException | RuntimeException failure) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        throw failure;
+      }
+    }
+  }
+
+  List<OutboxClaim> claimPendingOutbox(String tenantId, String environmentId, int batchSize, Duration lease)
+      throws SQLException {
+    requireId(tenantId);
+    requireId(environmentId);
+    Objects.requireNonNull(lease, "lease");
+    if (batchSize < 1 || batchSize > 100 || lease.isNegative() || lease.isZero()
+        || lease.compareTo(Duration.ofMinutes(5)) > 0) {
+      throw new IllegalArgumentException("Invalid outbox claim limits.");
+    }
+    long leaseMillis = lease.toMillis();
+    if (leaseMillis < 1) {
+      throw new IllegalArgumentException("Outbox claim lease must be at least one millisecond.");
+    }
+    String sql = """
+        WITH candidates AS MATERIALIZED (
+          SELECT delivery.event_id
+          FROM uacrf_advisory.outbox_delivery delivery
+          JOIN uacrf_advisory.outbox_event event ON event.event_id = delivery.event_id
+          WHERE event.tenant_id = ? AND event.environment_id = ? AND event.state = 'PENDING'
+            AND (delivery.state = 'PENDING'
+              OR (delivery.state = 'CLAIMED' AND delivery.lease_expires_at <= clock_timestamp()))
+          ORDER BY event.created_at, event.event_id
+          LIMIT ?
+          FOR UPDATE OF delivery SKIP LOCKED
+        ), claimed AS (
+          UPDATE uacrf_advisory.outbox_delivery delivery
+          SET state = 'CLAIMED', attempt_count = delivery.attempt_count + 1,
+              claim_token = gen_random_uuid(),
+              lease_expires_at = clock_timestamp() + make_interval(secs => ?::double precision / 1000.0)
+          FROM candidates
+          WHERE delivery.event_id = candidates.event_id
+          RETURNING delivery.event_id, delivery.claim_token, delivery.attempt_count
+        )
+        SELECT event.event_id, event.tenant_id, event.environment_id, event.run_id, event.generation,
+               event.event_type, event.payload::text AS payload, claimed.claim_token, claimed.attempt_count
+        FROM claimed
+        JOIN uacrf_advisory.outbox_event event ON event.event_id = claimed.event_id
+        ORDER BY event.created_at, event.event_id
+        """;
+    try (Connection connection = committedConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        List<OutboxClaim> claims = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+          statement.setString(1, tenantId);
+          statement.setString(2, environmentId);
+          statement.setInt(3, batchSize);
+          statement.setLong(4, leaseMillis);
+          try (ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+              claims.add(new OutboxClaim(result.getString("event_id"), result.getString("tenant_id"),
+                  result.getString("environment_id"), result.getString("run_id"), result.getLong("generation"),
+                  result.getString("event_type"), result.getString("payload"),
+                  UUID.fromString(result.getString("claim_token")), result.getInt("attempt_count")));
+            }
+          }
+        }
+        connection.commit();
+        return List.copyOf(claims);
+      } catch (SQLException | RuntimeException failure) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        throw failure;
+      }
+    }
+  }
+
+  boolean markOutboxPublished(OutboxClaim claim) throws SQLException {
+    Objects.requireNonNull(claim, "claim");
+    try (Connection connection = committedConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        try (PreparedStatement statement = connection.prepareStatement("""
+            UPDATE uacrf_advisory.outbox_delivery
+            SET state = 'PUBLISHED', claim_token = NULL, lease_expires_at = NULL,
+                published_at = clock_timestamp()
+            WHERE event_id = ? AND state = 'CLAIMED' AND claim_token = ?
+              AND lease_expires_at > clock_timestamp()
+            """)) {
+          statement.setString(1, claim.eventId());
+          statement.setObject(2, claim.claimToken());
+          if (statement.executeUpdate() != 1) {
+            connection.rollback();
+            return false;
+          }
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+            UPDATE uacrf_advisory.outbox_event
+            SET state = 'PUBLISHED', published_at = clock_timestamp()
+            WHERE event_id = ? AND state = 'PENDING'
+            """)) {
+          statement.setString(1, claim.eventId());
+          if (statement.executeUpdate() != 1) {
+            throw new SQLException("Claimed outbox event is not pending.");
+          }
+        }
+        connection.commit();
+        return true;
       } catch (SQLException | RuntimeException failure) {
         try {
           connection.rollback();
