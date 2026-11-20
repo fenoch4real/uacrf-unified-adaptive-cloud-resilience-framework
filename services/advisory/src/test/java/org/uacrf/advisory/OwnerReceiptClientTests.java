@@ -106,6 +106,7 @@ class OwnerReceiptClientTests {
   private final AtomicReference<Reply> requesterReply = new AtomicReference<>(new Reply(200, REQUESTER_ACCESS));
   private final AtomicReference<Reply> requesterReplyAfterContent = new AtomicReference<>();
   private final AtomicReference<Reply> requesterReplyAfterCaseMaterial = new AtomicReference<>();
+  private final AtomicReference<Reply> retrievalReplyAfterRequesterRefresh = new AtomicReference<>();
   private final AtomicReference<Reply> activeVersionReply =
       new AtomicReference<>(new Reply(200, ACTIVE_VERSION_BODY));
   private final AtomicReference<Reply> activeVersionReplyAfterFirstRead = new AtomicReference<>();
@@ -201,9 +202,12 @@ class OwnerReceiptClientTests {
       if (changedReply != null) activeVersionReply.set(changedReply);
     });
     server.createContext("/v1/me/access", exchange -> {
-      requesterAccessCalls.incrementAndGet();
+      int calls = requesterAccessCalls.incrementAndGet();
       requesterAuthorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
       respond(exchange, requesterReply.get());
+      if (calls == 2 && retrievalReplyAfterRequesterRefresh.get() != null) {
+        retrievalReply.set(retrievalReplyAfterRequesterRefresh.get());
+      }
     });
     server.createContext("/oauth/token", exchange -> {
       actorTokenCalls.incrementAndGet();
@@ -311,11 +315,13 @@ class OwnerReceiptClientTests {
     assertEquals("Bearer requester-token", requesterAuthorization.get());
     assertEquals(2, requesterAccessCalls.get());
     assertEquals(List.of(
-        "Bearer requester-token", "Bearer requester-token", "Bearer requester-token", "Bearer requester-token"),
+        "Bearer requester-token", "Bearer requester-token", "Bearer requester-token",
+        "Bearer requester-token", "Bearer requester-token"),
         identityAuthorizations);
     assertTrue(identityRequests.get(0).contains("\"assessment.case.read\""));
     assertTrue(identityRequests.get(1).contains("\"assessment.case.read\""));
     assertTrue(identityRequests.get(2).contains("\"knowledge.classification.internal.read\""));
+    assertTrue(identityRequests.get(4).contains("\"knowledge.classification.internal.read\""));
     assertEquals(1, caseMaterialCalls.get());
     assertEquals("Bearer test-token-S07", caseAuthorization.get());
     assertEquals("Bearer test-token-S08", retrievalAuthorization.get());
@@ -331,13 +337,30 @@ class OwnerReceiptClientTests {
     assertEquals(List.of(EXCERPT),
         verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, sources).receipts().excerpts());
     assertEquals(2, requesterAccessCalls.get());
-    assertEquals(2, retrievalCalls.get());
+    assertEquals(3, retrievalCalls.get());
 
     requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
     assertThrows(IOException.class,
         () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED, sources));
     assertEquals(4, requesterAccessCalls.get());
-    assertEquals(4, retrievalCalls.get());
+    assertEquals(5, retrievalCalls.get());
+  }
+
+  @Test
+  void rejectsRetrievalEligibilityChangeDuringFinalRequesterRefresh() {
+    retrievalReplyAfterRequesterRefresh.set(
+        new Reply(200, RETRIEVAL_BODY.replace("\"eligible\":true", "\"eligible\":false")
+            .replace("\"reason\":\"ELIGIBLE\"", "\"reason\":\"SOURCE_NOT_ELIGIBLE\"")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    byte[] bytes = EXCERPT.getBytes(StandardCharsets.UTF_8);
+    var artifact = new DigestBoundArtifact("artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST, bytes);
+
+    assertThrows(IOException.class,
+        () -> verifier.checkWithSources("requester-token", "tenant-1", "env-1", EXPECTED,
+            Map.of(EXCERPT_DIGEST, artifact)));
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(3, retrievalCalls.get());
+    assertEquals(1, contentCalls.get());
   }
 
   @Test
@@ -390,7 +413,7 @@ class OwnerReceiptClientTests {
     assertEquals("instructions", result.prompts().prompts().getFirst().text());
     assertEquals(List.of(EXCERPT), result.sources().receipts().excerpts());
     assertEquals(2, requesterAccessCalls.get());
-    assertEquals(2, retrievalCalls.get());
+    assertEquals(3, retrievalCalls.get());
 
     var pin = profilePins("model-a", "a".repeat(64));
     var limits = new ProfileConfigurationCheck.RequestLimits("attempt-1", 30, Duration.ofSeconds(30));
@@ -465,7 +488,7 @@ class OwnerReceiptClientTests {
         () -> complete.journalIntents(new DispatchJournal.RunKey("other-tenant", "env-1", "run-1"), 1,
             Map.of("analyst", "assignment-1")));
     assertEquals(4, requesterAccessCalls.get());
-    assertEquals(4, retrievalCalls.get());
+    assertEquals(6, retrievalCalls.get());
 
     var clockReads = new AtomicInteger();
     Clock expiringDuringCheck = new Clock() {
@@ -536,7 +559,7 @@ class OwnerReceiptClientTests {
         () -> expiringCheck.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
             EXPECTED, model, prompt, sources, Map.of("analyst", pin), Map.of("analyst", limits)));
     assertEquals(6, requesterAccessCalls.get());
-    assertEquals(6, retrievalCalls.get());
+    assertEquals(9, retrievalCalls.get());
 
     requesterReplyAfterContent.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
     assertThrows(IOException.class,
@@ -624,7 +647,8 @@ class OwnerReceiptClientTests {
         SourceReceiptConsistency.Classification.RESTRICTED);
     setClassification("RESTRICTED");
     verifier.check("requester-token", "tenant-1", "env-1", restrictedExpected);
-    assertTrue(identityRequests.get(6).contains("\"knowledge.classification.restricted.read\""));
+    assertTrue(identityRequests.get(7).contains("\"knowledge.classification.restricted.read\""));
+    assertTrue(identityRequests.get(9).contains("\"knowledge.classification.restricted.read\""));
   }
 
   @Test
@@ -634,9 +658,9 @@ class OwnerReceiptClientTests {
     requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
     assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
     assertEquals(3, requesterAccessCalls.get());
-    assertEquals(4, identityCalls.get());
+    assertEquals(5, identityCalls.get());
     assertEquals(2, caseCalls.get());
-    assertEquals(2, retrievalCalls.get());
+    assertEquals(3, retrievalCalls.get());
   }
 
   @Test

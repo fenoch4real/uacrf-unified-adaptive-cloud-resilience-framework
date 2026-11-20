@@ -84,28 +84,59 @@ final class OwnerReceiptClient {
     InternalJsonClient.requireId(tenantId);
     InternalJsonClient.requireId(environmentId);
     SourceReceiptConsistency.checkCase(expected, sourceCase);
+    String knowledgeToken = retrievalToken(tenantId, environmentId, expected);
+    var retrieval = checkedRetrievalReceipt(expected, sourceCase, knowledgeToken);
+    Map<?, ?> content = http.get(knowledgeBase.resolve("/v1/retrievals/" + expected.retrievalId()), knowledgeToken);
+    List<String> excerpts = excerpts(content, retrieval);
+    if (sources != null) {
+      KnowledgeSourceVerifier.verifyAll(expected, new Receipts(sourceCase, retrieval, excerpts), sources);
+    }
+    var refreshed = checkedRetrievalReceipt(expected, sourceCase, knowledgeToken);
+    if (!retrieval.equals(refreshed)) {
+      throw new IOException("Retrieval receipt changed during content checking.");
+    }
+    return new Receipts(sourceCase, refreshed, excerpts);
+  }
+
+  SourceReceiptConsistency.RetrievalReceipt fetchRetrievalReceipt(
+      String tenantId,
+      String environmentId,
+      SourceReceiptConsistency.Expected expected,
+      SourceReceiptConsistency.CaseReceipt sourceCase)
+      throws IOException, InterruptedException {
+    if (!enabled) {
+      throw new IllegalStateException("Owner receipt fetching is disabled.");
+    }
+    InternalJsonClient.requireId(tenantId);
+    InternalJsonClient.requireId(environmentId);
+    SourceReceiptConsistency.checkCase(expected, sourceCase);
+    return checkedRetrievalReceipt(
+        expected, sourceCase, retrievalToken(tenantId, environmentId, expected));
+  }
+
+  private String retrievalToken(
+      String tenantId, String environmentId, SourceReceiptConsistency.Expected expected)
+      throws IOException, InterruptedException {
     List<String> capabilities = switch (expected.classification()) {
       case PUBLIC -> List.of("knowledge.retrieval.read");
       case INTERNAL -> List.of("knowledge.retrieval.read", "knowledge.classification.internal.read");
       case RESTRICTED -> List.of("knowledge.retrieval.read", "knowledge.classification.restricted.read");
     };
-    String knowledgeToken = token(tenantId, environmentId, "S08", capabilities);
+    return token(tenantId, environmentId, "S08", capabilities);
+  }
+
+  private SourceReceiptConsistency.RetrievalReceipt checkedRetrievalReceipt(
+      SourceReceiptConsistency.Expected expected,
+      SourceReceiptConsistency.CaseReceipt sourceCase,
+      String knowledgeToken)
+      throws IOException, InterruptedException {
     var retrieval = retrievalReceipt(expected, knowledgeToken);
     try {
       KnowledgeManifestVerifier.verify(expected, sourceCase, retrieval);
     } catch (IllegalArgumentException failure) {
       throw new IOException("Owner receipt consistency check failed.", failure);
     }
-    Map<?, ?> content = http.get(knowledgeBase.resolve("/v1/retrievals/" + expected.retrievalId()), knowledgeToken);
-    List<String> excerpts = excerpts(content, retrieval);
-    if (sources != null) {
-      KnowledgeSourceVerifier.verifyAll(expected, new Receipts(sourceCase, retrieval, excerpts), sources);
-    }
-    var refreshed = retrievalReceipt(expected, knowledgeToken);
-    if (!retrieval.equals(refreshed)) {
-      throw new IOException("Retrieval receipt changed during content checking.");
-    }
-    return new Receipts(sourceCase, refreshed, excerpts);
+    return retrieval;
   }
 
   private SourceReceiptConsistency.RetrievalReceipt retrievalReceipt(

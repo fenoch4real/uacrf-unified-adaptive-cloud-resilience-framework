@@ -496,18 +496,22 @@ class DispatchJournalTests {
   }
 
   @Test
-  void expiredRunsAreNotClaimedFromTheOutbox() throws Exception {
+  void expiredRunsCannotClaimOrAdvanceOutboxDelivery() throws Exception {
     var journal = new DispatchJournal(dataSource);
     String tenant = "outbox-expired-run";
-    Instant deadline = Instant.now().plusSeconds(2);
+    Instant deadline = Instant.now().plusSeconds(3);
     admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-1"),
         admissionRequest(deadline, "Expiring outbox test"),
         "principal-1", "CREATE_ADVISORY_RUN", "idem-expired");
+    var claim = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofMinutes(5)).getFirst();
     long remainingMillis = Duration.between(Instant.now(), deadline).toMillis();
     if (remainingMillis > 0) {
       Thread.sleep(remainingMillis + 100);
     }
     assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
+    assertFalse(journal.renewOutboxClaim(claim, Duration.ofSeconds(1)));
+    assertFalse(journal.releaseOutboxClaim(claim, DispatchJournal.outboxRetryDelay(claim)));
+    assertFalse(journal.markOutboxPublished(claim));
   }
 
   @Test

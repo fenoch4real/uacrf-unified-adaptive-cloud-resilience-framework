@@ -1326,11 +1326,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   fence, and claim mutations lock it before updating, serializing these
   operations with cancellation. Regressions verify locked or cancelled runs
   cannot be claimed, cancelled runs cannot complete a current claim, and
-  expired runs cannot be claimed. This does not retract a network delivery
-  already in flight. The broader
+  expired runs cannot be claimed or renew, release, or publish a current claim.
+  This does not retract a network delivery already in flight. The broader
   PostgreSQL-backed regressions cover concurrent same-key admission, scope
   isolation, immutable plans and records, substitution rejection, and deadline
-  failure. The clean advisory suite passed 156 tests with no failures, errors,
+  failure. The clean advisory suite passed 157 tests with no failures, errors,
   or skips. No service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
   The primitive still trusts its caller-supplied principal and does not
@@ -1418,11 +1418,16 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   A profile-aware variant requires exactly one profile pin and gateway request
   per allocation, obtains the current active-version receipt from S02, and
   binds profile/version identity, manifest digest, model and instruction pins,
-  and request limits to that receipt before the final S08 and S01 refreshes.
+  and request limits to that receipt before final S01 requester, S02 profile,
+  and S08 retrieval rechecks.
   It retains immutable copies of the checked requests and selections. The
   cross-service test exercises this composition with real S01, S02, S07 and
   S08 services; this remains a point-in-time check, not an atomic authorization
-  decision. Preparation now constructs a distinct,
+  decision. After the final S07, requester and S02 refreshes, preparation
+  re-reads the S08 retrieval receipt with a fresh delegation and rejects a
+  changed, withdrawn, or unavailable receipt before returning the snapshot.
+  A simulated-owner regression covers withdrawal during the requester refresh.
+  Preparation now constructs a distinct,
   bounded JSON input packet per role from the verified sealed case material,
   selected prompt text, and receipt-verified excerpts. It generates each
   gateway request from the checked model and limits rather than forwarding
@@ -1505,7 +1510,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   refreshes S08 eligibility after the excerpts. After those reads it refreshes
   the S07 case receipt and any requested S02 active workload versions, rejecting
   any change, then checks requester grants again and rejects a changed
-  principal; this narrows but does not eliminate source or revocation races.
+  principal. It finally re-reads the S08 retrieval receipt after those other
+  refreshes and fails closed if eligibility or any receipt field changed; this
+  narrows but does not eliminate source or revocation races.
   It requests a restricted
   classification delegation for an internal retrieval when that is the
   requester's applicable grant. The combined flow has also been tested against

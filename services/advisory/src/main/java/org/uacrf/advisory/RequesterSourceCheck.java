@@ -167,6 +167,11 @@ final class RequesterSourceCheck {
         && !profileVersions.equals(profileReader.fetchActive(tenantId, environmentId, expectedProfiles))) {
       throw new IOException("S02 active workload versions changed during source checking.");
     }
+    var refreshedRetrieval =
+        owners.fetchRetrievalReceipt(tenantId, environmentId, expected, refreshedCase);
+    if (!receipts.retrieval().equals(refreshedRetrieval)) {
+      throw new IOException("S08 retrieval receipt changed during source checking.");
+    }
     http.requireBudget();
     return new Snapshot(refreshed, receipts, caseMaterial, profileVersions);
   }
