@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Import synthetic inventory | UACRF</title>
+  <title>Import synthetic estate | UACRF</title>
   <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
 </head>
 <body>
 <main>
-  <h1>Import synthetic inventory</h1>
+  <h1>Import synthetic estate</h1>
   <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/connections">Back to connections</a></p>
   <p>This creates a SAMPLE_LOCAL connection and imports synthetic AWS, Azure and Google Cloud
-    inventory observations into this context. It does not connect to cloud accounts or qualify evidence.
-    Metrics and deliberate fault deliveries are not imported.</p>
+    inventory and metric observations into this context. It does not connect to cloud accounts or
+    qualify evidence. Simulated response pages, graph records, and deliberate fault deliveries are
+    not imported.</p>
   <p>Retry with the same signed-in user, context and owner to resume safely. Choosing a different
     owner creates a separate sample connection.</p>
   <div role="alert" th:if="${importError != null}">
@@ -22,14 +23,17 @@
     <p th:if="${partialConnectionId != null}">Confirmed observations in this attempt:
       <span th:text="${completedCount}">0</span>. The import may be partial; retry with the same
       user, context and owner after resolving the error.</p>
-    <p th:if="${partialConnectionId != null}"><a
-        th:href="@{/connections/{id}/inventory(id=${partialConnectionId})}">View available sample inventory</a></p>
+    <p th:if="${partialConnectionId != null}">
+      <a th:href="@{/connections/{id}/inventory(id=${partialConnectionId})}">View available sample inventory</a>
+      <a th:href="@{/connections/{id}/observations(id=${partialConnectionId})}">View retained sample observations</a>
+    </p>
   </div>
   <div role="status" th:if="${importResult != null}">
     <p>Sample import completed: <span th:text="${importResult.observations}">0</span>
       observations confirmed, including <span th:text="${importResult.duplicates}">0</span>
       already accepted on a prior attempt.</p>
     <p><a th:href="@{/connections/{id}/inventory(id=${importResult.connectionId})}">View sample inventory</a></p>
+    <p><a th:href="@{/connections/{id}/observations(id=${importResult.connectionId})}">View retained sample observations</a></p>
   </div>
   <p th:if="${#lists.isEmpty(ownerCandidates) and importError == null}">No eligible owners are available in this context.</p>
   <form method="post" th:action="@{/connections/sample-import}" th:if="${!#lists.isEmpty(ownerCandidates)}">
@@ -42,7 +46,7 @@
               th:selected="${owner.id == selectedOwner}"
               th:text="${owner.displayName + ' (' + owner.id + ')'}">Owner</option>
     </select>
-    <button type="submit">Import synthetic inventory</button>
+    <button type="submit">Import synthetic estate</button>
   </form>
   <nav aria-label="Eligible owner pages">
     <a th:if="${ownerCursor != null and !ownerCursor.isBlank()}" href="/connections/sample-import">First owners</a>

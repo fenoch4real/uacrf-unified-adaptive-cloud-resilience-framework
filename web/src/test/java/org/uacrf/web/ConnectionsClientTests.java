@@ -87,6 +87,35 @@ class ConnectionsClientTests {
   }
 
   @Test
+  void readsRetainedObservationsWithPayloadAndPagination() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/connections");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo(
+            "http://edge.test/internal/connections/v1/connections/sample/observations?pageSize=25&cursor=next"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withSuccess("""
+            {"items":[{"id":"obs-metric","source_ref":"sample:aws/metric",
+            "sequence":1,"observed_at":"2026-11-12T09:05:00Z",
+            "kind":"aws.cloudwatch.metrics","payload":"{\\"MetricDataResults\\":[]}",
+            "payload_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],
+            "next_cursor":"next-page"}
+            """, MediaType.APPLICATION_JSON));
+
+    ConnectionsClient.ObservationPage page =
+        new ConnectionsClient(builder.build())
+            .listObservations("delegated", "sample", "next");
+
+    assertThat(page.nextCursor()).isEqualTo("next-page");
+    assertThat(page.items()).singleElement().satisfies(observation -> {
+      assertThat(observation.id()).isEqualTo("obs-metric");
+      assertThat(observation.kind()).isEqualTo("aws.cloudwatch.metrics");
+      assertThat(observation.payload()).contains("MetricDataResults");
+      assertThat(observation.payloadDigest()).hasSize(64);
+    });
+    server.verify();
+  }
+
+  @Test
   void rejectsInventoryWithConflictingSourceClass() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

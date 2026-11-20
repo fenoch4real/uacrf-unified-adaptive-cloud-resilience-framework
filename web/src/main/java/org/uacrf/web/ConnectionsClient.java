@@ -67,6 +67,27 @@ class ConnectionsClient {
     return page;
   }
 
+  ObservationPage listObservations(String token, String id, String cursor) {
+    ObservationPage page =
+        restClient.get()
+            .uri(uri -> {
+              var request =
+                  uri.path("/v1/connections/{id}/observations").queryParam("pageSize", 25);
+              if (cursor != null && !cursor.isBlank()) {
+                request.queryParam("cursor", cursor);
+              }
+              return request.build(id);
+            })
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+            .retrieve()
+            .body(ObservationPage.class);
+    if (page == null || page.items() == null
+        || page.items().stream().anyMatch(item -> !validObservation(item))) {
+      throw new IllegalStateException("S03 returned an incomplete observation page.");
+    }
+    return page;
+  }
+
   CollectionStatusPage listCollectionStatuses(String token, String id, String cursor) {
     CollectionStatusPage page =
         restClient.get()
@@ -145,6 +166,13 @@ class ConnectionsClient {
         && present(item.sourceRef());
   }
 
+  private static boolean validObservation(Observation item) {
+    return item != null && present(item.id()) && present(item.sourceRef())
+        && item.sequence() > 0 && present(item.observedAt()) && present(item.kind())
+        && item.payload() != null && item.payload().length() <= 16_384
+        && present(item.payloadDigest()) && item.payloadDigest().matches("^[0-9a-f]{64}$");
+  }
+
   private static boolean present(String value) {
     return value != null && !value.isBlank();
   }
@@ -176,6 +204,17 @@ class ConnectionsClient {
       @JsonProperty("status_reason") String statusReason) {}
 
   record InventoryPage(List<InventoryObservation> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record ObservationPage(List<Observation> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record Observation(
+      String id,
+      @JsonProperty("source_ref") String sourceRef,
+      long sequence,
+      @JsonProperty("observed_at") String observedAt,
+      String kind,
+      String payload,
+      @JsonProperty("payload_digest") String payloadDigest) {}
 
   record InventoryObservation(
       @JsonProperty("normalizer_version") String normalizerVersion,

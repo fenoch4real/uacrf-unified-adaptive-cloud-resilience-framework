@@ -10,3 +10,12 @@ main {
 .collection-status-list > li {
   margin-block-end: 1.5rem;
 }
+
+.observation-list > li {
+  margin-block-end: 2rem;
+}
+
+.observation-list pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

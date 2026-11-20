@@ -36,9 +36,9 @@ Each delivery carries an `expect` value (`ACCEPTED`, `DUPLICATE` or
 `QUARANTINED:<reason>`) that the S03 integration tests assert after posting the
 deliveries in order.
 
-## Import synthetic inventory
+## Import synthetic estate
 
-From **Connections**, choose **Import synthetic inventory**, select a tenant
+From **Connections**, choose **Import synthetic estate**, select a tenant
 and environment and an eligible human owner, then explicitly submit the form.
 The signed-in user needs global `identity.owner.select`,
 `connections.connection.write`, and `connections.observation.write`; viewing
@@ -49,12 +49,15 @@ capabilities. No grant is automatic, and neither the approver nor membership
 manager can grant it to themselves. The fictional `owner-platform` in the
 fixture is not automatically granted or used.
 
-The browser packages the canonical multi-cloud fixture and submits its 42
-inventory observations and three inventory source bindings through S03 as a
-`SAMPLE_LOCAL` connection. It does not import fixture metrics, simulated pages,
-graph records, or deliberate fault deliveries. Import writes synthetic records
-to the selected environment; it does not contact a cloud provider or qualify
-evidence. It is never automatic.
+The browser packages the canonical multi-cloud fixture and submits 122
+observations (42 inventory and 80 metrics) across ten source bindings through
+S03 as a `SAMPLE_LOCAL` connection. Metric source bindings intentionally omit
+the fixture's service references because those services are not registered in
+the selected context. It does not import simulated response pages, graph
+records, or deliberate fault deliveries. Import writes synthetic records to
+the selected environment; it does not contact a cloud provider or qualify
+evidence. It is never automatic. The retained-observation page displays the
+paginated records and their payloads only for `SAMPLE_LOCAL` connections.
 
 If interrupted, the page reports the confirmed count and an uncertain last
 operation. Retry with the same signed-in user, tenant, environment, and owner:

@@ -31,7 +31,7 @@ class SampleInventoryImport {
     try {
       connections.registerSample(delegate(accessToken, context), "sample-register-" + id,
           fixture.connection(id, owner));
-      stage = "binding sample inventory sources";
+      stage = "binding sample estate sources";
       for (SampleInventory.Binding binding : fixture.bindings(id)) {
         connections.bindSample(delegate(accessToken, context), id, "sample-binding-" + binding.id(), binding);
       }

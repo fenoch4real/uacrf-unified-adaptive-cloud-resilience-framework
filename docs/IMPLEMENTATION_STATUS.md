@@ -120,18 +120,21 @@ establish freshness because the endpoint applies no freshness policy.
 The browser application now lists connections and renders their inventory
 observations through a context-bound S03 read delegation and EDGE01. Sample
 connections are visibly identified as synthetic, unknown locations remain
-unknown, and pagination and raw-observation provenance are shown. The full
-web module passed 82 tests, including mocked delegation, route rendering and
+unknown, and pagination and raw-observation provenance are shown. A separate
+context-bound read page displays paginated raw observations only for
+`SAMPLE_LOCAL` connections; payload text uses escaped native disclosures.
+The explicit fixture import now binds ten sample sources and submits 122
+accepted observations: 42 inventory and 80 metric. It continues to exclude
+simulated pages, graph records, and deliberate fault deliveries. The full
+web module passed 94 tests, including delegation, route rendering, and
 HTTP-client contract checks. The browser does not automatically ingest the
-sample fixture. An explicit import registers a sample-local connection,
-binds three inventory sources and submits 42 synthetic observations; it
-reports partial results and supports identical retries. It does not import
-fixture metrics, simulated pages, graph records or intentional fault deliveries.
-The most recent focused UX01 test run passed 87 tests. The isolated browser
-suite passed all 11 tests, including independently approved memberships,
-an initial import, replay, and paginated AWS/Azure/GCP sample views with
-unknown GCP locations, plus an authorized S02 flow that creates a journey,
-registers and links a service,
+sample fixture. The explicit import reports partial results and supports
+identical retries.
+The isolated browser suite passed all 11 tests, including independently
+approved memberships, import/replay, both inventory pages, and paginated
+retained-observation readback for all three metric payload shapes. It also
+verifies unknown GCP locations and an authorized S02 flow that creates a
+journey, registers and links a service,
 reads persisted journey/service state back, and registers standalone and
 service-bound agent workloads, then reads both persisted workloads through the
 UX01 page using a narrow `catalog.agent.read` delegation. A separate admitted

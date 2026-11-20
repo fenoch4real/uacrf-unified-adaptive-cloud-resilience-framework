@@ -282,12 +282,12 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       .toBeVisible();
     await selectLocalContext(sample);
     await sample.goto('/connections');
-    await sample.getByRole('link', { name: 'Import synthetic inventory' }).click();
+    await sample.getByRole('link', { name: 'Import synthetic estate' }).click();
     await sample.getByLabel('Eligible human owner').selectOption(principalId);
-    await sample.getByRole('button', { name: 'Import synthetic inventory' }).click();
-    await expect(sample.getByRole('status')).toContainText('42 observations confirmed');
-    await sample.getByRole('button', { name: 'Import synthetic inventory' }).click();
-    await expect(sample.getByRole('status')).toContainText('42 already accepted on a prior attempt');
+    await sample.getByRole('button', { name: 'Import synthetic estate' }).click();
+    await expect(sample.getByRole('status')).toContainText('122 observations confirmed');
+    await sample.getByRole('button', { name: 'Import synthetic estate' }).click();
+    await expect(sample.getByRole('status')).toContainText('122 already accepted on a prior attempt');
     await sample.getByRole('link', { name: 'View sample inventory' }).click();
     await expect(sample.getByText('Synthetic sample: these observations are not live provider data or qualified evidence.'))
       .toBeVisible();
@@ -303,6 +303,30 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.locator('ul.inventory-list > li')).toHaveCount(17);
     await expect(sample.getByText('GCP', { exact: true }).first()).toBeVisible();
     await expect(sample.getByText('Unknown', { exact: true }).first()).toBeVisible();
+
+    await sample.getByRole('link', { name: 'View all retained sample observations' }).click();
+    await expect(sample.getByText('Synthetic sample only: these retained payloads are not live provider data or qualified evidence.'))
+      .toBeVisible();
+    let observationCount = 0;
+    const observationKinds = new Set();
+    for (let page = 0; page < 10; page++) {
+      const observationRows = sample.locator('ul.observation-list > li');
+      observationCount += await observationRows.count();
+      for (const kind of await observationRows.locator('h3').allTextContents()) {
+        observationKinds.add(kind);
+      }
+      const next = sample.getByRole('link', { name: 'Next observations' });
+      if (await next.count() === 0) {
+        break;
+      }
+      await next.click();
+    }
+    expect(observationCount).toBe(122);
+    expect([...observationKinds]).toEqual(expect.arrayContaining([
+      'aws.cloudwatch.metrics',
+      'azure.monitor.metrics',
+      'gcp.monitoring.timeseries',
+    ]));
 
     const journeyName = `Browser journey ${randomUUID()}`;
     await sample.goto('/journeys/new');

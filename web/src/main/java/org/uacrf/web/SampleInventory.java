@@ -21,7 +21,13 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 class SampleInventory {
   private static final Set<String> KINDS =
-      Set.of("aws.config.resources", "azure.resourcegraph.rows", "gcp.assetinventory.assets");
+      Set.of(
+          "aws.config.resources",
+          "azure.resourcegraph.rows",
+          "gcp.assetinventory.assets",
+          "aws.cloudwatch.metrics",
+          "azure.monitor.metrics",
+          "gcp.monitoring.timeseries");
   private final Connection connection;
   private final List<Binding> bindings;
   private final List<Observation> observations;
@@ -36,7 +42,7 @@ class SampleInventory {
         || fixture.connection() == null || !"SAMPLE_LOCAL".equals(fixture.connection().provider())
         || fixture.connection().expectedRevision() != 0
         || fixture.bindings() == null || fixture.deliveries() == null) {
-      throw new IllegalStateException("The bundled sample inventory fixture is invalid.");
+      throw new IllegalStateException("The bundled sample estate fixture is invalid.");
     }
     this.connection = fixture.connection();
     List<Observation> selected = new ArrayList<>();
@@ -50,7 +56,7 @@ class SampleInventory {
         if (item.id() == null || !ids.add(item.id()) || item.sourceRef() == null
             || !item.sourceRef().startsWith("sample:") || item.sequence() <= sequences.getOrDefault(item.sourceRef(), 0L)
             || item.payload() == null || !sha256(item.payload()).equals(item.payloadDigest())) {
-          throw new IllegalStateException("A bundled sample inventory observation is invalid.");
+          throw new IllegalStateException("A bundled sample estate observation is invalid.");
         }
         Instant.parse(item.observedAt());
         sequences.put(item.sourceRef(), item.sequence());
@@ -63,9 +69,9 @@ class SampleInventory {
         .filter(binding -> sources.contains(binding.sourceRef())).toList();
     if (!kinds.equals(KINDS) || selectedBindings.size() != sources.size()
         || selectedBindings.stream().anyMatch(binding -> binding.id() == null
-            || binding.serviceRef() != null || binding.expectedRevision() != 0)
+            || binding.expectedRevision() != 0)
         || selectedBindings.stream().map(Binding::sourceRef).distinct().count() != sources.size()) {
-      throw new IllegalStateException("Bundled sample inventory source bindings are invalid.");
+      throw new IllegalStateException("Bundled sample estate source bindings are invalid.");
     }
     this.bindings = List.copyOf(selectedBindings);
     this.observations = List.copyOf(selected);

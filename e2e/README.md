@@ -52,11 +52,12 @@ credentials, verifies S01 resolves it to that SYSTEM principal through EDGE01,
 and requests a 30-second S04 delegation limited to `evidence.inbox.write`.
 The flow also confirms that an ungranted catalog capability is denied. This
 is isolated local identity evidence, not production deployment-identity or
-provider acceptance. It imports 42 sample observations,
-replays the import, and checks both inventory pages and provider labels. It
-checks the per-source `NEVER_RUN` collection status and the explicit freshness
-limitation on the inventory page. It does not contact cloud providers or
-qualify evidence.
+provider acceptance. It imports 122 sample observations (42 inventory and
+80 metrics), safely replays the import, checks both inventory pages, and
+reads the paginated retained-observation view for all three metric payload
+shapes. It checks the per-source `NEVER_RUN` collection status and the explicit
+freshness limitation on the inventory page. It does not contact cloud providers
+or qualify evidence.
 
 The same authorized user creates a draft journey, registers and links a service
 through UX01, EDGE01, and S02, then reads the journey and linked service back.

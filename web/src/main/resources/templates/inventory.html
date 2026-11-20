@@ -19,6 +19,9 @@
       status: <span th:text="${connection.status}">Status</span></p>
     <p th:if="${connection.statusReason != null}" th:text="${connection.statusReason}"></p>
     <p th:if="${connection.provider == 'SAMPLE_LOCAL'}">Synthetic sample: these observations are not live provider data or qualified evidence.</p>
+    <p th:if="${connection.provider == 'SAMPLE_LOCAL'}">
+      <a th:href="@{/connections/{id}/observations(id=${connection.id})}">View all retained sample observations</a>
+    </p>
     <section aria-labelledby="collection-status-heading">
       <h2 id="collection-status-heading">Source collection status</h2>
       <p>These are the last recorded outcomes and schedule for each source binding. The timestamps do not indicate freshness or staleness. A COLLECTED batch means it was submitted to intake; individual accepted, duplicate, or quarantined observation outcomes are not shown here.</p>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retained observations | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Retained observations</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/connections">Back to connections</a></p>
+  <p role="status" th:if="${observationsError != null}" th:text="${observationsError}"></p>
+  <section th:if="${connection != null}">
+    <h2 th:text="${connection.name}">Connection</h2>
+    <p>Connection provider: <span th:text="${connection.provider}">Provider</span>;
+      status: <span th:text="${connection.status}">Status</span></p>
+    <p th:if="${connection.provider == 'SAMPLE_LOCAL'}">
+      Synthetic sample only: these retained payloads are not live provider data or qualified evidence.
+    </p>
+    <p>These are individually retained observations, not a deduplicated current inventory.
+      Payloads are shown only for SAMPLE_LOCAL connections.</p>
+    <p th:if="${#lists.isEmpty(observations) and observationsError == null}">
+      No observations are available on this page.</p>
+    <ul class="observation-list">
+      <li th:each="item : ${observations}">
+        <h3 th:text="${item.kind}">Observation kind</h3>
+        <dl>
+          <dt>Observation ID</dt><dd th:text="${item.id}">ID</dd>
+          <dt>Source reference</dt><dd th:text="${item.sourceRef}">Source</dd>
+          <dt>Sequence</dt><dd th:text="${item.sequence}">1</dd>
+          <dt>Observed at</dt><dd th:text="${item.observedAt}">Time</dd>
+          <dt>Payload digest</dt><dd th:text="${item.payloadDigest}">Digest</dd>
+        </dl>
+        <details>
+          <summary>View retained payload</summary>
+          <pre th:text="${item.payload}">Payload</pre>
+        </details>
+      </li>
+    </ul>
+    <nav aria-label="Retained observation pages" th:if="${nextCursor != null}">
+      <a th:href="@{/connections/{id}/observations(id=${connection.id},cursor=${nextCursor})}">
+        Next observations
+      </a>
+    </nav>
+  </section>
+</main>
+</body>
+</html>

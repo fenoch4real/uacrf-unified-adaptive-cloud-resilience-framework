@@ -926,6 +926,50 @@ class WebApplicationTests {
   }
 
   @Test
+  void showsRetainedMetricObservationPayloadsAsEscapedSampleData() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenReturn(new ConnectionsClient.Connection(
+            "sample-estate", "Sample estate", "SAMPLE_LOCAL", "ACTIVE", null));
+    when(connections.listObservations("s03-delegation", "sample-estate", "current"))
+        .thenReturn(new ConnectionsClient.ObservationPage(
+            List.of(new ConnectionsClient.Observation(
+                "obs-metric", "sample:aws/metric", 1, "2026-11-12T09:05:00Z",
+                "aws.cloudwatch.metrics", "{\"metric\":\"<script>\"}", "a".repeat(64))),
+            "next-page"));
+
+    mockMvc.perform(get("/connections/sample-estate/observations").param("cursor", "current")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Retained observations")))
+        .andExpect(content().string(containsString("aws.cloudwatch.metrics")))
+        .andExpect(content().string(containsString("&lt;script&gt;")))
+        .andExpect(content().string(containsString("cursor=next-page")))
+        .andExpect(content().string(containsString("qualified evidence")))
+        .andExpect(content().string(not(containsString("s03-delegation"))));
+  }
+
+  @Test
+  void doesNotExposeRawObservationsForUnacceptedProviderConnections() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "provider-connection"))
+        .thenReturn(new ConnectionsClient.Connection(
+            "provider-connection", "Provider connection", "AWS", "UNACCEPTED", "Not accepted"));
+
+    mockMvc.perform(get("/connections/provider-connection/observations")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isNotFound())
+        .andExpect(content().string(containsString("only shown for SAMPLE_LOCAL")));
+    verify(connections, never()).listObservations(anyString(), anyString(), any());
+  }
+
+  @Test
   void showsCollectionStatusesWithIndependentPaginationAndNoFreshnessClaim() throws Exception {
     when(identity.createDelegation(
             "test-access-token", "S03", null, List.of("connections.connection.read"),
@@ -1073,15 +1117,15 @@ class WebApplicationTests {
             .session(session).param("ownerId", "owner-test"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("Sample import completed:")))
-        .andExpect(content().string(containsString("42")))
+        .andExpect(content().string(containsString("122")))
         .andExpect(content().string(containsString("already accepted on a prior attempt")));
-    assertThat(accepted).hasSize(42);
+    assertThat(accepted).hasSize(122);
     String id = SampleInventory.connectionId(sessionContext(), "local-admin-subject", "owner-test");
     verify(connections, times(2)).registerSample("sample-delegation", "sample-register-" + id,
         new SampleInventory.Connection(id, "Sample multi-cloud estate (AWS, Azure, Google Cloud shapes)",
             "SAMPLE_LOCAL", "sample/readonly-collector", "owner-test", 0));
-    verify(connections, times(6)).bindSample(anyString(), anyString(), anyString(), any());
-    verify(connections, times(45)).submitSample(anyString(), anyString(), any());
+    verify(connections, times(20)).bindSample(anyString(), anyString(), anyString(), any());
+    verify(connections, times(125)).submitSample(anyString(), anyString(), any());
   }
 
   @Test

@@ -117,6 +117,73 @@ class ConnectionsController {
     return "inventory";
   }
 
+  @GetMapping("/connections/{id}/observations")
+  String observations(
+      @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session,
+      HttpServletResponse response,
+      @PathVariable String id,
+      @RequestParam(required = false) String cursor,
+      Model model) {
+    Object selected = session.getAttribute(BrowserContext.SESSION_KEY);
+    if (!(selected instanceof BrowserContext context)) {
+      return "redirect:/contexts";
+    }
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("observations", List.of());
+    model.addAttribute("nextCursor", null);
+    String token;
+    try {
+      token = delegate(client, context);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("observationsError", "Identity service is unavailable; observation access was not authorized.");
+      return "observations";
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("observationsError", "Observation access was not authorized (HTTP " + error.getStatusCode().value() + ").");
+      return "observations";
+    }
+    ConnectionsClient.Connection connection;
+    try {
+      connection = connections.get(token, id);
+      model.addAttribute("connection", connection);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("observationsError", "Connections service is unavailable; observations were not loaded.");
+      return "observations";
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("observationsError", "Observations were not loaded (HTTP " + error.getStatusCode().value() + ").");
+      return "observations";
+    } catch (IllegalStateException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("observationsError", "Connections service returned an invalid connection.");
+      return "observations";
+    }
+    if (!"SAMPLE_LOCAL".equals(connection.provider())) {
+      response.setStatus(HttpStatus.NOT_FOUND.value());
+      model.addAttribute("observationsError", "Raw observations are only shown for SAMPLE_LOCAL connections.");
+      return "observations";
+    }
+    try {
+      ConnectionsClient.ObservationPage page = connections.listObservations(token, id, cursor);
+      model.addAttribute("observations", page.items());
+      model.addAttribute("nextCursor", page.nextCursor());
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("observationsError", "Connections service is unavailable; observations were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("observationsError", "Observations were not loaded (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("observationsError", "Connections service returned an invalid observation page.");
+    }
+    model.addAttribute("observationCursor", cursor);
+    return "observations";
+  }
+
   private String delegate(OAuth2AuthorizedClient client, BrowserContext context) {
     return identity.createDelegation(
         client.getAccessToken().getTokenValue(), "S03", null, READ,
