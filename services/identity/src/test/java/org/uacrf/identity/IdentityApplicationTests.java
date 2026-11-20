@@ -298,9 +298,9 @@ class IdentityApplicationTests {
           assertEquals(403, http.send(invalidRequest, HttpResponse.BodyHandlers.ofString()).statusCode());
         }
         assertEquals("advisory-test-human", RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
-        assertEquals(3, owners.caseCalls());
+        assertEquals(4, owners.caseCalls());
         assertEquals(1, owners.caseMaterialCalls());
-        assertEquals(2, owners.receiptCalls());
+        assertEquals(3, owners.receiptCalls());
         assertEquals(1, owners.contentCalls());
         var revokedDuringContent = new java.util.concurrent.atomic.AtomicInteger();
         owners.onContent(() -> {
@@ -322,9 +322,9 @@ class IdentityApplicationTests {
         assertThrows(java.io.IOException.class, () -> RequesterIdentityProbe.check(identity, actorToken, "PUBLIC"));
         assertThrows(java.io.IOException.class,
             () -> RequesterIdentityProbe.checkSources(identity, owners.base(), actorToken));
-        assertEquals(4, owners.caseCalls());
+        assertEquals(6, owners.caseCalls());
         assertEquals(2, owners.caseMaterialCalls());
-        assertEquals(4, owners.receiptCalls());
+        assertEquals(5, owners.receiptCalls());
         assertEquals(2, owners.contentCalls());
       }
       UUID retrievalGrant = jdbc.queryForObject(

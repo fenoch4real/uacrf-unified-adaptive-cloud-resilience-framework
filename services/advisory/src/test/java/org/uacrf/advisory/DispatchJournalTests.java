@@ -459,9 +459,9 @@ class DispatchJournalTests {
     admit(journal, new DispatchJournal.RunKey(expiringTenant, "env", "run-1"),
         admissionRequest(TEST_DEADLINE, "Outbox lease expiry test"),
         "principal-1", "CREATE_ADVISORY_RUN", "idem-expiry");
-    var initialClaim = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofMillis(1))
+    var initialClaim = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofSeconds(1))
         .getFirst();
-    Thread.sleep(20);
+    Thread.sleep(1100);
     assertFalse(journal.markOutboxPublished(initialClaim));
     assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
     assertFalse(journal.releaseOutboxClaim(initialClaim, DispatchJournal.outboxRetryDelay(initialClaim)));

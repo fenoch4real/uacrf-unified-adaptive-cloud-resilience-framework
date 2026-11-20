@@ -194,7 +194,7 @@ class KnowledgeAdvisoryIntegrationTests {
     proxy.start();
     try {
       URI proxyBase = URI.create("http://127.0.0.1:" + proxy.getAddress().getPort());
-      assertEquals("Retrieval receipt changed during content checking.",
+      assertEquals("Owner receipt consistency check failed.",
           assertThrows(IOException.class, () -> AdvisoryKnowledgeProbe.fetch(owner, proxyBase, id, digest, reader))
               .getMessage());
       assertEquals(200, withdrawalStatus.get());

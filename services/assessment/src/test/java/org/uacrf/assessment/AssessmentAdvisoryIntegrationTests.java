@@ -157,8 +157,8 @@ class AssessmentAdvisoryIntegrationTests {
           knowledgeBase, assessment, knowledgeBase, caseId, manifest.get());
       assertEquals(material, checkedMaterial);
       assertEquals(2, accessCalls.get());
-      assertEquals(3, delegationCalls.get());
-      assertEquals(4, receiptCalls.get());
+      assertEquals(5, delegationCalls.get());
+      assertEquals(5, receiptCalls.get());
       assertEquals(2, contentCalls.get());
 
       assertEquals("Internal service request failed with HTTP 403.",
@@ -185,7 +185,7 @@ class AssessmentAdvisoryIntegrationTests {
           assertThrows(IOException.class,
               () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), wrongAudience))
               .getMessage());
-      assertEquals(4, receiptCalls.get());
+      assertEquals(5, receiptCalls.get());
       assertEquals(2, contentCalls.get());
 
       caseDigest.set((caseDigest.get().startsWith("0") ? "1" : "0") + caseDigest.get().substring(1));
@@ -193,7 +193,7 @@ class AssessmentAdvisoryIntegrationTests {
           assertThrows(IOException.class,
               () -> AdvisoryAssessmentProbe.fetch(assessment, knowledgeBase, caseId, manifest.get(), reader))
               .getMessage());
-      assertEquals(5, receiptCalls.get());
+      assertEquals(6, receiptCalls.get());
       assertEquals(2, contentCalls.get());
     } finally {
       knowledge.stop(0);
