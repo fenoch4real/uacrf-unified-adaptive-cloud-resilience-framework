@@ -312,7 +312,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
       'knowledge.item.read', 'knowledge.item.write', 'knowledge.item.review', 'knowledge.item.withdraw',
-      'knowledge.classification.internal.read',
+      'knowledge.retrieval.run', 'knowledge.classification.internal.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -514,7 +514,33 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await reviewer.getByLabel('Reason (required)').fill('Independent synthetic approval.');
       await reviewer.getByRole('button', { name: 'Record review decision' }).click();
       await expect(reviewer.getByText('APPROVED', { exact: true })).toBeVisible();
-      await reviewer.getByRole('link', { name: 'Read current metadata' }).click();
+      await reviewer.goto('/knowledge/retrieve');
+      await reviewer.getByLabel('Purpose (required)').fill('sample:review');
+      await reviewer.getByLabel('Search terms (required)').fill('withdrawal');
+      const [deniedRetrieval] = await Promise.all([
+        reviewer.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/knowledge/retrieve'),
+        reviewer.getByRole('button', { name: 'Run retrieval' }).click(),
+      ]);
+      expect(deniedRetrieval.status()).toBe(403);
+      await sample.goto('/knowledge/retrieve');
+      await sample.getByLabel('Purpose (required)').fill('sample:review');
+      await sample.getByLabel('Search terms (required)').fill('withdrawal');
+      const [retrievalResponse] = await Promise.all([
+        sample.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/knowledge/retrieve'),
+        sample.getByRole('button', { name: 'Run retrieval' }).click(),
+      ]);
+      expect(retrievalResponse.status()).toBe(200);
+      await expect(sample.getByText('NOT_VERIFIED', { exact: true })).toBeVisible();
+      await expect(sample.getByText('Synthetic material for withdrawal.')).toBeVisible();
+      const retryRetrieval = await sample.request.post('/knowledge/retrieve', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        data: retrievalResponse.request().postData(),
+      });
+      expect(retryRetrieval.status()).toBe(200);
+      expect(await retryRetrieval.text()).toContain('Synthetic material for withdrawal.');
+      await reviewer.goto(`/knowledge?itemId=${approvedItemId}`);
       await reviewer.getByRole('link', { name: `Withdraw approved ${approvedItemId} version v1` }).click();
       await reviewer.getByLabel('Withdrawal reason (required)').fill('Ungranted withdrawal.');
       const [deniedWithdrawal] = await Promise.all([
@@ -533,6 +559,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await sample.getByRole('link', { name: 'Read current metadata' }).click();
       await expect(sample.getByRole('listitem').filter({ hasText: approvedItemId })).toContainText('WITHDRAWN');
       await expect(sample.getByRole('link', { name: `Withdraw approved ${approvedItemId} version v1` })).toHaveCount(0);
+      const concealedReplay = await sample.request.post('/knowledge/retrieve', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        data: retrievalResponse.request().postData(),
+      });
+      expect(concealedReplay.status()).toBe(200);
+      const concealedHtml = await concealedReplay.text();
+      expect(concealedHtml).not.toContain('Synthetic material for withdrawal.');
+      expect(concealedHtml).toContain('Excerpt unavailable after current checks.');
     } finally {
       await reviewerContext.close();
     }

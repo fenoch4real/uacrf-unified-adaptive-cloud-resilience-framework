@@ -134,6 +134,10 @@ The suite also stages a separate synthetic candidate, independently approves
 it, denies withdrawal by a user without the withdrawal capability, and
 withdraws it through the version-bound confirmation flow. It reads back the
 withdrawn state. This lifecycle test does not establish provider acceptance.
+The same flow runs and replays a keyed exact-term retrieval, denies a user
+without `knowledge.retrieval.run`, then verifies the replay conceals the
+withdrawn excerpt. Its synthetic manifest is `NOT_VERIFIED`, not a verified
+case binding or provider acceptance.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

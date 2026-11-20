@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retrieve knowledge | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body>
+<main>
+  <h1>Retrieve knowledge</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/knowledge">Back to knowledge metadata</a></p>
+  <p>Exact-term search creates a retained manifest. Results do not authorize action.
+    A case ID is not proof of verification; workload-targeted material requires owner verification.
+    The query is retained in the manifest.</p>
+  <p>After an uncertain submission, retry the same form unchanged in the same context.
+    Open a new form for changed details.</p>
+  <p role="alert" th:if="${retrievalError != null}" th:text="${retrievalError}"></p>
+  <ul role="alert" th:if="${validationErrors != null}"><li th:each="error : ${validationErrors}" th:text="${error}"></li></ul>
+  <search>
+    <form method="post" th:action="@{/knowledge/retrieve}" th:object="${retrievalForm}">
+      <input type="hidden" th:field="*{idempotencyKey}">
+      <input type="hidden" th:field="*{tenantId}">
+      <input type="hidden" th:field="*{environmentId}">
+      <p><label for="caseId">Assessment case ID (optional)</label>
+        <input id="caseId" type="text" th:field="*{caseId}" maxlength="200" autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+      <p><label for="purpose">Purpose (required)</label>
+        <input id="purpose" type="text" th:field="*{purpose}" maxlength="200" required autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+      <fieldset><legend>Maximum classification (required)</legend>
+        <input id="public" type="radio" th:field="*{classification}" value="PUBLIC" required><label for="public">Public</label>
+        <input id="internal" type="radio" th:field="*{classification}" value="INTERNAL"><label for="internal">Internal and public</label>
+        <input id="restricted" type="radio" th:field="*{classification}" value="RESTRICTED"><label for="restricted">Restricted and lower</label>
+      </fieldset>
+      <p><label for="query">Search terms (required)</label>
+        <textarea id="query" th:field="*{query}" maxlength="2000" required></textarea></p>
+      <p><label for="maxResults">Maximum results (1–10)</label>
+        <input id="maxResults" type="number" th:field="*{maxResults}" min="1" max="10" required></p>
+      <button type="submit">Run retrieval</button>
+    </form>
+  </search>
+</main>
+</body>
+</html>

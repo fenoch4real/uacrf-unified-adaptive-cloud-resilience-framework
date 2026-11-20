@@ -87,6 +87,13 @@ class KnowledgeController {
     return knowledge.run(DelegationPrincipal.from(jwt), request);
   }
 
+  @PostMapping("/v1/retrievals:idempotent")
+  @ResponseStatus(HttpStatus.CREATED)
+  Retrieval runIdempotent(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody RunRetrieval request,
+      @RequestHeader("Idempotency-Key") String key) {
+    return knowledge.runIdempotent(DelegationPrincipal.from(jwt), request, key);
+  }
+
   @GetMapping("/v1/retrievals/{id}")
   Retrieval getRetrieval(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return knowledge.getRetrieval(DelegationPrincipal.from(jwt), id);

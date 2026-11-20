@@ -364,6 +364,45 @@ class KnowledgeService {
   }
 
   @Transactional
+  Retrieval runIdempotent(DelegationPrincipal actor, RunRetrieval request, String key) {
+    requireCapability(actor, "knowledge.retrieval.run");
+    requireGlobalScope(actor);
+    requireClassification(actor, request.maxClassification());
+    if (key == null || !key.matches("^[\\x21-\\x7e]{1,200}$")) {
+      throw invalid("INVALID_REQUEST", "Idempotency-Key must be a non-empty token of at most 200 characters.");
+    }
+    String digest = digestJson(request);
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA
+            + "retrieval_idempotency (tenant_id, environment_id, actor_id, idempotency_key, payload_digest) "
+            + "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+    if (inserted == 0) {
+      List<RetrievalKey> prior = jdbc.query(
+          "SELECT payload_digest, retrieval_id FROM " + SCHEMA
+              + "retrieval_idempotency WHERE tenant_id = ? AND environment_id = ? "
+              + "AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+          (rs, row) -> new RetrievalKey(rs.getString("payload_digest"), rs.getString("retrieval_id")),
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+      if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+      }
+      if (prior.getFirst().retrievalId() == null) {
+        throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+      }
+      return loadRetrieval(actor, prior.getFirst().retrievalId(), true);
+    }
+    Retrieval retrieval = run(actor, request);
+    jdbc.update("UPDATE " + SCHEMA
+            + "retrieval_idempotency SET retrieval_id = ? "
+            + "WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? AND idempotency_key = ?",
+        retrieval.retrievalId(), actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    return retrieval;
+  }
+
+  private record RetrievalKey(String digest, String retrievalId) {}
+
+  @Transactional
   Retrieval run(DelegationPrincipal actor, RunRetrieval request) {
     requireCapability(actor, "knowledge.retrieval.run");
     requireGlobalScope(actor);

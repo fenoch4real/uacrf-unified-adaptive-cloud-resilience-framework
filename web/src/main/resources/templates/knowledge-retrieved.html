@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowledge retrieval | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body>
+<main>
+  <h1>Knowledge retrieval</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p role="status">This retained manifest is historical and does not authorize action. Excerpts may be concealed
+    when current source or case checks fail; this is not proof that no source exists.</p>
+  <dl>
+    <dt>Retrieval ID</dt><dd th:text="${receipt.retrievalId}">ID</dd>
+    <dt>Case ID</dt><dd th:text="${receipt.caseId != null ? receipt.caseId : 'Not specified'}">Case</dd>
+    <dt>Case binding</dt><dd th:text="${receipt.caseBinding}">Binding</dd>
+    <dt>Purpose</dt><dd th:text="${receipt.purpose}">Purpose</dd>
+    <dt>Maximum classification</dt><dd th:text="${receipt.maxClassification}">Classification</dd>
+    <dt>Manifest digest</dt><dd th:text="${receipt.manifestDigest}">Digest</dd>
+  </dl>
+  <p th:if="${#lists.isEmpty(receipt.results)}">No matching excerpts were retained.</p>
+  <ul><li th:each="result : ${receipt.results}">
+    <h2 th:text="|${result.itemId} version ${result.version}|">Source</h2>
+    <p th:text="|Classification: ${result.classification}; score: ${result.score}|">Metadata</p>
+    <p th:if="${result.excerpt == null}">Excerpt unavailable after current checks.</p>
+    <pre class="knowledge-content" th:if="${result.excerpt != null}" th:text="${result.excerpt}">Excerpt</pre>
+    <p th:text="|Source digest: ${result.sourceDigest}|">Digest</p>
+  </li></ul>
+  <p><a href="/knowledge/retrieve">Start a new retrieval</a></p>
+  <p><a href="/knowledge">Back to knowledge metadata</a></p>
+</main>
+</body>
+</html>

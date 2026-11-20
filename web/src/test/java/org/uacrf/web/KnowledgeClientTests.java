@@ -51,6 +51,40 @@ class KnowledgeClientTests {
   }
 
   @Test
+  void checksRetrievalAndConcealedOrDigestBoundExcerpts() {
+    String digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+    String receipt = """
+        {"retrieval_id":"a1234567-1234-4234-8234-123456789012","case_id":null,
+         "case_binding":"NOT_VERIFIED","case_digest":null,"workload_id":null,"purpose":"review",
+         "max_classification":"PUBLIC","query":"hello","created_at":"2026-01-01T00:00:00Z",
+         "manifest_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "results":[{"item_id":"item-1","version":"v1","chunk_index":0,"start_offset":0,"end_offset":5,
+          "source_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "excerpt_digest":"%s","allowed_purposes":["review"],"classification":"PUBLIC","score":1,"excerpt":"hello"}]}
+        """.formatted(digest);
+    var command = new KnowledgeClient.RetrievalRequest(null, "review", KnowledgeClient.Classification.PUBLIC, "hello", 10);
+    for (String body : List.of(receipt, receipt.replace("\"excerpt\":\"hello\"", "\"excerpt\":null"),
+        receipt.replace("\"excerpt\":\"hello\"", "\"excerpt\":\"wrong\""),
+        receipt.replace("\"classification\":\"PUBLIC\"", "\"classification\":\"INTERNAL\""),
+        receipt.replace("\"purpose\":\"review\"", "\"purpose\":\"other\""))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/retrievals:idempotent"))
+          .andExpect(header("Idempotency-Key", "key"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(jsonPath("$.query").value("hello"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      KnowledgeClient client = new KnowledgeClient(builder.build());
+      if (body.equals(receipt) || body.contains("\"excerpt\":null")) {
+        assertThat(client.retrieve("delegated", "key", command).results()).hasSize(1);
+      } else {
+        assertThatThrownBy(() -> client.retrieve("delegated", "key", command)).isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void checksBoundWithdrawalReceipt() {
     String digest = "a".repeat(64);
     String receipt = RECORD.replace("\"state\":\"CANDIDATE\",\"revision\":1",

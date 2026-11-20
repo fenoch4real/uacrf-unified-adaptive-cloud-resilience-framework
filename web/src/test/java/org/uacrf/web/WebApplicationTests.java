@@ -57,6 +57,61 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
 
   @Test
+  void retrievalDisplaysEscapedExcerptsAndCaseBinding() throws Exception {
+    String key = "123e4567-e89b-42d3-a456-426614174000";
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.retrieval.run"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("searcher", "Bearer", 30));
+    var command = new KnowledgeClient.RetrievalRequest(null, "review", KnowledgeClient.Classification.PUBLIC, "hello", 5);
+    var result = new KnowledgeClient.RetrievalResult("item-1", "v1", 0, 0, 8, "a".repeat(64),
+        "b".repeat(64), List.of("review"), KnowledgeClient.Classification.PUBLIC, 1, "<script>");
+    var receipt = new KnowledgeClient.Retrieval("a1234567-1234-4234-8234-123456789012", null,
+        "NOT_VERIFIED", null, null, "review", KnowledgeClient.Classification.PUBLIC, "hello",
+        Instant.parse("2026-01-01T00:00:00Z"), "c".repeat(64), List.of(result));
+    when(knowledge.retrieve("searcher", key, command)).thenReturn(receipt);
+    mockMvc.perform(post("/knowledge/retrieve").param("caseId", "").param("purpose", "review")
+            .param("classification", "PUBLIC").param("query", "hello").param("maxResults", "5")
+            .param("idempotencyKey", key).param("tenantId", "tenant-test").param("environmentId", "environment-test")
+            .with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("NOT_VERIFIED")))
+        .andExpect(content().string(containsString("&lt;script&gt;")))
+        .andExpect(content().string(not(containsString("<script>"))));
+  }
+
+  @Test
+  void retrievalUsesBoundDelegationAndPreservesRetryKeyAfterUncertainty() throws Exception {
+    String key = "123e4567-e89b-42d3-a456-426614174000";
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.retrieval.run", "knowledge.classification.internal.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("searcher", "Bearer", 30));
+    var command = new KnowledgeClient.RetrievalRequest(null, "review", KnowledgeClient.Classification.INTERNAL, "hello", 5);
+    when(knowledge.retrieve("searcher", key, command)).thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(post("/knowledge/retrieve").param("caseId", "").param("purpose", "review")
+            .param("classification", "INTERNAL").param("query", "hello").param("maxResults", "5")
+            .param("idempotencyKey", key).param("tenantId", "tenant-test").param("environmentId", "environment-test")
+            .with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable()).andExpect(content().string(containsString("Retrieval is unconfirmed")))
+        .andExpect(content().string(containsString(key))).andExpect(content().string(containsString("hello")));
+  }
+
+  @Test
+  void retrievalRejectsChangedContextInvalidTermsAndMissingCsrf() throws Exception {
+    var request = post("/knowledge/retrieve").param("caseId", "").param("purpose", "review")
+        .param("classification", "PUBLIC").param("query", "!!!").param("maxResults", "5")
+        .param("idempotencyKey", "123e4567-e89b-42d3-a456-426614174000")
+        .param("tenantId", "other").param("environmentId", "environment-test")
+        .with(browserLogin()).session(sessionWithSelectedContext());
+    mockMvc.perform(request).andExpect(status().isForbidden());
+    mockMvc.perform(request.with(csrf())).andExpect(status().isConflict());
+    mockMvc.perform(post("/knowledge/retrieve").param("caseId", "").param("purpose", "review")
+        .param("classification", "PUBLIC").param("query", "!!!").param("maxResults", "5")
+        .param("idempotencyKey", "123e4567-e89b-42d3-a456-426614174000")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest()).andExpect(content().string(containsString("Enter at least one letter or number.")));
+    verifyNoInteractions(identity, knowledge);
+  }
+
+  @Test
   void withdrawalConfirmsExactMetadataAndHidesFormAfterUncertainty() throws Exception {
     String digest = "a".repeat(64);
     var item = new KnowledgeClient.ItemVersion("item-1", "v1", "<title>", "sample:source",

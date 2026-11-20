@@ -93,6 +93,13 @@ class KnowledgeRouteController {
     return forward(() -> knowledge.runRetrieval(authorization, requestBody));
   }
 
+  @PostMapping("/v1/retrievals:idempotent")
+  ResponseEntity<String> runIdempotent(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String key, @RequestBody String requestBody) {
+    return forward(() -> knowledge.runRetrievalIdempotent(authorization, key, requestBody));
+  }
+
   @GetMapping("/v1/retrievals/{id}")
   ResponseEntity<String> retrieval(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

@@ -77,6 +77,13 @@ class KnowledgeRouteControllerTests {
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/retrievals:idempotent"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header("Idempotency-Key", "retrieval-key"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer searcher"))
+        .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/retrievals/r-1"))
         .andRespond(withException(new IOException("down")));
 
@@ -104,6 +111,10 @@ class KnowledgeRouteControllerTests {
         .andExpect(status().isOk());
     mvc.perform(post("/internal/knowledge/v1/retrievals").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
+    mvc.perform(post("/internal/knowledge/v1/retrievals:idempotent")
+            .header("Idempotency-Key", "retrieval-key").header(HttpHeaders.AUTHORIZATION, "Bearer searcher")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(get("/internal/knowledge/v1/retrievals/r-1")).andExpect(status().isBadGateway());
     mvc.perform(post("/internal/knowledge/internal/v1/retrievals/r-1:receipt").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isNotFound());

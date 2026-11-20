@@ -107,6 +107,47 @@ class KnowledgeClient {
     return receipt;
   }
 
+  Retrieval retrieve(String token, String key, RetrievalRequest request) {
+    Retrieval receipt = restClient.post().uri("/v1/retrievals:idempotent")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(request).retrieve().body(Retrieval.class);
+    if (receipt == null || receipt.retrievalId() == null
+        || !receipt.retrievalId().matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+        || !Objects.equals(request.caseId(), receipt.caseId())
+        || !request.purpose().equals(receipt.purpose()) || !request.query().equals(receipt.query())
+        || request.maxClassification() != receipt.maxClassification()
+        || receipt.manifestDigest() == null || !receipt.manifestDigest().matches("^[0-9a-f]{64}$")
+        || receipt.createdAt() == null || receipt.results() == null || receipt.results().size() > request.maxResults()
+        || !validCaseBinding(receipt)
+        || receipt.results().stream().anyMatch(result -> !validResult(result, request))) {
+      throw new IllegalStateException("S08 returned an invalid or mismatched retrieval.");
+    }
+    return receipt;
+  }
+
+  private static boolean validCaseBinding(Retrieval receipt) {
+    if ("NOT_VERIFIED".equals(receipt.caseBinding())) return receipt.caseDigest() == null && receipt.workloadId() == null;
+    return "VERIFIED".equals(receipt.caseBinding()) && receipt.caseId() != null
+        && receipt.caseDigest() != null && receipt.caseDigest().matches("^[0-9a-f]{64}$")
+        && receipt.workloadId() != null && receipt.workloadId().matches(IDENTIFIER);
+  }
+
+  private static boolean validResult(RetrievalResult result, RetrievalRequest request) {
+    return result != null && result.itemId() != null && result.itemId().matches(IDENTIFIER)
+        && result.version() != null && result.version().matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$")
+        && result.chunkIndex() != null && result.chunkIndex() >= 0
+        && result.startOffset() != null && result.startOffset() >= 0
+        && result.endOffset() != null && result.endOffset() > result.startOffset()
+        && result.endOffset() - result.startOffset() <= 1000
+        && result.sourceDigest() != null && result.sourceDigest().matches("^[0-9a-f]{64}$")
+        && result.excerptDigest() != null && result.excerptDigest().matches("^[0-9a-f]{64}$")
+        && validIdentifiers(result.allowedPurposes(), false) && result.allowedPurposes().contains(request.purpose())
+        && result.classification() != null && result.classification().ordinal() <= request.maxClassification().ordinal()
+        && result.score() != null && result.score() > 0
+        && (result.excerpt() == null || (result.excerpt().codePointCount(0, result.excerpt().length())
+            == result.endOffset() - result.startOffset() && sha256(result.excerpt()).equals(result.excerptDigest())));
+  }
+
   private static String sha256(String content) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
@@ -158,6 +199,23 @@ class KnowledgeClient {
   record BoundWithdrawRequest(@JsonProperty("expected_revision") long expectedRevision,
       @JsonProperty("expected_version") String expectedVersion,
       @JsonProperty("expected_source_digest") String expectedSourceDigest, String reason) {}
+
+  record RetrievalRequest(@JsonProperty("case_id") String caseId, String purpose,
+      @JsonProperty("max_classification") Classification maxClassification, String query,
+      @JsonProperty("max_results") int maxResults) {}
+
+  record Retrieval(@JsonProperty("retrieval_id") String retrievalId, @JsonProperty("case_id") String caseId,
+      @JsonProperty("case_binding") String caseBinding, @JsonProperty("case_digest") String caseDigest,
+      @JsonProperty("workload_id") String workloadId, String purpose,
+      @JsonProperty("max_classification") Classification maxClassification, String query,
+      @JsonProperty("created_at") Instant createdAt, @JsonProperty("manifest_digest") String manifestDigest,
+      List<RetrievalResult> results) {}
+
+  record RetrievalResult(@JsonProperty("item_id") String itemId, String version,
+      @JsonProperty("chunk_index") Integer chunkIndex, @JsonProperty("start_offset") Integer startOffset,
+      @JsonProperty("end_offset") Integer endOffset, @JsonProperty("source_digest") String sourceDigest,
+      @JsonProperty("excerpt_digest") String excerptDigest, @JsonProperty("allowed_purposes") List<String> allowedPurposes,
+      Classification classification, Integer score, String excerpt) {}
 
   record ItemVersion(@JsonProperty("item_id") String itemId, String version, String title,
       @JsonProperty("source_ref") String sourceRef, Classification classification,

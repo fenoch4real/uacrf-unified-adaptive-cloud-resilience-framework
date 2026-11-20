@@ -21,7 +21,7 @@ estimate.
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after the aggregate-type contract change (5 tests, 0 failures, 0 errors, 0 skips). S04 sequence identity now includes aggregate type; the V8 migration classifies retained S03 events and conservatively preserves ambiguous legacy quarantines. The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain. |
-| M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | UX01 creates retry-protected S07 draft cases, incidents and learning proposals, reviews and seals drafts, runs retry-protected evaluations, and supports learning review and historical decision reads through EDGE01 with separate globally scoped, context-bound delegations. UX01 also stages retry-protected S08 candidates, browses metadata and independently reviews exact versions with explicit classification grants. Case creation and sealing do not verify references; skipped receipt verification does not qualify evidence for incident creation; learning proposals and reviews do not establish adoption. Knowledge review and metadata are not current authorization. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation. |
+| M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | UX01 creates retry-protected S07 draft cases, incidents and learning proposals, reviews and seals drafts, runs retry-protected evaluations, and supports learning review and historical decision reads through EDGE01 with separate globally scoped, context-bound delegations. UX01 also stages retry-protected S08 candidates, browses metadata, independently reviews exact versions, withdraws approved items and creates retry-protected retrievals with explicit classification grants. Case creation and sealing do not verify references; skipped receipt verification does not qualify evidence for incident creation; learning proposals and reviews do not establish adoption. Knowledge reviews, metadata and retrievals are not current authorization. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
 | M6 — Commercial and operational administration | Usage admission, rating, invoicing, payment reconciliation, notifications, evidence export | Not started | Implement and test the commercial and operational workflows, including duplicate/reordered events and interrupted reconciliation. |
@@ -1471,9 +1471,25 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   11-test browser suite independently approved and withdrew synthetic
   material, denied an ungranted withdrawal and read back the withdrawn state.
   This is not provider acceptance.
-- UX01 does not yet retrieve knowledge. Retrieval
-  creates a retained manifest through an unkeyed POST and must not be treated
-  as retry-safe without further design.
+- UX01 `/knowledge/retrieve` creates a manifest through the new keyed S08
+  `POST /v1/retrievals:idempotent` route via EDGE01 and a context-bound
+  `knowledge.retrieval.run` delegation with explicit classification clearance.
+  The key is scoped to tenant, environment and actor; the request digest,
+  manifest and outbox event commit together. Concurrent identical requests
+  retain one manifest, changed requests conflict, and failed creation leaves
+  the key reusable. Replays return the same manifest ID but recheck current
+  source eligibility and, for verified cases, the live case binding; excerpts
+  can therefore be concealed after withdrawal, expiration or case change.
+  These checks are point-in-time and do not establish requester authority for
+  protected inference. Request matching uses current Jackson serialization,
+  so future serialization changes can cause replay conflicts. UX01 validates
+  the response and excerpt digests and escapes content; the query is retained.
+  The legacy unkeyed route remains available. Clean focused tests passed 21
+  S08, 1 EDGE01 and 135 UX01 tests; a further S08 test verified concealment
+  after a verified case changed. The 11-test isolated browser suite verified
+  synthetic retrieval and replay, ungranted denial and concealment after
+  withdrawal. Its case binding was `NOT_VERIFIED`; it is not provider
+  acceptance. Historical retrieval browsing is not yet connected in UX01.
 - `services/knowledge` (port 8090, audience S08, database/schema
   `uacrf_knowledge`) owns its own retained material, version lifecycle,
   retrieval manifests, and transactional outbox. Its PostgreSQL database has a
@@ -1530,7 +1546,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   and `uacrf.s08.retrieval.retained.v1` are written transactionally; publishing
   is not implemented.
 - Not implemented: PDF conversion, embeddings/external indexes, current
-  requester-authority refresh, protected replay, and outbox publishing. The
+  requester-authority refresh, protected inference replay, and outbox publishing. The
   receipt binding does not independently establish external requester
   authority or authorize protected inference/recovery use.
 

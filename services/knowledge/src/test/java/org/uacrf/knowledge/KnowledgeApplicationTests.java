@@ -97,6 +97,56 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void keyedRetrievalReplaysOneManifestButRechecksWithdrawnSources() throws Exception {
+    String tenant = "t-keyed-retrieval";
+    stageAndApprove("keyed-source", "v1", "protected retrieval text",
+        bearer("writer", tenant, WRITER), bearer("reviewer", tenant, REVIEWER));
+    String searcher = bearer("searcher", tenant, RETRIEVER);
+    String body = retrievalRequest("protected", "incident", "INTERNAL", null, null);
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/retrievals:idempotent"))
+        .header("Authorization", searcher).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "same-key").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    var firstFuture = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var secondFuture = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var first = firstFuture.get();
+    var second = secondFuture.get();
+    assertEquals(201, first.statusCode());
+    assertEquals(201, second.statusCode());
+    JsonNode original = objectMapper.readTree(first.body());
+    assertEquals(original, objectMapper.readTree(second.body()));
+    assertThat(original.toString()).contains("protected retrieval text");
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_knowledge.retrieval WHERE tenant_id=?",
+        Integer.class, tenant));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_knowledge.outbox_event "
+        + "WHERE tenant_id=? AND event_type='uacrf.s08.retrieval.retained.v1'", Integer.class, tenant));
+    assertThat(postRetrievalKeyed(searcher, "same-key", body.replace("protected", "different")).body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertEquals(403, postRetrievalKeyed(bearer("searcher", tenant, List.of("knowledge.retrieval.run")),
+        "same-key", body).statusCode());
+    assertEquals(403, postRetrievalKeyed(token("searcher", tenant, "workload-1", RETRIEVER),
+        "same-key", body).statusCode());
+    assertEquals(200, post("/v1/knowledge-items/keyed-source:withdraw",
+        bearer("withdrawer", tenant, List.of("knowledge.item.withdraw")),
+        "{\"expected_revision\":2,\"reason\":\"obsolete\"}").statusCode());
+    JsonNode replay = objectMapper.readTree(postRetrievalKeyed(searcher, "same-key", body).body());
+    assertEquals(original.get("retrieval_id"), replay.get("retrieval_id"));
+    assertThat(replay.toString()).contains("\"excerpt\":null").doesNotContain("protected retrieval text");
+    assertEquals(201, postRetrievalKeyed(bearer("other-searcher", tenant, RETRIEVER), "same-key", body).statusCode());
+    assertEquals(201, postRetrievalKeyed(bearer("searcher", "other-keyed-tenant", RETRIEVER), "same-key", body).statusCode());
+  }
+
+  @Test
+  void failedKeyedRetrievalDoesNotReserveKey() throws Exception {
+    String searcher = bearer("searcher", "t-retrieval-failure", RETRIEVER);
+    String invalid = retrievalRequest("!!!", "incident", "PUBLIC", null, null);
+    String valid = retrievalRequest("guidance", "incident", "PUBLIC", null, null);
+    assertEquals(400, postRetrievalKeyed(searcher, "reusable", invalid).statusCode());
+    assertEquals(201, postRetrievalKeyed(searcher, "reusable", valid).statusCode());
+    assertEquals(400, postRetrievalKeyed(searcher, "bad key", valid).statusCode());
+    assertEquals(400, post("/v1/retrievals:idempotent", searcher, valid).statusCode());
+  }
+
+  @Test
   void boundWithdrawalCannotWithdrawAReplacementVersion() throws Exception {
     String tenant = "t-bound-withdraw";
     String writer = bearer("author", tenant, WRITER);
@@ -704,6 +754,10 @@ class KnowledgeApplicationTests {
           .contains("\"capability_ids\":[\"assessment.case.read\"]")
           .contains("\"tenant_id\":\"" + tenant + "\"");
       assertEquals("Bearer delegated", receiptAuthorization.get());
+      RunRetrieval keyedRequest = new RunRetrieval("case-verified", "incident", Classification.RESTRICTED,
+          "verified", 10, null);
+      Retrieval keyed = service.runIdempotent(actor, keyedRequest, "verified-case-replay");
+      assertThat(keyed.results()).anyMatch(result -> result.excerpt() != null);
 
       liveReceipt.set(
           new StubResponse(
@@ -721,6 +775,9 @@ class KnowledgeApplicationTests {
       assertEquals("CASE_UNVERIFIED", changedCase.reason());
       assertThat(service.getRetrieval(actor, retrievalId).results())
           .allMatch(result -> result.excerpt() == null);
+      Retrieval replay = service.runIdempotent(actor, keyedRequest, "verified-case-replay");
+      assertEquals(keyed.retrievalId(), replay.retrievalId());
+      assertThat(replay.results()).allMatch(result -> result.excerpt() == null);
       liveReceipt.set(
           new StubResponse(
               200,
@@ -994,6 +1051,13 @@ class KnowledgeApplicationTests {
 
   private HttpResponse<String> postKeyed(String bearer, String key, String body) throws Exception {
     HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/knowledge-items:idempotent"))
+        .header("Authorization", bearer).header("Content-Type", "application/json")
+        .header("Idempotency-Key", key).POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    return http.send(request, HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postRetrievalKeyed(String bearer, String key, String body) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/v1/retrievals:idempotent"))
         .header("Authorization", bearer).header("Content-Type", "application/json")
         .header("Idempotency-Key", key).POST(HttpRequest.BodyPublishers.ofString(body)).build();
     return http.send(request, HttpResponse.BodyHandlers.ofString());

@@ -74,6 +74,12 @@ class KnowledgeRouteClient {
     return sendBody(HttpMethod.POST, "/v1/retrievals", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> runRetrievalIdempotent(String authorization, String key, String requestBody) {
+    RestClient.RequestBodySpec request = knowledgeRestClient.post().uri("/v1/retrievals:idempotent");
+    request.header("Idempotency-Key", key).contentType(MediaType.APPLICATION_JSON).body(requestBody);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> getRetrieval(String authorization, String id) {
     return send(
         knowledgeRestClient.get().uri(uriBuilder -> uriBuilder.path("/v1/retrievals/{id}").build(id)),
