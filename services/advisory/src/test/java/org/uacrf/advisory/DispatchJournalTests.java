@@ -13,9 +13,11 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -855,6 +857,24 @@ class DispatchJournalTests {
         runKey, 1, request.budget(), request.deadline(),
         dispatchPlan(runKey, 1, request.budget(), request.deadline()), foreignRequester));
     assertTrue(journal.findRun(runKey).isEmpty());
+    assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", runKey.tenantId()));
+    assertEquals(0, countForTenant("uacrf_advisory.outbox_event", runKey.tenantId()));
+  }
+
+  @Test
+  void admissionRejectsRequesterAtOrAfterCapabilityExpiryHorizon() throws Exception {
+    var runKey = new DispatchJournal.RunKey("admission-expired-requester", "env", "run-1");
+    var request = admissionRequest(TEST_DEADLINE, "Expired requester snapshot");
+    var proof = requester(runKey, "principal-1");
+    for (Instant time : List.of(proof.capabilityExpiryHorizon(), proof.capabilityExpiryHorizon().plusSeconds(1))) {
+      var journal = new DispatchJournal(dataSource, Clock.fixed(time, ZoneOffset.UTC));
+      var plan = dispatchPlan(runKey, 1, request.budget(), request.deadline());
+      assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
+          runKey, 1, request, plan, proof, "CREATE_ADVISORY_RUN", "idem-expired"));
+      assertThrows(IllegalArgumentException.class, () -> journal.registerRun(
+          runKey, 1, request.budget(), request.deadline(), plan, proof));
+      assertTrue(journal.findRun(runKey).isEmpty());
+    }
     assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", runKey.tenantId()));
     assertEquals(0, countForTenant("uacrf_advisory.outbox_event", runKey.tenantId()));
   }

@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,9 +25,15 @@ import javax.sql.DataSource;
 
 final class DispatchJournal {
   private final DataSource dataSource;
+  private final Clock clock;
 
   DispatchJournal(DataSource dataSource) {
+    this(dataSource, Clock.systemUTC());
+  }
+
+  DispatchJournal(DataSource dataSource, Clock clock) {
     this.dataSource = java.util.Objects.requireNonNull(dataSource, "dataSource");
+    this.clock = java.util.Objects.requireNonNull(clock, "clock");
   }
 
   record Key(String tenantId, String environmentId, String attemptId) {
@@ -646,13 +653,16 @@ final class DispatchJournal {
     Objects.requireNonNull(deadline, "deadline");
   }
 
-  private static String validateRequester(RunKey key, RequesterAccessClient.Principal requester) {
+  private String validateRequester(RunKey key, RequesterAccessClient.Principal requester) {
     Objects.requireNonNull(requester, "requester");
     if (!"HUMAN".equals(requester.kind())
         || !requester.tenantId().equals(key.tenantId())
         || !requester.environmentId().equals(key.environmentId())
         || !requester.capabilities().contains("advisory.run.create")) {
       throw new IllegalArgumentException("Requester authorization does not match the run scope.");
+    }
+    if (!requester.capabilityExpiryHorizon().isAfter(clock.instant())) {
+      throw new IllegalArgumentException("Requester capability expiry horizon has passed.");
     }
     String principalId = requester.id();
     requireId(principalId);

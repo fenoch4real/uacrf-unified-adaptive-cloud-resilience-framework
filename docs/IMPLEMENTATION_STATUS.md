@@ -1358,7 +1358,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   Both durable journal admission and its lower-level run-registration path
   require the private-constructor S01 requester proof, which binds a HUMAN
   principal with `advisory.run.create` to the exact tenant/environment; a
-  scope-mismatch regression confirms neither path persists a run. Requester
+  scope-mismatch regression confirms neither path persists a run. Both paths
+  also reject a proof whose capability-expiry horizon has passed when the
+  method begins; a PostgreSQL-backed regression covers the boundary and
+  verifies no run or outbox is persisted. The clean advisory suite passed
+  165 tests. This does not fence expiry during the transaction. Requester
   source checking also requires the refreshed S01 capability set to exactly
   match the initial proof and fails closed on drift; a changed-but-still-
   eligible capability regression verifies that stale permissions cannot drive
