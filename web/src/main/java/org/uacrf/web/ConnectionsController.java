@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 @Controller
@@ -47,6 +48,9 @@ class ConnectionsController {
     } catch (RestClientResponseException error) {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("connectionError", "Connection access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("connectionError", "Identity or connections service returned an invalid response.");
     }
     return "connections";
   }
@@ -77,6 +81,10 @@ class ConnectionsController {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("inventoryError", "Inventory access was not authorized (HTTP " + error.getStatusCode().value() + ").");
       return "inventory";
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("inventoryError", "Identity service returned an invalid response.");
+      return "inventory";
     }
     ConnectionsClient.Connection connection;
     try {
@@ -90,6 +98,10 @@ class ConnectionsController {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("inventoryError", "Inventory was not loaded (HTTP " + error.getStatusCode().value() + ").");
       return "inventory";
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("inventoryError", "Connections service returned an invalid connection.");
+      return "inventory";
     }
     try {
       ConnectionsClient.CollectionStatusPage statusPage =
@@ -102,6 +114,9 @@ class ConnectionsController {
     } catch (RestClientResponseException error) {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("collectionStatusError", "Source collection statuses were not loaded (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("collectionStatusError", "Connections service returned an invalid collection-status page.");
     }
     try {
       ConnectionsClient.InventoryPage page = connections.listInventory(token, id, cursor, connection.provider());
@@ -113,6 +128,9 @@ class ConnectionsController {
     } catch (RestClientResponseException error) {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("inventoryError", "Inventory was not loaded (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("inventoryError", "Connections service returned an invalid inventory page.");
     }
     return "inventory";
   }
@@ -143,6 +161,10 @@ class ConnectionsController {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("observationsError", "Observation access was not authorized (HTTP " + error.getStatusCode().value() + ").");
       return "observations";
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("observationsError", "Identity service returned an invalid response.");
+      return "observations";
     }
     ConnectionsClient.Connection connection;
     try {
@@ -156,7 +178,7 @@ class ConnectionsController {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("observationsError", "Observations were not loaded (HTTP " + error.getStatusCode().value() + ").");
       return "observations";
-    } catch (IllegalStateException error) {
+    } catch (IllegalStateException | RestClientException error) {
       response.setStatus(HttpStatus.BAD_GATEWAY.value());
       model.addAttribute("observationsError", "Connections service returned an invalid connection.");
       return "observations";
@@ -176,7 +198,7 @@ class ConnectionsController {
     } catch (RestClientResponseException error) {
       response.setStatus(error.getStatusCode().value());
       model.addAttribute("observationsError", "Observations were not loaded (HTTP " + error.getStatusCode().value() + ").");
-    } catch (IllegalStateException error) {
+    } catch (IllegalStateException | RestClientException error) {
       response.setStatus(HttpStatus.BAD_GATEWAY.value());
       model.addAttribute("observationsError", "Connections service returned an invalid observation page.");
     }

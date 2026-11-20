@@ -67,6 +67,11 @@ last status and detail, active-lease state, last successful collection, and
 next scheduled time; missing and never-run values are called out explicitly.
 The page clarifies that timestamps do not establish freshness or staleness and
 that `COLLECTED` only means the batch was submitted to intake.
+The browser rejects collection-status rows that omit the running flag and
+reports malformed upstream connection, inventory, status, or observation
+responses as gateway errors rather than presenting them as empty results.
+Inventory and collection-status reads remain independent, so an available
+section can still be displayed when the other fails.
 It visibly labels `SAMPLE_LOCAL` as synthetic and does not qualify or promote it.
 The [sample fixture](../../sample-data/README.md#import-synthetic-estate)
 is not loaded automatically. An explicit browser import uses S01 owner

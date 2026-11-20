@@ -163,7 +163,7 @@ class ConnectionsClient {
 
   private static boolean validCollectionStatus(CollectionStatus item, String connectionId) {
     return item != null && present(item.id()) && connectionId.equals(item.connectionId())
-        && present(item.sourceRef());
+        && present(item.sourceRef()) && item.running() != null;
   }
 
   private static boolean validObservation(Observation item) {
@@ -194,7 +194,7 @@ class ConnectionsClient {
       @JsonProperty("source_ref") String sourceRef,
       @JsonProperty("last_status") String lastStatus,
       @JsonProperty("last_detail") String lastDetail,
-      boolean running,
+      Boolean running,
       @JsonProperty("last_collected_at") String lastCollectedAt,
       @JsonProperty("next_collection_at") String nextCollectionAt) {}
 

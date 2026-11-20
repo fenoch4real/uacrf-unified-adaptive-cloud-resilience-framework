@@ -1036,6 +1036,80 @@ class WebApplicationTests {
   }
 
   @Test
+  void reportsInvalidConnectionListWithoutShowingAnEmptyState() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.list("s03-delegation", null))
+        .thenThrow(new IllegalStateException("invalid page"));
+
+    mockMvc.perform(get("/connections").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("invalid response")))
+        .andExpect(content().string(not(containsString("No connections are available."))));
+  }
+
+  @Test
+  void reportsInvalidConnectionBeforeReadingItsInventory() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenThrow(new IllegalStateException("invalid connection"));
+
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("invalid connection")));
+    verify(connections, never()).listInventory(anyString(), anyString(), any(), anyString());
+    verify(connections, never()).listCollectionStatuses(anyString(), anyString(), any());
+  }
+
+  @Test
+  void reportsInvalidCollectionStatusAndStillDisplaysAvailableInventory() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenReturn(new ConnectionsClient.Connection("sample-estate", "Sample estate", "AWS", "ACTIVE", null));
+    when(connections.listCollectionStatuses("s03-delegation", "sample-estate", null))
+        .thenThrow(new org.springframework.web.client.RestClientException("invalid status page"));
+    when(connections.listInventory("s03-delegation", "sample-estate", null, "AWS"))
+        .thenReturn(new ConnectionsClient.InventoryPage(List.of(), null));
+
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("invalid collection-status page")))
+        .andExpect(content().string(not(containsString("No source collection status rows are available"))))
+        .andExpect(content().string(containsString("No inventory observations are available")));
+  }
+
+  @Test
+  void reportsInvalidInventoryWithoutShowingAnEmptyState() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S03", null, List.of("connections.connection.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s03-delegation", "Bearer", 30));
+    when(connections.get("s03-delegation", "sample-estate"))
+        .thenReturn(new ConnectionsClient.Connection("sample-estate", "Sample estate", "AWS", "ACTIVE", null));
+    when(connections.listCollectionStatuses("s03-delegation", "sample-estate", null))
+        .thenReturn(new ConnectionsClient.CollectionStatusPage(List.of(), null));
+    when(connections.listInventory("s03-delegation", "sample-estate", null, "AWS"))
+        .thenThrow(new IllegalStateException("invalid inventory page"));
+
+    mockMvc.perform(get("/connections/sample-estate/inventory")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("invalid inventory page")))
+        .andExpect(content().string(not(containsString("No inventory observations are available"))))
+        .andExpect(content().string(containsString("No source collection status rows are available")));
+  }
+
+  @Test
   void inventoryRequiresSelectedContextAndDoesNotReadWhenDelegationFails() throws Exception {
     mockMvc.perform(get("/connections/sample-estate/inventory").with(browserLogin()))
         .andExpect(status().is3xxRedirection())

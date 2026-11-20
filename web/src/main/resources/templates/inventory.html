@@ -57,7 +57,7 @@
       </nav>
     </section>
     <p>These are individual retained observations, not a deduplicated current inventory or qualified evidence.</p>
-    <p th:if="${#lists.isEmpty(inventory)}">No inventory observations are available for this connection.</p>
+    <p th:if="${inventoryError == null and #lists.isEmpty(inventory)}">No inventory observations are available for this connection.</p>
     <ul class="inventory-list">
       <li th:each="item : ${inventory}">
         <h3 th:text="${item.nativeId}">Native resource identifier</h3>

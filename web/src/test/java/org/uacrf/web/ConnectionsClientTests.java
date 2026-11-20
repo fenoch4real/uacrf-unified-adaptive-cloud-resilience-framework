@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -84,6 +85,24 @@ class ConnectionsClientTests {
       assertThat(status.nextCollectionAt()).isNull();
     });
     server.verify();
+  }
+
+  @Test
+  void rejectsCollectionStatusesWithoutAnExplicitRunningState() {
+    for (String running : List.of("", ",\"running\":null")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/connections/sample/collection-statuses?pageSize=25"))
+          .andRespond(withSuccess("""
+              {"items":[{"id":"binding","connection_id":"sample",
+              "source_ref":"sample:source","last_status":null,"last_detail":null,
+              "last_collected_at":null,"next_collection_at":null%s}],"next_cursor":null}
+              """.formatted(running), MediaType.APPLICATION_JSON));
+      ConnectionsClient client = new ConnectionsClient(builder.build());
+      assertThatThrownBy(() -> client.listCollectionStatuses("delegated", "sample", null))
+          .isInstanceOf(IllegalStateException.class);
+      server.verify();
+    }
   }
 
   @Test

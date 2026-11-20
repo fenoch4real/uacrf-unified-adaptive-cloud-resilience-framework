@@ -126,11 +126,15 @@ context-bound read page displays paginated raw observations only for
 The explicit fixture import now binds ten sample sources and submits 122
 accepted observations: 42 inventory and 80 metric. It continues to exclude
 simulated pages, graph records, and deliberate fault deliveries. The full
-web module passed 94 tests, including delegation, route rendering, and
+web module passed 99 tests in a clean run, including delegation, route rendering, and
 HTTP-client contract checks. The browser does not automatically ingest the
 sample fixture. The explicit import reports partial results and supports
-identical retries.
-The isolated browser suite passed all 11 tests, including independently
+identical retries. Invalid upstream connection, inventory, collection-status,
+and observation responses now produce visible gateway errors; missing or null
+collection-running flags are rejected rather than treated as known values.
+An inventory read error is no longer presented as an empty result, and either
+inventory or collection status can still be displayed if the other read fails.
+The earlier isolated browser suite passed all 11 tests, including independently
 approved memberships, import/replay, both inventory pages, and paginated
 retained-observation readback for all three metric payload shapes. It also
 verifies unknown GCP locations and an authorized S02 flow that creates a
