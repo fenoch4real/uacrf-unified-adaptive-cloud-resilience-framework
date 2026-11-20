@@ -396,12 +396,14 @@ class DispatchJournalTests {
         .getFirst();
     Thread.sleep(20);
     assertFalse(journal.markOutboxPublished(initialClaim));
+    assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
     var reclaimed = journal.claimPendingOutbox(expiringTenant, "env", 1, Duration.ofSeconds(1))
         .getFirst();
     assertEquals(initialClaim.eventId(), reclaimed.eventId());
     assertEquals(2, reclaimed.attemptCount());
     assertFalse(initialClaim.claimToken().equals(reclaimed.claimToken()));
     assertFalse(journal.markOutboxPublished(initialClaim));
+    assertFalse(journal.renewOutboxClaim(initialClaim, Duration.ofSeconds(1)));
     assertTrue(journal.markOutboxPublished(reclaimed));
     assertFalse(journal.markOutboxPublished(reclaimed));
     try (Connection connection = dataSource.getConnection();
@@ -418,6 +420,21 @@ class DispatchJournalTests {
         assertEquals("PUBLISHED", result.getString(2));
       }
     }
+  }
+
+  @Test
+  void currentOutboxClaimCanExtendItsLeaseWithoutReleasingExclusivity() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-renewal";
+    admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-1"),
+        admissionRequest(TEST_DEADLINE, "Outbox lease renewal test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-renewal");
+    var claim = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofMillis(100)).getFirst();
+
+    assertTrue(journal.renewOutboxClaim(claim, Duration.ofSeconds(1)));
+    Thread.sleep(150);
+    assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
+    assertTrue(journal.markOutboxPublished(claim));
   }
 
   @Test

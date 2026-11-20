@@ -401,6 +401,44 @@ final class DispatchJournal {
     }
   }
 
+  boolean renewOutboxClaim(OutboxClaim claim, Duration extension) throws SQLException {
+    Objects.requireNonNull(claim, "claim");
+    Objects.requireNonNull(extension, "extension");
+    if (extension.isNegative() || extension.isZero()
+        || extension.compareTo(Duration.ofMinutes(5)) > 0) {
+      throw new IllegalArgumentException("Invalid outbox lease extension.");
+    }
+    long extensionMillis = extension.toMillis();
+    if (extensionMillis < 1) {
+      throw new IllegalArgumentException("Outbox lease extension must be at least one millisecond.");
+    }
+    try (Connection connection = committedConnection()) {
+      connection.setAutoCommit(false);
+      try (PreparedStatement statement = connection.prepareStatement("""
+          UPDATE uacrf_advisory.outbox_delivery
+          SET lease_expires_at = LEAST(
+            lease_expires_at + make_interval(secs => ?::double precision / 1000.0),
+            clock_timestamp() + INTERVAL '5 minutes')
+          WHERE event_id = ? AND state = 'CLAIMED' AND claim_token = ?
+            AND lease_expires_at > clock_timestamp()
+          """)) {
+        statement.setLong(1, extensionMillis);
+        statement.setString(2, claim.eventId());
+        statement.setObject(3, claim.claimToken());
+        boolean renewed = statement.executeUpdate() == 1;
+        connection.commit();
+        return renewed;
+      } catch (SQLException | RuntimeException failure) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        throw failure;
+      }
+    }
+  }
+
   boolean markOutboxPublished(OutboxClaim claim) throws SQLException {
     Objects.requireNonNull(claim, "claim");
     try (Connection connection = committedConnection()) {
