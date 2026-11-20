@@ -205,6 +205,25 @@ VALUES
    '{"metric":"sample.latency","comparator":"LTE","threshold":10,"unit":"ms",
      "effect":"INVESTIGATE_ONLY"}'::jsonb,
    '{"case_digest":"placeholder","evaluation_digest":"placeholder"}'::jsonb, false);
+INSERT INTO uacrf_assessment.incident
+  (tenant_id,environment_id,id,workload_id,source_case_id,observed_from,description,
+   evidence_refs,source_evaluation_ids,reason,revision,created_by)
+SELECT 'local-dev','local','00000000-0000-0000-0000-' || lpad(n::text,12,'0'),
+  'browser-case-workload','browser-case-a','2026-01-02T00:00:00Z',
+  'Synthetic browser incident ' || n,'["sample-receipt"]'::jsonb,
+  '["browser-evaluation-a"]'::jsonb,'Synthetic fixture',1,'test-fixture'
+FROM generate_series(1,51) n;
+INSERT INTO uacrf_assessment.learning_record
+  (tenant_id,environment_id,id,incident_id,content,evidence_refs,content_digest,state,revision,proposed_by)
+SELECT 'local-dev','local','10000000-0000-0000-0000-' || lpad(n::text,12,'0'),
+  '00000000-0000-0000-0000-000000000001',
+  '{"incident_id":"00000000-0000-0000-0000-000000000001","experiment_id":null,
+    "hypotheses":["Synthetic hypothesis"],"action_items":[{"description":"Investigate sample",
+      "owner_id":"sample-owner","due_at":"2026-01-03T00:00:00Z",
+      "proposed_version_ref":null,"closure_test":"Check sample"}],
+    "evidence_refs":["sample-receipt"],"expected_revision":1,"reason":"Synthetic fixture"}'::jsonb,
+  '["sample-receipt"]'::jsonb,repeat('d',64),'PROPOSED',1,'test-fixture'
+FROM generate_series(1,51) n;
 SQL
 
 cd "$repo_root/e2e"

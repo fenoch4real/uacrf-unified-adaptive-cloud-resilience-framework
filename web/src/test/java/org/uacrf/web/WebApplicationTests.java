@@ -32,6 +32,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -61,6 +62,60 @@ class WebApplicationTests {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("/oauth2/authorization/keycloak")))
         .andExpect(content().string(not(containsString("access_token"))));
+  }
+
+  @Test
+  void showsIncidentsAndLearningRecordsWithSeparateDelegations() throws Exception {
+    String id = "00000000-0000-0000-0000-000000000001";
+    Instant time = Instant.parse("2026-01-01T00:00:00Z");
+    when(identity.createDelegation("test-access-token", "S07", null,
+        List.of("assessment.case.read", "assessment.incident.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("incident-reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S07", null,
+        List.of("assessment.incident.read", "assessment.learning.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("learning-reader", "Bearer", 30));
+    var incident = new AssessmentClient.Incident(id, "workload-1", "case-1", time, "<unsafe>",
+        List.of("receipt-1"), null, "reason", 1L, "user", time);
+    var learning = new AssessmentClient.LearningRecord("00000000-0000-0000-0000-000000000002",
+        id, null, List.of("hypothesis"), List.of(new AssessmentClient.LearningAction(
+            "investigate", "owner", time, null, "check")), List.of("receipt-1"), 1L,
+        "reason", "PROPOSED", 1L, "user", time);
+    when(assessment.listIncidents("incident-reader", "case-1", null))
+        .thenReturn(new AssessmentClient.IncidentPage(List.of(incident), id));
+    when(assessment.listLearningRecords("learning-reader", id, null))
+        .thenReturn(new AssessmentClient.LearningRecordPage(List.of(learning), null));
+    mockMvc.perform(get("/assessment-cases/case-1/incidents").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("&lt;unsafe&gt;")))
+        .andExpect(content().string(containsString("Not retained for this legacy record")))
+        .andExpect(content().string(containsString("Next incidents")))
+        .andExpect(content().string(not(containsString("incident-reader"))));
+    mockMvc.perform(get("/assessment-incidents/" + id + "/learning-records").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("hypothesis")))
+        .andExpect(content().string(containsString("investigate")))
+        .andExpect(content().string(containsString("not evidence of adoption")));
+    mockMvc.perform(get("/assessment-cases/case-1/incidents?after=invalid").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    verify(assessment, never()).listIncidents(anyString(), anyString(), org.mockito.ArgumentMatchers.eq("invalid"));
+  }
+
+  @Test
+  void incidentAndLearningFailuresDoNotAppearAsEmptyResults() throws Exception {
+    String id = "00000000-0000-0000-0000-000000000001";
+    when(identity.createDelegation("test-access-token", "S07", null,
+        List.of("assessment.case.read", "assessment.incident.read"), "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    when(identity.createDelegation("test-access-token", "S07", null,
+        List.of("assessment.incident.read", "assessment.learning.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("learning-reader", "Bearer", 30));
+    when(assessment.listLearningRecords("learning-reader", id, null))
+        .thenThrow(new IllegalStateException("mismatched page"));
+    mockMvc.perform(get("/assessment-cases/case-1/incidents").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Incident access failed")))
+        .andExpect(content().string(not(containsString("No incidents are available"))));
+    mockMvc.perform(get("/assessment-incidents/" + id + "/learning-records").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway()).andExpect(content().string(containsString("invalid learning-record page")))
+        .andExpect(content().string(not(containsString("No learning records are available"))));
+    verify(assessment, never()).listIncidents(anyString(), anyString(), any());
   }
 
   @Test

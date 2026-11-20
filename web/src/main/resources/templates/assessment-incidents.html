@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Case incidents | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Case incidents</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Case: <strong th:text="${caseId}">Case ID</strong></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p>These are retained historical records, not current evidence qualification or authorization to act.</p>
+  <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
+  <p th:if="${assessmentError == null and #lists.isEmpty(items)}">No incidents are available on this page.</p>
+  <ol class="inventory-list">
+    <li th:each="item : ${items}">
+      <h2 th:text="${item.id}">Incident ID</h2>
+      <p><a th:href="@{/assessment-incidents/{id}/learning-records(id=${item.id})}"
+            th:text="${'View learning records for ' + item.id}">View learning records</a></p>
+      <dl>
+        <dt>Workload ID</dt><dd th:text="${item.workloadId}">Workload</dd>
+        <dt>Observed from</dt><dd th:text="${item.observedFrom}">Time</dd>
+        <dt>Description</dt><dd th:text="${item.description}">Description</dd>
+        <dt>Evidence references</dt><dd th:text="${#strings.listJoin(item.evidenceRefs, ', ')}">References</dd>
+        <dt>Source evaluations</dt>
+        <dd th:text="${item.sourceEvaluationIds == null ? 'Not retained for this legacy record' : #strings.listJoin(item.sourceEvaluationIds, ', ')}">Evaluations</dd>
+        <dt>Reason</dt><dd th:text="${item.reason}">Reason</dd>
+        <dt>Created by</dt><dd th:text="${item.createdBy}">Actor</dd>
+        <dt>Created at</dt><dd th:text="${item.createdAt}">Time</dd>
+      </dl>
+    </li>
+  </ol>
+  <nav aria-label="Incident pages" th:if="${nextCursor != null}">
+    <a th:href="@{/assessment-cases/{id}/incidents(id=${caseId},after=${nextCursor})}">Next incidents</a>
+  </nav>
+</main>
+</body>
+</html>

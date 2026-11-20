@@ -92,6 +92,14 @@ bypassing case creation, sealing, evaluation, and recommendation generation;
 they are not qualified evidence or provider acceptance. The S07 case,
 evaluation, and recommendation list APIs are unpaginated.
 
+The browser suite also grants `assessment.incident.read` and
+`assessment.learning.read` independently and follows the case-to-incident and
+incident-to-learning links, including the second page of each. An ungranted
+user is denied both views. The 51 incidents and 51 learning records are
+directly inserted synthetic fixtures with placeholder provenance and digests;
+the test does not exercise incident creation, evidence qualification or
+learning review and cannot establish provider acceptance.
+
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not
 offer re-enabling; S01 preserves existing memberships and requires trusted

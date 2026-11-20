@@ -7,6 +7,14 @@
 ## Latest live browser run
 
 On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
+stack. An independently authorized user browsed paginated incident and
+learning-record pages through UX01, EDGE01, S01 and S07, and an ungranted user
+was denied both. The 51 incident and 51 learning rows were inserted directly
+with synthetic references and placeholder digests; this bypassed incident
+creation, qualification and learning review and did not establish provider
+acceptance or authorization to act. The stack was removed after the run.
+
+On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
 stack. An independently authorized user created and sealed a synthetic case,
 submitted an empty-measurement evaluation through UX01, EDGE01, S01 and S07,
 replayed the identical request, and saw exactly one retained result. It was

@@ -42,6 +42,49 @@ class AssessmentClientTests {
        "effect_bounds":{"metric":"latency","comparator":"LTE","threshold":10,
        "unit":"ms","effect":"INVESTIGATE_ONLY"}}
       """;
+  private static final String INCIDENT = """
+      {"id":"00000000-0000-0000-0000-000000000001","workload_id":"workload-1",
+       "source_case_id":"case-1","observed_from":"2026-01-01T00:00:00Z",
+       "description":"Synthetic incident","evidence_refs":["receipt-1"],
+       "source_evaluation_ids":["evaluation-1"],"reason":"test","revision":1,
+       "created_by":"user","created_at":"2026-01-01T00:00:00Z"}
+      """;
+  private static final String LEARNING = """
+      {"id":"00000000-0000-0000-0000-000000000002",
+       "incident_id":"00000000-0000-0000-0000-000000000001","experiment_id":null,
+       "hypotheses":["Synthetic hypothesis"],"action_items":[{"description":"Check",
+       "owner_id":"owner","due_at":"2026-01-02T00:00:00Z","proposed_version_ref":null,
+       "closure_test":"Verify"}],"evidence_refs":["receipt-1"],"expected_revision":1,
+       "reason":"test","state":"PROPOSED","revision":1,"proposed_by":"user",
+       "created_at":"2026-01-01T00:00:00Z"}
+      """;
+
+  @Test
+  void readsIncidentAndLearningPagesAndRejectsMismatchedData() {
+    String incidentId = "00000000-0000-0000-0000-000000000001";
+    String after = "00000000-0000-0000-0000-000000000000";
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    String incidentsUrl = "http://edge.test/v1/cases/case-1/incidents?limit=50&after=" + after;
+    String learningUrl = "http://edge.test/v1/incidents/" + incidentId + "/learning-records?limit=50";
+    server.expect(requestTo(incidentsUrl)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withSuccess("{\"items\":[" + INCIDENT + "],\"next_cursor\":null}", MediaType.APPLICATION_JSON));
+    server.expect(requestTo(learningUrl)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer learning"))
+        .andRespond(withSuccess("{\"items\":[" + LEARNING + "],\"next_cursor\":null}", MediaType.APPLICATION_JSON));
+    server.expect(requestTo(incidentsUrl)).andRespond(withSuccess("{\"items\":["
+        + INCIDENT.replace("\"case-1\"", "\"other\"") + "]}", MediaType.APPLICATION_JSON));
+    server.expect(requestTo(learningUrl)).andRespond(withSuccess("{\"items\":["
+        + LEARNING.replace("\"PROPOSED\"", "\"ACTIVE\"") + "]}", MediaType.APPLICATION_JSON));
+    server.expect(requestTo(incidentsUrl)).andRespond(withSuccess("{\"items\":["
+        + INCIDENT + "],\"next_cursor\":\"" + incidentId + "\"}", MediaType.APPLICATION_JSON));
+    AssessmentClient client = new AssessmentClient(builder.build());
+    assertThat(client.listIncidents("reader", "case-1", after).items()).hasSize(1);
+    assertThat(client.listLearningRecords("learning", incidentId, null).items()).hasSize(1);
+    assertThatThrownBy(() -> client.listIncidents("reader", "case-1", after)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.listLearningRecords("learning", incidentId, null)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.listIncidents("reader", "case-1", after)).isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
 
   @Test
   void createsOnlyThroughKeyedRouteAndRejectsMismatchedReceipt() {

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident learning records | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Incident learning records</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Incident: <strong th:text="${incidentId}">Incident ID</strong></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p>These are retained proposals, not evidence of adoption or authorization to act.</p>
+  <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
+  <p th:if="${assessmentError == null and #lists.isEmpty(items)}">No learning records are available on this page.</p>
+  <ol class="inventory-list">
+    <li th:each="item : ${items}">
+      <h2 th:text="${item.id}">Learning record ID</h2>
+      <dl>
+        <dt>State</dt><dd th:text="${item.state}">Proposed</dd>
+        <dt>Experiment</dt><dd th:text="${item.experimentId != null ? item.experimentId : 'None'}">Experiment</dd>
+        <dt>Hypotheses</dt><dd><ul><li th:each="hypothesis : ${item.hypotheses}" th:text="${hypothesis}">Hypothesis</li></ul></dd>
+        <dt>Evidence references</dt><dd th:text="${#strings.listJoin(item.evidenceRefs, ', ')}">References</dd>
+        <dt>Reason</dt><dd th:text="${item.reason}">Reason</dd>
+        <dt>Proposed by</dt><dd th:text="${item.proposedBy}">Actor</dd>
+        <dt>Created at</dt><dd th:text="${item.createdAt}">Time</dd>
+      </dl>
+      <h3>Action items (proposed)</h3>
+      <ul><li th:each="action : ${item.actionItems}">
+        <span th:text="${action.description}">Description</span> —
+        owner <span th:text="${action.ownerId}">Owner</span>;
+        due <span th:text="${action.dueAt}">Time</span>;
+        closure test <span th:text="${action.closureTest}">Test</span>;
+        proposed version <span th:text="${action.proposedVersionRef != null ? action.proposedVersionRef : 'None'}">Version</span>
+      </li></ul>
+    </li>
+  </ol>
+  <nav aria-label="Learning record pages" th:if="${nextCursor != null}">
+    <a th:href="@{/assessment-incidents/{id}/learning-records(id=${incidentId},after=${nextCursor})}">Next learning records</a>
+  </nav>
+</main>
+</body>
+</html>

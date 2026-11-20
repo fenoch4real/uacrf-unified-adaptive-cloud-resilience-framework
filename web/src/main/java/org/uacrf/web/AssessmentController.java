@@ -193,4 +193,68 @@ class AssessmentController {
     }
     return "assessment-recommendations";
   }
+
+  @GetMapping("/assessment-cases/{caseId}/incidents")
+  String incidents(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @PathVariable String caseId,
+      @RequestParam(required = false) String after, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("caseId", caseId);
+    model.addAttribute("items", List.of());
+    if (after != null && !AssessmentClient.validCursor(after)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("assessmentError", "Invalid incident-page cursor.");
+      return "assessment-incidents";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S07", null,
+          List.of("assessment.case.read", "assessment.incident.read"), context.tenantId(), context.environmentId()).accessToken();
+      var page = assessment.listIncidents(token, caseId, after);
+      model.addAttribute("items", page.items());
+      model.addAttribute("nextCursor", page.nextCursor());
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("assessmentError", "Identity or assessment service is unavailable; incidents were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("assessmentError", "Incident access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("assessmentError", "Identity or assessment service returned an invalid incident page.");
+    }
+    return "assessment-incidents";
+  }
+
+  @GetMapping("/assessment-incidents/{incidentId}/learning-records")
+  String learningRecords(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @PathVariable String incidentId,
+      @RequestParam(required = false) String after, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("incidentId", incidentId);
+    model.addAttribute("items", List.of());
+    if (after != null && !AssessmentClient.validCursor(after)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("assessmentError", "Invalid learning-record page cursor.");
+      return "assessment-learning-records";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S07", null,
+          List.of("assessment.incident.read", "assessment.learning.read"), context.tenantId(), context.environmentId()).accessToken();
+      var page = assessment.listLearningRecords(token, incidentId, after);
+      model.addAttribute("items", page.items());
+      model.addAttribute("nextCursor", page.nextCursor());
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("assessmentError", "Identity or assessment service is unavailable; learning records were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("assessmentError", "Learning-record access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("assessmentError", "Identity or assessment service returned an invalid learning-record page.");
+    }
+    return "assessment-learning-records";
+  }
 }

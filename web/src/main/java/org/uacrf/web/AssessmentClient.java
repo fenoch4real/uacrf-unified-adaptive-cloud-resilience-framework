@@ -18,6 +18,8 @@ import org.springframework.web.client.RestClient;
 
 @Component
 class AssessmentClient {
+  static final int PAGE_SIZE = 50;
+  private static final String CURSOR_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
   private final RestClient restClient;
 
   AssessmentClient(@Qualifier("assessmentRestClient") RestClient restClient) {
@@ -120,6 +122,72 @@ class AssessmentClient {
     return List.copyOf(recommendations);
   }
 
+  IncidentPage listIncidents(String token, String caseId, String after) {
+    IncidentPage page = restClient.get()
+        .uri(uri -> {
+          var request = uri.path("/v1/cases/{id}/incidents").queryParam("limit", PAGE_SIZE);
+          if (after != null) request.queryParam("after", "{after}");
+          return after == null ? request.build(caseId) : request.build(caseId, after);
+        }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(IncidentPage.class);
+    if (page == null || page.items() == null || page.items().stream().anyMatch(item ->
+        item == null || !validCursor(item.id()) || !caseId.equals(item.sourceCaseId())
+            || !present(item.workloadId()) || item.observedFrom() == null || !present(item.description())
+            || !validStrings(item.evidenceRefs()) || (item.sourceEvaluationIds() != null
+                && !validStrings(item.sourceEvaluationIds()))
+            || !present(item.reason()) || item.revision() == null || item.revision() != 1
+            || !present(item.createdBy()) || item.createdAt() == null)
+        || !validPage(page.items().stream().map(Incident::id).toList(), page.nextCursor(), after)) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched incident page.");
+    }
+    return new IncidentPage(List.copyOf(page.items()), page.nextCursor());
+  }
+
+  LearningRecordPage listLearningRecords(String token, String incidentId, String after) {
+    LearningRecordPage page = restClient.get()
+        .uri(uri -> {
+          var request = uri.path("/v1/incidents/{id}/learning-records").queryParam("limit", PAGE_SIZE);
+          if (after != null) request.queryParam("after", "{after}");
+          return after == null ? request.build(incidentId) : request.build(incidentId, after);
+        }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(LearningRecordPage.class);
+    if (page == null || page.items() == null || page.items().stream().anyMatch(item ->
+        item == null || !validCursor(item.id()) || !incidentId.equals(item.incidentId())
+            || !validStrings(item.hypotheses()) || !validStrings(item.evidenceRefs())
+            || item.actionItems() == null || item.actionItems().isEmpty()
+            || item.actionItems().size() > 100 || item.actionItems().stream().anyMatch(action ->
+                action == null || !present(action.description()) || !present(action.ownerId())
+                    || action.dueAt() == null || !present(action.closureTest()))
+            || item.expectedRevision() == null || item.expectedRevision() < 1
+            || !present(item.reason()) || !"PROPOSED".equals(item.state())
+            || item.revision() == null || item.revision() != 1
+            || !present(item.proposedBy()) || item.createdAt() == null)
+        || !validPage(page.items().stream().map(LearningRecord::id).toList(), page.nextCursor(), after)) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched learning-record page.");
+    }
+    return new LearningRecordPage(List.copyOf(page.items()), page.nextCursor());
+  }
+
+  static boolean validCursor(String cursor) {
+    return cursor != null && cursor.matches(CURSOR_PATTERN);
+  }
+
+  private static boolean validPage(List<String> ids, String next, String after) {
+    if (ids.size() > PAGE_SIZE || (next != null && (ids.size() != PAGE_SIZE
+        || !validCursor(next) || !next.equals(ids.getLast())))) return false;
+    String previous = after;
+    for (String id : ids) {
+      if (previous != null && previous.compareTo(id) >= 0) return false;
+      previous = id;
+    }
+    return true;
+  }
+
+  private static boolean validStrings(List<String> items) {
+    return items != null && !items.isEmpty() && items.size() <= 100
+        && items.stream().allMatch(AssessmentClient::present);
+  }
+
   private static boolean valid(Recommendation item, String workloadId) {
     if (item == null || !present(item.id()) || !present(item.caseId()) || !present(item.evaluationId())
         || !workloadId.equals(item.workloadId()) || !"INVESTIGATE_BREACH".equals(item.kind())
@@ -205,4 +273,20 @@ class AssessmentClient {
       String kind, @JsonProperty("effect_bounds") RecommendationBounds effectBounds,
       Boolean executable) {}
   record RecommendationBounds(String metric, String comparator, BigDecimal threshold, String unit, String effect) {}
+  record IncidentPage(List<Incident> items, @JsonProperty("next_cursor") String nextCursor) {}
+  record Incident(String id, @JsonProperty("workload_id") String workloadId,
+      @JsonProperty("source_case_id") String sourceCaseId, @JsonProperty("observed_from") Instant observedFrom,
+      String description, @JsonProperty("evidence_refs") List<String> evidenceRefs,
+      @JsonProperty("source_evaluation_ids") List<String> sourceEvaluationIds, String reason, Long revision,
+      @JsonProperty("created_by") String createdBy, @JsonProperty("created_at") Instant createdAt) {}
+  record LearningRecordPage(List<LearningRecord> items, @JsonProperty("next_cursor") String nextCursor) {}
+  record LearningRecord(String id, @JsonProperty("incident_id") String incidentId,
+      @JsonProperty("experiment_id") String experimentId, List<String> hypotheses,
+      @JsonProperty("action_items") List<LearningAction> actionItems,
+      @JsonProperty("evidence_refs") List<String> evidenceRefs,
+      @JsonProperty("expected_revision") Long expectedRevision, String reason, String state, Long revision,
+      @JsonProperty("proposed_by") String proposedBy, @JsonProperty("created_at") Instant createdAt) {}
+  record LearningAction(String description, @JsonProperty("owner_id") String ownerId,
+      @JsonProperty("due_at") Instant dueAt, @JsonProperty("proposed_version_ref") String proposedVersionRef,
+      @JsonProperty("closure_test") String closureTest) {}
 }

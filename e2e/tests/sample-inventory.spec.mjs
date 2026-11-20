@@ -280,7 +280,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
       'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.evaluation.run',
-      'assessment.recommendation.read',
+      'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -404,6 +404,22 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
     await sample.getByRole('link', { name: 'View evaluations for browser-case-b' }).click();
     await expect(sample.getByText('No evaluations are available for this case.')).toBeVisible();
+    await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
+    await sample.getByRole('link', { name: 'View incidents for browser-case-a' }).click();
+    await expect(sample.getByRole('listitem').filter({ hasText: 'Synthetic browser incident 1' }).first()).toBeVisible();
+    await sample.getByRole('link', {
+      name: 'View learning records for 00000000-0000-0000-0000-000000000001',
+    }).click();
+    await expect(sample.getByText('Synthetic hypothesis').first()).toBeVisible();
+    await expect(sample.getByText('Investigate sample').first()).toBeVisible();
+    await expect(sample.getByText('not evidence of adoption', { exact: false })).toBeVisible();
+    await sample.getByRole('link', { name: 'Next learning records' }).click();
+    await expect(sample.getByRole('heading', { name: '10000000-0000-0000-0000-000000000051' })).toBeVisible();
+    await expect(sample.getByRole('link', { name: 'Next learning records' })).toHaveCount(0);
+    await sample.goto('/assessment-cases/browser-case-a/incidents');
+    await sample.getByRole('link', { name: 'Next incidents' }).click();
+    await expect(sample.getByText('Synthetic browser incident 51', { exact: true })).toBeVisible();
+    await expect(sample.getByRole('link', { name: 'Next incidents' })).toHaveCount(0);
     await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
     await sample.getByRole('link', { name: 'View recommendations for browser-case-workload' }).click();
     const recommendation = sample.getByRole('listitem').filter({ hasText: 'browser-recommendation-a' });
@@ -658,6 +674,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');
       expect(deniedEvaluations.status()).toBe(403);
       await expect(restricted.getByText('browser-evaluation-a', { exact: true })).toHaveCount(0);
+      const deniedIncidents = await restricted.goto('/assessment-cases/browser-case-a/incidents');
+      expect(deniedIncidents.status()).toBe(403);
+      await expect(restricted.getByText('Synthetic browser incident 1', { exact: true })).toHaveCount(0);
+      const deniedLearning = await restricted.goto(
+        '/assessment-incidents/00000000-0000-0000-0000-000000000001/learning-records');
+      expect(deniedLearning.status()).toBe(403);
+      await expect(restricted.getByText('Synthetic hypothesis')).toHaveCount(0);
       const deniedRecommendations = await restricted.goto(
         '/assessment-recommendations?workloadId=browser-case-workload');
       expect(deniedRecommendations.status()).toBe(403);
