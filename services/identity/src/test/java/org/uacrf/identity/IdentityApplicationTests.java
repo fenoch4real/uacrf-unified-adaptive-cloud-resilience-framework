@@ -241,12 +241,14 @@ class IdentityApplicationTests {
             grant[0], principal, grant[1], grant[2], java.sql.Timestamp.from((Instant) grant[3]),
             grant[4] == null ? null : java.sql.Timestamp.from((Instant) grant[4]));
       }
-      String actor = token(principal + "-subject");
+      Instant sessionExpiry = now.plusSeconds(60);
+      String actor = token(principal + "-subject", true, sessionExpiry);
       String path = "/v1/me/access?tenant_id=tenant-test&environment_id=environment-test";
       HttpResponse<String> global = get(path, actor);
       assertEquals(200, global.statusCode());
       assertThat(global.body())
           .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(7200) + "\"")
+          .contains("\"session_expires_at\":\"" + sessionExpiry + "\"")
           .doesNotContain("test.beta", "test.other", "test.revoked", "test.expired");
       HttpResponse<String> scoped = get(path + "&service_id=svc-1", actor);
       assertEquals(200, scoped.statusCode());
@@ -2408,6 +2410,10 @@ class IdentityApplicationTests {
   }
 
   private String token(String subject, boolean includeContext) {
+    return token(subject, includeContext, Instant.now().plusSeconds(60));
+  }
+
+  private String token(String subject, boolean includeContext, Instant expiresAt) {
     Instant now = Instant.now();
     JwtClaimsSet.Builder claims =
         JwtClaimsSet.builder()
@@ -2415,7 +2421,7 @@ class IdentityApplicationTests {
             .subject(subject)
             .audience(List.of("uacrf-s01"))
             .issuedAt(now)
-            .expiresAt(now.plusSeconds(60));
+            .expiresAt(expiresAt);
     if (includeContext) {
       claims
           .claim("tenant_id", "tenant-test")

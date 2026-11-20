@@ -70,7 +70,8 @@ class DispatchJournalTests {
       String body = """
           {"principal_id":"%s","display_name":"Test user","kind":"HUMAN","service_id":null,
            "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read",
-           "knowledge.retrieval.read"],"capability_expiry_horizon":"2099-01-01T00:00:00Z"}
+           "knowledge.retrieval.read"],"capability_expiry_horizon":"2099-01-01T00:00:00Z",
+           "session_expires_at":"2098-01-01T00:00:00Z"}
           """.formatted(principalId);
       byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
       exchange.sendResponseHeaders(200, bytes.length);
@@ -871,6 +872,26 @@ class DispatchJournalTests {
       var plan = dispatchPlan(runKey, 1, request.budget(), request.deadline());
       assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
           runKey, 1, request, plan, proof, "CREATE_ADVISORY_RUN", "idem-expired"));
+      assertThrows(IllegalArgumentException.class, () -> journal.registerRun(
+          runKey, 1, request.budget(), request.deadline(), plan, proof));
+      assertTrue(journal.findRun(runKey).isEmpty());
+    }
+    assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", runKey.tenantId()));
+    assertEquals(0, countForTenant("uacrf_advisory.outbox_event", runKey.tenantId()));
+  }
+
+  @Test
+  void admissionRejectsRequesterAtOrAfterSessionExpiry() throws Exception {
+    var runKey = new DispatchJournal.RunKey("admission-expired-session", "env", "run-1");
+    var request = admissionRequest(TEST_DEADLINE, "Expired requester session");
+    var proof = requester(runKey, "principal-1");
+    assertTrue(proof.capabilityExpiryHorizon().isAfter(proof.sessionExpiresAt()));
+    for (Instant time : List.of(proof.sessionExpiresAt(), proof.sessionExpiresAt().plusSeconds(1))) {
+      var journal = new DispatchJournal(dataSource, Clock.fixed(time, ZoneOffset.UTC));
+      var plan = dispatchPlan(runKey, 1, request.budget(), request.deadline());
+      var failure = assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
+          runKey, 1, request, plan, proof, "CREATE_ADVISORY_RUN", "idem-expired-session"));
+      assertEquals("Requester session expiry has passed.", failure.getMessage());
       assertThrows(IllegalArgumentException.class, () -> journal.registerRun(
           runKey, 1, request.budget(), request.deadline(), plan, proof));
       assertTrue(journal.findRun(runKey).isEmpty());

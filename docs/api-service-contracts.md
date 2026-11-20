@@ -57,9 +57,12 @@ grants extend a capability to their latest expiration. This is snapshot
 metadata, not a validity guarantee: revocations, additions, principal or
 context changes, and token expiry can take effect sooner. It is not a
 reservation or a commit fence.
-S09's preparation check requires a parseable, future expiry horizon and
-rejects changes between its two S01 reads. Deploy the S01 response change
-before the S09 client; older S01 responses fail closed.
+The same response includes `session_expires_at`, the authenticated JWT's
+expiration, or null if absent. S09's preparation check requires both
+expirations to be parseable and future, and rejects changes between its two
+S01 reads. Its journal also rejects expired snapshots at method entry, not
+atomically at commit. Deploy the S01 response changes before the S09 client;
+older S01 responses fail closed.
 
 S02's active workload-version receipt accepts `profile_id` to identify a
 version within its workload. Without it, a version ID matching multiple

@@ -661,8 +661,12 @@ final class DispatchJournal {
         || !requester.capabilities().contains("advisory.run.create")) {
       throw new IllegalArgumentException("Requester authorization does not match the run scope.");
     }
-    if (!requester.capabilityExpiryHorizon().isAfter(clock.instant())) {
+    Instant now = clock.instant();
+    if (!requester.capabilityExpiryHorizon().isAfter(now)) {
       throw new IllegalArgumentException("Requester capability expiry horizon has passed.");
+    }
+    if (!requester.sessionExpiresAt().isAfter(now)) {
+      throw new IllegalArgumentException("Requester session expiry has passed.");
     }
     String principalId = requester.id();
     requireId(principalId);

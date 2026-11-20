@@ -291,9 +291,10 @@ test passed with no failures, errors, or skips.
   metadata is not a guarantee of continued access: revocation, newly granted
   capabilities, principal or context changes, and token expiry can change
   authority sooner. It is not a cross-service reservation or commit fence.
-  S09 requires a parseable future horizon and rejects horizon changes between
-  its initial and refreshed requester reads. Deploy S01's response change
-  before that S09 client; older responses fail closed.
+  S01 also reports `session_expires_at` from the authenticated JWT, or null
+  when absent. S09 requires both expirations to be parseable and future and
+  rejects changes between initial and refreshed requester reads. Deploy S01's
+  response changes before that S09 client; older responses fail closed.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed
   capabilities, owners, and runtime principals. S01 now issues narrowed
   delegations after checking the user's current membership authority. The
@@ -1359,12 +1360,12 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   require the private-constructor S01 requester proof, which binds a HUMAN
   principal with `advisory.run.create` to the exact tenant/environment; a
   scope-mismatch regression confirms neither path persists a run. Both paths
-  also reject a proof whose capability-expiry horizon has passed when the
-  method begins; a PostgreSQL-backed regression covers the boundary and
-  verifies no run or outbox is persisted. The clean advisory suite passed
-  165 tests. This does not fence expiry during the transaction. Requester
-  source checking also requires the refreshed S01 capability set to exactly
-  match the initial proof and fails closed on drift; a changed-but-still-
+  also reject a proof whose capability-expiry horizon or session expiration
+  has passed when the method begins; PostgreSQL-backed regressions cover both
+  boundaries and verify no run or outbox is persisted. The clean advisory
+  suite passed 167 tests. This does not fence expiry during the transaction.
+  Requester source checking also requires the refreshed S01 capability set
+  to exactly match the initial proof and fails closed on drift; a changed-but-still-
   eligible capability regression verifies that stale permissions cannot drive
   delegated owner reads. These are point-in-time checks and do not prevent
   later S01 revocation or establish that owner context remains unchanged at
@@ -1464,11 +1465,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   decision. After the final S07, requester and S02 refreshes, preparation
   re-reads the S08 retrieval receipt with a fresh delegation and rejects a
   changed, withdrawn, or unavailable receipt before returning the snapshot.
-  Requester refresh also rejects capability-set or capability-expiry-horizon
-  drift, including a changed set that would still pass minimum authorization
-  checks; regressions cover both cases. These sequential checks do not provide
-  an atomic authorization decision. A simulated-owner regression covers
-  withdrawal during the requester refresh.
+  Requester refresh also rejects capability-set, capability-expiry-horizon or
+  session-expiry drift, including a changed set that would still pass minimum
+  authorization checks; regressions cover these cases. These sequential checks
+  do not provide an atomic authorization decision. A simulated-owner
+  regression covers withdrawal during the requester refresh.
   Preparation now constructs a distinct,
   bounded JSON input packet per role from the verified sealed case material,
   selected prompt text, and receipt-verified excerpts. It generates each

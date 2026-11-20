@@ -169,6 +169,9 @@ final class RequesterSourceCheck {
     if (!requester.capabilityExpiryHorizon().equals(refreshed.capabilityExpiryHorizon())) {
       throw new IOException("Requester capability expiry horizon changed during source checking.");
     }
+    if (!requester.sessionExpiresAt().equals(refreshed.sessionExpiresAt())) {
+      throw new IOException("Requester session expiry changed during source checking.");
+    }
     if (profileReader != null
         && !profileVersions.equals(profileReader.fetchActive(tenantId, environmentId, expectedProfiles))) {
       throw new IOException("S02 active workload versions changed during source checking.");

@@ -312,7 +312,8 @@ class IdentityAccessService {
         serviceId,
         scope,
         grants.stream().map(CapabilityExpiry::capability).toList(),
-        grants.stream().map(CapabilityExpiry::expiresAt).min(Instant::compareTo).orElse(null));
+        grants.stream().map(CapabilityExpiry::expiresAt).min(Instant::compareTo).orElse(null),
+        jwt.getExpiresAt());
   }
 
   @Transactional(readOnly = true)
