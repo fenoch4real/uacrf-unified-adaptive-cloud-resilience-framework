@@ -41,17 +41,30 @@ flows={
 'migration':('One owner migration procedure',['Old owner','Migration','New owner','Route edge'],[(0,1,'1 Freeze scope and retain baseline hashes'),(1,2,'2 Deploy read-only and compare responses'),(1,0,'3 Stop new writes and fence old workers'),(0,2,'4 Snapshot and replay to accepted watermark'),(1,2,'5 Reconcile rows digests artifacts and events'),(1,3,'6 Switch one route ownership epoch'),(3,2,'7 Allow only new owner writes'),(1,2,'8 Verify UI and repair or finalize cutover')],'After accepted new writes, rollback needs reconciled reverse migration or forward repair. Routing alone cannot restore lost facts.')}
 flows['execution_overview']=('Execution admission and outcome review',['S11 workflow','S10 authority','Source owners','Executor','Provider','S12 validation'],[(0,1,'1 Request bound authorization'),(1,2,'2 Verify current owner receipts'),(1,0,'3 Reserve one exact attempt'),(3,1,'4 Revalidate permit and fence'),(3,3,'5 Retain dispatch intent'),(3,4,'6 Apply conditional provider action'),(0,5,'7 Reconcile effect and request probes'),(5,1,'8 Retain justified validation outcome')],'Denial stops dispatch. An uncertain provider effect stays Unknown. Only observed independent validation can establish recovery.')
 for name,(title,participants,steps,note) in flows.items():
- rowheight=90 if len(participants)>5 else 77
- height=150+len(steps)*rowheight+150;s=start(1000,height,title);n=len(participants);xs=[85+i*(830/(n-1)) for i in range(n)]
- for x,label in zip(xs,participants):
-  text(s,x-75,85,label,15,19);s.append(f'<line x1="{x}" y1="120" x2="{x}" y2="{height-140}" stroke="#c2cfdb" stroke-dasharray="5 5"/>')
- for i,(a,b,label) in enumerate(steps):
-  y=150+i*rowheight
+ n=len(participants);xs=[85+i*(830/(n-1)) for i in range(n)]
+ rows=[];y=150
+ for a,b,label in steps:
+  width=29 if a==b else max(17,int(abs(xs[b]-xs[a])/10))
+  lines=len(textwrap.wrap(label,width=width))
   if a==b:
-   x=min(675,max(25,xs[a]-140));s.append(f'<rect x="{x}" y="{y-20}" width="300" height="70" rx="8" fill="#e8f2ff" stroke="#bbcad9"/>');text(s,x+12,y+1,label,29,19)
+   box_height=max(70,32+lines*24)
+   rows.append((a,b,label,y,width,box_height))
+   y=y-20+box_height+42
   else:
-   x1=xs[a];x2=xs[b];line(s,x1,y+70 if n>5 else y+60,x2,y+70 if n>5 else y+60);labelx=max(20,min(x1,x2)+8);text(s,labelx,y,label,max(17,int(abs(x2-x1)/10)),19)
- text(s,35,height-100,note,87,19)
+   arrow_y=y+(lines-1)*24+25
+   rows.append((a,b,label,y,width,arrow_y))
+   y=arrow_y+38
+ note_y=y+15
+ height=note_y+35+max(0,len(textwrap.wrap(note,width=87))-1)*24
+ s=start(1000,height,title)
+ for x,label in zip(xs,participants):
+  text(s,x-75,85,label,15,19);s.append(f'<line x1="{x}" y1="120" x2="{x}" y2="{note_y-25}" stroke="#c2cfdb" stroke-dasharray="5 5"/>')
+ for a,b,label,y,width,extent in rows:
+  if a==b:
+   x=min(675,max(25,xs[a]-140));s.append(f'<rect x="{x}" y="{y-20}" width="300" height="{extent}" rx="8" fill="#e8f2ff" stroke="#bbcad9"/>');text(s,x+12,y+1,label,width,19)
+  else:
+   x1=xs[a];x2=xs[b];line(s,x1,extent,x2,extent);labelx=max(20,min(x1,x2)+8);text(s,labelx,y,label,width,19)
+ text(s,35,note_y,note,87,19)
  end(s,name)
  m=['sequenceDiagram']+[f'  participant P{i} as {p}' for i,p in enumerate(participants)]
  m+=['  alt Required current prerequisites hold']+[f'    P{a}->>P{b}: {label}' for a,b,label in steps]
