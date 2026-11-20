@@ -1371,8 +1371,14 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   generated attempt ID and exact packet bytes, with context digest equal to the
   packet-byte digest. This rejects mismatched gateway attempts, models, limits
   or contexts. Intent derivation rechecks the original run deadline, so a
-  prepared snapshot cannot derive new journal intents after expiry. This
-  remains only intent derivation: it does not persist or admit them.
+  prepared snapshot cannot derive new journal intents after expiry. Each
+  derived intent also carries that deadline, and journal admission requires an
+  exact match with the sealed run fence; a later fence cannot extend the
+  prepared request's validity. Mismatch leaves no journal entry. The expired-
+  snapshot and deadline-extension regressions pass; the full advisory module
+  suite passed 136 tests with no failures or skips. This remains only intent
+  derivation and journal guarding, not requester authorization, idempotent
+  durable run admission, outbox scheduling or provider dispatch.
   Future profile changes, run-boundary authorization, complete graph/evidence
   inputs, and current eligibility beyond point-in-time owner checks remain
   unestablished; provider dispatch remains disabled. Preparation rejects a

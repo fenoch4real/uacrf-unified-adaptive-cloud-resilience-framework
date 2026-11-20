@@ -39,12 +39,13 @@ final class DispatchJournal {
     }
   }
 
-  record Intent(Key key, String runId, String assignmentId, long generation,
+  record Intent(Key key, String runId, String assignmentId, long generation, Instant runDeadline,
                 AdvisoryBudget.Role role, String profileId, AdvisoryGateway.Request request,
                 String contextDigest, InputPacket packet) {
     Intent {
       java.util.Objects.requireNonNull(key, "key");
       java.util.Objects.requireNonNull(packet, "packet");
+      java.util.Objects.requireNonNull(runDeadline, "runDeadline");
       java.util.Objects.requireNonNull(role, "role");
       java.util.Objects.requireNonNull(request, "request");
       requireId(runId);
@@ -303,7 +304,8 @@ final class DispatchJournal {
     }
   }
 
-  // A false result or an exception must never be treated as permission to dispatch.
+  // The run fence must retain the prepared request's deadline; neither a false result nor an
+  // exception may be treated as permission to dispatch.
   boolean begin(Intent intent) throws SQLException {
     // Materialization acquires the run lock before evaluating the remaining run deadline.
     String sql = """
@@ -312,6 +314,7 @@ final class DispatchJournal {
                  deadline_epoch_second, deadline_nano
           FROM uacrf_advisory.run_fence
           WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND generation = ?
+            AND deadline_epoch_second = ? AND deadline_nano = ?
           FOR UPDATE
         ), observed AS MATERIALIZED (
           SELECT locked.*, clock_timestamp() AS admitted_at FROM locked
@@ -355,25 +358,27 @@ final class DispatchJournal {
       statement.setString(2, intent.key().environmentId());
       statement.setString(3, intent.runId());
       statement.setLong(4, intent.generation());
-      statement.setString(5, intent.key().tenantId());
-      statement.setString(6, intent.key().environmentId());
-      statement.setString(7, intent.runId());
-      statement.setString(8, intent.assignmentId());
-      statement.setString(9, intent.key().attemptId());
-      statement.setLong(10, intent.generation());
-      statement.setString(11, intent.request().model());
-      statement.setInt(12, intent.request().maxOutputTokens());
-      statement.setLong(13, intent.request().timeout().getSeconds());
-      statement.setInt(14, intent.request().timeout().getNano());
-      statement.setString(15, intent.contextDigest());
-      statement.setBytes(16, intent.packet().bytes());
-      statement.setString(17, intent.packet().bytesDigest());
-      statement.setLong(18, intent.request().timeout().getSeconds());
-      statement.setInt(19, intent.request().timeout().getNano());
-      statement.setInt(20, intent.request().maxOutputTokens());
-      statement.setInt(21, intent.request().maxOutputTokens());
-      statement.setString(22, intent.role().name());
-      statement.setString(23, intent.profileId());
+      statement.setLong(5, intent.runDeadline().getEpochSecond());
+      statement.setInt(6, intent.runDeadline().getNano());
+      statement.setString(7, intent.key().tenantId());
+      statement.setString(8, intent.key().environmentId());
+      statement.setString(9, intent.runId());
+      statement.setString(10, intent.assignmentId());
+      statement.setString(11, intent.key().attemptId());
+      statement.setLong(12, intent.generation());
+      statement.setString(13, intent.request().model());
+      statement.setInt(14, intent.request().maxOutputTokens());
+      statement.setLong(15, intent.request().timeout().getSeconds());
+      statement.setInt(16, intent.request().timeout().getNano());
+      statement.setString(17, intent.contextDigest());
+      statement.setBytes(18, intent.packet().bytes());
+      statement.setString(19, intent.packet().bytesDigest());
+      statement.setLong(20, intent.request().timeout().getSeconds());
+      statement.setInt(21, intent.request().timeout().getNano());
+      statement.setInt(22, intent.request().maxOutputTokens());
+      statement.setInt(23, intent.request().maxOutputTokens());
+      statement.setString(24, intent.role().name());
+      statement.setString(25, intent.profileId());
       return statement.executeUpdate() == 1;
     }
   }
@@ -436,12 +441,16 @@ final class DispatchJournal {
 
   Optional<Entry> find(Key key) throws SQLException {
     String sql = """
-        SELECT journal.run_id, journal.assignment_id, journal.generation, journal.role, journal.profile_id,
+        SELECT journal.run_id, journal.assignment_id, journal.generation,
+               fence.deadline_epoch_second, fence.deadline_nano, journal.role, journal.profile_id,
                journal.model_ref, journal.max_output_tokens, journal.timeout_seconds, journal.timeout_nanos,
                journal.context_digest, journal.packet_bytes, journal.packet_bytes_digest, journal.state,
                journal.response_text, journal.input_tokens, journal.output_tokens, journal.unknown_reason,
                journal.recording_fence, allocation.tokens
         FROM uacrf_advisory.dispatch_journal journal
+        JOIN uacrf_advisory.run_fence fence
+          ON fence.tenant_id = journal.tenant_id AND fence.environment_id = journal.environment_id
+          AND fence.run_id = journal.run_id AND fence.generation = journal.generation
         JOIN uacrf_advisory.run_allocation allocation
           ON allocation.tenant_id = journal.tenant_id AND allocation.environment_id = journal.environment_id
           AND allocation.run_id = journal.run_id AND allocation.generation = journal.generation
@@ -457,8 +466,8 @@ final class DispatchJournal {
         if (!result.next()) {
           return Optional.empty();
         }
-        InputPacket packet = new InputPacket(result.getBytes(11));
-        if (!packet.bytesDigest().equals(result.getString(12))) {
+        InputPacket packet = new InputPacket(result.getBytes(13));
+        if (!packet.bytesDigest().equals(result.getString(14))) {
           throw new SQLException("Retained input packet digest does not match its bytes.");
         }
         AdvisoryGateway.Request request;
@@ -467,28 +476,29 @@ final class DispatchJournal {
               .onMalformedInput(CodingErrorAction.REPORT)
               .onUnmappableCharacter(CodingErrorAction.REPORT)
               .decode(ByteBuffer.wrap(packet.bytes())).toString();
-          request = new AdvisoryGateway.Request(key.attemptId(), result.getString(6), context,
-              result.getInt(7), Duration.ofSeconds(result.getLong(8), result.getInt(9)));
-          if (request.maxOutputTokens() > result.getInt(19)) {
+          request = new AdvisoryGateway.Request(key.attemptId(), result.getString(8), context,
+              result.getInt(9), Duration.ofSeconds(result.getLong(10), result.getInt(11)));
+          if (request.maxOutputTokens() > result.getInt(21)) {
             throw new SQLException("Retained gateway output limit exceeds its sealed allocation.");
           }
         } catch (CharacterCodingException | IllegalArgumentException failure) {
           throw new SQLException("Retained gateway request is invalid.", failure);
         }
         Intent intent = new Intent(key, result.getString(1), result.getString(2),
-            result.getLong(3), AdvisoryBudget.Role.valueOf(result.getString(4)), result.getString(5),
-            request, result.getString(10), packet);
-        Optional<AdvisoryGateway.Outcome> outcome = switch (result.getString(13)) {
+            result.getLong(3), Instant.ofEpochSecond(result.getLong(4), result.getInt(5)),
+            AdvisoryBudget.Role.valueOf(result.getString(6)), result.getString(7),
+            request, result.getString(12), packet);
+        Optional<AdvisoryGateway.Outcome> outcome = switch (result.getString(15)) {
           case "DISPATCH_INTENT" -> Optional.empty();
           case "RESPONSE" -> Optional.of(new AdvisoryGateway.Response(
-              result.getString(14), result.getInt(15), result.getInt(16)));
-          case "UNKNOWN" -> Optional.of(new AdvisoryGateway.Unknown(result.getString(17)));
+              result.getString(16), result.getInt(17), result.getInt(18)));
+          case "UNKNOWN" -> Optional.of(new AdvisoryGateway.Unknown(result.getString(19)));
           default -> throw new SQLException("Unrecognized dispatch journal state.");
         };
-        String recordingFence = result.getString(18);
+        String recordingFence = result.getString(20);
         return Optional.of(new Entry(intent, outcome,
             recordingFence == null ? Optional.empty() : Optional.of(RecordingFence.valueOf(recordingFence)),
-            result.getInt(19)));
+            result.getInt(21)));
       }
     }
   }

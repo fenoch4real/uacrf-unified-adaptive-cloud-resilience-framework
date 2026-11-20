@@ -67,10 +67,16 @@ class DispatchJournalTests {
   private static DispatchJournal.Intent intent(String tenant, String attempt, String assignment,
                                                AdvisoryBudget.Role role, String profile, InputPacket packet,
                                                int maxOutputTokens, Duration timeout) {
+    return intent(tenant, attempt, assignment, role, profile, packet, maxOutputTokens, timeout, TEST_DEADLINE);
+  }
+
+  private static DispatchJournal.Intent intent(String tenant, String attempt, String assignment,
+                                               AdvisoryBudget.Role role, String profile, InputPacket packet,
+                                               int maxOutputTokens, Duration timeout, Instant runDeadline) {
     var request = new AdvisoryGateway.Request(attempt, "model-a",
         new String(packet.bytes(), StandardCharsets.UTF_8), maxOutputTokens, timeout);
     return new DispatchJournal.Intent(new DispatchJournal.Key(tenant, "env", attempt),
-        "run", assignment, 1, role, profile, request, packet.bytesDigest(), packet);
+        "run", assignment, 1, runDeadline, role, profile, request, packet.bytesDigest(), packet);
   }
 
   @Test
@@ -79,7 +85,7 @@ class DispatchJournalTests {
     var request = new AdvisoryGateway.Request("attempt", "model-a", "bounded test packet", 100, Duration.ofSeconds(30));
     assertThrows(IllegalArgumentException.class, () -> new DispatchJournal.Intent(
         new DispatchJournal.Key("digest-binding", "env", "attempt"), "run", "assignment", 1,
-        AdvisoryBudget.Role.ANALYST, "analyst", request, "a".repeat(64), packet));
+        TEST_DEADLINE, AdvisoryBudget.Role.ANALYST, "analyst", request, "a".repeat(64), packet));
   }
 
   private static AdvisoryBudget budget() {
@@ -358,7 +364,6 @@ class DispatchJournalTests {
   @Test
   void admissionRejectsRequestTimeoutBeyondRemainingRunDeadline() throws Exception {
     var journal = new DispatchJournal(dataSource);
-    var intent = intent("timeout-deadline", "attempt", "assignment");
     Instant deadline;
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement();
@@ -366,7 +371,22 @@ class DispatchJournalTests {
       assertTrue(result.next());
       deadline = result.getObject(1, OffsetDateTime.class).toInstant();
     }
+    var intent = intent("timeout-deadline", "attempt", "assignment", AdvisoryBudget.Role.ANALYST,
+        "analyst", new InputPacket("bounded test packet".getBytes(StandardCharsets.UTF_8)),
+        100, Duration.ofSeconds(30), deadline);
     assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), deadline));
+    assertFalse(journal.begin(intent));
+    assertTrue(journal.find(intent.key()).isEmpty());
+  }
+
+  @Test
+  void admissionCannotExtendThePreparedRunDeadline() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    Instant preparedDeadline = Instant.now().plusSeconds(120);
+    var intent = intent("deadline-binding", "attempt", "assignment", AdvisoryBudget.Role.ANALYST,
+        "analyst", new InputPacket("bounded test packet".getBytes(StandardCharsets.UTF_8)),
+        100, Duration.ofSeconds(30), preparedDeadline);
+    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
     assertFalse(journal.begin(intent));
     assertTrue(journal.find(intent.key()).isEmpty());
   }
@@ -452,7 +472,8 @@ class DispatchJournalTests {
     assertTrue(journal.registerRun(intent.runKey(), 1, budget(), TEST_DEADLINE));
     assertFalse(journal.registerRun(intent.runKey(), 2, budget(), TEST_DEADLINE));
     var stale = new DispatchJournal.Intent(intent.key(), intent.runId(), intent.assignmentId(), 2,
-        intent.role(), intent.profileId(), intent.request(), intent.contextDigest(), intent.packet());
+        intent.runDeadline(), intent.role(), intent.profileId(), intent.request(),
+        intent.contextDigest(), intent.packet());
     assertFalse(journal.begin(stale));
     assertTrue(journal.begin(intent));
     assertFalse(journal.cancel(intent.runKey(), 2, 1, "reviewer", "stale generation"));
@@ -586,9 +607,7 @@ class DispatchJournalTests {
   @Test
   void deadlineIsRecheckedAfterWaitingForRunLock() throws Exception {
     var journal = new DispatchJournal(dataSource);
-    var analyst = intent("deadline-race", "analyst-attempt", "analyst-assignment",
-        AdvisoryBudget.Role.ANALYST, "analyst",
-        new InputPacket("bounded test packet".getBytes(StandardCharsets.UTF_8)), 100, Duration.ofSeconds(1));
+    var packet = new InputPacket("bounded test packet".getBytes(StandardCharsets.UTF_8));
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement();
          var executor = Executors.newSingleThreadExecutor()) {
@@ -597,10 +616,12 @@ class DispatchJournalTests {
         assertTrue(result.next());
         deadline = result.getObject(1, OffsetDateTime.class).toInstant();
       }
+      var analyst = intent("deadline-race", "analyst-attempt", "analyst-assignment",
+          AdvisoryBudget.Role.ANALYST, "analyst", packet, 100, Duration.ofSeconds(1), deadline);
       assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), deadline));
       assertTrue(journal.begin(analyst));
       var reviewer = intent("deadline-race", "reviewer-attempt", "reviewer-assignment",
-          AdvisoryBudget.Role.REVIEWER, "reviewer", analyst.packet());
+          AdvisoryBudget.Role.REVIEWER, "reviewer", analyst.packet(), 100, Duration.ofSeconds(30), deadline);
       connection.setAutoCommit(false);
       statement.executeQuery("SELECT 1 FROM uacrf_advisory.run_fence WHERE tenant_id='deadline-race' FOR UPDATE").close();
       var started = new CountDownLatch(1);

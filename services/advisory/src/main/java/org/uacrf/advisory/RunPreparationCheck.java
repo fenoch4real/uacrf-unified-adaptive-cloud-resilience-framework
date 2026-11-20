@@ -61,7 +61,8 @@ final class RunPreparationCheck {
         }
         intents.add(new DispatchJournal.Intent(new DispatchJournal.Key(
             runKey.tenantId(), runKey.environmentId(), requestLimits.attemptId()), runKey.runId(),
-            assignments.get(profileId), generation, allocation.role(), profileId, gatewayRequest,
+            assignments.get(profileId), generation, preparation.request().deadline(),
+            allocation.role(), profileId, gatewayRequest,
             packet.bytesDigest(), packet));
       }
       return List.copyOf(intents);
