@@ -13,7 +13,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -103,27 +105,51 @@ class DispatchJournalTests {
   }
 
   private static List<DispatchJournal.Intent> dispatchPlan(
-      DispatchJournal.RunKey runKey, long generation, AdvisoryRunRequest request) {
+      DispatchJournal.RunKey runKey, long generation, AdvisoryBudget budget, Instant deadline,
+      DispatchJournal.Intent... preparedIntents) {
+    Map<AdvisoryBudget.Role, DispatchJournal.Intent> prepared = new EnumMap<>(AdvisoryBudget.Role.class);
+    for (DispatchJournal.Intent intent : preparedIntents) {
+      var allocation = budget.allocations().stream()
+          .filter(candidate -> candidate.role() == intent.role()).findFirst().orElse(null);
+      if (intent.runKey().equals(runKey) && intent.generation() == generation
+          && intent.runDeadline().equals(deadline) && allocation != null
+          && allocation.agentProfileId().equals(intent.profileId())
+          && intent.request().maxOutputTokens() <= allocation.tokens()) {
+        prepared.putIfAbsent(intent.role(), intent);
+      }
+    }
     List<DispatchJournal.Intent> plan = new ArrayList<>();
-    for (var allocation : request.budget().allocations()) {
-      String attempt = runKey.runId() + "-" + allocation.role().name();
-      String assignment = runKey.runId() + "-assignment-" + allocation.role().name();
-      String context = "prepared:" + runKey.runId() + ":" + allocation.role().name();
-      var packet = new InputPacket(context.getBytes(StandardCharsets.UTF_8));
-      var gatewayRequest = new AdvisoryGateway.Request(
-          attempt, "model-a", context, allocation.tokens(), Duration.ofSeconds(30));
-      plan.add(new DispatchJournal.Intent(
-          new DispatchJournal.Key(runKey.tenantId(), runKey.environmentId(), attempt),
-          runKey.runId(), assignment, generation, request.deadline(), allocation.role(),
-          allocation.agentProfileId(), gatewayRequest, packet.bytesDigest(), packet));
+    for (var allocation : budget.allocations()) {
+      var intent = prepared.get(allocation.role());
+      if (intent == null) {
+        String attempt = runKey.runId() + "-plan-" + allocation.role().name();
+        String assignment = runKey.runId() + "-plan-assignment-" + allocation.role().name();
+        String context = "prepared-plan:" + runKey.runId() + ":" + allocation.role().name();
+        var packet = new InputPacket(context.getBytes(StandardCharsets.UTF_8));
+        var gatewayRequest = new AdvisoryGateway.Request(
+            attempt, "model-a", context, allocation.tokens(), Duration.ofSeconds(30));
+        intent = new DispatchJournal.Intent(
+            new DispatchJournal.Key(runKey.tenantId(), runKey.environmentId(), attempt),
+            runKey.runId(), assignment, generation, deadline, allocation.role(),
+            allocation.agentProfileId(), gatewayRequest, packet.bytesDigest(), packet);
+      }
+      plan.add(intent);
     }
     return List.copyOf(plan);
+  }
+
+  private static boolean registerRun(
+      DispatchJournal journal, DispatchJournal.RunKey runKey, long generation, AdvisoryBudget budget,
+      Instant deadline, DispatchJournal.Intent... preparedIntents) throws SQLException {
+    return journal.registerRun(runKey, generation, budget, deadline,
+        dispatchPlan(runKey, generation, budget, deadline, preparedIntents));
   }
 
   private static DispatchJournal.AdmissionResult admit(
       DispatchJournal journal, DispatchJournal.RunKey key, AdvisoryRunRequest request,
       String principalId, String operation, String idempotencyKey) throws SQLException {
-    return journal.admitRun(key, 1, request, dispatchPlan(key, 1, request),
+    return journal.admitRun(key, 1, request,
+        dispatchPlan(key, 1, request.budget(), request.deadline()),
         principalId, operation, idempotencyKey);
   }
 
@@ -132,7 +158,7 @@ class DispatchJournalTests {
     var journal = new DispatchJournal(dataSource);
     var requestedRun = new DispatchJournal.RunKey("admission", "env", "run-1");
     var request = admissionRequest(TEST_DEADLINE, "Run assessment");
-    var plan = dispatchPlan(requestedRun, 1, request);
+    var plan = dispatchPlan(requestedRun, 1, request.budget(), request.deadline());
     var incompleteRun = new DispatchJournal.RunKey("admission", "env", "run-incomplete");
     assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
         incompleteRun, 1, request, plan.subList(0, 1),
@@ -292,7 +318,7 @@ class DispatchJournalTests {
   void committedIntentSurvivesReopeningAndNeverAuthorizesDuplicate() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("intent", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
 
     var reopened = new DispatchJournal(dataSource);
@@ -332,7 +358,7 @@ class DispatchJournalTests {
   void legacyIntentCanBeFinalizedButCannotBeReconstructedOrRetried() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("legacy-intent", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement()) {
@@ -357,7 +383,7 @@ class DispatchJournalTests {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("response", "attempt", "assignment");
     var response = new AdvisoryGateway.Response("retained response", 42, 17);
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
     assertTrue(journal.complete(intent.key(), response));
     assertEquals(response, new DispatchJournal(dataSource).find(intent.key()).orElseThrow()
@@ -384,7 +410,7 @@ class DispatchJournalTests {
   void unknownOutcomeIsRetainedWithoutUsage() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("unknown", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
     assertTrue(journal.complete(intent.key(), new AdvisoryGateway.Unknown("delivery uncertain")));
     assertEquals(new AdvisoryGateway.Unknown("delivery uncertain"),
@@ -409,7 +435,7 @@ class DispatchJournalTests {
     var analyst = intent("token-report", "attempt-a", "assignment-a");
     var reviewer = intent("token-report", "attempt-b", "assignment-b", AdvisoryBudget.Role.REVIEWER,
         "reviewer", analyst.packet());
-    assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, analyst.runKey(), 1, budget(), TEST_DEADLINE, analyst, reviewer));
     assertTrue(journal.begin(analyst));
     assertTrue(journal.begin(reviewer));
     assertEquals(DispatchJournal.ReportedTokenStatus.UNAVAILABLE,
@@ -440,7 +466,7 @@ class DispatchJournalTests {
     var analyst = intent("reconciliation", "attempt-a", "assignment-a");
     var reviewer = intent("reconciliation", "attempt-b", "assignment-b", AdvisoryBudget.Role.REVIEWER,
         "reviewer", analyst.packet());
-    assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, analyst.runKey(), 1, budget(), TEST_DEADLINE, analyst, reviewer));
     assertTrue(journal.begin(analyst));
     assertTrue(journal.begin(reviewer));
     assertTrue(journal.complete(reviewer.key(), new AdvisoryGateway.Unknown("delivery uncertain")));
@@ -475,7 +501,7 @@ class DispatchJournalTests {
   void rejectsRetainedPacketWhoseBytesNoLongerMatchItsDigest() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("corrupt-packet", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement()) {
@@ -492,7 +518,8 @@ class DispatchJournalTests {
   @Test
   void concurrentAttemptsForRoleHaveOneWinner() throws Exception {
     var journal = new DispatchJournal(dataSource);
-    assertTrue(journal.registerRun(intent("race", "attempt", "assignment").runKey(), 1, budget(), TEST_DEADLINE));
+    var planned = intent("race", "attempt-0", "assignment-0");
+    assertTrue(registerRun(journal, planned.runKey(), 1, budget(), TEST_DEADLINE, planned));
     var start = new CountDownLatch(1);
     try (var executor = Executors.newFixedThreadPool(8)) {
       List<Future<Boolean>> results = new ArrayList<>();
@@ -518,13 +545,13 @@ class DispatchJournalTests {
   void admissionRequiresAnUnusedAllocatedRoleAndMatchingProfile() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var analyst = intent("allocation", "analyst-attempt", "analyst-assignment");
-    assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), TEST_DEADLINE));
+    var reviewer = intent("allocation", "reviewer-attempt", "reviewer-assignment",
+        AdvisoryBudget.Role.REVIEWER, "reviewer", analyst.packet());
+    assertTrue(registerRun(journal, analyst.runKey(), 1, budget(), TEST_DEADLINE, analyst, reviewer));
     var wrongProfile = intent("allocation", "wrong-profile", "wrong-profile-assignment",
         AdvisoryBudget.Role.ANALYST, "reviewer", analyst.packet());
     var unallocated = intent("allocation", "critic-attempt", "critic-assignment",
         AdvisoryBudget.Role.CRITIC, "critic", analyst.packet());
-    var reviewer = intent("allocation", "reviewer-attempt", "reviewer-assignment",
-        AdvisoryBudget.Role.REVIEWER, "reviewer", analyst.packet());
     var oversizedOutput = intent("allocation", "oversized-output", "oversized-assignment",
         AdvisoryBudget.Role.ANALYST, "analyst", analyst.packet(), 101);
     assertFalse(journal.begin(wrongProfile));
@@ -569,7 +596,7 @@ class DispatchJournalTests {
     var intent = intent("timeout-deadline", "attempt", "assignment", AdvisoryBudget.Role.ANALYST,
         "analyst", new InputPacket("bounded test packet".getBytes(StandardCharsets.UTF_8)),
         100, Duration.ofSeconds(30), deadline);
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), deadline));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), deadline, intent));
     assertFalse(journal.begin(intent));
     assertTrue(journal.find(intent.key()).isEmpty());
   }
@@ -581,7 +608,7 @@ class DispatchJournalTests {
     var intent = intent("deadline-binding", "attempt", "assignment", AdvisoryBudget.Role.ANALYST,
         "analyst", new InputPacket("bounded test packet".getBytes(StandardCharsets.UTF_8)),
         100, Duration.ofSeconds(30), preparedDeadline);
-    assertTrue(journal.registerRun(intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), intent.generation(), budget(), TEST_DEADLINE));
     assertFalse(journal.begin(intent));
     assertTrue(journal.find(intent.key()).isEmpty());
   }
@@ -592,7 +619,7 @@ class DispatchJournalTests {
     var analyst = intent("aggregate-budget", "analyst-attempt", "analyst-assignment");
     var reviewer = intent("aggregate-budget", "reviewer-attempt", "reviewer-assignment",
         AdvisoryBudget.Role.REVIEWER, "reviewer", analyst.packet(), 200);
-    assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, analyst.runKey(), 1, budget(), TEST_DEADLINE, analyst, reviewer));
     assertTrue(journal.begin(analyst));
     assertTrue(journal.complete(analyst.key(), new AdvisoryGateway.Response("answer", 250, 10)));
     assertFalse(journal.begin(reviewer));
@@ -601,7 +628,8 @@ class DispatchJournalTests {
     var uncertainAnalyst = intent("unknown-blocks-admission", "analyst-attempt", "analyst-assignment");
     var uncertainReviewer = intent("unknown-blocks-admission", "reviewer-attempt", "reviewer-assignment",
         AdvisoryBudget.Role.REVIEWER, "reviewer", uncertainAnalyst.packet());
-    assertTrue(journal.registerRun(uncertainAnalyst.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, uncertainAnalyst.runKey(), 1, budget(), TEST_DEADLINE,
+        uncertainAnalyst, uncertainReviewer));
     assertTrue(journal.begin(uncertainAnalyst));
     assertTrue(journal.complete(uncertainAnalyst.key(), new AdvisoryGateway.Unknown("delivery uncertain")));
     assertFalse(journal.begin(uncertainReviewer));
@@ -612,6 +640,7 @@ class DispatchJournalTests {
   void registrationRollsBackRunWhenAllocationInsertFails() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var run = intent("registration-failure", "attempt", "assignment").runKey();
+    var failedIntent = intent("registration-failure", "attempt", "assignment");
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement()) {
       statement.execute("""
@@ -619,7 +648,8 @@ class DispatchJournalTests {
           ADD CONSTRAINT test_forced_allocation_failure CHECK (tenant_id <> 'registration-failure')
           """);
       try {
-        assertThrows(SQLException.class, () -> journal.registerRun(run, 1, budget(), TEST_DEADLINE));
+        assertThrows(SQLException.class,
+            () -> registerRun(journal, run, 1, budget(), TEST_DEADLINE, failedIntent));
       } finally {
         statement.execute("ALTER TABLE uacrf_advisory.run_allocation DROP CONSTRAINT test_forced_allocation_failure");
       }
@@ -651,6 +681,25 @@ class DispatchJournalTests {
               VALUES ('over-budget', 'env', 'run', 1, 'REVIEWER', 'reviewer', 1, 0)
               """);
         }
+        String packetDigest = "a".repeat(64);
+        statement.executeUpdate("""
+            INSERT INTO uacrf_advisory.run_dispatch_plan
+              (tenant_id, environment_id, run_id, generation, assignment_id, attempt_id, role, profile_id,
+               model_ref, max_output_tokens, timeout_seconds, timeout_nanos, context_digest, packet_bytes,
+               packet_bytes_digest)
+            VALUES ('over-budget', 'env', 'run', 1, 'assignment-analyst', 'attempt-analyst',
+              'ANALYST', 'analyst', 'model-a', 1, 30, 0, '%s', decode('00', 'hex'), '%s')
+            """.formatted(packetDigest, packetDigest));
+        if (failure.equals("calls")) {
+          statement.executeUpdate("""
+              INSERT INTO uacrf_advisory.run_dispatch_plan
+                (tenant_id, environment_id, run_id, generation, assignment_id, attempt_id, role, profile_id,
+                 model_ref, max_output_tokens, timeout_seconds, timeout_nanos, context_digest, packet_bytes,
+                 packet_bytes_digest)
+              VALUES ('over-budget', 'env', 'run', 1, 'assignment-reviewer', 'attempt-reviewer',
+                'REVIEWER', 'reviewer', 'model-a', 1, 30, 0, '%s', decode('00', 'hex'), '%s')
+              """.formatted(packetDigest, packetDigest));
+        }
         assertThrows(SQLException.class, () -> statement.executeUpdate("""
             UPDATE uacrf_advisory.run_fence SET state = 'ACTIVE' WHERE tenant_id = 'over-budget'
             """));
@@ -660,12 +709,41 @@ class DispatchJournalTests {
   }
 
   @Test
+  void databaseRejectsNewRunsThatDisablePlanBinding() throws Exception {
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.createStatement()) {
+      connection.setAutoCommit(false);
+      assertThrows(SQLException.class, () -> statement.executeUpdate("""
+          INSERT INTO uacrf_advisory.run_fence
+            (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
+             deadline_epoch_second, deadline_nano, dispatch_plan_required, state, revision)
+          VALUES ('unplanned-new-run', 'env', 'run-disabled', 1, 1, 1, 0, 4070908800, 0, false, 'DRAFT', 1)
+          """));
+      connection.rollback();
+      statement.executeUpdate("""
+          INSERT INTO uacrf_advisory.run_fence
+            (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
+             deadline_epoch_second, deadline_nano, state, revision)
+          VALUES ('unplanned-new-run', 'env', 'run-default', 1, 1, 1, 0, 4070908800, 0, 'DRAFT', 1)
+          """);
+      try (var result = statement.executeQuery("""
+          SELECT dispatch_plan_required FROM uacrf_advisory.run_fence
+          WHERE tenant_id = 'unplanned-new-run' AND run_id = 'run-default'
+          """)) {
+        assertTrue(result.next());
+        assertTrue(result.getBoolean(1));
+      }
+      connection.rollback();
+    }
+  }
+
+  @Test
   void cancellationRejectsNewIntentsButRetainsLateResults() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("cancel", "attempt", "assignment");
     assertFalse(journal.begin(intent));
-    assertTrue(journal.registerRun(intent.runKey(), 1, budget(), TEST_DEADLINE));
-    assertFalse(journal.registerRun(intent.runKey(), 2, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), 1, budget(), TEST_DEADLINE, intent));
+    assertFalse(registerRun(journal, intent.runKey(), 2, budget(), TEST_DEADLINE));
     var stale = new DispatchJournal.Intent(intent.key(), intent.runId(), intent.assignmentId(), 2,
         intent.runDeadline(), intent.role(), intent.profileId(), intent.request(),
         intent.contextDigest(), intent.packet());
@@ -677,7 +755,7 @@ class DispatchJournalTests {
         () -> journal.cancel(intent.runKey(), 1, 1, "reviewer", "  "));
     assertTrue(journal.cancel(intent.runKey(), 1, 1, "reviewer", "stop"));
     assertFalse(journal.cancel(intent.runKey(), 1, 1, "reviewer", "replay"));
-    assertFalse(journal.registerRun(intent.runKey(), 1, budget(), TEST_DEADLINE));
+    assertFalse(registerRun(journal, intent.runKey(), 1, budget(), TEST_DEADLINE, intent));
     var reviewer = intent("cancel", "reviewer-attempt", "reviewer-assignment",
         AdvisoryBudget.Role.REVIEWER, "reviewer", intent.packet());
     assertFalse(journal.begin(reviewer));
@@ -703,7 +781,7 @@ class DispatchJournalTests {
   void beginWaitsForConcurrentCancellationAndThenFailsClosed() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("cancel-race", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), 1, budget(), TEST_DEADLINE, intent));
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement();
          var executor = Executors.newSingleThreadExecutor()) {
@@ -734,7 +812,7 @@ class DispatchJournalTests {
   void completionWaitsForCancellationAndRecordsCancelledFence() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("completion-cancel-race", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), 1, budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
     try (Connection connection = dataSource.getConnection();
          var statement = connection.createStatement();
@@ -767,7 +845,7 @@ class DispatchJournalTests {
   void concurrentCompletionsRetainExactlyOneOutcome() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("completion-race", "attempt", "assignment");
-    assertTrue(journal.registerRun(intent.runKey(), 1, budget(), TEST_DEADLINE));
+    assertTrue(registerRun(journal, intent.runKey(), 1, budget(), TEST_DEADLINE, intent));
     assertTrue(journal.begin(intent));
     var response = new AdvisoryGateway.Response("response", 1, 1);
     var unknown = new AdvisoryGateway.Unknown("uncertain");
@@ -795,7 +873,7 @@ class DispatchJournalTests {
   void rejectsExpiredRunRegistration() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var run = intent("expired-registration", "attempt", "assignment").runKey();
-    assertThrows(SQLException.class, () -> journal.registerRun(run, 1, budget(), Instant.EPOCH));
+    assertThrows(SQLException.class, () -> registerRun(journal, run, 1, budget(), Instant.EPOCH));
     assertTrue(journal.findRun(run).isEmpty());
   }
 
@@ -813,10 +891,10 @@ class DispatchJournalTests {
       }
       var analyst = intent("deadline-race", "analyst-attempt", "analyst-assignment",
           AdvisoryBudget.Role.ANALYST, "analyst", packet, 100, Duration.ofSeconds(1), deadline);
-      assertTrue(journal.registerRun(analyst.runKey(), 1, budget(), deadline));
-      assertTrue(journal.begin(analyst));
       var reviewer = intent("deadline-race", "reviewer-attempt", "reviewer-assignment",
           AdvisoryBudget.Role.REVIEWER, "reviewer", analyst.packet(), 100, Duration.ofSeconds(30), deadline);
+      assertTrue(registerRun(journal, analyst.runKey(), 1, budget(), deadline, analyst, reviewer));
+      assertTrue(journal.begin(analyst));
       connection.setAutoCommit(false);
       statement.executeQuery("SELECT 1 FROM uacrf_advisory.run_fence WHERE tenant_id='deadline-race' FOR UPDATE").close();
       var started = new CountDownLatch(1);

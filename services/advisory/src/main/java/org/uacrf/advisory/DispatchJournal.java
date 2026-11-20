@@ -199,15 +199,19 @@ final class DispatchJournal {
     }
   }
 
-  boolean registerRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline) throws SQLException {
+  boolean registerRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
+                      List<Intent> dispatchPlan) throws SQLException {
     validateRunAdmission(key, generation, budget, deadline);
+    List<Intent> plan = validateDispatchPlan(key, generation, budget, deadline, dispatchPlan);
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
       try {
-        if (!insertActiveRun(connection, key, generation, budget, deadline, false)) {
+        if (!insertDraftRun(connection, key, generation, budget, deadline)) {
           connection.rollback();
           return false;
         }
+        insertDispatchPlan(connection, plan);
+        activateRun(connection, key);
         connection.commit();
         return true;
       } catch (SQLException | RuntimeException failure) {
@@ -240,8 +244,9 @@ final class DispatchJournal {
           connection.commit();
           return existing;
         }
-        List<Intent> plan = validateDispatchPlan(key, generation, request, dispatchPlan);
-        if (!insertDraftRun(connection, key, generation, request.budget(), request.deadline(), true)) {
+        List<Intent> plan = validateDispatchPlan(
+            key, generation, request.budget(), request.deadline(), dispatchPlan);
+        if (!insertDraftRun(connection, key, generation, request.budget(), request.deadline())) {
           connection.rollback();
           return findAdmissionAfterRace(key, principalId, operation, idempotencyKey, requestDigest);
         }
@@ -358,10 +363,10 @@ final class DispatchJournal {
   }
 
   private static List<Intent> validateDispatchPlan(
-      RunKey key, long generation, AdvisoryRunRequest request, List<Intent> dispatchPlan) {
+      RunKey key, long generation, AdvisoryBudget budget, Instant deadline, List<Intent> dispatchPlan) {
     Objects.requireNonNull(dispatchPlan, "dispatchPlan");
     Map<String, AdvisoryBudget.Allocation> allocations = new HashMap<>();
-    for (var allocation : request.budget().allocations()) {
+    for (var allocation : budget.allocations()) {
       allocations.put(allocation.agentProfileId(), allocation);
     }
     Set<String> profiles = new HashSet<>();
@@ -374,7 +379,7 @@ final class DispatchJournal {
       Objects.requireNonNull(intent, "dispatch plan intent");
       AdvisoryBudget.Allocation allocation = allocations.get(intent.profileId());
       if (!intent.runKey().equals(key) || intent.generation() != generation
-          || !intent.runDeadline().equals(request.deadline()) || allocation == null
+          || !intent.runDeadline().equals(deadline) || allocation == null
           || intent.role() != allocation.role() || intent.request().maxOutputTokens() > allocation.tokens()
           || !profiles.add(intent.profileId()) || !attempts.add(intent.key().attemptId())
           || !assignments.add(intent.assignmentId())) {
@@ -415,19 +420,9 @@ final class DispatchJournal {
     }
   }
 
-  private static boolean insertActiveRun(
-      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
-      boolean dispatchPlanRequired) throws SQLException {
-    if (!insertDraftRun(connection, key, generation, budget, deadline, dispatchPlanRequired)) {
-      return false;
-    }
-    activateRun(connection, key);
-    return true;
-  }
-
   private static boolean insertDraftRun(
-      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
-      boolean dispatchPlanRequired) throws SQLException {
+      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline)
+      throws SQLException {
     String runSql = """
         INSERT INTO uacrf_advisory.run_fence
           (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
@@ -445,7 +440,7 @@ final class DispatchJournal {
       statement.setInt(7, budget.maxCostUnits());
       statement.setLong(8, deadline.getEpochSecond());
       statement.setInt(9, deadline.getNano());
-      statement.setBoolean(10, dispatchPlanRequired);
+      statement.setBoolean(10, true);
       if (statement.executeUpdate() == 0) {
         return false;
       }

@@ -1287,11 +1287,15 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   match for the retained attempt, assignment, role/profile, model, output
   ceiling, timeout, context digest, and packet bytes before it records a
   dispatch intent. Incomplete plans fail before creating a run; substituted
-  intents cannot dispatch from an admitted run. The older package-local
-  `registerRun` path remains only for isolated journal tests and does not set
-  this plan-required fence; no service handler uses it. PostgreSQL-backed tests
-  cover concurrent same-key admission, scope isolation, immutable plans and
-  records, substitution rejection, and deadline-failure rollback.
+  intents cannot dispatch from a planned run. The package-local `registerRun`
+  path also requires and persists a complete plan. Migration V5 defaults new
+  run fences to plan-required and rejects inserts that disable the requirement.
+  Existing pre-V5 fences are not assigned invented plans and retain legacy
+  behavior; a drain/migration policy is still required before connecting a
+  runtime that could use them. No service handler uses either library path.
+  PostgreSQL-backed tests cover concurrent same-key admission, scope isolation,
+  immutable plans and records, substitution rejection, and deadline-failure
+  rollback.
   The primitive still trusts its caller-supplied principal and does not
   authenticate the principal or recheck that owner context is unchanged at
   commit. No connected handler,
