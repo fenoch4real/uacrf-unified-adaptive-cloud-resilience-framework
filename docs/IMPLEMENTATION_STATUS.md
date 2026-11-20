@@ -1311,11 +1311,12 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   existing-event backfill, delivery-row creation failure rolling back admission,
   concurrent exclusive claims, tenant/environment isolation, expired-lease
   reclamation, active-token renewal, stale/expired-token rejection, direct
-  publication rejection, and rollback when event publication fails. The broader
-  PostgreSQL-backed regressions cover concurrent same-key admission, scope
-  isolation, immutable plans and records, substitution rejection, and deadline
-  failure. The clean advisory suite passed 148 tests with no failures, errors,
-  or skips. No service handler
+  publication rejection, rollback when event publication fails, and
+  single-winner concurrent acknowledgments. The broader PostgreSQL-backed
+  regressions cover concurrent same-key admission, scope isolation, immutable
+  plans and records, substitution rejection, and deadline failure. The clean
+  advisory suite passed 149 tests with no failures, errors, or skips. No service
+  handler
   uses the admission or delivery library paths; no outbox publisher or provider
   dispatch is wired.
   The primitive still trusts its caller-supplied principal and does not

@@ -522,6 +522,46 @@ class DispatchJournalTests {
   }
 
   @Test
+  void concurrentOutboxAcknowledgmentsHaveOneWinner() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-ack-race";
+    admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-1"),
+        admissionRequest(TEST_DEADLINE, "Concurrent outbox acknowledgment test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-outbox-ack-race");
+    var claim = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofMinutes(1)).getFirst();
+    var start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      Future<Boolean> first = executor.submit(() -> {
+        start.await();
+        return journal.markOutboxPublished(claim);
+      });
+      Future<Boolean> second = executor.submit(() -> {
+        start.await();
+        return journal.markOutboxPublished(claim);
+      });
+      start.countDown();
+      boolean firstResult = first.get(20, TimeUnit.SECONDS);
+      boolean secondResult = second.get(20, TimeUnit.SECONDS);
+      assertTrue(firstResult != secondResult);
+    }
+
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT delivery.state, event.state
+             FROM uacrf_advisory.outbox_delivery delivery
+             JOIN uacrf_advisory.outbox_event event USING (event_id)
+             WHERE event.event_id = ?
+             """)) {
+      statement.setString(1, claim.eventId());
+      try (var result = statement.executeQuery()) {
+        assertTrue(result.next());
+        assertEquals("PUBLISHED", result.getString(1));
+        assertEquals("PUBLISHED", result.getString(2));
+      }
+    }
+  }
+
+  @Test
   void concurrentSameKeyAdmissionCreatesOneRunAndOneSchedulingEvent() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var start = new CountDownLatch(1);
