@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment recommendations | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Assessment recommendations</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Workload: <strong th:text="${workloadId}">Workload ID</strong></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p>Retained recommendations are investigation-only, not executable or authorization to act.
+    They do not establish current evidence qualification.</p>
+  <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>
+  <p th:if="${assessmentError == null and #lists.isEmpty(recommendations)}">No recommendations are available for this workload.</p>
+  <ul class="inventory-list">
+    <li th:each="item : ${recommendations}">
+      <h2 th:text="${item.id}">Recommendation ID</h2>
+      <dl>
+        <dt>Kind</dt><dd th:text="${item.kind}">Kind</dd>
+        <dt>Case ID</dt><dd th:text="${item.caseId}">Case ID</dd>
+        <dt>Evaluation ID</dt><dd th:text="${item.evaluationId}">Evaluation ID</dd>
+        <dt>Metric</dt><dd th:text="${item.effectBounds.metric}">Metric</dd>
+        <dt>Comparator</dt><dd th:text="${item.effectBounds.comparator}">Comparator</dd>
+        <dt>Threshold</dt><dd th:text="${item.effectBounds.threshold}">Threshold</dd>
+        <dt>Unit</dt><dd th:text="${item.effectBounds.unit}">Unit</dd>
+        <dt>Effect</dt><dd th:text="${item.effectBounds.effect}">Effect</dd>
+      </dl>
+      <p><a th:href="@{/assessment-cases/{id}/evaluations(id=${item.caseId})}"
+            th:text="${'View evaluations for ' + item.caseId}">View evaluations</a></p>
+    </li>
+  </ul>
+</main>
+</body>
+</html>

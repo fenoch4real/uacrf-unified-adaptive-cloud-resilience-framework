@@ -165,7 +165,7 @@ VALUES
    'DRAFT', 1, 'test-fixture');
 SQL
 
-# Isolated synthetic cases and evaluation; insertion bypasses their workflows.
+# Isolated synthetic records; insertion bypasses their workflows.
 "${compose[@]}" exec -T assessment-db psql -v ON_ERROR_STOP=1 \
   -U uacrf_assessment_admin -d uacrf_assessment <<'SQL'
 INSERT INTO uacrf_assessment.analysis_case
@@ -191,7 +191,20 @@ VALUES
   ('local-dev', 'local', 'browser-evaluation-a', 'browser-case-a', 1,
    '2026-01-01T00:00:00Z', 1767225600, 0, 'SHADOW', 'INSUFFICIENT_EVIDENCE',
    '{"receipt_verification":"FAILED","receipt_reason_code":"OWNER_UNAVAILABLE","measurements":[]}'::jsonb,
-   'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+   'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'),
+  ('local-dev', 'local', 'browser-evaluation-b', 'browser-case-a', 2,
+   '2026-01-02T00:00:00Z', 1767312000, 0, 'LIVE', 'CONFIRMED_BREACH',
+   '{"receipt_verification":"SKIPPED","measurements":[]}'::jsonb,
+   'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc');
+INSERT INTO uacrf_assessment.recommendation
+  (tenant_id, environment_id, id, evaluation_id, case_id, workload_id, kind,
+   effect_bounds, prerequisite_refs, executable)
+VALUES
+  ('local-dev', 'local', 'browser-recommendation-a', 'browser-evaluation-b',
+   'browser-case-a', 'browser-case-workload', 'INVESTIGATE_BREACH',
+   '{"metric":"sample.latency","comparator":"LTE","threshold":10,"unit":"ms",
+     "effect":"INVESTIGATE_ONLY"}'::jsonb,
+   '{"case_digest":"placeholder","evaluation_digest":"placeholder"}'::jsonb, false);
 SQL
 
 cd "$repo_root/e2e"

@@ -263,6 +263,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
       'objectives.objective.read', 'assessment.case.read', 'assessment.evaluation.read',
+      'assessment.recommendation.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -386,6 +387,16 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
     await sample.getByRole('link', { name: 'View evaluations for browser-case-b' }).click();
     await expect(sample.getByText('No evaluations are available for this case.')).toBeVisible();
+    await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
+    await sample.getByRole('link', { name: 'View recommendations for browser-case-workload' }).click();
+    const recommendation = sample.getByRole('listitem').filter({ hasText: 'browser-recommendation-a' });
+    await expect(recommendation).toContainText('INVESTIGATE_ONLY');
+    await expect(recommendation).toContainText('browser-evaluation-b');
+    await expect(sample.getByText('Retained recommendations are investigation-only', { exact: false }))
+      .toBeVisible();
+    await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
+    await sample.getByRole('link', { name: 'View recommendations for other-case-workload' }).click();
+    await expect(sample.getByText('No recommendations are available for this workload.')).toBeVisible();
     await sample.getByRole('link', { name: 'Back to assessment cases' }).click();
     await sample.getByLabel('Workload ID (optional)').fill('browser-case-workload');
     await sample.getByRole('button', { name: 'Show cases' }).click();
@@ -545,6 +556,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');
       expect(deniedEvaluations.status()).toBe(403);
       await expect(restricted.getByText('browser-evaluation-a', { exact: true })).toHaveCount(0);
+      const deniedRecommendations = await restricted.goto(
+        '/assessment-recommendations?workloadId=browser-case-workload');
+      expect(deniedRecommendations.status()).toBe(403);
+      await expect(restricted.getByText('browser-recommendation-a', { exact: true })).toHaveCount(0);
       await restricted.goto('/objectives');
       await restricted.getByLabel('Workload ID (optional)').fill('browser-objective-workload');
       const [scopedObjectives] = await Promise.all([

@@ -45,6 +45,28 @@ class AssessmentClient {
     return List.copyOf(evaluations);
   }
 
+  List<Recommendation> listRecommendations(String token, String workloadId) {
+    List<Recommendation> recommendations = restClient.get()
+        .uri(uri -> uri.path("/v1/recommendations").queryParam("workload_id", "{workloadId}")
+            .build(workloadId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(new ParameterizedTypeReference<List<Recommendation>>() {});
+    if (recommendations == null || recommendations.stream().anyMatch(item -> !valid(item, workloadId))) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched recommendation list.");
+    }
+    return List.copyOf(recommendations);
+  }
+
+  private static boolean valid(Recommendation item, String workloadId) {
+    if (item == null || !present(item.id()) || !present(item.caseId()) || !present(item.evaluationId())
+        || !workloadId.equals(item.workloadId()) || !"INVESTIGATE_BREACH".equals(item.kind())
+        || !Boolean.FALSE.equals(item.executable()) || item.effectBounds() == null) return false;
+    RecommendationBounds bounds = item.effectBounds();
+    return present(bounds.metric()) && present(bounds.unit()) && bounds.threshold() != null
+        && ("LTE".equals(bounds.comparator()) || "GTE".equals(bounds.comparator()))
+        && "INVESTIGATE_ONLY".equals(bounds.effect());
+  }
+
   private static boolean valid(Evaluation item, String caseId) {
     return item != null && present(item.id()) && caseId.equals(item.caseId())
         && item.revision() != null && item.revision() > 0
@@ -88,4 +110,10 @@ class AssessmentClient {
   record EvaluationDependencies(
       @JsonProperty("receipt_verification") String receiptVerification,
       @JsonProperty("receipt_reason_code") String receiptReasonCode) {}
+  record Recommendation(
+      String id, @JsonProperty("evaluation_id") String evaluationId,
+      @JsonProperty("case_id") String caseId, @JsonProperty("workload_id") String workloadId,
+      String kind, @JsonProperty("effect_bounds") RecommendationBounds effectBounds,
+      Boolean executable) {}
+  record RecommendationBounds(String metric, String comparator, BigDecimal threshold, String unit, String effect) {}
 }

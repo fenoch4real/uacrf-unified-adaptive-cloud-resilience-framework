@@ -1004,6 +1004,48 @@ class WebApplicationTests {
   }
 
   @Test
+  void recommendationHistoryUsesSeparateReadDelegationAndReportsErrors() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S07", null, List.of("assessment.recommendation.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("recommendation-token", "Bearer", 30))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(
+            org.springframework.http.HttpStatus.FORBIDDEN))
+        .thenReturn(new IdentityAccessClient.Delegation("recommendation-token", "Bearer", 30));
+    when(assessment.listRecommendations("recommendation-token", "workload-1"))
+        .thenReturn(List.of(new AssessmentClient.Recommendation(
+            "recommendation-1", "evaluation-1", "case-1", "workload-1", "INVESTIGATE_BREACH",
+            new AssessmentClient.RecommendationBounds("<latency>", "LTE",
+                new java.math.BigDecimal("10"), "ms", "INVESTIGATE_ONLY"), false)))
+        .thenThrow(new IllegalStateException("mismatched"));
+    mockMvc.perform(get("/assessment-recommendations").param("workloadId", "workload-1")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("&lt;latency&gt;")))
+        .andExpect(content().string(containsString("not executable or authorization to act")))
+        .andExpect(content().string(not(containsString("recommendation-token"))));
+    mockMvc.perform(get("/assessment-recommendations").param("workloadId", "workload-1")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Recommendation access failed (HTTP 403)")))
+        .andExpect(content().string(not(containsString("No recommendations are available"))));
+    mockMvc.perform(get("/assessment-recommendations").param("workloadId", "workload-1")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(not(containsString("No recommendations are available"))));
+    mockMvc.perform(get("/assessment-recommendations").param("workloadId", " ")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(get("/assessment-recommendations").param("workloadId", "workload-1")
+            .with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/contexts"));
+    verify(identity, org.mockito.Mockito.times(3)).createDelegation(
+        "test-access-token", "S07", null, List.of("assessment.recommendation.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
   void evidenceRequiresContextAndReportsDeniedOrMalformedReads() throws Exception {
     mockMvc.perform(get("/evidence").with(browserLogin()))
         .andExpect(status().is3xxRedirection())

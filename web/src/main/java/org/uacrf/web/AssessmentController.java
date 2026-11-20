@@ -80,4 +80,36 @@ class AssessmentController {
     }
     return "assessment-evaluations";
   }
+
+  @GetMapping("/assessment-recommendations")
+  String recommendations(
+      @RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String workloadId, Model model) {
+    Object selected = session.getAttribute(BrowserContext.SESSION_KEY);
+    if (!(selected instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("workloadId", workloadId);
+    model.addAttribute("recommendations", List.of());
+    if (workloadId.isBlank() || workloadId.length() > 200) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("assessmentError", "A valid workload ID is required.");
+      return "assessment-recommendations";
+    }
+    try {
+      String token = identity.createDelegation(
+          client.getAccessToken().getTokenValue(), "S07", null, List.of("assessment.recommendation.read"),
+          context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("recommendations", assessment.listRecommendations(token, workloadId));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("assessmentError", "Identity or assessment service is unavailable; recommendations were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("assessmentError", "Recommendation access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("assessmentError", "Identity or assessment service returned an invalid response.");
+    }
+    return "assessment-recommendations";
+  }
 }

@@ -29,6 +29,12 @@ class AssessmentClientTests {
        "dependency_vector":{"receipt_verification":"FAILED","receipt_reason_code":"OWNER_UNAVAILABLE"},
        "result_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
       """;
+  private static final String RECOMMENDATION = """
+      {"id":"recommendation-1","case_id":"case-1","evaluation_id":"evaluation-1",
+       "workload_id":"workload-1","kind":"INVESTIGATE_BREACH","executable":false,
+       "effect_bounds":{"metric":"latency","comparator":"LTE","threshold":10,
+       "unit":"ms","effect":"INVESTIGATE_ONLY"}}
+      """;
 
   @Test
   void readsWorkloadCasesThroughTheAssessmentEdge() {
@@ -84,5 +90,40 @@ class AssessmentClientTests {
       }
       server.verify();
     }
+  }
+
+  @Test
+  void readsOnlyNonExecutableRecommendationsForRequestedWorkload() {
+    for (String body : List.of(
+        "[" + RECOMMENDATION + "]",
+        "[" + RECOMMENDATION.replace("\"workload-1\"", "\"other\"") + "]",
+        "[" + RECOMMENDATION.replace("\"executable\":false", "\"executable\":true") + "]",
+        "[" + RECOMMENDATION.replace("\"executable\":false", "\"executable\":null") + "]",
+        "[" + RECOMMENDATION.replace("\"INVESTIGATE_ONLY\"", "\"EXECUTE\"") + "]")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/recommendations?workload_id=workload-1"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      AssessmentClient client = new AssessmentClient(builder.build());
+      if (body.equals("[" + RECOMMENDATION + "]")) {
+        assertThat(client.listRecommendations("delegated", "workload-1")).singleElement()
+            .satisfies(item -> assertThat(item.effectBounds().effect()).isEqualTo("INVESTIGATE_ONLY"));
+      } else {
+        assertThatThrownBy(() -> client.listRecommendations("delegated", "workload-1"))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
+  void encodesWorkloadAsOneQueryParameter() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/recommendations?workload_id=a%26other%3D1"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+    assertThat(new AssessmentClient(builder.build()).listRecommendations("delegated", "a&other=1")).isEmpty();
+    server.verify();
   }
 }
