@@ -5,9 +5,12 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 // Shape and consistency only: this does not authorize or admit a run.
 record AdvisoryRunRequest(String agentCaseId, String retrievalManifestId, WorkflowVersion workflowVersion,
@@ -18,6 +21,7 @@ record AdvisoryRunRequest(String agentCaseId, String retrievalManifestId, Workfl
       "model_config_ref", "model_config_digest", "prompt_ref", "prompt_digest", "max_calls", "max_tokens",
       "max_cost_units", "deadline", "reason", "allocations", "proposal_ids");
   private static final Set<String> ALLOCATION_FIELDS = Set.of("role", "agent_profile_id", "tokens", "cost_units");
+  private static final ObjectMapper JSON = JsonMapper.builder().build();
 
   enum WorkflowVersion {
     SINGLE_ANALYST_V1, INDEPENDENT_REVIEW_V1, ADVERSARIAL_REVIEW_V1
@@ -124,6 +128,38 @@ record AdvisoryRunRequest(String agentCaseId, String retrievalManifestId, Workfl
       throw new IllegalArgumentException("One to ten proposal IDs are required.");
     }
     proposalIds = List.copyOf(snapshot);
+  }
+
+  String requestDigest() {
+    return Sha256.hex(JSON.writeValueAsBytes(canonicalRequest()));
+  }
+
+  private Map<String, Object> canonicalRequest() {
+    Map<String, Object> canonical = new LinkedHashMap<>();
+    canonical.put("agent_case_id", agentCaseId);
+    canonical.put("retrieval_manifest_id", retrievalManifestId);
+    canonical.put("workflow_version", workflowVersion.name());
+    canonical.put("model_config_ref", modelConfigReference);
+    canonical.put("model_config_digest", modelConfigDigest);
+    canonical.put("prompt_ref", promptReference);
+    canonical.put("prompt_digest", promptDigest);
+    canonical.put("max_calls", budget.maxCalls());
+    canonical.put("max_tokens", budget.maxTokens());
+    canonical.put("max_cost_units", budget.maxCostUnits());
+    canonical.put("deadline", deadline.toString());
+    canonical.put("reason", reason);
+    List<Map<String, Object>> canonicalAllocations = new ArrayList<>();
+    for (AdvisoryBudget.Allocation allocation : budget.allocations()) {
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("role", allocation.role().name());
+      item.put("agent_profile_id", allocation.agentProfileId());
+      item.put("tokens", allocation.tokens());
+      item.put("cost_units", allocation.costUnits());
+      canonicalAllocations.add(item);
+    }
+    canonical.put("allocations", canonicalAllocations);
+    canonical.put("proposal_ids", proposalIds);
+    return canonical;
   }
 
   private static void requireWorkflowRoles(WorkflowVersion workflowVersion, AdvisoryBudget budget) {

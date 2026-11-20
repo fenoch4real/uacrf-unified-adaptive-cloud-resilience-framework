@@ -217,16 +217,15 @@ final class DispatchJournal {
     }
   }
 
-  AdmissionResult admitRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
-                           String principalId, String operation, String idempotencyKey, String requestDigest)
+  AdmissionResult admitRun(RunKey key, long generation, AdvisoryRunRequest request,
+                           String principalId, String operation, String idempotencyKey)
       throws SQLException {
-    validateRunAdmission(key, generation, budget, deadline);
+    Objects.requireNonNull(request, "request");
+    validateRunAdmission(key, generation, request.budget(), request.deadline());
     requireId(principalId);
     requireId(operation);
     validateIdempotencyKey(idempotencyKey);
-    if (requestDigest == null || !requestDigest.matches("[0-9a-f]{64}")) {
-      throw new IllegalArgumentException("Request digest must be a lowercase SHA-256 value.");
-    }
+    String requestDigest = request.requestDigest();
 
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
@@ -237,7 +236,7 @@ final class DispatchJournal {
           connection.commit();
           return existing;
         }
-        if (!insertActiveRun(connection, key, generation, budget, deadline)) {
+        if (!insertActiveRun(connection, key, generation, request.budget(), request.deadline())) {
           connection.rollback();
           return findAdmissionAfterRace(key, principalId, operation, idempotencyKey, requestDigest);
         }

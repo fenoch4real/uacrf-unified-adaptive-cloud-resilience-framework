@@ -94,38 +94,46 @@ class DispatchJournalTests {
         new AdvisoryBudget.Allocation(AdvisoryBudget.Role.REVIEWER, "reviewer", 200, 6)));
   }
 
+  private static AdvisoryRunRequest admissionRequest(Instant deadline, String reason) {
+    String digest = "a".repeat(64);
+    String reference = "artifact:sha256:" + digest;
+    return new AdvisoryRunRequest("case-1", "retrieval-1",
+        AdvisoryRunRequest.WorkflowVersion.INDEPENDENT_REVIEW_V1,
+        reference, digest, reference, digest, budget(), deadline, reason, List.of("proposal-1"));
+  }
+
   @Test
   void admissionAtomicallyPersistsRunIdempotencyAndSchedulingEvent() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var requestedRun = new DispatchJournal.RunKey("admission", "env", "run-1");
-    String digest = "a".repeat(64);
-    var created = journal.admitRun(requestedRun, 1, budget(), TEST_DEADLINE,
-        "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest);
+    var request = admissionRequest(TEST_DEADLINE, "Run assessment");
+    var created = journal.admitRun(requestedRun, 1, request,
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.CREATED, created.status());
     assertEquals(java.util.Optional.of(requestedRun), created.runKey());
 
     var replay = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-replay"),
-        1, budget(), Instant.EPOCH, "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest);
+        1, request, "principal-1", "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.REPLAYED, replay.status());
     assertEquals(java.util.Optional.of(requestedRun), replay.runKey());
 
     var conflict = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-conflict"),
-        1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-1", "b".repeat(64));
+        1, admissionRequest(TEST_DEADLINE, "Changed reason"), "principal-1", "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.IDEMPOTENCY_CONFLICT, conflict.status());
     assertTrue(conflict.runKey().isEmpty());
 
     var anotherPrincipal = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-2"),
-        1, budget(), TEST_DEADLINE, "principal-2", "CREATE_ADVISORY_RUN", "idem-1", digest);
+        1, request, "principal-2", "CREATE_ADVISORY_RUN", "idem-1");
     assertEquals(DispatchJournal.AdmissionStatus.CREATED, anotherPrincipal.status());
     assertEquals(DispatchJournal.AdmissionStatus.CREATED,
-        journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-3"), 1, budget(), TEST_DEADLINE,
-            "principal-1", "CREATE_OTHER_OPERATION", "idem-1", digest).status());
+        journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-3"), 1, request,
+            "principal-1", "CREATE_OTHER_OPERATION", "idem-1").status());
     assertEquals(DispatchJournal.AdmissionStatus.CREATED,
-        journal.admitRun(new DispatchJournal.RunKey("admission", "env-2", "run-4"), 1, budget(), TEST_DEADLINE,
-            "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest).status());
+        journal.admitRun(new DispatchJournal.RunKey("admission", "env-2", "run-4"), 1, request,
+            "principal-1", "CREATE_ADVISORY_RUN", "idem-1").status());
     assertEquals(DispatchJournal.AdmissionStatus.CREATED,
         journal.admitRun(new DispatchJournal.RunKey("admission-other-tenant", "env", "run-5"),
-            1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest).status());
+            1, request, "principal-1", "CREATE_ADVISORY_RUN", "idem-1").status());
 
     try (Connection connection = dataSource.getConnection();
          var statement = connection.prepareStatement("""
@@ -182,12 +190,14 @@ class DispatchJournalTests {
       Future<DispatchJournal.AdmissionResult> first = executor.submit(() -> {
         start.await();
         return journal.admitRun(new DispatchJournal.RunKey("admission-race", "env", "run-a"),
-            1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-race", "c".repeat(64));
+            1, admissionRequest(TEST_DEADLINE, "Concurrent run"),
+            "principal-1", "CREATE_ADVISORY_RUN", "idem-race");
       });
       Future<DispatchJournal.AdmissionResult> second = executor.submit(() -> {
         start.await();
         return journal.admitRun(new DispatchJournal.RunKey("admission-race", "env", "run-b"),
-            1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-race", "c".repeat(64));
+            1, admissionRequest(TEST_DEADLINE, "Concurrent run"),
+            "principal-1", "CREATE_ADVISORY_RUN", "idem-race");
       });
       start.countDown();
       var firstResult = first.get(20, TimeUnit.SECONDS);
@@ -206,8 +216,9 @@ class DispatchJournalTests {
   void failedDeadlineAdmissionLeavesNoRunIdempotencyOrOutboxRows() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var runKey = new DispatchJournal.RunKey("admission-rollback", "env", "run-1");
-    assertThrows(SQLException.class, () -> journal.admitRun(runKey, 1, budget(), Instant.EPOCH,
-        "principal-1", "CREATE_ADVISORY_RUN", "idem-rollback", "d".repeat(64)));
+    assertThrows(SQLException.class, () -> journal.admitRun(runKey, 1,
+        admissionRequest(Instant.EPOCH, "Expired run"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-rollback"));
     assertTrue(journal.findRun(runKey).isEmpty());
     assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", "admission-rollback"));
     assertEquals(0, countForTenant("uacrf_advisory.outbox_event", "admission-rollback"));

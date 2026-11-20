@@ -1279,11 +1279,13 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   principal/tenant/environment/operation-scoped idempotency record, and
   `uacrf.s09.run.admitted.v1` scheduling outbox event in one transaction. Exact
   retries return the retained run key without another event; changed digests
-  conflict. PostgreSQL-backed tests cover concurrent same-key admission,
-  scope isolation, immutable records, and deadline-failure rollback. The
-  primitive trusts its caller-supplied principal and validated-request digest;
-  it does not authenticate the principal, verify digest construction, or
-  recheck that owner context is unchanged at commit. No connected handler,
+  conflict. The digest is computed from the validated typed request using a
+  deterministic JSON form; JSON property ordering and equivalent deadline
+  offsets do not change it. PostgreSQL-backed tests cover concurrent same-key
+  admission, scope isolation, immutable records, and deadline-failure rollback.
+  The primitive still trusts its caller-supplied principal and does not
+  authenticate the principal or recheck that owner context is unchanged at
+  commit. No connected handler,
   current-context commit guard, outbox publisher, or provider dispatch is wired;
   provider dispatch remains gated and the operation remains
   `PENDING_CONNECTED_VERIFICATION`. The MS01 design check passes 24 consistency
@@ -1387,7 +1389,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   prepared request's validity. Mismatch leaves no journal entry. The expired-
   snapshot, deadline-extension and injected-clock regressions pass; intent
   derivation now uses the same injected clock as preparation instead of
-  switching to the system clock. The full advisory module suite passed 139
+  switching to the system clock. The full advisory module suite passed 140
   tests with no failures or skips. Intent derivation and journal guarding
   remain separate from requester authorization and connected run admission;
   provider dispatch remains disabled.

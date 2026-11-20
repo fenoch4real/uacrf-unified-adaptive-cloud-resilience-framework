@@ -1,6 +1,7 @@
 package org.uacrf.advisory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
@@ -31,6 +32,21 @@ class AdvisoryRunRequestTests {
     assertEquals(BUDGET, parsed.budget());
     assertEquals(Instant.parse("2030-01-02T01:04:05Z"), parsed.deadline());
     assertEquals(List.of("proposal-1"), parsed.proposalIds());
+  }
+
+  @Test
+  void requestDigestIsStableAcrossJsonOrderingAndEquivalentDeadlineOffsets() {
+    var parsed = AdvisoryRunRequest.parse(DOCUMENT.getBytes(StandardCharsets.UTF_8));
+    String reordered = DOCUMENT.replace(
+        "\"agent_case_id\":\"case-1\",\"retrieval_manifest_id\":\"retrieval-1\",",
+        "\"retrieval_manifest_id\":\"retrieval-1\",\"agent_case_id\":\"case-1\",")
+        .replace("2030-01-02T03:04:05+02:00", "2030-01-02T01:04:05Z");
+    var equivalent = AdvisoryRunRequest.parse(reordered.getBytes(StandardCharsets.UTF_8));
+    var changed = AdvisoryRunRequest.parse(
+        DOCUMENT.replace("Run assessment", "Different assessment").getBytes(StandardCharsets.UTF_8));
+
+    assertEquals(parsed.requestDigest(), equivalent.requestDigest());
+    assertNotEquals(parsed.requestDigest(), changed.requestDigest());
   }
 
   @Test
