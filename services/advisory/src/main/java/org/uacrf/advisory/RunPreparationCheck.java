@@ -24,19 +24,21 @@ final class RunPreparationCheck {
                          Map<String, ProfileConfigurationCheck.RequestLimits> limits,
                          Map<String, InputPacket> packets,
                          Map<String, AdvisoryGateway.Request> gatewayRequests,
-                         Map<String, ProfileConfigurationCheck.Selection> selections) {
+                         Map<String, ProfileConfigurationCheck.Selection> selections,
+                         Clock clock) {
     ProfileSnapshot {
       profiles = Map.copyOf(profiles);
       limits = Map.copyOf(limits);
       packets = Map.copyOf(packets);
       gatewayRequests = Map.copyOf(gatewayRequests);
       selections = Map.copyOf(selections);
+      Objects.requireNonNull(clock, "clock");
     }
 
     List<DispatchJournal.Intent> journalIntents(DispatchJournal.RunKey runKey, long generation,
                                                 Map<String, String> assignmentIds) {
       Objects.requireNonNull(runKey, "runKey");
-      if (!preparation.request().deadline().isAfter(Instant.now())) {
+      if (!preparation.request().deadline().isAfter(clock.instant())) {
         throw new IllegalArgumentException("Advisory run deadline has expired.");
       }
       if (generation < 1 || !runKey.tenantId().equals(preparation.tenantId())
@@ -159,7 +161,8 @@ final class RunPreparationCheck {
           requestLimits.maxOutputTokens(), requestLimits.timeout()));
     }
     requireLiveDeadline(request);
-    return new ProfileSnapshot(preparation, profileSnapshot, limitsSnapshot, packets, gatewayRequests, selections);
+    return new ProfileSnapshot(
+        preparation, profileSnapshot, limitsSnapshot, packets, gatewayRequests, selections, clock);
   }
 
   private void requireLiveDeadline(AdvisoryRunRequest request) {

@@ -1375,8 +1375,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   derived intent also carries that deadline, and journal admission requires an
   exact match with the sealed run fence; a later fence cannot extend the
   prepared request's validity. Mismatch leaves no journal entry. The expired-
-  snapshot and deadline-extension regressions pass; the full advisory module
-  suite passed 136 tests with no failures or skips. This remains only intent
+  snapshot, deadline-extension and injected-clock regressions pass; intent
+  derivation now uses the same injected clock as preparation instead of
+  switching to the system clock. The full advisory module suite passed 136
+  tests with no failures or skips. This remains only intent
   derivation and journal guarding, not requester authorization, idempotent
   durable run admission, outbox scheduling or provider dispatch.
   Future profile changes, run-boundary authorization, complete graph/evidence

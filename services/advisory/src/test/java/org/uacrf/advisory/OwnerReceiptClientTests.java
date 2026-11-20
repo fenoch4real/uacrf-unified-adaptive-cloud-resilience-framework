@@ -423,10 +423,16 @@ class OwnerReceiptClientTests {
         complete.preparation().environmentId(), expiredRequest, complete.preparation().expected(),
         complete.preparation().models(), complete.preparation().prompts(), complete.preparation().sources());
     var expiredSnapshot = new RunPreparationCheck.ProfileSnapshot(expiredPreparation, complete.profiles(),
-        complete.limits(), complete.packets(), complete.gatewayRequests(), complete.selections());
+        complete.limits(), complete.packets(), complete.gatewayRequests(), complete.selections(), Clock.systemUTC());
     assertThrows(IllegalArgumentException.class,
         () -> expiredSnapshot.journalIntents(new DispatchJournal.RunKey("tenant-1", "env-1", "run-expired"),
             1, Map.of("analyst", "assignment-expired")));
+    var expiredByInjectedClock = new RunPreparationCheck.ProfileSnapshot(complete.preparation(),
+        complete.profiles(), complete.limits(), complete.packets(), complete.gatewayRequests(),
+        complete.selections(), Clock.fixed(Instant.parse("2031-01-01T00:00:00Z"), ZoneOffset.UTC));
+    assertThrows(IllegalArgumentException.class,
+        () -> expiredByInjectedClock.journalIntents(new DispatchJournal.RunKey("tenant-1", "env-1", "run-clock-expired"),
+            1, Map.of("analyst", "assignment-clock-expired")));
     var runKey = new DispatchJournal.RunKey("tenant-1", "env-1", "run-1");
     var journalIntent = complete.journalIntents(runKey, 1, Map.of("analyst", "assignment-1")).getFirst();
     assertEquals(new DispatchJournal.Key("tenant-1", "env-1", limits.attemptId()), journalIntent.key());
@@ -437,13 +443,14 @@ class OwnerReceiptClientTests {
     var substitutedAttempt = new AdvisoryGateway.Request("different-attempt", gateway.model(), gateway.context(),
         gateway.maxOutputTokens(), gateway.timeout());
     var substitutedSnapshot = new RunPreparationCheck.ProfileSnapshot(complete.preparation(), complete.profiles(),
-        complete.limits(), complete.packets(), Map.of("analyst", substitutedAttempt), complete.selections());
+        complete.limits(), complete.packets(), Map.of("analyst", substitutedAttempt), complete.selections(),
+        Clock.systemUTC());
     assertThrows(IllegalArgumentException.class,
         () -> substitutedSnapshot.journalIntents(runKey, 1, Map.of("analyst", "assignment-1")));
     var changedPacket = new InputPacket("substituted packet".getBytes(StandardCharsets.UTF_8));
     var substitutedPacketSnapshot = new RunPreparationCheck.ProfileSnapshot(complete.preparation(),
         complete.profiles(), complete.limits(), Map.of("analyst", changedPacket),
-        complete.gatewayRequests(), complete.selections());
+        complete.gatewayRequests(), complete.selections(), Clock.systemUTC());
     assertThrows(IllegalArgumentException.class,
         () -> substitutedPacketSnapshot.journalIntents(runKey, 1, Map.of("analyst", "assignment-1")));
     assertThrows(IllegalArgumentException.class,
