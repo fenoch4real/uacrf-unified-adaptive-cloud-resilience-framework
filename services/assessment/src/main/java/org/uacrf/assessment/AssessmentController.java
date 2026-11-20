@@ -22,7 +22,14 @@ class AssessmentController {
     this.incidentLearning = incidentLearning;
   }
   @PostMapping("/v1/cases") @ResponseStatus(HttpStatus.CREATED)
-  Case create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateCase request) { return service.create(DelegationPrincipal.from(jwt), request); }
+  Case create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateCase request) {
+    return service.create(DelegationPrincipal.from(jwt), request, null);
+  }
+  @PostMapping("/v1/cases:idempotent-create") @ResponseStatus(HttpStatus.CREATED)
+  Case createIdempotently(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateCase request,
+      @RequestHeader("Idempotency-Key") String key) {
+    return service.create(DelegationPrincipal.from(jwt), request, key);
+  }
   @PostMapping("/v1/cases/{id}:seal")
   Case seal(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) { return service.seal(DelegationPrincipal.from(jwt), id, request); }
   @GetMapping("/v1/cases/{id}")

@@ -23,6 +23,14 @@ class AssessmentRouteClient {
     return sendBody(HttpMethod.POST, "/v1/cases", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> createIdempotently(String authorization, String idempotencyKey, String requestBody) {
+    RestClient.RequestBodySpec request = assessmentRestClient.post()
+        .uri("/v1/cases:idempotent-create").contentType(MediaType.APPLICATION_JSON);
+    request.header("Idempotency-Key", idempotencyKey);
+    request.body(requestBody);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> transition(String authorization, String id, String action, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/cases/{id}:" + action, id, authorization, requestBody);
   }

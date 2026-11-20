@@ -33,17 +33,48 @@ class AssessmentService {
   }
 
   @Transactional
-  Case create(DelegationPrincipal actor, CreateCase request) {
+  Case create(DelegationPrincipal actor, CreateCase request, String key) {
     permit(actor, "assessment.case.write");
     TreeSet<String> kinds = new TreeSet<>(request.requiredSourceKinds());
     if (kinds.size() != request.requiredSourceKinds().size()) throw invalid("Source kinds must be unique.");
     CreateCase content = new CreateCase(request.workloadId(), request.purpose(), request.metric(), request.comparator(),
         canonical(request.threshold()), request.unit(), request.windowSeconds(), request.objectiveRef(), request.graphRef(), List.copyOf(kinds));
+    String serialized = write(content);
+    if (key != null) {
+      if (key.isBlank() || key.length() > 200 || key.chars().anyMatch(Character::isWhitespace)) {
+        throw invalid("Idempotency-Key must be a non-empty token of at most 200 characters.");
+      }
+      String digest = hash(serialized);
+      int inserted = jdbc.update("INSERT INTO " + DB + "case_idempotency "
+              + "(tenant_id,environment_id,actor_id,idempotency_key,payload_digest) VALUES (?,?,?,?,?) "
+              + "ON CONFLICT DO NOTHING",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+      if (inserted == 0) {
+        List<CaseRequest> prior = jdbc.query("SELECT payload_digest,case_id FROM " + DB
+                + "case_idempotency WHERE tenant_id=? AND environment_id=? AND actor_id=? "
+                + "AND idempotency_key=? FOR UPDATE",
+            (rs, row) -> new CaseRequest(rs.getString("payload_digest"), rs.getString("case_id")),
+            actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+        if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+          throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+        }
+        if (prior.getFirst().caseId() == null) {
+          throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+        }
+        return findCase(actor, prior.getFirst().caseId(), false);
+      }
+    }
     String id = UUID.randomUUID().toString();
     jdbc.update("INSERT INTO " + DB + "analysis_case (tenant_id, environment_id, id, workload_id, content, state, revision, created_by) VALUES (?, ?, ?, ?, ?::jsonb, 'DRAFT', 1, ?)",
-        actor.tenantId(), actor.environmentId(), id, content.workloadId(), write(content), actor.principalId());
+        actor.tenantId(), actor.environmentId(), id, content.workloadId(), serialized, actor.principalId());
+    if (key != null) {
+      jdbc.update("UPDATE " + DB + "case_idempotency SET case_id=? "
+              + "WHERE tenant_id=? AND environment_id=? AND actor_id=? AND idempotency_key=?",
+          id, actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    }
     return findCase(actor, id, false);
   }
+  private record CaseRequest(String digest, String caseId) {}
   @Transactional
   Case seal(DelegationPrincipal actor, String id, Transition request) {
     permit(actor, "assessment.case.write");

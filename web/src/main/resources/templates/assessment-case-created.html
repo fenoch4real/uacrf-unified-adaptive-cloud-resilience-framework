@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment case receipt | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Assessment case receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Case ID: <strong th:text="${createdCase.id}">Case ID</strong></p>
+  <p>Current state: <strong th:text="${createdCase.state}">DRAFT</strong></p>
+  <p>A retry returns the current case state, which may have changed since creation. The objective and graph references were not verified at creation; this receipt is not an evaluation or authorization to act.</p>
+  <p><a th:href="@{/assessment-cases(workloadId=${createdCase.workloadId})}">View cases for this workload</a></p>
+  <p><a href="/assessment-cases/new">Create another case</a></p>
+</main>
+</body>
+</html>

@@ -76,15 +76,16 @@ is identity/delegation evidence only—not collection execution or provider
 acceptance.
 
 The same user receives independently approved global `assessment.case.read`,
-`assessment.evaluation.read`, and `assessment.recommendation.read` grants and
-browses synthetic cases, evaluations, and an investigation-only recommendation
-through UX01, EDGE01, and S07. The suite checks workload filtering, empty
-history and recommendations, and denial for a separately admitted user
-without those grants. Fixture rows and placeholder digests are inserted
-directly into the disposable database, bypassing case creation, sealing,
-evaluation, and recommendation generation; they are not qualified evidence
-or provider acceptance. The S07 case, evaluation, and recommendation list
-APIs are unpaginated.
+`assessment.case.write`, `assessment.evaluation.read`, and
+`assessment.recommendation.read` grants. The suite creates and replays a draft
+through UX01, EDGE01, S01 and S07, reads it back, and checks denial for a
+separately admitted user. The supplied objective and graph references are
+synthetic and not verified at creation. Separately, the user browses fixture
+cases, evaluations, and an investigation-only recommendation. Those fixture
+rows and placeholder digests are inserted directly into the disposable database,
+bypassing case creation, sealing, evaluation, and recommendation generation;
+they are not qualified evidence or provider acceptance. The S07 case,
+evaluation, and recommendation list APIs are unpaginated.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

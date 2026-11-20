@@ -12,6 +12,7 @@
   <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/access">Back to current access</a></p>
+  <p><a href="/assessment-cases/new">Create a draft assessment case</a></p>
   <p>These are cases retained by S07. A sealed case is not an evaluation result or authorization to act.</p>
   <form method="get" th:action="@{/assessment-cases}">
     <label for="workloadId">Workload ID (optional)</label>

@@ -932,7 +932,7 @@ class WebApplicationTests {
     when(assessment.listCases("s07-delegation", "workload-1"))
         .thenReturn(List.of(new AssessmentClient.AssessmentCase(
             "case-1", "workload-1", "<assessment>", "latency", "LTE", new java.math.BigDecimal("10"),
-            "ms", 3600, "SEALED", 2L, "a".repeat(64))));
+            "ms", 3600, "SEALED", 2L, "a".repeat(64), null, null, null)));
 
     mockMvc.perform(get("/assessment-cases").param("workloadId", "workload-1")
             .with(browserLogin()).session(sessionWithSelectedContext()))
@@ -944,6 +944,70 @@ class WebApplicationTests {
     verify(identity).createDelegation(
         "test-access-token", "S07", null, List.of("assessment.case.read"),
         "tenant-test", "environment-test");
+  }
+
+  @Test
+  void createsCaseWithCsrfAndWriteOnlyDelegationAndKeepsKeyOnUnconfirmedRetry() throws Exception {
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.case.write"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s07-write", "Bearer", 30));
+    when(assessment.createCase(org.mockito.ArgumentMatchers.eq("s07-write"),
+        org.mockito.ArgumentMatchers.eq(key), any()))
+        .thenThrow(new ResourceAccessException("timeout"))
+        .thenReturn(new AssessmentClient.AssessmentCase("case-created", "workload-1", "assessment",
+            "latency", "LTE", new java.math.BigDecimal("10"), "ms", 60, "DRAFT", 1L, null,
+            null, null, null));
+
+    mockMvc.perform(get("/assessment-cases/new").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("name=\"_csrf\"")))
+        .andExpect(content().string(containsString("references, seal the case")))
+        .andExpect(content().string(containsString("Up to 100 integer digits and 50 fractional digits")));
+    mockMvc.perform(caseCreateRequest(key).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(assessment);
+    mockMvc.perform(caseCreateRequest(key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("creation is unconfirmed")))
+        .andExpect(content().string(containsString(key)))
+        .andExpect(content().string(containsString("workload-1")));
+    mockMvc.perform(caseCreateRequest(key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("case-created")))
+        .andExpect(content().string(containsString("not verified at creation")))
+        .andExpect(content().string(not(containsString("s07-write"))));
+    verify(assessment, times(2)).createCase(org.mockito.ArgumentMatchers.eq("s07-write"),
+        org.mockito.ArgumentMatchers.eq(key), any());
+  }
+
+  @Test
+  void rejectsInvalidCaseAndChangedContextBeforeDelegation() throws Exception {
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    mockMvc.perform(caseCreateRequest(key).with(request -> {
+              request.setParameter("sourceKinds", "a\na"); return request;
+            }).with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(containsString("aria-invalid=\"true\"")))
+        .andExpect(content().string(containsString("Enter 1 to 100 unique source kinds")));
+    mockMvc.perform(caseCreateRequest(key).with(request -> {
+              request.setParameter("tenantId", "other"); return request;
+            }).with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext()))
+        .andExpect(status().isConflict())
+        .andExpect(content().string(containsString("selected context changed")));
+    verifyNoInteractions(identity, assessment);
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder caseCreateRequest(String key) {
+    return post("/assessment-cases").param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("workloadId", "workload-1").param("purpose", "assessment")
+        .param("metric", "latency").param("comparator", "LTE").param("threshold", "10")
+        .param("unit", "ms").param("windowSeconds", "60").param("objectiveId", "o1")
+        .param("objectiveRevision", "1").param("objectiveDigest", "od").param("graphId", "g1")
+        .param("graphRevision", "1").param("graphDigest", "gd").param("sourceKinds", "measurement.latency");
   }
 
   @Test

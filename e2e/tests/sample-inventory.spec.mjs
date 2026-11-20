@@ -4,6 +4,22 @@ import { expectCurrentAccess, selectLocalContext, signIn } from './helpers/auth.
 
 test.use({ actionTimeout: 10_000, navigationTimeout: 30_000 });
 
+async function fillCaseForm(page, workloadId) {
+  await page.getByLabel('Workload ID').fill(workloadId);
+  await page.getByLabel('Purpose').fill('Synthetic assessment draft');
+  await page.getByLabel('Metric').fill('sample.latency');
+  await page.getByLabel('Threshold').fill('10');
+  await page.getByLabel('Unit', { exact: true }).fill('ms');
+  await page.getByLabel('Window (seconds)').fill('60');
+  await page.getByLabel('Required source kinds, one per line').fill('measurement.latency');
+  await page.getByLabel('Objective ID').fill('sample-objective');
+  await page.getByLabel('Objective revision').fill('1');
+  await page.getByLabel('Objective digest').fill('sample');
+  await page.getByLabel('Graph ID').fill('sample-graph');
+  await page.getByLabel('Graph revision').fill('1');
+  await page.getByLabel('Graph digest').fill('sample');
+}
+
 async function transferOwner(page, objectKind, objectId, currentOwner, nextOwner) {
   await page.goto(`/ownership-transfers/${objectKind}/${objectId}`);
   await expect(page.locator('dl dd').nth(2)).toHaveText(currentOwner);
@@ -262,7 +278,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
-      'objectives.objective.read', 'assessment.case.read', 'assessment.evaluation.read',
+      'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.recommendation.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
@@ -402,6 +418,25 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('button', { name: 'Show cases' }).click();
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-case-a' })).toBeVisible();
     await expect(sample.getByText('browser-case-b', { exact: true })).toHaveCount(0);
+    await sample.getByRole('link', { name: 'Create a draft assessment case' }).click();
+    const createdWorkload = `browser-created-${randomUUID()}`;
+    await fillCaseForm(sample, createdWorkload);
+    const [createRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/assessment-cases'),
+      sample.getByRole('button', { name: 'Create draft case' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Assessment case receipt' })).toBeVisible();
+    const createdId = await sample.locator('main p').filter({ hasText: 'Case ID:' }).locator('strong').innerText();
+    await expect(sample.getByText('Current state: DRAFT')).toBeVisible();
+    const replay = await sample.request.post('/assessment-cases', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: createRequest.postData(),
+    });
+    expect(replay.status()).toBe(200);
+    expect(await replay.text()).toContain(createdId);
+    await sample.getByRole('link', { name: 'View cases for this workload' }).click();
+    await expect(sample.getByRole('listitem').filter({ hasText: createdId })).toHaveCount(1);
+    await expect(sample.getByRole('listitem').filter({ hasText: createdId })).toContainText('DRAFT');
     await sample.goto('/evidence');
     const evidenceRow = sample.getByRole('listitem').filter({ hasText: fixtureId });
     await expect(evidenceRow).toContainText('Synthetic sample; never qualified evidence.');
@@ -553,6 +588,15 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedCases = await restricted.goto('/assessment-cases');
       expect(deniedCases.status()).toBe(403);
       await expect(restricted.getByText('browser-case-a', { exact: true })).toHaveCount(0);
+      await restricted.goto('/assessment-cases/new');
+      await fillCaseForm(restricted, `denied-${randomUUID()}`);
+      const [deniedCreation] = await Promise.all([
+        restricted.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/assessment-cases'),
+        restricted.getByRole('button', { name: 'Create draft case' }).click(),
+      ]);
+      expect(deniedCreation.status()).toBe(403);
+      await expect(restricted.getByRole('alert')).toContainText('not authorized');
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');
       expect(deniedEvaluations.status()).toBe(403);
       await expect(restricted.getByText('browser-evaluation-a', { exact: true })).toHaveCount(0);

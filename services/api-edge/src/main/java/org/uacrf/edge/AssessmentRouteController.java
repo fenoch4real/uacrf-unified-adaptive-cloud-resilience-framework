@@ -33,6 +33,14 @@ class AssessmentRouteController {
     return forward(() -> assessment.create(authorization, requestBody));
   }
 
+  @PostMapping("/v1/cases:idempotent-create")
+  ResponseEntity<String> createIdempotently(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(() -> assessment.createIdempotently(authorization, idempotencyKey, requestBody));
+  }
+
   @PostMapping("/v1/cases/{id}:seal")
   ResponseEntity<String> seal(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

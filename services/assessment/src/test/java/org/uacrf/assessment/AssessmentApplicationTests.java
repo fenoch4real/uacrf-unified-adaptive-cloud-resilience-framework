@@ -85,7 +85,73 @@ class AssessmentApplicationTests {
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
+  @Autowired private AssessmentService assessment;
+  @Autowired private org.springframework.transaction.PlatformTransactionManager transactionManager;
   private final HttpClient http = HttpClient.newHttpClient();
+
+  @Test void keyedCaseCreationIsAtomicScopedAndReplayable() throws Exception {
+    String tenant = "t-case-idempotency";
+    String writer = token(tenant, "*", List.of("assessment.case.write"));
+    String input = caseJson("[\"b\",\"a\"]", "LTE");
+    assertEquals(400, post("/v1/cases:idempotent-create", writer, input).statusCode());
+    String canonicalEquivalent = caseJson("[\"a\",\"b\"]", "LTE").replace("\"threshold\":10", "\"threshold\":10.00");
+    JsonNode first = body(postCaseKey(writer, input, "key-1"), 201);
+    String id = first.get("id").asString();
+    assertEquals(id, body(postCaseKey(writer, canonicalEquivalent, "key-1"), 201).get("id").asString());
+    assertEquals("IDEMPOTENCY_CONFLICT",
+        body(postCaseKey(writer, input.replace("\"latency\"", "\"availability\""), "key-1"), 409)
+            .get("code").asString());
+    assertEquals(403, postCaseKey(token(tenant, "*", List.of("assessment.case.read")), input, "key-1").statusCode());
+    assertEquals(400, postCaseKey(writer, input, "invalid key").statusCode());
+    assertEquals(400, postCaseKey(writer, caseJson("[\"a\",\"a\"]", "LTE"), "invalid-content").statusCode());
+    assertEquals(201, postCaseKey(writer, input, "invalid-content").statusCode());
+    String otherActor = token(tenant, "*", List.of("assessment.case.write"), "other-user");
+    assertNotEquals(id, body(postCaseKey(otherActor, input, "key-1"), 201).get("id").asString());
+    assertNotEquals(id, body(postCaseKey(token("t-case-idempotency-other", "*",
+        List.of("assessment.case.write")), input, "key-1"), 201).get("id").asString());
+    var otherEnvironment = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-2", "*",
+        "https://idp.example.test", "user", List.of("assessment.case.write"), List.of(), List.of());
+    String otherEnvironmentToken = "Bearer "
+        + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(), "https://uacrf.local/s01", KEY_ID)
+            .issue(otherEnvironment, "S07");
+    assertNotEquals(id, body(postCaseKey(otherEnvironmentToken, input, "key-1"), 201).get("id").asString());
+
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var a = executor.submit(() -> { gate.await(); return postCaseKey(writer, input, "race"); });
+      var b = executor.submit(() -> { gate.await(); return postCaseKey(writer, input, "race"); });
+      gate.countDown();
+      assertEquals(body(a.get(), 201).get("id").asString(), body(b.get(), 201).get("id").asString());
+    }
+    assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.analysis_case "
+            + "WHERE tenant_id=? AND environment_id='env-1'",
+        Integer.class, tenant));
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var a = executor.submit(() -> { gate.await(); return postCaseKey(writer, input, "different-race"); });
+      var b = executor.submit(() -> {
+        gate.await(); return postCaseKey(writer, input.replace("\"latency\"", "\"availability\""), "different-race");
+      });
+      gate.countDown();
+      assertEquals(List.of(201, 409), java.util.stream.Stream.of(a.get().statusCode(), b.get().statusCode())
+          .sorted().toList());
+    }
+    body(post("/v1/cases/" + id + ":seal", writer, "{\"expected_revision\":1}"), 200);
+    JsonNode replay = body(postCaseKey(writer, input, "key-1"), 201);
+    assertEquals(id, replay.get("id").asString());
+    assertEquals("SEALED", replay.get("state").asString());
+
+    var actor = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-1", "*",
+        "https://idp.example.test", "user", List.of("assessment.case.write"), List.of(), List.of());
+    var request = json.readValue(input, AssessmentRequests.CreateCase.class);
+    new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      assessment.create(actor, request, "rollback");
+      status.setRollbackOnly();
+    });
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.case_idempotency "
+        + "WHERE tenant_id=? AND idempotency_key='rollback'", Integer.class, tenant));
+    assertEquals(201, postCaseKey(writer, input, "rollback").statusCode());
+  }
 
   @Test void sealedCaseIsImmutableAndCanonicalAcrossOrdering() throws Exception {
     String token = token("t-seal", "*", ALL);
@@ -1489,6 +1555,9 @@ class AssessmentApplicationTests {
         .header("Authorization", token).header("Content-Type", "application/json")
         .header("Idempotency-Key", key).POST(HttpRequest.BodyPublishers.ofString(body)).build(),
         HttpResponse.BodyHandlers.ofString());
+  }
+  private HttpResponse<String> postCaseKey(String token, String body, String key) throws Exception {
+    return postAdaptation("/v1/cases:idempotent-create", token, body, key);
   }
   private HttpResponse<String> get(String path,String token) throws Exception { return http.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+path)).header("Authorization",token).GET().build(),HttpResponse.BodyHandlers.ofString()); }
   private static String token(String tenant,String scope,List<String> capabilities) { return token(tenant, scope, capabilities, "user"); }

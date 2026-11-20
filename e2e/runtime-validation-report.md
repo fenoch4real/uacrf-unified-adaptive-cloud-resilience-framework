@@ -6,6 +6,14 @@
 
 ## Latest live browser run
 
+On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** against an isolated
+stack. An independently authorized user created a real S07 draft through
+UX01, EDGE01 and S01, replayed the same keyed browser request, and read back
+one case. A separately admitted user without case-write permission received
+HTTP 403. The supplied objective and graph references are synthetic and are
+not verified at creation; this does not demonstrate sealing, evaluation,
+qualified evidence or provider acceptance. The disposable stack was removed.
+
 On 2026-11-20, a further `npm --prefix e2e run test:live` passed **11 tests**
 with exit code 0. An independently authorized user browsed a synthetic
 investigation-only recommendation through UX01, EDGE01, S01 and S07, then

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
+import java.util.TreeSet;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -22,7 +24,7 @@ class AssessmentClient {
     List<AssessmentCase> cases = restClient.get()
         .uri(uri -> {
           var request = uri.path("/v1/cases");
-          if (workloadId != null) request.queryParam("workload_id", workloadId);
+          if (workloadId != null) return request.queryParam("workload_id", "{workloadId}").build(workloadId);
           return request.build();
         })
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -32,6 +34,25 @@ class AssessmentClient {
       throw new IllegalStateException("S07 returned an incomplete or mismatched case list.");
     }
     return List.copyOf(cases);
+  }
+
+  AssessmentCase createCase(String token, String key, CaseCreation request) {
+    AssessmentCase item = restClient.post().uri("/v1/cases:idempotent-create")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key).body(request).retrieve().body(AssessmentCase.class);
+    if (!valid(item) || !request.workloadId().equals(item.workloadId())
+        || !request.purpose().equals(item.purpose()) || !request.metric().equals(item.metric())
+        || !request.comparator().equals(item.comparator()) || request.threshold().compareTo(item.threshold()) != 0
+        || !request.unit().equals(item.unit()) || !request.windowSeconds().equals(item.windowSeconds())
+        || !Objects.equals(request.objectiveRef(), item.objectiveRef())
+        || !Objects.equals(request.graphRef(), item.graphRef())
+        || item.requiredSourceKinds() == null
+        || item.requiredSourceKinds().stream().anyMatch(Objects::isNull)
+        || item.requiredSourceKinds().size() != request.requiredSourceKinds().size()
+        || !new TreeSet<>(request.requiredSourceKinds()).equals(new TreeSet<>(item.requiredSourceKinds()))) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched case receipt.");
+    }
+    return item;
   }
 
   List<Evaluation> listEvaluations(String token, String caseId) {
@@ -100,7 +121,16 @@ class AssessmentClient {
   record AssessmentCase(
       String id, @JsonProperty("workload_id") String workloadId, String purpose, String metric,
       String comparator, BigDecimal threshold, String unit, @JsonProperty("window_seconds") Integer windowSeconds,
-      String state, Long revision, @JsonProperty("case_digest") String caseDigest) {}
+      String state, Long revision, @JsonProperty("case_digest") String caseDigest,
+      @JsonProperty("objective_ref") ObjectiveRef objectiveRef, @JsonProperty("graph_ref") GraphRef graphRef,
+      @JsonProperty("required_source_kinds") List<String> requiredSourceKinds) {}
+  record CaseCreation(
+      @JsonProperty("workload_id") String workloadId, String purpose, String metric,
+      String comparator, BigDecimal threshold, String unit, @JsonProperty("window_seconds") Integer windowSeconds,
+      @JsonProperty("objective_ref") ObjectiveRef objectiveRef, @JsonProperty("graph_ref") GraphRef graphRef,
+      @JsonProperty("required_source_kinds") List<String> requiredSourceKinds) {}
+  record ObjectiveRef(@JsonProperty("objective_id") String id, Long revision, String digest) {}
+  record GraphRef(@JsonProperty("graph_id") String id, Long revision, String digest) {}
   record Evaluation(
       String id, @JsonProperty("case_id") String caseId, Long revision,
       @JsonProperty("observation_cutoff") Instant observationCutoff,

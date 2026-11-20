@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create assessment case | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Create a draft assessment case</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p>Creating a draft does not verify the objective or graph references, seal the case, evaluate evidence, or authorize action.</p>
+  <p>All fields are required.</p>
+  <p>If creation is unconfirmed, retry this same form unchanged in the same context. Do not open a new form until you have checked whether a case was created.</p>
+  <p role="alert" th:if="${caseError != null}" th:text="${caseError}"></p>
+  <div role="alert" th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the case details</h2>
+    <ul><li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li></ul>
+  </div>
+  <form method="post" th:action="@{/assessment-cases}" th:object="${caseForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <fieldset>
+      <legend>Case details</legend>
+      <p><label for="workloadId">Workload ID</label> <input id="workloadId" th:field="*{workloadId}" th:attr="aria-invalid=${#fields.hasErrors('workloadId') ? 'true' : null}" maxlength="200" required></p>
+      <p><label for="purpose">Purpose</label> <input id="purpose" th:field="*{purpose}" th:attr="aria-invalid=${#fields.hasErrors('purpose') ? 'true' : null}" maxlength="200" required></p>
+      <p><label for="metric">Metric</label> <input id="metric" th:field="*{metric}" th:attr="aria-invalid=${#fields.hasErrors('metric') ? 'true' : null}" maxlength="100" required></p>
+      <p><label for="comparator">Comparator</label>
+        <select id="comparator" th:field="*{comparator}" th:attr="aria-invalid=${#fields.hasErrors('comparator') ? 'true' : null}" required>
+          <option value="LTE">At most (LTE)</option><option value="GTE">At least (GTE)</option>
+        </select>
+      </p>
+      <p><label for="threshold">Threshold</label> <input id="threshold" type="number" step="any" th:field="*{threshold}" th:attr="aria-invalid=${#fields.hasErrors('threshold') ? 'true' : null}" aria-describedby="threshold-help" required>
+        <span id="threshold-help">Up to 100 integer digits and 50 fractional digits.</span>
+      </p>
+      <p><label for="unit">Unit</label> <input id="unit" th:field="*{unit}" th:attr="aria-invalid=${#fields.hasErrors('unit') ? 'true' : null}" maxlength="30" required></p>
+      <p><label for="windowSeconds">Window (seconds)</label> <input id="windowSeconds" type="number" min="1" max="31536000" th:field="*{windowSeconds}" th:attr="aria-invalid=${#fields.hasErrors('windowSeconds') ? 'true' : null}" required></p>
+      <p><label for="sourceKinds">Required source kinds, one per line</label>
+        <textarea id="sourceKinds" th:field="*{sourceKinds}" th:attr="aria-invalid=${#fields.hasErrors('sourceKinds') ? 'true' : null}" maxlength="20100" required aria-describedby="source-help"></textarea>
+        <span id="source-help">Enter 1 to 100 unique kinds, each up to 200 characters.</span>
+      </p>
+    </fieldset>
+    <fieldset>
+      <legend>Objective reference (not verified)</legend>
+      <p><label for="objectiveId">Objective ID</label> <input id="objectiveId" th:field="*{objectiveId}" th:attr="aria-invalid=${#fields.hasErrors('objectiveId') ? 'true' : null}" maxlength="200" required></p>
+      <p><label for="objectiveRevision">Objective revision</label> <input id="objectiveRevision" type="number" min="1" th:field="*{objectiveRevision}" th:attr="aria-invalid=${#fields.hasErrors('objectiveRevision') ? 'true' : null}" required></p>
+      <p><label for="objectiveDigest">Objective digest</label> <input id="objectiveDigest" th:field="*{objectiveDigest}" th:attr="aria-invalid=${#fields.hasErrors('objectiveDigest') ? 'true' : null}" maxlength="200" required></p>
+    </fieldset>
+    <fieldset>
+      <legend>Graph reference (not verified)</legend>
+      <p><label for="graphId">Graph ID</label> <input id="graphId" th:field="*{graphId}" th:attr="aria-invalid=${#fields.hasErrors('graphId') ? 'true' : null}" maxlength="200" required></p>
+      <p><label for="graphRevision">Graph revision</label> <input id="graphRevision" type="number" min="1" th:field="*{graphRevision}" th:attr="aria-invalid=${#fields.hasErrors('graphRevision') ? 'true' : null}" required></p>
+      <p><label for="graphDigest">Graph digest</label> <input id="graphDigest" th:field="*{graphDigest}" th:attr="aria-invalid=${#fields.hasErrors('graphDigest') ? 'true' : null}" maxlength="200" required></p>
+    </fieldset>
+    <button type="submit">Create draft case</button>
+  </form>
+</main>
+</body>
+</html>

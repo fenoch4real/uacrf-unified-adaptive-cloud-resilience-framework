@@ -25,6 +25,26 @@ class AssessmentRouteControllerTests {
   private static final String URL = "http://assessment.test";
 
   @Test
+  void forwardsCaseCreationIdempotencyKey() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new AssessmentRouteController(new AssessmentRouteClient(builder.build()))).build();
+    server.expect(requestTo(URL + "/v1/cases:idempotent-create"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+            "Idempotency-Key", "case-key"))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    mvc.perform(post("/internal/assessment/v1/cases:idempotent-create")
+            .contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isBadRequest());
+    mvc.perform(post("/internal/assessment/v1/cases:idempotent-create")
+            .header("Idempotency-Key", "case-key").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsAndLeavesInternalReceiptUnrouted() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

@@ -3,15 +3,22 @@ package org.uacrf.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpClientErrorException;
 
 class AssessmentClientTests {
   private static final String CASE = """
@@ -35,6 +42,54 @@ class AssessmentClientTests {
        "effect_bounds":{"metric":"latency","comparator":"LTE","threshold":10,
        "unit":"ms","effect":"INVESTIGATE_ONLY"}}
       """;
+
+  @Test
+  void createsOnlyThroughKeyedRouteAndRejectsMismatchedReceipt() {
+    var request = new AssessmentClient.CaseCreation("workload-1", "assessment", "latency", "LTE",
+        new BigDecimal("10.00"), "ms", 3600, new AssessmentClient.ObjectiveRef("objective-1", 1L, "d"),
+        new AssessmentClient.GraphRef("graph-1", 1L, "d"), List.of("measurement.latency"));
+    for (String body : List.of(CASE, CASE.replace("\"workload-1\"", "\"other\""),
+        CASE.replace("\"objective-1\"", "\"other\""),
+        CASE.replace("\"measurement.latency\"", "\"other\""),
+        CASE.replace("[\"measurement.latency\"]", "[null]"))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/cases:idempotent-create"))
+          .andExpect(method(HttpMethod.POST))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", "case-key"))
+          .andExpect(content().json("""
+              {"workload_id":"workload-1","purpose":"assessment","metric":"latency",
+               "comparator":"LTE","threshold":10,"unit":"ms","window_seconds":3600,
+               "objective_ref":{"objective_id":"objective-1","revision":1,"digest":"d"},
+               "graph_ref":{"graph_id":"graph-1","revision":1,"digest":"d"},
+               "required_source_kinds":["measurement.latency"]}
+              """))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      AssessmentClient client = new AssessmentClient(builder.build());
+      if (!body.equals(CASE)) {
+        assertThatThrownBy(() -> client.createCase("delegated", "case-key", request))
+            .isInstanceOf(IllegalStateException.class);
+      } else {
+        assertThat(client.createCase("delegated", "case-key", request).state()).isEqualTo("SEALED");
+      }
+      server.verify();
+    }
+  }
+
+  @Test
+  void doesNotFallBackToLegacyCreationWhenKeyedRouteIsUnavailable() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/cases:idempotent-create"))
+        .andRespond(withStatus(HttpStatus.NOT_FOUND));
+    var request = new AssessmentClient.CaseCreation("w", "p", "m", "LTE", BigDecimal.ONE,
+        "ms", 60, new AssessmentClient.ObjectiveRef("o", 1L, "d"),
+        new AssessmentClient.GraphRef("g", 1L, "d"), List.of("source"));
+    assertThatThrownBy(() -> new AssessmentClient(builder.build()).createCase("token", "key", request))
+        .isInstanceOf(HttpClientErrorException.NotFound.class);
+    server.verify();
+  }
 
   @Test
   void readsWorkloadCasesThroughTheAssessmentEdge() {
@@ -121,9 +176,13 @@ class AssessmentClientTests {
   void encodesWorkloadAsOneQueryParameter() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/cases?workload_id=a%26other%3D1"))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
     server.expect(requestTo("http://edge.test/v1/recommendations?workload_id=a%26other%3D1"))
         .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
-    assertThat(new AssessmentClient(builder.build()).listRecommendations("delegated", "a&other=1")).isEmpty();
+    AssessmentClient client = new AssessmentClient(builder.build());
+    assertThat(client.listCases("delegated", "a&other=1")).isEmpty();
+    assertThat(client.listRecommendations("delegated", "a&other=1")).isEmpty();
     server.verify();
   }
 }
