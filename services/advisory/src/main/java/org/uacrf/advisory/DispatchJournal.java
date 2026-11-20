@@ -216,8 +216,10 @@ final class DispatchJournal {
   }
 
   boolean registerRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
-                      List<Intent> dispatchPlan) throws SQLException {
+                      List<Intent> dispatchPlan, RequesterAccessClient.Principal requester)
+      throws SQLException {
     validateRunAdmission(key, generation, budget, deadline);
+    validateRequester(key, requester);
     List<Intent> plan = validateDispatchPlan(key, generation, budget, deadline, dispatchPlan);
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
@@ -246,15 +248,7 @@ final class DispatchJournal {
       throws SQLException {
     Objects.requireNonNull(request, "request");
     validateRunAdmission(key, generation, request.budget(), request.deadline());
-    Objects.requireNonNull(requester, "requester");
-    if (!"HUMAN".equals(requester.kind())
-        || !requester.tenantId().equals(key.tenantId())
-        || !requester.environmentId().equals(key.environmentId())
-        || !requester.capabilities().contains("advisory.run.create")) {
-      throw new IllegalArgumentException("Requester authorization does not match the run scope.");
-    }
-    String principalId = requester.id();
-    requireId(principalId);
+    String principalId = validateRequester(key, requester);
     requireId(operation);
     validateIdempotencyKey(idempotencyKey);
     String requestDigest = request.requestDigest();
@@ -650,6 +644,19 @@ final class DispatchJournal {
     }
     Objects.requireNonNull(budget, "budget");
     Objects.requireNonNull(deadline, "deadline");
+  }
+
+  private static String validateRequester(RunKey key, RequesterAccessClient.Principal requester) {
+    Objects.requireNonNull(requester, "requester");
+    if (!"HUMAN".equals(requester.kind())
+        || !requester.tenantId().equals(key.tenantId())
+        || !requester.environmentId().equals(key.environmentId())
+        || !requester.capabilities().contains("advisory.run.create")) {
+      throw new IllegalArgumentException("Requester authorization does not match the run scope.");
+    }
+    String principalId = requester.id();
+    requireId(principalId);
+    return principalId;
   }
 
   private static void validateIdempotencyKey(String key) {

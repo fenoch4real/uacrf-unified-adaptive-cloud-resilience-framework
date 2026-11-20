@@ -55,6 +55,29 @@ class DispatchJournalTests {
     postgres.setUser(POSTGRES.getUsername());
     postgres.setPassword(POSTGRES.getPassword());
     dataSource = postgres;
+    identityServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    identityServer.createContext("/v1/me/access", exchange -> {
+      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+      String prefix = "Bearer test-";
+      if (authorization == null || !authorization.startsWith(prefix)) {
+        exchange.sendResponseHeaders(401, -1);
+        exchange.close();
+        return;
+      }
+      String principalId = authorization.substring(prefix.length());
+      String body = """
+          {"principal_id":"%s","display_name":"Test user","kind":"HUMAN","service_id":null,
+           "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read",
+           "knowledge.retrieval.read"]}
+          """.formatted(principalId);
+      byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+      exchange.sendResponseHeaders(200, bytes.length);
+      try (var output = exchange.getResponseBody()) {
+        output.write(bytes);
+      }
+    });
+    identityServer.start();
+    identityBase = URI.create("http://127.0.0.1:" + identityServer.getAddress().getPort());
     Flyway.configure().dataSource(dataSource).target("5").load().migrate();
     var journal = new DispatchJournal(dataSource);
     for (String runId : List.of("pending", "published")) {
@@ -82,29 +105,6 @@ class DispatchJournalTests {
       }
     }
     Flyway.configure().dataSource(dataSource).load().migrate();
-    identityServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-    identityServer.createContext("/v1/me/access", exchange -> {
-      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
-      String prefix = "Bearer test-";
-      if (authorization == null || !authorization.startsWith(prefix)) {
-        exchange.sendResponseHeaders(401, -1);
-        exchange.close();
-        return;
-      }
-      String principalId = authorization.substring(prefix.length());
-      String body = """
-          {"principal_id":"%s","display_name":"Test user","kind":"HUMAN","service_id":null,
-           "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read",
-           "knowledge.retrieval.read"]}
-          """.formatted(principalId);
-      byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-      exchange.sendResponseHeaders(200, bytes.length);
-      try (var output = exchange.getResponseBody()) {
-        output.write(bytes);
-      }
-    });
-    identityServer.start();
-    identityBase = URI.create("http://127.0.0.1:" + identityServer.getAddress().getPort());
   }
 
   @AfterAll
@@ -119,6 +119,18 @@ class DispatchJournalTests {
     return new RequesterAccessClient(true, identityBase, true)
         .check("test-" + principalId, key.tenantId(), key.environmentId(),
             SourceReceiptConsistency.Classification.PUBLIC);
+  }
+
+  private static RequesterAccessClient.Principal requesterProof(
+      DispatchJournal.RunKey key, String principalId) throws SQLException {
+    try {
+      return requester(key, principalId);
+    } catch (InterruptedException failure) {
+      Thread.currentThread().interrupt();
+      throw new SQLException("Requester access check was interrupted.", failure);
+    } catch (IOException failure) {
+      throw new SQLException("Requester access check failed.", failure);
+    }
   }
 
   private static DispatchJournal.Intent intent(String tenant, String attempt, String assignment) {
@@ -213,7 +225,8 @@ class DispatchJournalTests {
       DispatchJournal journal, DispatchJournal.RunKey runKey, long generation, AdvisoryBudget budget,
       Instant deadline, DispatchJournal.Intent... preparedIntents) throws SQLException {
     return journal.registerRun(runKey, generation, budget, deadline,
-        dispatchPlan(runKey, generation, budget, deadline, preparedIntents));
+        dispatchPlan(runKey, generation, budget, deadline, preparedIntents),
+        requesterProof(runKey, "principal-1"));
   }
 
   private static DispatchJournal.AdmissionResult admit(
@@ -838,6 +851,9 @@ class DispatchJournalTests {
     assertThrows(IllegalArgumentException.class, () -> journal.admitRun(
         runKey, 1, request, dispatchPlan(runKey, 1, request.budget(), request.deadline()),
         foreignRequester, "CREATE_ADVISORY_RUN", "idem-scope"));
+    assertThrows(IllegalArgumentException.class, () -> journal.registerRun(
+        runKey, 1, request.budget(), request.deadline(),
+        dispatchPlan(runKey, 1, request.budget(), request.deadline()), foreignRequester));
     assertTrue(journal.findRun(runKey).isEmpty());
     assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", runKey.tenantId()));
     assertEquals(0, countForTenant("uacrf_advisory.outbox_event", runKey.tenantId()));

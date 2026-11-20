@@ -1335,19 +1335,19 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   clean advisory suite passed 160 tests with no failures, errors, or skips. No
   service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
-  Journal admission now accepts only the private-constructor S01 requester
-  proof, which binds a HUMAN principal with `advisory.run.create` to the exact
-  tenant/environment; a scope-mismatch regression confirms no journal or
-  outbox rows are created. Requester source checking also requires the refreshed
-  S01 capability set to exactly match the initial proof and fails closed on
-  drift; a changed-but-still-eligible capability regression verifies that
-  stale permissions cannot drive delegated owner reads. These are point-in-time
-  checks and do not prevent later S01 revocation or establish that owner
-  context remains unchanged at commit. No connected handler or current-context
-  commit guard is wired; the publisher and provider dispatch remain disabled,
-  and the operation remains `PENDING_CONNECTED_VERIFICATION`. The MS01 design
-  check passes 24 consistency checks; target runtime acceptance remains not
-  evaluated.
+  Both durable journal admission and its lower-level run-registration path
+  require the private-constructor S01 requester proof, which binds a HUMAN
+  principal with `advisory.run.create` to the exact tenant/environment; a
+  scope-mismatch regression confirms neither path persists a run. Requester
+  source checking also requires the refreshed S01 capability set to exactly
+  match the initial proof and fails closed on drift; a changed-but-still-
+  eligible capability regression verifies that stale permissions cannot drive
+  delegated owner reads. These are point-in-time checks and do not prevent
+  later S01 revocation or establish that owner context remains unchanged at
+  commit. No connected handler or current-context commit guard is wired; the
+  publisher and provider dispatch remain disabled, and the operation remains
+  `PENDING_CONNECTED_VERIFICATION`. The MS01 design check passes 24 consistency
+  checks; target runtime acceptance remains not evaluated.
 - `services/advisory` contains an internal provider-neutral invocation contract
   and a disabled gateway. This is a library foundation, not a deployable service;
   its durable journal and scheduling outbox are not consumed by a connected
