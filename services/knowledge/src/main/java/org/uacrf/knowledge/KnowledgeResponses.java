@@ -54,6 +54,12 @@ final class KnowledgeResponses {
       String manifestDigest,
       List<RetrievalResult> results) {}
 
+  record RetrievalSummary(
+      String retrievalId, String caseId, String caseBinding, String purpose,
+      Classification maxClassification, String manifestDigest, String createdAt) {}
+
+  record RetrievalPage(List<RetrievalSummary> items, String nextCursor) {}
+
   record ReceiptResult(
       String itemId,
       String version,

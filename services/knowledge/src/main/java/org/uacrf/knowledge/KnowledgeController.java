@@ -99,6 +99,12 @@ class KnowledgeController {
     return knowledge.getRetrieval(DelegationPrincipal.from(jwt), id);
   }
 
+  @GetMapping("/v1/retrievals")
+  RetrievalPage listRetrievals(@AuthenticationPrincipal Jwt jwt,
+      @RequestParam(defaultValue = "50") int limit, @RequestParam(required = false) String after) {
+    return knowledge.listRetrievals(DelegationPrincipal.from(jwt), limit, after);
+  }
+
   @PostMapping("/internal/v1/retrievals/{id}:receipt")
   RetrievalReceipt receipt(
       @AuthenticationPrincipal Jwt jwt,

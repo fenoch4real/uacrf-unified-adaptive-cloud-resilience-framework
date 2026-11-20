@@ -51,6 +51,31 @@ class KnowledgeClientTests {
   }
 
   @Test
+  void checksRetrievalHistoryOrderClassificationAndCursor() {
+    String id = "a1234567-1234-4234-8234-123456789012";
+    String row = """
+        {"retrieval_id":"%s","case_id":null,"case_binding":"NOT_VERIFIED","purpose":"review",
+         "max_classification":"PUBLIC","manifest_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "created_at":"2026-01-01T00:00:00Z"}
+        """.formatted(id);
+    String valid = "{\"items\":[" + row + "],\"next_cursor\":null}";
+    for (String body : List.of(valid, valid.replace("\"PUBLIC\"", "\"INTERNAL\""),
+        valid.replace("\"next_cursor\":null", "\"next_cursor\":\"" + id + "\""),
+        "{\"items\":[" + row + "," + row + "],\"next_cursor\":null}")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/retrievals?limit=50"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      KnowledgeClient client = new KnowledgeClient(builder.build());
+      if (body.equals(valid)) assertThat(client.listRetrievals("reader", null, KnowledgeClient.Classification.PUBLIC).items()).hasSize(1);
+      else assertThatThrownBy(() -> client.listRetrievals("reader", null, KnowledgeClient.Classification.PUBLIC))
+          .isInstanceOf(IllegalStateException.class);
+      server.verify();
+    }
+  }
+
+  @Test
   void readsOnlyMatchingRetrievalWithinSelectedClearance() {
     String id = "a1234567-1234-4234-8234-123456789012";
     String receipt = """

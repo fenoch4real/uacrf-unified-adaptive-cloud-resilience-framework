@@ -537,6 +537,12 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const readRetrievalUrl = await sample.getByRole('link', { name: 'Recheck this retrieval' }).getAttribute('href');
       const deniedRead = await reviewer.goto(readRetrievalUrl);
       expect(deniedRead.status()).toBe(403);
+      const deniedHistory = await reviewer.goto('/knowledge/retrieval-history');
+      expect(deniedHistory.status()).toBe(403);
+      const retrievalId = new URL(readRetrievalUrl, 'http://localhost:8084').pathname.split('/').pop();
+      await sample.goto('/knowledge/retrieval-history');
+      await expect(sample.getByRole('link', { name: `Retrieval ${retrievalId}` })).toBeVisible();
+      await expect(sample.getByText('Synthetic material for withdrawal.')).toHaveCount(0);
       const retryRetrieval = await sample.request.post('/knowledge/retrieve', {
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
         data: retrievalResponse.request().postData(),
@@ -570,7 +576,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const concealedHtml = await concealedReplay.text();
       expect(concealedHtml).not.toContain('Synthetic material for withdrawal.');
       expect(concealedHtml).toContain('Excerpt unavailable after current checks.');
-      await sample.goto(readRetrievalUrl);
+      await sample.goto('/knowledge/retrieval-history');
+      await sample.getByRole('link', { name: `Retrieval ${retrievalId}` }).click();
       await expect(sample.getByText('Excerpt unavailable after current checks.')).toBeVisible();
       await expect(sample.getByText('Synthetic material for withdrawal.')).toHaveCount(0);
     } finally {

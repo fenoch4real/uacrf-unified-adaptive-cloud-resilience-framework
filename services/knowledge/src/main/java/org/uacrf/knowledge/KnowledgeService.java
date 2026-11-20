@@ -556,6 +556,31 @@ class KnowledgeService {
     return loadRetrieval(actor, retrievalId, true);
   }
 
+  @Transactional(readOnly = true)
+  RetrievalPage listRetrievals(DelegationPrincipal actor, int limit, String after) {
+    requireCapability(actor, "knowledge.retrieval.read");
+    requireGlobalScope(actor);
+    if (limit < 1 || limit > 100 || (after != null
+        && !after.matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))) {
+      throw invalid("INVALID_REQUEST", "Invalid retrieval page size or cursor.");
+    }
+    List<RetrievalSummary> rows = jdbc.query(
+        "SELECT retrieval_id, case_id, case_binding, purpose, max_classification, manifest_digest, created_at "
+            + "FROM " + SCHEMA + "retrieval WHERE tenant_id = ? AND environment_id = ? "
+            + "AND retrieval_id COLLATE \"C\" > ? AND CASE max_classification "
+            + "WHEN 'PUBLIC' THEN 0 WHEN 'INTERNAL' THEN 1 WHEN 'RESTRICTED' THEN 2 END <= ? "
+            + "ORDER BY retrieval_id COLLATE \"C\" LIMIT ?",
+        (rs, row) -> new RetrievalSummary(rs.getString("retrieval_id"), rs.getString("case_id"),
+            rs.getString("case_binding"), rs.getString("purpose"),
+            Classification.valueOf(rs.getString("max_classification")), rs.getString("manifest_digest").trim(),
+            rs.getTimestamp("created_at").toInstant().toString()),
+        actor.tenantId(), actor.environmentId(), after == null ? "" : after,
+        classificationRank(maxClassification(actor)), limit + 1);
+    boolean more = rows.size() > limit;
+    List<RetrievalSummary> items = List.copyOf(rows.subList(0, Math.min(limit, rows.size())));
+    return new RetrievalPage(items, more ? items.getLast().retrievalId() : null);
+  }
+
   @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
   RetrievalReceipt receipt(DelegationPrincipal actor, String retrievalId, ReceiptRequest request) {
     requireCapability(actor, "knowledge.retrieval.read");

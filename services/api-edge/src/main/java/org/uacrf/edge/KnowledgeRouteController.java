@@ -107,6 +107,13 @@ class KnowledgeRouteController {
     return forward(() -> knowledge.getRetrieval(authorization, id));
   }
 
+  @GetMapping("/v1/retrievals")
+  ResponseEntity<String> listRetrievals(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestParam(defaultValue = "50") int limit, @RequestParam(required = false) String after) {
+    return forward(() -> knowledge.listRetrievals(authorization, limit, after));
+  }
+
   private static ResponseEntity<String> forward(Supplier<ResponseEntity<String>> request) {
     try {
       return request.get();

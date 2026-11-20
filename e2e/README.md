@@ -139,7 +139,9 @@ without `knowledge.retrieval.run`, then verifies the replay conceals the
 withdrawn excerpt. Its synthetic manifest is `NOT_VERIFIED`, not a verified
 case binding or provider acceptance. A separate read grant is required to
 recheck the known retrieval ID: the ungranted reviewer is denied, while the
-authorized reader sees the excerpt concealed after withdrawal.
+authorized reader can find it in bounded retrieval history and sees the
+excerpt concealed after withdrawal. The ungranted reviewer is also denied
+history access; the browser test does not exercise multi-page history.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

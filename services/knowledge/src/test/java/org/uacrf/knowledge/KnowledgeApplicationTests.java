@@ -97,6 +97,40 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void retrievalHistoryIsPagedTenantScopedAndClassificationFiltered() throws Exception {
+    String tenant = "t-retrieval-history";
+    String runner = bearer("searcher", tenant, RETRIEVER);
+    String publicId = run(runner, "incident", "public", "PUBLIC", null).get("retrieval_id").asText();
+    String internalId = run(runner, "incident", "internal", "INTERNAL", null).get("retrieval_id").asText();
+    String restrictedId = run(runner, "incident", "restricted", "RESTRICTED", null).get("retrieval_id").asText();
+    String otherId = run(bearer("searcher", "t-other-history", RETRIEVER),
+        "incident", "other", "PUBLIC", null).get("retrieval_id").asText();
+    String publicReader = bearer("reader", tenant, List.of("knowledge.retrieval.read"));
+    JsonNode publicPage = getJson("/v1/retrievals?limit=1", publicReader);
+    assertEquals(1, publicPage.get("items").size());
+    assertEquals(publicId, publicPage.get("items").get(0).get("retrieval_id").asText());
+    assertThat(publicPage.toString()).doesNotContain("query", "excerpt", internalId, restrictedId);
+    assertThat(publicPage.get("next_cursor").isNull()).isTrue();
+    String internalReader = bearer("reader", tenant, INTERNAL_READER);
+    JsonNode first = getJson("/v1/retrievals?limit=1", internalReader);
+    String cursor = first.get("next_cursor").asText();
+    JsonNode second = getJson("/v1/retrievals?limit=1&after=" + cursor, internalReader);
+    assertThat(List.of(first.get("items").get(0).get("retrieval_id").asText(),
+        second.get("items").get(0).get("retrieval_id").asText()))
+        .containsExactlyInAnyOrder(publicId, internalId);
+    assertThat(second.get("next_cursor").isNull()).isTrue();
+    JsonNode all = getJson("/v1/retrievals",
+        bearer("reader", tenant, List.of("knowledge.retrieval.read", "knowledge.classification.restricted.read")));
+    assertEquals(3, all.get("items").size());
+    assertThat(all.toString()).contains(publicId, internalId, restrictedId).doesNotContain(otherId);
+    assertEquals(403, get("/v1/retrievals", bearer("other", tenant, List.of("knowledge.retrieval.run"))).statusCode());
+    assertEquals(403, get("/v1/retrievals", token("reader", tenant, "workload-1", INTERNAL_READER)).statusCode());
+    assertEquals(400, get("/v1/retrievals?limit=0", internalReader).statusCode());
+    assertEquals(400, get("/v1/retrievals?limit=101", internalReader).statusCode());
+    assertEquals(400, get("/v1/retrievals?after=bad", internalReader).statusCode());
+  }
+
+  @Test
   void keyedRetrievalReplaysOneManifestButRechecksWithdrawnSources() throws Exception {
     String tenant = "t-keyed-retrieval";
     stageAndApprove("keyed-source", "v1", "protected retrieval text",

@@ -86,6 +86,14 @@ class KnowledgeRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> listRetrievals(String authorization, int limit, String after) {
+    return send(knowledgeRestClient.get().uri(uri -> {
+      var query = uri.path("/v1/retrievals").queryParam("limit", limit);
+      if (after != null) query.queryParam("after", "{after}");
+      return after == null ? query.build() : query.build(after);
+    }), authorization);
+  }
+
   private ResponseEntity<String> sendBody(
       HttpMethod method,
       String path,

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retrieval history | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body>
+<main>
+  <h1>Retrieval history</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/knowledge">Back to knowledge metadata</a></p>
+  <p>History is ordered by retrieval ID, not time. These retained summaries do not establish current
+    eligibility or authorize action. Each page is an independent read; restart to see entries inserted
+    before the current cursor. Queries and excerpts are not shown here.</p>
+  <form method="get" th:action="@{/knowledge/retrieval-history}">
+    <fieldset><legend>Maximum classification</legend>
+      <input id="public" type="radio" name="classification" value="PUBLIC" th:checked="${classification == 'PUBLIC'}"><label for="public">Public</label>
+      <input id="internal" type="radio" name="classification" value="INTERNAL" th:checked="${classification == 'INTERNAL'}"><label for="internal">Internal and public</label>
+      <input id="restricted" type="radio" name="classification" value="RESTRICTED" th:checked="${classification == 'RESTRICTED'}"><label for="restricted">Restricted and lower</label>
+    </fieldset>
+    <button type="submit">Show retrieval history</button>
+  </form>
+  <p role="alert" th:if="${historyError != null}" th:text="${historyError}"></p>
+  <div th:if="${page != null}">
+    <p th:if="${#lists.isEmpty(page.items)}">No retained retrievals on this page.</p>
+    <ol>
+      <li th:each="item : ${page.items}">
+        <h2><a th:href="@{/knowledge/retrievals/{id}(id=${item.retrievalId},classification=${item.maxClassification})}"
+               th:text="|Retrieval ${item.retrievalId}|">Retrieval</a></h2>
+        <dl>
+          <dt>Case</dt><dd th:text="${item.caseId != null ? item.caseId : 'Not specified'}">Case</dd>
+          <dt>Case binding</dt><dd th:text="${item.caseBinding}">Binding</dd>
+          <dt>Purpose</dt><dd th:text="${item.purpose}">Purpose</dd>
+          <dt>Maximum classification</dt><dd th:text="${item.maxClassification}">Classification</dd>
+          <dt>Created</dt><dd th:text="${item.createdAt}">Time</dd>
+        </dl>
+      </li>
+    </ol>
+    <p th:if="${page.nextCursor != null}">
+      <a th:href="@{/knowledge/retrieval-history(classification=${classification},after=${page.nextCursor})}">Next retrievals</a>
+    </p>
+  </div>
+</main>
+</body>
+</html>

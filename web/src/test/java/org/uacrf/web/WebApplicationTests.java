@@ -57,6 +57,28 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
 
   @Test
+  void retrievalHistoryUsesReadGrantAndDoesNotMaskDenial() throws Exception {
+    String id = "a1234567-1234-4234-8234-123456789012";
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.retrieval.read", "knowledge.classification.internal.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    var row = new KnowledgeClient.RetrievalSummary(id, null, "NOT_VERIFIED", "review",
+        KnowledgeClient.Classification.INTERNAL, "a".repeat(64), Instant.parse("2026-01-01T00:00:00Z"));
+    when(knowledge.listRetrievals("reader", null, KnowledgeClient.Classification.INTERNAL))
+        .thenReturn(new KnowledgeClient.RetrievalPage(List.of(row), null));
+    mockMvc.perform(get("/knowledge/retrieval-history").param("classification", "INTERNAL")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString(id)))
+        .andExpect(content().string(containsString("NOT_VERIFIED")));
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.retrieval.read"),
+        "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/knowledge/retrieval-history").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Retrieval history access failed")))
+        .andExpect(content().string(not(containsString("No retained retrievals"))));
+  }
+
+  @Test
   void readsRetrievalUsingSeparateContextBoundReadDelegation() throws Exception {
     String id = "a1234567-1234-4234-8234-123456789012";
     when(identity.createDelegation("test-access-token", "S08", null,

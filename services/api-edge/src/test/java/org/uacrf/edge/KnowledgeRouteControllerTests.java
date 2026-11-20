@@ -84,6 +84,11 @@ class KnowledgeRouteControllerTests {
         .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/retrievals?limit=5&after=12345678-1234-4234-8234-123456789012"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/retrievals/r-1"))
         .andRespond(withException(new IOException("down")));
 
@@ -115,6 +120,10 @@ class KnowledgeRouteControllerTests {
             .header("Idempotency-Key", "retrieval-key").header(HttpHeaders.AUTHORIZATION, "Bearer searcher")
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(get("/internal/knowledge/v1/retrievals").param("limit", "5")
+            .param("after", "12345678-1234-4234-8234-123456789012")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(get("/internal/knowledge/v1/retrievals/r-1")).andExpect(status().isBadGateway());
     mvc.perform(post("/internal/knowledge/internal/v1/retrievals/r-1:receipt").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isNotFound());

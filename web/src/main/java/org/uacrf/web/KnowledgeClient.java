@@ -132,9 +132,42 @@ class KnowledgeClient {
     return receipt;
   }
 
+  RetrievalPage listRetrievals(String token, String after, Classification ceiling) {
+    RetrievalPage page = restClient.get().uri(uri -> {
+      var query = uri.path("/v1/retrievals").queryParam("limit", 50);
+      if (after != null) query.queryParam("after", "{after}");
+      return after == null ? query.build() : query.build(after);
+    }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(RetrievalPage.class);
+    if (page == null || page.items() == null || page.items().size() > 50) {
+      throw new IllegalStateException("S08 returned an invalid retrieval page.");
+    }
+    String previous = after;
+    for (RetrievalSummary item : page.items()) {
+      if (item == null || !validRetrievalId(item.retrievalId())
+          || (previous != null && item.retrievalId().compareTo(previous) <= 0)
+          || (item.caseId() != null && !item.caseId().matches(IDENTIFIER))
+          || (!"NOT_VERIFIED".equals(item.caseBinding()) && !"VERIFIED".equals(item.caseBinding()))
+          || ("VERIFIED".equals(item.caseBinding()) && item.caseId() == null)
+          || item.purpose() == null || !item.purpose().matches(IDENTIFIER)
+          || item.maxClassification() == null || item.maxClassification().ordinal() > ceiling.ordinal()
+          || item.manifestDigest() == null || !item.manifestDigest().matches("^[0-9a-f]{64}$")
+          || item.createdAt() == null) {
+        throw new IllegalStateException("S08 returned invalid retrieval history.");
+      }
+      previous = item.retrievalId();
+    }
+    if (page.nextCursor() != null && (page.items().size() != 50 || !page.nextCursor().equals(previous))) {
+      throw new IllegalStateException("S08 returned an invalid retrieval cursor.");
+    }
+    return page;
+  }
+
+  private static boolean validRetrievalId(String id) {
+    return id != null && id.matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
+  }
+
   private static boolean validRetrieval(Retrieval receipt, Classification ceiling) {
-    return receipt != null && receipt.retrievalId() != null
-        && receipt.retrievalId().matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    return receipt != null && validRetrievalId(receipt.retrievalId())
         && (receipt.caseId() == null || receipt.caseId().matches(IDENTIFIER))
         && receipt.purpose() != null && receipt.purpose().matches(IDENTIFIER)
         && present(receipt.query()) && receipt.query().length() <= 2000
@@ -236,6 +269,13 @@ class KnowledgeClient {
       @JsonProperty("end_offset") Integer endOffset, @JsonProperty("source_digest") String sourceDigest,
       @JsonProperty("excerpt_digest") String excerptDigest, @JsonProperty("allowed_purposes") List<String> allowedPurposes,
       Classification classification, Integer score, String excerpt) {}
+
+  record RetrievalSummary(@JsonProperty("retrieval_id") String retrievalId, @JsonProperty("case_id") String caseId,
+      @JsonProperty("case_binding") String caseBinding, String purpose,
+      @JsonProperty("max_classification") Classification maxClassification,
+      @JsonProperty("manifest_digest") String manifestDigest, @JsonProperty("created_at") Instant createdAt) {}
+
+  record RetrievalPage(List<RetrievalSummary> items, @JsonProperty("next_cursor") String nextCursor) {}
 
   record ItemVersion(@JsonProperty("item_id") String itemId, String version, String title,
       @JsonProperty("source_ref") String sourceRef, Classification classification,

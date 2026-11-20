@@ -94,6 +94,41 @@ class KnowledgeRetrievalController {
     return "knowledge-retrieval-lookup";
   }
 
+  @GetMapping("/knowledge/retrieval-history")
+  String history(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @RequestParam(defaultValue = "PUBLIC") String classification,
+      @RequestParam(required = false) String after, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("classification", classification);
+    if (!List.of("PUBLIC", "INTERNAL", "RESTRICTED").contains(classification)
+        || (after != null && !after.matches(RETRIEVAL_ID))) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("historyError", "Invalid classification or page cursor.");
+      return "knowledge-retrieval-history";
+    }
+    var ceiling = KnowledgeClient.Classification.valueOf(classification);
+    List<String> capabilities = new ArrayList<>(List.of("knowledge.retrieval.read"));
+    if (ceiling == KnowledgeClient.Classification.INTERNAL) capabilities.add("knowledge.classification.internal.read");
+    if (ceiling == KnowledgeClient.Classification.RESTRICTED) capabilities.add("knowledge.classification.restricted.read");
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S08", null,
+          List.copyOf(capabilities), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("page", knowledge.listRetrievals(token, after, ceiling));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("historyError", "Identity or knowledge service is unavailable; history was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("historyError", "Retrieval history access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("historyError", "Identity or knowledge service returned invalid retrieval history.");
+    }
+    return "knowledge-retrieval-history";
+  }
+
   @PostMapping("/knowledge/retrieve")
   String retrieve(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,
