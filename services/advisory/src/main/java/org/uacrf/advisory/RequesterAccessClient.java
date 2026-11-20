@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -20,13 +22,17 @@ final class RequesterAccessClient {
     private final String tenantId;
     private final String environmentId;
     private final Set<String> capabilities;
+    private final Instant capabilityExpiryHorizon;
 
-    private Principal(String id, String kind, String tenantId, String environmentId, Set<String> capabilities) {
+    private Principal(
+        String id, String kind, String tenantId, String environmentId, Set<String> capabilities,
+        Instant capabilityExpiryHorizon) {
       this.id = id;
       this.kind = kind;
       this.tenantId = tenantId;
       this.environmentId = environmentId;
       this.capabilities = Set.copyOf(capabilities);
+      this.capabilityExpiryHorizon = capabilityExpiryHorizon;
     }
 
     String id() {
@@ -47,6 +53,10 @@ final class RequesterAccessClient {
 
     Set<String> capabilities() {
       return capabilities;
+    }
+
+    Instant capabilityExpiryHorizon() {
+      return capabilityExpiryHorizon;
     }
   }
 
@@ -83,8 +93,18 @@ final class RequesterAccessClient {
         || !"HUMAN".equals(kind)
         || !"GLOBAL_GRANTS_ONLY".equals(body.get("scope"))
         || !body.containsKey("service_id") || body.get("service_id") != null
-        || !(body.get("capability_ids") instanceof List<?> values)) {
+        || !(body.get("capability_ids") instanceof List<?> values)
+        || !(body.get("capability_expiry_horizon") instanceof String horizonValue)) {
       throw new IOException("S01 returned invalid requester access.");
+    }
+    Instant horizon;
+    try {
+      horizon = Instant.parse(horizonValue);
+    } catch (DateTimeParseException failure) {
+      throw new IOException("S01 returned invalid requester capability expiry.", failure);
+    }
+    if (!horizon.isAfter(Instant.now())) {
+      throw new IOException("Requester capability expiry horizon has passed.");
     }
     try {
       InternalJsonClient.requireId(principalId);
@@ -109,7 +129,7 @@ final class RequesterAccessClient {
             && !capabilities.contains("knowledge.classification.restricted.read"))) {
       throw new IOException("Requester lacks required advisory or source access capabilities.");
     }
-    return new Principal(principalId, kind, tenantId, environmentId, capabilities);
+    return new Principal(principalId, kind, tenantId, environmentId, capabilities, horizon);
   }
 
   private static String encode(String value) {

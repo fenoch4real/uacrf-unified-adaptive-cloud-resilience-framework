@@ -57,6 +57,9 @@ grants extend a capability to their latest expiration. This is snapshot
 metadata, not a validity guarantee: revocations, additions, principal or
 context changes, and token expiry can take effect sooner. It is not a
 reservation or a commit fence.
+S09's preparation check requires a parseable, future expiry horizon and
+rejects changes between its two S01 reads. Deploy the S01 response change
+before the S09 client; older S01 responses fail closed.
 
 S02's active workload-version receipt accepts `profile_id` to identify a
 version within its workload. Without it, a version ID matching multiple

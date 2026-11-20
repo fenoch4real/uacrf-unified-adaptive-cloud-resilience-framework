@@ -51,7 +51,8 @@ class OwnerReceiptClientTests {
   private static final String REQUESTER_ACCESS = """
       {"principal_id":"human-1","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
        "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
-       "knowledge.classification.internal.read","catalog.agent.read"]}
+       "knowledge.classification.internal.read","catalog.agent.read"],
+       "capability_expiry_horizon":"2099-01-01T00:00:00Z"}
       """;
   private static final String WORKLOAD_VERSION_MANIFEST =
       "{\"instructions_digest\":\"" + "a".repeat(64)
@@ -784,6 +785,17 @@ class OwnerReceiptClientTests {
             () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)).getMessage());
     assertEquals(2, requesterAccessCalls.get());
     assertEquals(1, contentCalls.get());
+  }
+
+  @Test
+  void rejectsRequesterCapabilityExpiryChangesDuringSourceReads() {
+    requesterReplyAfterContent.set(
+        new Reply(200, REQUESTER_ACCESS.replace("2099-01-01T00:00:00Z", "2098-01-01T00:00:00Z")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+
+    assertEquals("Requester capability expiry horizon changed during source checking.",
+        assertThrows(IOException.class,
+            () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)).getMessage());
   }
 
   @Test

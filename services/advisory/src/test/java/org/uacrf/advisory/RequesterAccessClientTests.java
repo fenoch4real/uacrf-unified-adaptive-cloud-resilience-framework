@@ -20,7 +20,8 @@ import org.junit.jupiter.api.Test;
 class RequesterAccessClientTests {
   private static final String PUBLIC_ACCESS = """
       {"principal_id":"human-1","display_name":"User","kind":"HUMAN","service_id":null,
-       "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read"]}
+       "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read"],
+       "capability_expiry_horizon":"2099-01-01T00:00:00Z"}
       """;
   private HttpServer server;
   private URI base;
@@ -100,6 +101,10 @@ class RequesterAccessClientTests {
         PUBLIC_ACCESS.replace("\"scope\":\"GLOBAL_GRANTS_ONLY\"", "\"scope\":\"GLOBAL_AND_SELECTED_SERVICE_GRANTS\""),
         PUBLIC_ACCESS.replace("\"service_id\":null", "\"service_id\":\"svc-1\""),
         PUBLIC_ACCESS.replace("\"assessment.case.read\"", "\"assessment.case.read\",\"assessment.case.read\""),
+        PUBLIC_ACCESS.replace("\"capability_expiry_horizon\":\"2099-01-01T00:00:00Z\"", "\"capability_expiry_horizon\":null"),
+        PUBLIC_ACCESS.replace(",\n \"capability_expiry_horizon\":\"2099-01-01T00:00:00Z\"", ""),
+        PUBLIC_ACCESS.replace("2099-01-01T00:00:00Z", "not-an-instant"),
+        PUBLIC_ACCESS.replace("2099-01-01T00:00:00Z", "2000-01-01T00:00:00Z"),
         PUBLIC_ACCESS + "{}")) {
       body.set(invalid);
       assertThrows(IOException.class, () -> client.check("requester-token", "tenant-1", "env-1", PUBLIC));

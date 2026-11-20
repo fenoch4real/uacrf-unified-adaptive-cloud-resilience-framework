@@ -290,8 +290,10 @@ test passed with no failures, errors, or skips.
   global/service scope are included in the calculation. This point-in-time
   metadata is not a guarantee of continued access: revocation, newly granted
   capabilities, principal or context changes, and token expiry can change
-  authority sooner. S09 does not yet consume it; it is not a cross-service
-  reservation or commit fence.
+  authority sooner. It is not a cross-service reservation or commit fence.
+  S09 requires a parseable future horizon and rejects horizon changes between
+  its initial and refreshed requester reads. Deploy S01's response change
+  before that S09 client; older responses fail closed.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed
   capabilities, owners, and runtime principals. S01 now issues narrowed
   delegations after checking the user's current membership authority. The
@@ -1458,11 +1460,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   decision. After the final S07, requester and S02 refreshes, preparation
   re-reads the S08 retrieval receipt with a fresh delegation and rejects a
   changed, withdrawn, or unavailable receipt before returning the snapshot.
-  Requester refresh also rejects capability-set drift, including a changed set
-  that would still pass minimum authorization checks; a regression covers this
-  case. These sequential checks do not provide an atomic authorization
-  decision. A simulated-owner regression covers withdrawal during the
-  requester refresh.
+  Requester refresh also rejects capability-set or capability-expiry-horizon
+  drift, including a changed set that would still pass minimum authorization
+  checks; regressions cover both cases. These sequential checks do not provide
+  an atomic authorization decision. A simulated-owner regression covers
+  withdrawal during the requester refresh.
   Preparation now constructs a distinct,
   bounded JSON input packet per role from the verified sealed case material,
   selected prompt text, and receipt-verified excerpts. It generates each

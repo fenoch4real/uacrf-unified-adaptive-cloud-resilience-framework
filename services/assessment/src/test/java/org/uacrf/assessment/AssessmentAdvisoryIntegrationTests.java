@@ -95,6 +95,7 @@ class AssessmentAdvisoryIntegrationTests {
           && "tenant_id=tenant-advisory&environment_id=env-1".equals(exchange.getRequestURI().getQuery());
       respond(exchange, valid ? 200 : 403, valid ? """
           {"principal_id":"requester","kind":"HUMAN","service_id":null,"scope":"GLOBAL_GRANTS_ONLY",
+           "capability_expiry_horizon":"2099-01-01T00:00:00Z",
            "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
            "knowledge.classification.internal.read"]}
           """ : "{}");
