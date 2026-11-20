@@ -118,6 +118,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   const password = randomBytes(24).toString('hex');
   const transfereeUsername = `transferee-${randomUUID()}`;
   const transfereePassword = randomBytes(24).toString('hex');
+  const reviewerUsername = `knowledge-reviewer-${randomUUID()}`;
+  const reviewerPassword = randomBytes(24).toString('hex');
   const fixtureServiceId = `fixture-service-${randomUUID()}`;
   const tokenResponse = await fetch('http://localhost:8180/realms/master/protocol/openid-connect/token', {
     method: 'POST',
@@ -198,6 +200,24 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   const transfereeUsers = await transfereeLookup.json();
   expect(transfereeUsers).toHaveLength(1);
 
+  const reviewerResponse = await fetch('http://localhost:8180/admin/realms/uacrf/users', {
+    method: 'POST', headers,
+    body: JSON.stringify({
+      username: reviewerUsername, enabled: true, firstName: 'Knowledge', lastName: 'Reviewer',
+      email: `${reviewerUsername}@example.test`, emailVerified: true,
+      credentials: [{ type: 'password', value: reviewerPassword, temporary: false }],
+    }),
+  });
+  expect(reviewerResponse.status).toBe(201);
+  const reviewerLookup = await fetch(
+    `http://localhost:8180/admin/realms/uacrf/users?${new URLSearchParams({
+      username: reviewerUsername, exact: 'true',
+    })}`, { headers },
+  );
+  expect(reviewerLookup.status).toBe(200);
+  const reviewerUsers = await reviewerLookup.json();
+  expect(reviewerUsers).toHaveLength(1);
+
   await signIn(page, 'local-admin');
   await selectLocalContext(page);
   await page.goto('/principals');
@@ -218,6 +238,15 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   const transfereePrincipalId =
     transfereeAdmission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
   expect(transfereePrincipalId).toBeTruthy();
+
+  await page.goto('/principals');
+  await page.getByLabel('Trusted identity provider').selectOption('keycloak-local');
+  await page.getByLabel('Directory subject reference').fill(reviewerUsers[0].id);
+  await page.getByLabel('Reason for admission').fill('Isolated independent knowledge reviewer.');
+  await page.getByRole('button', { name: 'Admit principal' }).click();
+  const reviewerAdmission = await page.getByRole('status').innerText();
+  const reviewerPrincipalId = reviewerAdmission.match(/Principal ([0-9a-f-]{36}) was admitted/)?.[1];
+  expect(reviewerPrincipalId).toBeTruthy();
 
   const runtimeLookup = await fetch(
     `http://localhost:8180/admin/realms/uacrf/users?${new URLSearchParams({
@@ -282,11 +311,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
-      'knowledge.item.read', 'knowledge.item.write', 'knowledge.classification.internal.read',
+      'knowledge.item.read', 'knowledge.item.write', 'knowledge.item.review', 'knowledge.classification.internal.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
       { principalId: transfereePrincipalId, capability: 'owner.eligible' },
+      { principalId: reviewerPrincipalId, capability: 'knowledge.item.read' },
+      { principalId: reviewerPrincipalId, capability: 'knowledge.item.review' },
       { principalId: transfereePrincipalId, capability: 'evidence.event.read', scope: fixtureServiceId },
       { principalId: transfereePrincipalId, capability: 'objectives.objective.read', scope: 'browser-objective-workload' },
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
@@ -430,6 +461,41 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('button', { name: 'Show metadata' }).click();
     await expect(sample.getByRole('listitem').filter({ hasText: stagedItemId })).toContainText('CANDIDATE');
     await expect(sample.getByRole('listitem').filter({ hasText: stagedItemId })).toHaveCount(1);
+    await sample.getByRole('link', { name: `Review candidate ${stagedItemId} version v1` }).click();
+    await expect(sample.getByText('Synthetic browser knowledge content.')).toBeVisible();
+    await sample.getByLabel('Reject', { exact: true }).check();
+    await sample.getByLabel('Reason (required)').fill('Self review must be rejected.');
+    const [knowledgeSelfReview] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname.endsWith('/review')),
+      sample.getByRole('button', { name: 'Record review decision' }).click(),
+    ]);
+    expect(knowledgeSelfReview.status()).toBe(409);
+    await expect(sample.getByRole('button', { name: 'Record review decision' })).toHaveCount(0);
+    const reviewerContext = await browser.newContext();
+    try {
+      const reviewer = await reviewerContext.newPage();
+      await reviewer.goto('/contexts');
+      await reviewer.locator('#username').fill(reviewerUsername);
+      await reviewer.locator('#password').fill(reviewerPassword);
+      await reviewer.locator('#kc-login').click();
+      await selectLocalContext(reviewer);
+      await reviewer.goto('/knowledge');
+      await reviewer.getByLabel('Item ID', { exact: true }).fill(stagedItemId);
+      await reviewer.getByRole('button', { name: 'Show metadata' }).click();
+      await reviewer.getByRole('link', { name: `Review candidate ${stagedItemId} version v1` }).click();
+      await expect(reviewer.getByText('Synthetic browser knowledge content.')).toBeVisible();
+      await reviewer.getByLabel('Reject', { exact: true }).check();
+      await reviewer.getByLabel('Reason (required)').fill('Independent synthetic review.');
+      await reviewer.getByRole('button', { name: 'Record review decision' }).click();
+      await expect(reviewer.getByRole('heading', { name: 'Knowledge review receipt' })).toBeVisible();
+      await expect(reviewer.getByText('REJECTED', { exact: true })).toBeVisible();
+      await reviewer.getByRole('link', { name: 'Read current metadata' }).click();
+      await expect(reviewer.getByRole('listitem').filter({ hasText: stagedItemId })).toContainText('REJECTED');
+      await expect(reviewer.getByRole('link', { name: `Review candidate ${stagedItemId} version v1` })).toHaveCount(0);
+    } finally {
+      await reviewerContext.close();
+    }
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -775,6 +841,11 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedKnowledge = await restricted.goto('/knowledge');
       expect(deniedKnowledge.status()).toBe(403);
       await expect(restricted.getByText('Synthetic public knowledge')).toHaveCount(0);
+      const deniedCandidate = await restricted.goto(
+        `/knowledge/${stagedItemId}/versions/v1/review?classification=PUBLIC`,
+      );
+      expect(deniedCandidate.status()).toBe(403);
+      await expect(restricted.getByText('Synthetic browser knowledge content.')).toHaveCount(0);
       await restricted.goto('/knowledge/new');
       await restricted.getByLabel('Item ID (required)').fill(`denied-knowledge-${randomUUID()}`);
       await restricted.getByLabel('Version (required)').fill('v1');

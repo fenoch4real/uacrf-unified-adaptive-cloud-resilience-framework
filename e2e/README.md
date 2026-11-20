@@ -125,6 +125,11 @@ The same suite stages synthetic plaintext through UX01, EDGE01 and S08, replays
 the identical keyed request, confirms one visible candidate, and denies an
 ungranted user. A staging receipt is historical and does not establish approval
 or retrieval eligibility.
+The suite grants a separately admitted human knowledge-read and review
+capabilities. The proposer is denied self-review; the independent reviewer
+reads the synthetic candidate plaintext and rejects it, and current metadata
+shows the result. A user without those capabilities cannot read the candidate.
+This tests rejection, not approval or provider acceptance.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

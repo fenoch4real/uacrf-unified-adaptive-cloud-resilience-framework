@@ -57,6 +57,20 @@ class KnowledgeRouteController {
     return forward(() -> knowledge.reviewItem(authorization, id, requestBody));
   }
 
+  @GetMapping("/v1/knowledge-items/{id}/versions/{version}:candidate-content")
+  ResponseEntity<String> candidateContent(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String version) {
+    return forward(() -> knowledge.candidateContent(authorization, id, version));
+  }
+
+  @PostMapping("/v1/knowledge-items/{id}:review-bound")
+  ResponseEntity<String> reviewBound(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @RequestBody String requestBody) {
+    return forward(() -> knowledge.reviewBound(authorization, id, requestBody));
+  }
+
   @PostMapping("/v1/knowledge-items/{id}:withdraw")
   ResponseEntity<String> withdraw(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

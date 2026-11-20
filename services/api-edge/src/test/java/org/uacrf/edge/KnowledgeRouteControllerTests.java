@@ -53,6 +53,16 @@ class KnowledgeRouteControllerTests {
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/knowledge-items/item-1/versions/v1:candidate-content"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
+        .expect(requestTo(URL + "/v1/knowledge-items/item-1:review-bound"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reviewer"))
+        .andExpect(header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/knowledge-items/item-1:withdraw"))
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -74,6 +84,12 @@ class KnowledgeRouteControllerTests {
             .contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
     mvc.perform(post("/internal/knowledge/v1/knowledge-items/item-1:review").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk());
+    mvc.perform(get("/internal/knowledge/v1/knowledge-items/item-1/versions/v1:candidate-content")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer reader")).andExpect(status().isOk())
+        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(post("/internal/knowledge/v1/knowledge-items/item-1:review-bound")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer reviewer").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(post("/internal/knowledge/v1/knowledge-items/item-1:withdraw").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());

@@ -40,6 +40,13 @@ final class KnowledgeRequests {
       @Min(1) long expectedRevision,
       @NotBlank @Size(max = 2000) String reason) {}
 
+  record BoundReviewItem(
+      @NotNull Decision decision,
+      @Min(1) long expectedRevision,
+      @NotBlank @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,99}$") String expectedVersion,
+      @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$") String expectedSourceDigest,
+      @NotBlank @Size(max = 2000) String reason) {}
+
   record WithdrawItem(
       @Min(1) long expectedRevision,
       @NotBlank @Size(max = 2000) String reason) {}

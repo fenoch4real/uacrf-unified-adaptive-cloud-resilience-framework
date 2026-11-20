@@ -55,6 +55,18 @@ class KnowledgeController {
     return knowledge.review(DelegationPrincipal.from(jwt), id, request);
   }
 
+  @GetMapping("/v1/knowledge-items/{id}/versions/{version}:candidate-content")
+  CandidateContent candidateContent(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @PathVariable String version) {
+    return knowledge.candidateContent(DelegationPrincipal.from(jwt), id, version);
+  }
+
+  @PostMapping("/v1/knowledge-items/{id}:review-bound")
+  ItemVersion reviewBound(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @Valid @RequestBody BoundReviewItem request) {
+    return knowledge.reviewBound(DelegationPrincipal.from(jwt), id, request);
+  }
+
   @PostMapping("/v1/knowledge-items/{id}:withdraw")
   ItemVersion withdraw(
       @AuthenticationPrincipal Jwt jwt,

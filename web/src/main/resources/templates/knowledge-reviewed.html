@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowledge review recorded | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Knowledge review receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p role="status">This recorded decision does not establish current eligibility or authorize action.</p>
+  <dl>
+    <dt>Item</dt><dd th:text="${receipt.itemId}">ID</dd>
+    <dt>Version</dt><dd th:text="${receipt.version}">Version</dd>
+    <dt>State</dt><dd th:text="${receipt.state}">State</dd>
+    <dt>Reviewed by</dt><dd th:text="${receipt.reviewedBy}">Reviewer</dd>
+    <dt>Review reason</dt><dd th:text="${receipt.reviewReason}">Reason</dd>
+    <dt>Source digest</dt><dd th:text="${receipt.sourceDigest}">Digest</dd>
+  </dl>
+  <p><a th:href="@{/knowledge(itemId=${itemId},classification=${classification})}">Read current metadata</a></p>
+</main>
+</body>
+</html>

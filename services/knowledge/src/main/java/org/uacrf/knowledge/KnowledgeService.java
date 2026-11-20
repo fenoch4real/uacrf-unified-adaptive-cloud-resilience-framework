@@ -193,9 +193,41 @@ class KnowledgeService {
 
   @Transactional
   ItemVersion review(DelegationPrincipal actor, String itemId, ReviewItem request) {
+    return review(actor, itemId, request, null);
+  }
+
+  @Transactional
+  ItemVersion reviewBound(DelegationPrincipal actor, String itemId, BoundReviewItem request) {
+    requireCapability(actor, "knowledge.item.read");
+    return review(actor, itemId, new ReviewItem(request.decision(), request.expectedRevision(), request.reason()), request);
+  }
+
+  @Transactional
+  CandidateContent candidateContent(DelegationPrincipal actor, String itemId, String version) {
+    requireCapability(actor, "knowledge.item.read");
     requireCapability(actor, "knowledge.item.review");
     requireGlobalScope(actor);
     VersionRow candidate = lockCandidate(actor, itemId);
+    if (!candidate.version().equals(version)) throw notFound();
+    requireClassification(actor, candidate.classification());
+    if (!sha256(candidate.content().getBytes(StandardCharsets.UTF_8)).equals(candidate.sourceDigest())) {
+      throw conflict("SOURCE_INTEGRITY_MISMATCH", "Candidate content does not match its stored digest.");
+    }
+    return new CandidateContent(findVersion(actor, itemId, version), candidate.content());
+  }
+
+  private ItemVersion review(DelegationPrincipal actor, String itemId, ReviewItem request, BoundReviewItem bound) {
+    requireCapability(actor, "knowledge.item.review");
+    requireGlobalScope(actor);
+    VersionRow candidate = lockCandidate(actor, itemId);
+    if (bound != null) {
+      requireClassification(actor, candidate.classification());
+      if (!candidate.version().equals(bound.expectedVersion())
+          || !candidate.sourceDigest().equals(bound.expectedSourceDigest())
+          || !sha256(candidate.content().getBytes(StandardCharsets.UTF_8)).equals(candidate.sourceDigest())) {
+        throw conflict("CANDIDATE_MISMATCH", "The candidate differs from the version presented for review.");
+      }
+    }
     requireRevision(candidate.revision(), request.expectedRevision());
     if (actor.principalId().equals(candidate.proposedBy())) {
       throw conflict("REVIEWER_NOT_INDEPENDENT", "The proposer cannot review their own knowledge version.");

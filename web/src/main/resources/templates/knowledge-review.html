@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review knowledge | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Review a knowledge candidate</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Item: <strong th:text="${itemId}">ID</strong>, version <strong th:text="${version}">Version</strong></p>
+  <p><a th:href="@{/knowledge(itemId=${itemId},classification=${classification})}">Read current metadata</a></p>
+  <p>Review requires a different person from the proposer, current classification and review grants,
+    and an unexpired deadline. The decision applies to this exact version and source digest;
+    it does not authorize an action or establish ongoing eligibility.</p>
+  <p>If submission is unconfirmed, read current metadata before attempting another review.
+    A failed or missing read does not prove that no decision occurred.</p>
+  <p role="alert" th:if="${reviewError != null}" th:text="${reviewError}"></p>
+  <section th:if="${candidate != null}">
+    <h2 th:text="${candidate.metadata.title}">Candidate</h2>
+    <dl>
+      <dt>Classification</dt><dd th:text="${candidate.metadata.classification}">Classification</dd>
+      <dt>Revision</dt><dd th:text="${candidate.metadata.revision}">Revision</dd>
+      <dt>Proposed by</dt><dd th:text="${candidate.metadata.proposedBy}">Proposer</dd>
+      <dt>Allowed purposes</dt><dd th:text="${#strings.listJoin(candidate.metadata.allowedPurposes, ', ')}">Purposes</dd>
+      <dt>Target workloads</dt><dd th:text="${#lists.isEmpty(candidate.metadata.targetWorkloadIds) ? 'No workload restriction recorded' : #strings.listJoin(candidate.metadata.targetWorkloadIds, ', ')}">Workloads</dd>
+      <dt>Review deadline</dt><dd th:text="${candidate.metadata.reviewDeadline}">Deadline</dd>
+      <dt>Source reference (inert)</dt><dd th:text="${candidate.metadata.sourceRef != null ? candidate.metadata.sourceRef : 'Not specified'}">Source</dd>
+      <dt>Source digest</dt><dd th:text="${candidate.metadata.sourceDigest}">Digest</dd>
+      <dt>Staging reason</dt><dd th:text="${candidate.metadata.reason}">Reason</dd>
+    </dl>
+    <h3>Candidate plaintext</h3>
+    <pre class="knowledge-content" th:text="${candidate.content}">Content</pre>
+  </section>
+  <form th:if="${showForm == true}" method="post"
+        th:action="@{/knowledge/{id}/versions/{version}/review(id=${itemId},version=${version})}" th:object="${reviewForm}">
+    <input type="hidden" th:field="*{expectedRevision}">
+    <input type="hidden" th:field="*{sourceDigest}">
+    <input type="hidden" th:field="*{classification}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <fieldset>
+      <legend>Decision (required)</legend>
+      <input id="approve" type="radio" th:field="*{decision}" value="APPROVE" required><label for="approve">Approve</label>
+      <input id="reject" type="radio" th:field="*{decision}" value="REJECT"><label for="reject">Reject</label>
+    </fieldset>
+    <p><label for="reason">Reason (required)</label>
+      <textarea id="reason" th:field="*{reason}" maxlength="2000" required></textarea></p>
+    <button type="submit">Record review decision</button>
+  </form>
+</main>
+</body>
+</html>

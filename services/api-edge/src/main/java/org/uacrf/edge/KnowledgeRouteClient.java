@@ -52,6 +52,15 @@ class KnowledgeRouteClient {
     return sendBody(HttpMethod.POST, "/v1/knowledge-items/{id}:review", id, authorization, requestBody);
   }
 
+  ResponseEntity<String> candidateContent(String authorization, String id, String version) {
+    return send(knowledgeRestClient.get().uri(uri -> uri.path("/v1/knowledge-items/{id}/versions/{version}:candidate-content")
+        .build(id, version)), authorization);
+  }
+
+  ResponseEntity<String> reviewBound(String authorization, String id, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/knowledge-items/{id}:review-bound", id, authorization, requestBody);
+  }
+
   ResponseEntity<String> withdrawItem(
       String authorization, String id, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/knowledge-items/{id}:withdraw", id, authorization, requestBody);

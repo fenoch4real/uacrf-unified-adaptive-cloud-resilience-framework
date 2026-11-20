@@ -97,6 +97,42 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void boundReviewRequiresClearanceAndCannotDecideAReplacementCandidate() throws Exception {
+    String writer = bearer("author", "t-bound-review", WRITER);
+    String reader = bearer("reviewer", "t-bound-review", REVIEWER);
+    String publicReader = bearer("reviewer", "t-bound-review",
+        List.of("knowledge.item.read", "knowledge.item.review"));
+    String item = "bound-review";
+    assertEquals(201, post("/v1/knowledge-items", writer, stage(item, "v1", "first candidate")).statusCode());
+    String path = "/v1/knowledge-items/" + item + "/versions/v1:candidate-content";
+    assertEquals(403, get(path, publicReader).statusCode());
+    assertEquals(403, get(path, bearer("reader-only", "t-bound-review",
+        List.of("knowledge.item.read", "knowledge.classification.internal.read"))).statusCode());
+    var candidate = get(path, reader);
+    assertEquals(200, candidate.statusCode());
+    assertThat(candidate.body()).contains("first candidate");
+    String digest = objectMapper.readTree(candidate.body()).get("metadata").get("source_digest").asString();
+    String reviewBody = "{\"decision\":\"REJECT\",\"expected_revision\":1,\"expected_version\":\"v1\","
+        + "\"expected_source_digest\":\"" + digest + "\",\"reason\":\"independent review\"}";
+    String reviewPath = "/v1/knowledge-items/" + item + ":review-bound";
+    assertEquals(403, post(reviewPath, publicReader, reviewBody).statusCode());
+    assertEquals(403, post(reviewPath, bearer("reviewer", "t-bound-review",
+        List.of("knowledge.item.review", "knowledge.classification.internal.read")), reviewBody).statusCode());
+    assertThat(post(reviewPath, bearer("author", "t-bound-review", REVIEWER), reviewBody).body())
+        .contains("REVIEWER_NOT_INDEPENDENT");
+    assertThat(post(reviewPath, reader, reviewBody.replace(digest, "a".repeat(64))).body())
+        .contains("CANDIDATE_MISMATCH");
+    assertEquals(200, post(reviewPath, reader, reviewBody).statusCode());
+    assertEquals(201, post("/v1/knowledge-items", writer, stage(item, "v2", "replacement candidate")).statusCode());
+    var stale = post(reviewPath, reader, reviewBody);
+    assertEquals(409, stale.statusCode());
+    assertThat(stale.body()).contains("CANDIDATE_MISMATCH");
+    assertEquals(404, get(path, reader).statusCode());
+    assertThat(get("/v1/knowledge-items?item_id=" + item, reader).body())
+        .contains("\"version\":\"v2\"").contains("\"state\":\"CANDIDATE\"");
+  }
+
+  @Test
   void stagingKeyIsAtomicScopedAndReplaysOriginalReceipt() throws Exception {
     String writer = bearer("keyed-writer", "t-keyed", WRITER);
     String body = stage("keyed-item", "v1", "keyed guidance");

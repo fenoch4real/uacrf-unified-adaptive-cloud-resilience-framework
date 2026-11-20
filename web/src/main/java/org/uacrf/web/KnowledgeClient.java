@@ -59,6 +59,38 @@ class KnowledgeClient {
     return receipt;
   }
 
+  CandidateContent candidate(String token, String itemId, String version, Classification classification) {
+    CandidateContent candidate = restClient.get()
+        .uri(uri -> uri.path("/v1/knowledge-items/{id}/versions/{version}:candidate-content").build(itemId, version))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(CandidateContent.class);
+    if (candidate == null || !valid(candidate.metadata(), itemId, null, classification)
+        || !version.equals(candidate.metadata().version()) || candidate.metadata().classification() != classification
+        || candidate.metadata().state() != State.CANDIDATE || candidate.content() == null
+        || !sha256(candidate.content()).equals(candidate.metadata().sourceDigest())) {
+      throw new IllegalStateException("S08 returned an invalid or mismatched candidate.");
+    }
+    return candidate;
+  }
+
+  ItemVersion review(String token, String itemId, BoundReviewRequest request, Classification classification) {
+    ItemVersion receipt = restClient.post()
+        .uri(uri -> uri.path("/v1/knowledge-items/{id}:review-bound").build(itemId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .body(request).retrieve().body(ItemVersion.class);
+    State expectedState = request.decision().equals("APPROVE") ? State.APPROVED : State.REJECTED;
+    if (!valid(receipt, itemId, null, classification)
+        || !request.expectedVersion().equals(receipt.version())
+        || !request.expectedSourceDigest().equals(receipt.sourceDigest())
+        || receipt.classification() != classification || receipt.state() != expectedState
+        || receipt.revision() != request.expectedRevision() + 1
+        || !present(receipt.reviewedBy()) || receipt.reviewedBy().equals(receipt.proposedBy())
+        || !request.reason().equals(receipt.reviewReason())) {
+      throw new IllegalStateException("S08 returned an invalid or mismatched review receipt.");
+    }
+    return receipt;
+  }
+
   private static String sha256(String content) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
@@ -100,6 +132,12 @@ class KnowledgeClient {
       @JsonProperty("allowed_purposes") List<String> allowedPurposes,
       @JsonProperty("target_workload_ids") List<String> targetWorkloadIds,
       @JsonProperty("review_deadline") Instant reviewDeadline, String reason) {}
+
+  record CandidateContent(ItemVersion metadata, String content) {}
+
+  record BoundReviewRequest(String decision, @JsonProperty("expected_revision") long expectedRevision,
+      @JsonProperty("expected_version") String expectedVersion,
+      @JsonProperty("expected_source_digest") String expectedSourceDigest, String reason) {}
 
   record ItemVersion(@JsonProperty("item_id") String itemId, String version, String title,
       @JsonProperty("source_ref") String sourceRef, Classification classification,

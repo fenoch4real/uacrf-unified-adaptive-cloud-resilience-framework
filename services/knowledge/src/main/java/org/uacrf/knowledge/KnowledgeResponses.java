@@ -26,6 +26,8 @@ final class KnowledgeResponses {
       String withdrawalReason,
       String createdAt) {}
 
+  record CandidateContent(ItemVersion metadata, String content) {}
+
   record RetrievalResult(
       String itemId,
       String version,

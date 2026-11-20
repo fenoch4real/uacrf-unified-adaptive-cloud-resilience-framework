@@ -62,6 +62,10 @@
         <dt>Withdrawal reason</dt><dd th:text="${item.withdrawalReason != null ? item.withdrawalReason : 'Not recorded'}">Withdrawal reason</dd>
         <dt>Created at</dt><dd th:text="${item.createdAt}">Created</dd>
       </dl>
+      <p th:if="${item.state.name() == 'CANDIDATE'}">
+        <a th:href="@{/knowledge/{id}/versions/{version}/review(id=${item.itemId},version=${item.version},classification=${item.classification})}"
+           th:text="|Review candidate ${item.itemId} version ${item.version}|">Review candidate</a>
+      </p>
     </li>
   </ul>
 </main>

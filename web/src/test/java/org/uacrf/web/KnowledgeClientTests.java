@@ -25,6 +25,32 @@ class KnowledgeClientTests {
       """;
 
   @Test
+  void checksCandidateContentAndBoundReviewReceipt() {
+    String digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+    String candidate = RECORD.replace("item:one", "item-1").replace("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", digest);
+    String reviewed = candidate.replace("\"state\":\"CANDIDATE\",\"revision\":1",
+        "\"state\":\"REJECTED\",\"revision\":2,\"reviewed_by\":\"reviewer\",\"review_reason\":\"not suitable\"");
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/knowledge-items/item-1/versions/v1:candidate-content"))
+        .andRespond(withSuccess("{\"metadata\":" + candidate + ",\"content\":\"hello\"}", MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/knowledge-items/item-1:review-bound"))
+        .andExpect(jsonPath("$.expected_version").value("v1"))
+        .andExpect(jsonPath("$.expected_source_digest").value(digest))
+        .andRespond(withSuccess(reviewed, MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/knowledge-items/item-1/versions/v1:candidate-content"))
+        .andRespond(withSuccess("{\"metadata\":" + candidate + ",\"content\":\"changed\"}", MediaType.APPLICATION_JSON));
+    KnowledgeClient client = new KnowledgeClient(builder.build());
+    assertThat(client.candidate("reader", "item-1", "v1", KnowledgeClient.Classification.PUBLIC).content()).isEqualTo("hello");
+    var review = new KnowledgeClient.BoundReviewRequest("REJECT", 1, "v1", digest, "not suitable");
+    assertThat(client.review("reviewer", "item-1", review, KnowledgeClient.Classification.PUBLIC).state())
+        .isEqualTo(KnowledgeClient.State.REJECTED);
+    assertThatThrownBy(() -> client.candidate("reader", "item-1", "v1", KnowledgeClient.Classification.PUBLIC))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
   void stagingChecksReceiptAgainstContentAndCommand() {
     String digest = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
     String receipt = RECORD.replace("item:one", "item-1").replace("risk:review", "review")

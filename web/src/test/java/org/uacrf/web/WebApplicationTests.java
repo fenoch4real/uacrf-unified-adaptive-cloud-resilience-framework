@@ -56,6 +56,60 @@ class WebApplicationTests {
   @MockitoBean private AssessmentClient assessment;
   @MockitoBean private KnowledgeClient knowledge;
 
+  @Test
+  void knowledgeReviewShowsEscapedCandidateAndHidesFormAfterUncertainty() throws Exception {
+    String digest = "a".repeat(64);
+    var candidate = new KnowledgeClient.ItemVersion("item-1", "v1", "Title", "sample:source",
+        KnowledgeClient.Classification.INTERNAL, List.of("review"), List.of(),
+        Instant.parse("2030-01-01T00:00:00Z"), "Reason", digest,
+        KnowledgeClient.State.CANDIDATE, 1L, "author", null, null, null, null,
+        Instant.parse("2026-01-01T00:00:00Z"));
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.item.review", "knowledge.classification.internal.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(knowledge.candidate("reader", "item-1", "v1", KnowledgeClient.Classification.INTERNAL))
+        .thenReturn(new KnowledgeClient.CandidateContent(candidate, "<script>alert(1)</script>"));
+    mockMvc.perform(get("/knowledge/item-1/versions/v1/review").param("classification", "INTERNAL")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("&lt;script&gt;")))
+        .andExpect(content().string(not(containsString("<script>alert(1)</script>"))))
+        .andExpect(content().string(containsString("Record review decision")));
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.item.review", "knowledge.classification.internal.read"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reviewer", "Bearer", 30));
+    var command = new KnowledgeClient.BoundReviewRequest("REJECT", 1, "v1", digest, "not suitable");
+    when(knowledge.review("reviewer", "item-1", command, KnowledgeClient.Classification.INTERNAL))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(post("/knowledge/item-1/versions/v1/review")
+            .param("expectedRevision", "1").param("sourceDigest", digest).param("classification", "INTERNAL")
+            .param("decision", "REJECT").param("reason", "not suitable").param("tenantId", "tenant-test")
+            .param("environmentId", "environment-test").with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable()).andExpect(content().string(containsString("Review is unconfirmed")))
+        .andExpect(content().string(not(containsString("Record review decision"))));
+    verify(identity, times(2)).createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.item.review", "knowledge.classification.internal.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
+  void knowledgeReviewRejectsChangedContextAndUnauthorizedRead() throws Exception {
+    mockMvc.perform(post("/knowledge/item-1/versions/v1/review")
+            .param("expectedRevision", "1").param("sourceDigest", "a".repeat(64)).param("classification", "PUBLIC")
+            .param("decision", "REJECT").param("reason", "reason").param("tenantId", "other")
+            .param("environmentId", "environment-test").with(browserLogin()).with(csrf())
+            .session(sessionWithSelectedContext())).andExpect(status().isConflict());
+    verifyNoInteractions(identity, knowledge);
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.item.read", "knowledge.item.review"),
+        "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/knowledge/item-1/versions/v1/review").param("classification", "PUBLIC")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Candidate access failed")));
+    verifyNoInteractions(knowledge);
+  }
+
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder stageKnowledge() {
     return post("/knowledge").param("itemId", "item-1").param("version", "v1")
         .param("title", "Title").param("sourceRef", "sample:source").param("content", "hello")
