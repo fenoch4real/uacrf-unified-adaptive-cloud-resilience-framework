@@ -773,6 +773,76 @@ class EstateCatalogApplicationTests {
   }
 
   @Test
+  void activeVersionReceiptsIdentifyTheWorkloadWhenVersionIdsAreReused() throws Exception {
+    String tenant = "tenant-version-identity";
+    String author =
+        bearer(actorAs("author", tenant, "environment-a",
+            List.of("catalog.service.write", "catalog.agent.write", "catalog.agent.read"), List.of("owner-1"),
+            List.of("runtime-1")));
+    String reviewer =
+        bearer(actorAs("reviewer", tenant, "environment-a",
+            List.of("catalog.agent.write", "catalog.agent.read"), List.of(), List.of()));
+    for (String profile : List.of("profile-a", "profile-b")) {
+      assertEquals(201, post("/v1/agent-workloads", author, "create-" + profile,
+          """
+          {"id":"%s","name":"Agent","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Test"}
+          """.formatted(profile)).statusCode());
+      var manifest = workloadManifest("model-" + profile);
+      var version = new RegisterAgentVersion(
+          "shared-version", 1, manifestDigest(manifest), "artifact:sha256:" + profile, manifest);
+      assertEquals(201, post("/v1/agent-workloads/" + profile + "/versions", author,
+          "register-" + profile, objectMapper.writeValueAsString(version)).statusCode());
+      assertEquals(200, post("/v1/agent-workloads/" + profile + ":activate", reviewer,
+          "activate-" + profile,
+          "{\"version_id\":\"shared-version\",\"expected_revision\":1}").statusCode());
+    }
+
+    var ambiguous = get("/internal/v1/workload-versions/shared-version", reviewer);
+    assertEquals(409, ambiguous.statusCode());
+    assertThat(ambiguous.body()).contains("AMBIGUOUS_WORKLOAD_VERSION");
+    for (String profile : List.of("profile-a", "profile-b")) {
+      var receipt = get(
+          "/internal/v1/workload-versions/shared-version?profile_id=" + profile, reviewer);
+      assertEquals(200, receipt.statusCode());
+      assertThat(receipt.body()).contains(
+          "\"profile_id\":\"" + profile + "\"", "\"model_ref\":\"model-" + profile + "\"");
+    }
+    assertEquals(404, get(
+        "/internal/v1/workload-versions/shared-version?profile_id=profile-missing", reviewer).statusCode());
+    assertEquals(400, get(
+        "/internal/v1/workload-versions/shared-version?profile_id=invalid%20id", reviewer).statusCode());
+    assertEquals(404, get(
+        "/internal/v1/workload-versions/shared-version?profile_id=profile-a",
+        bearer(actorAs("reader", "other-tenant", "environment-a",
+            List.of("catalog.agent.read"), List.of(), List.of()))).statusCode());
+    for (String service : List.of("service-a", "service-b")) {
+      assertEquals(201, post("/v1/services", author, "create-" + service,
+          """
+          {"id":"%s","name":"Service","owner_id":"owner-1","reason":"Test","expected_revision":0,"criticality":3,"lifecycle":"ACTIVE"}
+          """.formatted(service)).statusCode());
+      assertEquals(201, post("/v1/agent-workloads", author, "create-agent-" + service,
+          """
+          {"id":"%s","service_id":"%s","name":"Agent","kind":"SINGLE_AGENT","owner_id":"owner-1","runtime_principal_id":"runtime-1","purpose":"Test"}
+          """.formatted("profile-" + service, service)).statusCode());
+      var manifest = workloadManifest("model-" + service);
+      var version = new RegisterAgentVersion(
+          "shared-version", 1, manifestDigest(manifest), "artifact:sha256:" + service, manifest);
+      assertEquals(201, post("/v1/agent-workloads/profile-" + service + "/versions", author,
+          "register-" + service, objectMapper.writeValueAsString(version)).statusCode());
+      assertEquals(200, post("/v1/agent-workloads/profile-" + service + ":activate", reviewer,
+          "activate-" + service,
+          "{\"version_id\":\"shared-version\",\"expected_revision\":1}").statusCode());
+    }
+    String scoped = bearer(actor(tenant, "environment-a",
+        List.of("catalog.agent.read"), List.of(), List.of(), "service-b"));
+    var scopedReceipt = get("/internal/v1/workload-versions/shared-version", scoped);
+    assertEquals(200, scopedReceipt.statusCode());
+    assertThat(scopedReceipt.body()).contains("\"profile_id\":\"profile-service-b\"");
+    assertEquals(404, get(
+        "/internal/v1/workload-versions/shared-version?profile_id=profile-service-a", scoped).statusCode());
+  }
+
+  @Test
   void retainsImmutableWorkloadVersionsAndRequiresIndependentActivation() throws Exception {
     String tenant = "tenant-versioning";
     String environment = "environment-a";

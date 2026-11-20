@@ -2,6 +2,8 @@ package org.uacrf.advisory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,7 +109,8 @@ final class AgentProfileVersionClient {
       InternalJsonClient.requireId(versionId);
       Map<?, ?> response =
           http.get(
-              catalogBase.resolve("/internal/v1/workload-versions/" + versionId), token);
+              catalogBase.resolve("/internal/v1/workload-versions/" + versionId
+                  + "?profile_id=" + URLEncoder.encode(profileId, StandardCharsets.UTF_8)), token);
       ActiveVersion version = parse(response);
       if (!profileId.equals(version.profileId())
           || !versionId.equals(version.id())

@@ -193,7 +193,8 @@ class OwnerReceiptClientTests {
     server.createContext("/internal/v1/workload-versions/version-1", exchange -> {
       activeVersionCalls.incrementAndGet();
       if (!"GET".equals(exchange.getRequestMethod())
-          || !"Bearer test-token-S02".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+          || !"Bearer test-token-S02".equals(exchange.getRequestHeaders().getFirst("Authorization"))
+          || !"profile_id=analyst".equals(exchange.getRequestURI().getRawQuery())) {
         respond(exchange, new Reply(403, "{}"));
         return;
       }

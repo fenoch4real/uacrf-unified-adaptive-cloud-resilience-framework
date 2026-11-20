@@ -65,6 +65,7 @@ class AdvisoryCrossServiceTests {
   void checksRequesterAgainstRealIdentityAssessmentAndKnowledge() throws Exception {
     KeyPair oidcKey = keyPair();
     KeyPair delegationKey = keyPair();
+    KeyPair ownerReceiptKey = keyPair();
     String publicKey = Base64.getEncoder().encodeToString(delegationKey.getPublic().getEncoded());
     String privateKey = Base64.getEncoder().encodeToString(delegationKey.getPrivate().getEncoded());
     HttpServer oidc = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -120,7 +121,12 @@ class AdvisoryCrossServiceTests {
           "CATALOG_DB_USER", CATALOG.getUsername(),
           "CATALOG_DB_PASSWORD", CATALOG.getPassword(),
           "UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKey,
-          "UACRF_DELEGATION_KEY_ID", KEY_ID));
+          "UACRF_DELEGATION_KEY_ID", KEY_ID,
+          "UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64",
+              Base64.getEncoder().encodeToString(ownerReceiptKey.getPublic().getEncoded()),
+          "UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64",
+              Base64.getEncoder().encodeToString(ownerReceiptKey.getPrivate().getEncoded()),
+          "UACRF_S02_OWNER_RECEIPT_KEY_ID", "integration-owner"));
       String versionDigest = seedActiveProfileVersion();
       URI assessment = start("assessment", Map.of(
           "ASSESSMENT_JDBC_URL", ASSESSMENT.getJdbcUrl(), "ASSESSMENT_DB_USER", ASSESSMENT.getUsername(),
@@ -257,7 +263,7 @@ class AdvisoryCrossServiceTests {
           withdrawal.set(sendPost(knowledge, "/v1/knowledge-items/guidance:withdraw", withdrawer,
               "{\"expected_revision\":2,\"reason\":\"Withdraw test source\"}")))) {
         var intercepted = new RequesterSourceCheck(true, identity, assessment, proxy.base(), true);
-        assertEquals("Retrieval receipt changed during content checking.",
+        assertEquals("Owner receipt consistency check failed.",
             assertThrows(IOException.class,
                 () -> intercepted.checkWithSources(secondRequester, TENANT, ENVIRONMENT, expected, sources))
                 .getMessage());
@@ -352,42 +358,45 @@ class AdvisoryCrossServiceTests {
     String digest = Sha256.hex(JSON.writeValueAsBytes(JSON.readValue(manifest, Object.class)));
     try (var connection =
         DriverManager.getConnection(CATALOG.getJdbcUrl(), CATALOG.getUsername(), CATALOG.getPassword())) {
-      try (var profile =
-          connection.prepareStatement(
-              "INSERT INTO uacrf_catalog.agent_workload "
-                  + "(tenant_id,environment_id,id,service_id,name,kind,owner_id,runtime_principal_id,"
-                  + "purpose,revision) VALUES (?,?,?,NULL,?,'SINGLE_AGENT',?,?,?,1)")) {
-        profile.setString(1, TENANT);
-        profile.setString(2, ENVIRONMENT);
-        profile.setString(3, "analyst");
-        profile.setString(4, "Analyst profile");
-        profile.setString(5, "owner-1");
-        profile.setString(6, "runtime-1");
-        profile.setString(7, "Advisory integration fixture");
-        profile.executeUpdate();
-      }
-      try (var version =
-          connection.prepareStatement(
-              "INSERT INTO uacrf_catalog.agent_workload_version "
-                  + "(tenant_id,environment_id,workload_id,id,version_number,digest,object_ref,manifest,"
-                  + "created_by,state,revision,activated_by,activated_at) "
-                  + "VALUES (?,?,?,?,1,?,?,?::jsonb,'requester','ACTIVE',2,'reviewer',now())")) {
-        version.setString(1, TENANT);
-        version.setString(2, ENVIRONMENT);
-        version.setString(3, "analyst");
-        version.setString(4, "version-1");
-        version.setString(5, digest);
-        version.setString(6, "artifact:sha256:" + digest);
-        version.setString(7, manifest);
-        version.executeUpdate();
-      }
-      try (var activate =
-          connection.prepareStatement(
-              "UPDATE uacrf_catalog.agent_workload SET active_version_id='version-1',revision=2 "
-                  + "WHERE tenant_id=? AND environment_id=? AND id='analyst'")) {
-        activate.setString(1, TENANT);
-        activate.setString(2, ENVIRONMENT);
-        activate.executeUpdate();
+      for (String profileId : List.of("shadow-profile", "analyst")) {
+        try (var profile =
+            connection.prepareStatement(
+                "INSERT INTO uacrf_catalog.agent_workload "
+                    + "(tenant_id,environment_id,id,service_id,name,kind,owner_id,runtime_principal_id,"
+                    + "purpose,revision) VALUES (?,?,?,NULL,?,'SINGLE_AGENT',?,?,?,1)")) {
+          profile.setString(1, TENANT);
+          profile.setString(2, ENVIRONMENT);
+          profile.setString(3, profileId);
+          profile.setString(4, "Analyst profile");
+          profile.setString(5, "owner-1");
+          profile.setString(6, "runtime-1");
+          profile.setString(7, "Advisory integration fixture");
+          profile.executeUpdate();
+        }
+        try (var version =
+            connection.prepareStatement(
+                "INSERT INTO uacrf_catalog.agent_workload_version "
+                    + "(tenant_id,environment_id,workload_id,id,version_number,digest,object_ref,manifest,"
+                    + "created_by,state,revision,activated_by,activated_at) "
+                    + "VALUES (?,?,?,?,1,?,?,?::jsonb,'requester','ACTIVE',2,'reviewer',now())")) {
+          version.setString(1, TENANT);
+          version.setString(2, ENVIRONMENT);
+          version.setString(3, profileId);
+          version.setString(4, "version-1");
+          version.setString(5, digest);
+          version.setString(6, "artifact:sha256:" + digest);
+          version.setString(7, manifest);
+          version.executeUpdate();
+        }
+        try (var activate =
+            connection.prepareStatement(
+                "UPDATE uacrf_catalog.agent_workload SET active_version_id='version-1',revision=2 "
+                    + "WHERE tenant_id=? AND environment_id=? AND id=?")) {
+          activate.setString(1, TENANT);
+          activate.setString(2, ENVIRONMENT);
+          activate.setString(3, profileId);
+          activate.executeUpdate();
+        }
       }
     }
     return digest;

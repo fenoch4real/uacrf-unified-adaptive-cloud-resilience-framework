@@ -459,8 +459,12 @@ class CatalogService {
   }
 
   @Transactional(readOnly = true)
-  WorkloadVersionReceipt getActiveWorkloadVersion(DelegationPrincipal actor, String versionId) {
+  WorkloadVersionReceipt getActiveWorkloadVersion(
+      DelegationPrincipal actor, String versionId, String profileId) {
     requireCapability(actor, "catalog.agent.read");
+    if (profileId != null && !profileId.matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")) {
+      throw invalid("The profile id is malformed.");
+    }
     List<Map<String, Object>> versions =
         jdbc.queryForList(
             "SELECT version.workload_id, version.id, version.version_number, version.digest, "
@@ -473,12 +477,21 @@ class CatalogService {
                 + "AND profile.environment_id = version.environment_id "
                 + "AND profile.id = version.workload_id AND profile.active_version_id = version.id "
                 + "WHERE version.tenant_id = ? AND version.environment_id = ? AND version.id = ? "
-                + "AND version.state = 'ACTIVE'",
+                + "AND version.state = 'ACTIVE' AND (?::text IS NULL OR version.workload_id = ?) "
+                + "AND (? = '*' OR profile.service_id = ?) LIMIT 2",
             actor.tenantId(),
             actor.environmentId(),
-            versionId);
+            versionId,
+            profileId,
+            profileId,
+            actor.serviceScope(),
+            actor.serviceScope());
     if (versions.isEmpty()) {
       throw notFound("The active agent workload version is absent or not visible.");
+    }
+    if (versions.size() != 1) {
+      throw conflict(
+          "AMBIGUOUS_WORKLOAD_VERSION", "The version id requires a profile id.");
     }
     Map<String, Object> version = versions.getFirst();
     requireServiceScope(actor, (String) version.get("service_id"));

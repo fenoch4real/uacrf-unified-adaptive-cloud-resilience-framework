@@ -50,6 +50,14 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 
 Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
 
+S02's active workload-version receipt accepts `profile_id` to identify a
+version within its workload. Without it, a version ID matching multiple
+visible active workloads returns `AMBIGUOUS_WORKLOAD_VERSION` (409).
+Service-scoped callers see only matching service-bound workloads; an
+out-of-scope or absent target returns 404. S09 sends `profile_id` and checks
+the returned identity. Deploy the S02 change before relying on unambiguous
+multi-workload selection by the S09 client.
+
 For `/v1/owner-candidates`, `object_kind=CONNECTION` requires both global
 `identity.owner.select` and global `connections.connection.write` in the
 selected tenant and environment. Supplying an `object_id` does not permit a

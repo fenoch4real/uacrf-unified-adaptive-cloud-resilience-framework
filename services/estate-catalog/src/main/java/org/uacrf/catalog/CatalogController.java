@@ -85,8 +85,10 @@ class CatalogController {
 
   @GetMapping("/internal/v1/workload-versions/{id}")
   WorkloadVersionReceipt getActiveWorkloadVersion(
-      @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
-    return catalog.getActiveWorkloadVersion(DelegationPrincipal.from(jwt), id);
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @RequestParam(required = false, name = "profile_id") String profileId) {
+    return catalog.getActiveWorkloadVersion(DelegationPrincipal.from(jwt), id, profileId);
   }
 
   @PostMapping("/internal/v1/workloads/{id}:receipt")

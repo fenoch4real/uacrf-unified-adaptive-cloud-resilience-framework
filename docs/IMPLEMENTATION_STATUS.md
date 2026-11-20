@@ -424,8 +424,17 @@ test passed with no failures, errors, or skips.
   independently authorized. S02 now also retains immutable workload-version
   manifests, activates them behind a workload revision fence, atomically
   supersedes the prior active version, and exposes only the current active
-  version through a `catalog.agent.read`-protected internal receipt. The
-  activation check requires an actor different from the version author, but
+  version through a `catalog.agent.read`-protected internal receipt. That
+  receipt accepts `profile_id` because version IDs are unique only within a
+  workload. An unqualified ID matching multiple visible active workloads
+  fails with `AMBIGUOUS_WORKLOAD_VERSION`; service-scoped queries only see
+  matching service-bound workloads, and absent or out-of-scope targets return
+  404. S09 supplies the profile ID and checks it against the returned receipt.
+  PostgreSQL-backed tests cover duplicate IDs, tenant isolation, and service
+  scope; a real S01/S02/S07/S08 process test prepares a run with two active
+  workloads sharing a version ID. Deploy S02's query support before relying
+  on unambiguous multi-workload selection by S09.
+  The activation check requires an actor different from the version author, but
   the current delegation principal does not establish that the actor is human
   or provide a separate review record.
   Ownership transfer for JOURNEY and SERVICE is implemented through UX01,
