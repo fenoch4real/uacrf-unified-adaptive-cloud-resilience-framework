@@ -349,12 +349,18 @@ final class DispatchJournal {
           SELECT delivery.event_id
           FROM uacrf_advisory.outbox_delivery delivery
           JOIN uacrf_advisory.outbox_event event ON event.event_id = delivery.event_id
+          JOIN uacrf_advisory.run_fence fence
+            ON fence.tenant_id = event.tenant_id AND fence.environment_id = event.environment_id
+            AND fence.run_id = event.run_id AND fence.generation = event.generation
           WHERE event.tenant_id = ? AND event.environment_id = ? AND event.state = 'PENDING'
+            AND fence.state = 'ACTIVE'
+            AND extract(epoch FROM clock_timestamp()) * 1000000000
+              < fence.deadline_epoch_second::numeric * 1000000000 + fence.deadline_nano
             AND ((delivery.state = 'PENDING' AND delivery.available_at <= clock_timestamp())
               OR (delivery.state = 'CLAIMED' AND delivery.lease_expires_at <= clock_timestamp()))
           ORDER BY event.created_at, event.event_id
           LIMIT ?
-          FOR UPDATE OF delivery SKIP LOCKED
+          FOR UPDATE OF delivery, fence SKIP LOCKED
         ), claimed AS (
           UPDATE uacrf_advisory.outbox_delivery delivery
           SET state = 'CLAIMED', attempt_count = delivery.attempt_count + 1,
@@ -414,23 +420,35 @@ final class DispatchJournal {
     }
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
-      try (PreparedStatement statement = connection.prepareStatement("""
+      try {
+        if (!lockActiveOutboxRun(connection, claim)) {
+          connection.commit();
+          return false;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
           UPDATE uacrf_advisory.outbox_delivery AS delivery
           SET lease_expires_at = LEAST(
             delivery.lease_expires_at + make_interval(secs => ?::double precision / 1000.0),
             clock_timestamp() + INTERVAL '5 minutes')
           FROM uacrf_advisory.outbox_event event
+          JOIN uacrf_advisory.run_fence fence
+            ON fence.tenant_id = event.tenant_id AND fence.environment_id = event.environment_id
+            AND fence.run_id = event.run_id AND fence.generation = event.generation
           WHERE delivery.event_id = ? AND event.event_id = delivery.event_id
             AND event.tenant_id = ? AND event.environment_id = ? AND event.run_id = ?
             AND event.generation = ? AND event.event_type = ?
+            AND fence.state = 'ACTIVE'
+            AND extract(epoch FROM clock_timestamp()) * 1000000000
+              < fence.deadline_epoch_second::numeric * 1000000000 + fence.deadline_nano
             AND delivery.state = 'CLAIMED' AND delivery.claim_token = ?
             AND delivery.lease_expires_at > clock_timestamp()
           """)) {
-        statement.setLong(1, extensionMillis);
-        bindOutboxClaim(statement, claim, 2);
-        boolean renewed = statement.executeUpdate() == 1;
-        connection.commit();
-        return renewed;
+          statement.setLong(1, extensionMillis);
+          bindOutboxClaim(statement, claim, 2);
+          boolean renewed = statement.executeUpdate() == 1;
+          connection.commit();
+          return renewed;
+        }
       } catch (SQLException | RuntimeException failure) {
         try {
           connection.rollback();
@@ -456,23 +474,35 @@ final class DispatchJournal {
     }
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
-      try (PreparedStatement statement = connection.prepareStatement("""
+      try {
+        if (!lockActiveOutboxRun(connection, claim)) {
+          connection.commit();
+          return false;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
           UPDATE uacrf_advisory.outbox_delivery AS delivery
           SET state = 'PENDING', claim_token = NULL, lease_expires_at = NULL,
               available_at = clock_timestamp()
                 + make_interval(secs => ?::double precision / 1000.0)
           FROM uacrf_advisory.outbox_event event
+          JOIN uacrf_advisory.run_fence fence
+            ON fence.tenant_id = event.tenant_id AND fence.environment_id = event.environment_id
+            AND fence.run_id = event.run_id AND fence.generation = event.generation
           WHERE delivery.event_id = ? AND event.event_id = delivery.event_id
             AND event.tenant_id = ? AND event.environment_id = ? AND event.run_id = ?
             AND event.generation = ? AND event.event_type = ?
+            AND fence.state = 'ACTIVE'
+            AND extract(epoch FROM clock_timestamp()) * 1000000000
+              < fence.deadline_epoch_second::numeric * 1000000000 + fence.deadline_nano
             AND delivery.state = 'CLAIMED' AND delivery.claim_token = ?
             AND delivery.lease_expires_at > clock_timestamp()
           """)) {
-        statement.setLong(1, retryDelayMillis);
-        bindOutboxClaim(statement, claim, 2);
-        boolean released = statement.executeUpdate() == 1;
-        connection.commit();
-        return released;
+          statement.setLong(1, retryDelayMillis);
+          bindOutboxClaim(statement, claim, 2);
+          boolean released = statement.executeUpdate() == 1;
+          connection.commit();
+          return released;
+        }
       } catch (SQLException | RuntimeException failure) {
         try {
           connection.rollback();
@@ -507,14 +537,24 @@ final class DispatchJournal {
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
       try {
+        if (!lockActiveOutboxRun(connection, claim)) {
+          connection.commit();
+          return false;
+        }
         try (PreparedStatement statement = connection.prepareStatement("""
             UPDATE uacrf_advisory.outbox_delivery AS delivery
             SET state = 'PUBLISHED', claim_token = NULL, lease_expires_at = NULL,
                 published_at = clock_timestamp()
             FROM uacrf_advisory.outbox_event event
+            JOIN uacrf_advisory.run_fence fence
+              ON fence.tenant_id = event.tenant_id AND fence.environment_id = event.environment_id
+              AND fence.run_id = event.run_id AND fence.generation = event.generation
             WHERE delivery.event_id = ? AND event.event_id = delivery.event_id
               AND event.tenant_id = ? AND event.environment_id = ? AND event.run_id = ?
               AND event.generation = ? AND event.event_type = ?
+              AND fence.state = 'ACTIVE'
+              AND extract(epoch FROM clock_timestamp()) * 1000000000
+                < fence.deadline_epoch_second::numeric * 1000000000 + fence.deadline_nano
               AND delivery.state = 'CLAIMED' AND delivery.claim_token = ?
               AND delivery.lease_expires_at > clock_timestamp()
             """)) {
@@ -533,6 +573,25 @@ final class DispatchJournal {
           failure.addSuppressed(rollbackFailure);
         }
         throw failure;
+      }
+    }
+  }
+
+  private static boolean lockActiveOutboxRun(Connection connection, OutboxClaim claim) throws SQLException {
+    try (PreparedStatement statement = connection.prepareStatement("""
+        SELECT state = 'ACTIVE'
+          AND extract(epoch FROM clock_timestamp()) * 1000000000
+            < deadline_epoch_second::numeric * 1000000000 + deadline_nano
+        FROM uacrf_advisory.run_fence
+        WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND generation = ?
+        FOR UPDATE
+        """)) {
+      statement.setString(1, claim.tenantId());
+      statement.setString(2, claim.environmentId());
+      statement.setString(3, claim.runId());
+      statement.setLong(4, claim.generation());
+      try (ResultSet result = statement.executeQuery()) {
+        return result.next() && result.getBoolean(1);
       }
     }
   }

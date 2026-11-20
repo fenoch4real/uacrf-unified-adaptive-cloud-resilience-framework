@@ -449,6 +449,68 @@ class DispatchJournalTests {
   }
 
   @Test
+  void cancelledRunsCannotBeClaimedOrCompleteAnExistingClaim() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-cancelled-run";
+    var claimedRun = new DispatchJournal.RunKey(tenant, "env", "claimed");
+    admit(journal, claimedRun, admissionRequest(TEST_DEADLINE, "Cancelled outbox test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-claimed");
+    var claim = journal.claimPendingOutbox(tenant, "env", 1, Duration.ofMinutes(1)).getFirst();
+    assertTrue(journal.cancel(claimedRun, 1, 1, "reviewer", "Cancelled before delivery."));
+    assertFalse(journal.renewOutboxClaim(claim, Duration.ofSeconds(1)));
+    assertFalse(journal.releaseOutboxClaim(claim, DispatchJournal.outboxRetryDelay(claim)));
+    assertFalse(journal.markOutboxPublished(claim));
+
+    var pendingRun = new DispatchJournal.RunKey(tenant, "env", "pending");
+    admit(journal, pendingRun, admissionRequest(TEST_DEADLINE, "Cancelled pending outbox test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-pending");
+    assertTrue(journal.cancel(pendingRun, 1, 1, "reviewer", "Cancelled before claim."));
+    assertTrue(journal.claimPendingOutbox(tenant, "env", 10, Duration.ofMinutes(1)).isEmpty());
+  }
+
+  @Test
+  void outboxClaimSkipsALockedRunFence() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-run-fence-lock";
+    var runKey = new DispatchJournal.RunKey(tenant, "env", "run-1");
+    admit(journal, runKey, admissionRequest(TEST_DEADLINE, "Outbox run fence lock test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-run-fence-lock");
+
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT 1 FROM uacrf_advisory.run_fence
+             WHERE tenant_id = ? AND environment_id = ? AND run_id = ? FOR UPDATE
+             """)) {
+      connection.setAutoCommit(false);
+      statement.setString(1, tenant);
+      statement.setString(2, "env");
+      statement.setString(3, runKey.runId());
+      try (var result = statement.executeQuery()) {
+        assertTrue(result.next());
+      }
+      assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
+      connection.rollback();
+    }
+
+    assertEquals(1, journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).size());
+  }
+
+  @Test
+  void expiredRunsAreNotClaimedFromTheOutbox() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    String tenant = "outbox-expired-run";
+    Instant deadline = Instant.now().plusSeconds(2);
+    admit(journal, new DispatchJournal.RunKey(tenant, "env", "run-1"),
+        admissionRequest(deadline, "Expiring outbox test"),
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-expired");
+    long remainingMillis = Duration.between(Instant.now(), deadline).toMillis();
+    if (remainingMillis > 0) {
+      Thread.sleep(remainingMillis + 100);
+    }
+    assertTrue(journal.claimPendingOutbox(tenant, "env", 1, Duration.ofSeconds(1)).isEmpty());
+  }
+
+  @Test
   void outboxRetryBackoffDoublesCapsAndJitters() {
     assertThrows(IllegalArgumentException.class, () -> DispatchJournal.outboxRetryBackoff(0));
     assertEquals(Duration.ofSeconds(1), DispatchJournal.outboxRetryBackoff(1));
