@@ -742,6 +742,46 @@ class DispatchJournalTests {
     assertEquals(0, countOutboxDeliveryForTenant("admission-rollback"));
   }
 
+  @Test
+  void admissionRollsBackWhenDeadlineExpiresBeforeActivation() throws Exception {
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.createStatement()) {
+      statement.execute("""
+          CREATE FUNCTION uacrf_advisory.delay_test_admission_plan() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN
+            IF NEW.tenant_id = 'admission-expiry-race' THEN
+              PERFORM pg_sleep(1.5);
+            END IF;
+            RETURN NEW;
+          END $$;
+          """);
+      statement.execute("""
+          CREATE TRIGGER delay_test_admission_plan
+          BEFORE INSERT ON uacrf_advisory.run_dispatch_plan
+          FOR EACH ROW EXECUTE FUNCTION uacrf_advisory.delay_test_admission_plan()
+          """);
+    }
+
+    try {
+      var journal = new DispatchJournal(dataSource);
+      var runKey = new DispatchJournal.RunKey("admission-expiry-race", "env", "run-1");
+      var request = admissionRequest(Instant.now().plusMillis(700), "Expire during admission");
+      SQLException failure = assertThrows(SQLException.class, () -> admit(
+          journal, runKey, request, "principal-1", "CREATE_ADVISORY_RUN", "idem-expiry-race"));
+      assertTrue(failure.getMessage().contains("run deadline has passed"));
+      assertTrue(journal.findRun(runKey).isEmpty());
+      assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", "admission-expiry-race"));
+      assertEquals(0, countForTenant("uacrf_advisory.outbox_event", "admission-expiry-race"));
+      assertEquals(0, countOutboxDeliveryForTenant("admission-expiry-race"));
+    } finally {
+      try (Connection connection = dataSource.getConnection();
+           var statement = connection.createStatement()) {
+        statement.execute("DROP TRIGGER delay_test_admission_plan ON uacrf_advisory.run_dispatch_plan");
+        statement.execute("DROP FUNCTION uacrf_advisory.delay_test_admission_plan()");
+      }
+    }
+  }
+
   private static int countOutboxDeliveryForTenant(String tenant) throws SQLException {
     try (Connection connection = dataSource.getConnection();
          var statement = connection.prepareStatement("""

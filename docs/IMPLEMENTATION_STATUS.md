@@ -1330,8 +1330,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   This does not retract a network delivery already in flight. The broader
   PostgreSQL-backed regressions cover concurrent same-key admission, scope
   isolation, immutable plans and records, substitution rejection, and deadline
-  failure. The clean advisory suite passed 157 tests with no failures, errors,
-  or skips. No service handler uses the admission or delivery library paths;
+  failure. A delayed-plan regression confirms that expiration before database
+  activation rejects and rolls back the run, idempotency, and outbox rows. The
+  clean advisory suite passed 158 tests with no failures, errors, or skips. No
+  service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
   The primitive still trusts its caller-supplied principal and does not
   authenticate the principal or recheck that owner context is unchanged at
