@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -33,6 +38,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.uacrf.security.DelegationJwtEncoderFactory;
 import org.uacrf.security.DelegationPrincipal;
 import org.uacrf.security.DelegationTokenIssuer;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -69,6 +75,7 @@ class ObjectivesApplicationTests {
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private ObjectMapper json;
   @MockitoBean private ObjectiveWorkloadAuthorityClient workloadAuthority;
   private final HttpClient http = HttpClient.newHttpClient();
 
@@ -280,7 +287,7 @@ class ObjectivesApplicationTests {
     assertEquals(202, pending.statusCode());
     assertThat(pending.body()).contains("\"status\":\"PENDING\"");
     assertEquals(
-        202,
+        403,
         get(
                 "/v1/objective-imports/" + receiptId,
                 token(
@@ -290,7 +297,7 @@ class ObjectivesApplicationTests {
                     List.of("objectives.objective.read")))
             .statusCode());
     assertEquals(
-        404,
+        403,
         get(
                 "/v1/objective-imports/" + receiptId,
                 token(
@@ -356,6 +363,49 @@ class ObjectivesApplicationTests {
     HttpResponse<String> page = get("/v1/objectives?pageSize=1&workloadId=w5", propose);
     assertThat(page.body()).contains("\"id\":\"x1\"").doesNotContain("\"id\":\"x2\"").contains("next_cursor\":\"");
     assertEquals(400, get("/v1/objectives?pageSize=500", propose).statusCode());
+  }
+
+  @Test
+  void ordinaryServiceScopesCannotAuthorizeWorkloadReads() throws Exception {
+    String tenant = "t-objective-read-scope";
+    String global = bearer("proposer", tenant, PROPOSER);
+    String scoped = token("reader", tenant, "workload-a", List.of("objectives.objective.read"));
+    assertEquals(201, post("/v1/objectives", global,
+        objective("a", "workload-a", "m.one", "GTE", "1", "u")).statusCode());
+    assertEquals(201, post("/v1/objectives", global,
+        objective("b", "workload-b", "m.two", "GTE", "1", "u")).statusCode());
+    assertEquals(201, post("/v1/objectives", global,
+        objective("c", "workload-a", "m.three", "GTE", "1", "u")).statusCode());
+
+    assertEquals(403, get("/v1/objectives", scoped).statusCode());
+    assertEquals(403, get("/v1/objectives?workloadId=workload-a", scoped).statusCode());
+    assertEquals(403, get("/v1/objectives/a", scoped).statusCode());
+    assertEquals(404, post("/internal/v1/workloads/workload-a/objectives:receipt", scoped,
+        "{\"purpose\":\"topology.graph.subgraph-selection\"}").statusCode());
+    String exchanged = workloadReceiptToken(tenant, "workload-a", "agent_workload",
+        "topology.graph.subgraph-selection");
+    assertEquals(200, post("/internal/v1/workloads/workload-a/objectives:receipt", exchanged,
+        "{\"purpose\":\"topology.graph.subgraph-selection\"}").statusCode());
+    assertEquals(404, post("/internal/v1/workloads/workload-b/objectives:receipt", exchanged,
+        "{\"purpose\":\"topology.graph.subgraph-selection\"}").statusCode());
+    assertEquals(404, post("/internal/v1/workloads/workload-a/objectives:receipt", exchanged,
+        "{\"purpose\":\"topology.graph.difference-classification\"}").statusCode());
+    String wrongType = workloadReceiptToken(tenant, "workload-a", "service",
+        "topology.graph.subgraph-selection");
+    assertEquals(404, post("/internal/v1/workloads/workload-a/objectives:receipt", wrongType,
+        "{\"purpose\":\"topology.graph.subgraph-selection\"}").statusCode());
+    assertEquals(403, get("/v1/objectives?workloadId=workload-a", exchanged).statusCode());
+
+    HttpResponse<String> first = get("/v1/objectives?pageSize=1&workloadId=workload-a", global);
+    assertEquals(200, first.statusCode());
+    assertThat(first.body()).contains("\"id\":\"a\"").doesNotContain("\"id\":\"b\"", "\"id\":\"c\"");
+    String cursor = json.readTree(first.body()).path("next_cursor").asString();
+    HttpResponse<String> second = get("/v1/objectives?pageSize=1&workloadId=workload-a&cursor=" + cursor, global);
+    assertEquals(200, second.statusCode());
+    assertThat(second.body()).contains("\"id\":\"c\"").doesNotContain("\"id\":\"a\"", "\"id\":\"b\"");
+    assertThat(json.readTree(second.body()).path("next_cursor").isNull()).isTrue();
+    assertThat(get("/v1/objectives", global).body())
+        .contains("\"id\":\"a\"", "\"id\":\"b\"", "\"id\":\"c\"");
   }
 
   private void approveAndActivate(String id, String target, String propose, String decide, String activate) throws Exception {
@@ -456,6 +506,22 @@ class ObjectivesApplicationTests {
             List.of());
     return "Bearer "
         + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(), "https://uacrf.local/s01", KEY_ID).issue(principal, "S05");
+  }
+
+  private static String workloadReceiptToken(
+      String tenant, String workloadId, String resourceType, String purpose) {
+    Instant now = Instant.now();
+    JwtClaimsSet claims = JwtClaimsSet.builder()
+        .issuer("https://uacrf.local/s01").subject("topology-reader").audience(List.of("S05"))
+        .issuedAt(now).expiresAt(now.plusSeconds(5))
+        .claim("tenant_id", tenant).claim("environment_id", "env-1")
+        .claim("service_scope", workloadId).claim("actor_issuer", "https://idp.example.test")
+        .claim("actor_subject", "reader").claim("capabilities", List.of("objectives.objective.read"))
+        .claim("eligible_owner_ids", List.of()).claim("runtime_principal_ids", List.of())
+        .claim("resource_type", resourceType).claim("resource_id", workloadId)
+        .claim("purpose", purpose).build();
+    return "Bearer " + ENCODER.encode(JwtEncoderParameters.from(
+        JwsHeader.with(SignatureAlgorithm.RS256).keyId(KEY_ID).build(), claims)).getTokenValue();
   }
 
   private static KeyPair generateKeyPair() {

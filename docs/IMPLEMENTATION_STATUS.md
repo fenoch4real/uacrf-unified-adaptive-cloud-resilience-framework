@@ -975,6 +975,28 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 
 - `services/objectives` (port 8087, audience S05, schema/database `uacrf_objectives`) owns
   workload objective revisions and mandatory organization constraints.
+- UX01 provides a read-only, paginated objective browser via EDGE01 and S01;
+  its optional workload ID is a filter, not an authorization scope. Ordinary
+  objective list, detail, and import-preview status reads require a global
+  `objectives.objective.read` grant. A service-scoped grant is not treated as
+  a workload grant even when the IDs match, because workload-to-service
+  ownership is not verified for these reads. The internal active-objective
+  receipt also accepts S01's explicitly workload- and purpose-bound topology
+  exchange delegation for the exact workload and matching selection or
+  classification purpose. Global receipt reads remain available. No grant is
+  widened automatically. The browser reports invalid or unavailable upstream
+  responses and distinguishes recorded state from measured compliance.
+  The clean web suite passed 110 tests and the objectives/delegation reactor
+  passed 23 tests, with no failures, errors or skips; the updated objective
+  application suite also passed 10 tests. The isolated browser suite passed all
+  11 tests with S05 and a separate database. Its two explicitly synthetic DRAFT
+  fixtures were inserted directly into the disposable database, so this is not
+  an objective proposal, approval, activation or ownership-validation test.
+  A separately admitted user with only a matching service-scoped objective
+  grant was denied both global and filtered browser reads.
+  The five-test live M2 process suite passed with no failures, errors or skips,
+  including the S06 selection and classification flows using S01 workload-
+  and purpose-bound S05 receipt delegations.
 - Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
   (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
   APPROVED, ACTIVE). Activation supersedes the active objective for the same
@@ -995,8 +1017,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   global scope and an idempotency key. The tenant/environment/actor-scoped command,
   canonical request digest and outbox event commit together; exact retries return
   the same receipt, while key reuse for a different request returns a conflict.
-  Status reads require `objectives.objective.read` and either global scope or the
-  exact target-workload scope. The response remains `PENDING` with
+  Status reads require `objectives.objective.read` and global service scope;
+  earlier exact-workload matching is no longer accepted for ordinary grants.
+  The response remains `PENDING` with
   `runtime_verification=NOT_ESTABLISHED`: no connector is resolved, no source is
   fetched, and no candidate is normalized or compared. The API Edge forwards the
   idempotency key and preserves the owner's 200/202 response. This is request

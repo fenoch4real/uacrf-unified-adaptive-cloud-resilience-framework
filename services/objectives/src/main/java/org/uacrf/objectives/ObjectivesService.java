@@ -181,6 +181,7 @@ class ObjectivesService {
   @Transactional(readOnly = true)
   PendingImportReceipt getImportPreview(DelegationPrincipal actor, String id) {
     requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
     UUID commandId;
     try {
       commandId = UUID.fromString(id);
@@ -189,7 +190,7 @@ class ObjectivesService {
     }
     List<Map<String, Object>> rows =
         jdbc.queryForList(
-            "SELECT target_workload_id, status FROM "
+            "SELECT status FROM "
                 + SCHEMA
                 + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
                 + "AND command_id = ?",
@@ -197,10 +198,6 @@ class ObjectivesService {
             actor.environmentId(),
             commandId);
     if (rows.isEmpty()) {
-      throw notFound();
-    }
-    String targetWorkloadId = (String) rows.getFirst().get("target_workload_id");
-    if (!"*".equals(actor.serviceScope()) && !targetWorkloadId.equals(actor.serviceScope())) {
       throw notFound();
     }
     return new PendingImportReceipt(
@@ -309,8 +306,18 @@ class ObjectivesService {
   }
 
   @Transactional(readOnly = true)
-  ObjectiveReceipt receipt(DelegationPrincipal actor, String workloadId, ReceiptRequest request) {
+  ObjectiveReceipt receipt(Jwt jwt, String workloadId, ReceiptRequest request) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
     requireCapability(actor, "objectives.objective.read");
+    if (!"*".equals(actor.serviceScope())
+        && !(workloadId.equals(actor.serviceScope())
+            && "agent_workload".equals(jwt.getClaimAsString("resource_type"))
+            && workloadId.equals(jwt.getClaimAsString("resource_id"))
+            && request.purpose().equals(jwt.getClaimAsString("purpose"))
+            && List.of("topology.graph.subgraph-selection", "topology.graph.difference-classification")
+                .contains(request.purpose()))) {
+      throw notFound();
+    }
     List<ActiveObjective> active =
         jdbc.query(
             "SELECT id, metric, comparator, target, unit, window_seconds, revision, content_digest FROM "
@@ -340,12 +347,14 @@ class ObjectivesService {
   @Transactional(readOnly = true)
   Objective get(DelegationPrincipal actor, String id) {
     requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
     return find(actor, id);
   }
 
   @Transactional(readOnly = true)
   Page<Objective> list(DelegationPrincipal actor, String workloadId, int pageSize, String cursor) {
     requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
     List<Object> args = new ArrayList<>(List.of(actor.tenantId(), actor.environmentId(), decodeCursor(cursor)));
     String filter = "";
     if (workloadId != null && !workloadId.isBlank()) {

@@ -58,6 +58,8 @@ connections_admin_password="$(openssl rand -hex 24)"
 connections_runtime_password="$(openssl rand -hex 24)"
 evidence_admin_password="$(openssl rand -hex 24)"
 evidence_runtime_password="$(openssl rand -hex 24)"
+objectives_admin_password="$(openssl rand -hex 24)"
+objectives_runtime_password="$(openssl rand -hex 24)"
 keycloak_admin_password="$(openssl rand -hex 24)"
 e2e_admin_password="$(openssl rand -hex 24)"
 e2e_approver_password="$(openssl rand -hex 24)"
@@ -85,6 +87,10 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'EVIDENCE_DB_ADMIN_PASSWORD=%s\n' "$evidence_admin_password"
   printf 'EVIDENCE_DB_USER=uacrf_evidence_runtime\n'
   printf 'EVIDENCE_DB_PASSWORD=%s\n' "$evidence_runtime_password"
+  printf 'OBJECTIVES_DB_ADMIN_USER=uacrf_objectives_admin\n'
+  printf 'OBJECTIVES_DB_ADMIN_PASSWORD=%s\n' "$objectives_admin_password"
+  printf 'OBJECTIVES_DB_USER=uacrf_objectives_runtime\n'
+  printf 'OBJECTIVES_DB_PASSWORD=%s\n' "$objectives_runtime_password"
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin\n'
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$keycloak_admin_password"
   printf 'KEYCLOAK_LOCAL_ADMIN_PASSWORD=%s\n' "$e2e_admin_password"
@@ -130,9 +136,27 @@ wait_for_url identity 'http://localhost:8082/actuator/health'
 wait_for_url estate-catalog 'http://localhost:8083/actuator/health'
 wait_for_url connections 'http://localhost:8085/actuator/health'
 wait_for_url evidence 'http://localhost:8086/actuator/health'
+wait_for_url objectives 'http://localhost:8087/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'
 wait_for_url web 'http://localhost:8084/actuator/health'
+
+# Isolated, synthetic read fixtures; insertion bypasses the objective proposal workflow.
+"${compose[@]}" exec -T objectives-db psql -v ON_ERROR_STOP=1 \
+  -U uacrf_objectives_admin -d uacrf_objectives <<'SQL'
+INSERT INTO uacrf_objectives.objective
+  (tenant_id, environment_id, id, workload_id, title, metric, comparator, target,
+   unit, window_seconds, origin, content_digest, state, revision, proposed_by)
+VALUES
+  ('local-dev', 'local', 'browser-objective-a', 'browser-objective-workload',
+   'Synthetic browser objective', 'sample.latency', 'LTE', 99.5, 'ms', 60, 'LOCAL',
+   '9015a54afcb9ed36f0b6967989020e2ab94b84881d82ab104f56cd4aec1d92f5',
+   'DRAFT', 1, 'test-fixture'),
+  ('local-dev', 'local', 'browser-objective-b', 'other-objective-workload',
+   'Other synthetic objective', 'sample.latency', 'LTE', 99.5, 'ms', 60, 'LOCAL',
+   '3b374d98d7f9dbe4578f776d21aa4ef6d99952ec93a9a01695b9a8674a67be3f',
+   'DRAFT', 1, 'test-fixture');
+SQL
 
 cd "$repo_root/e2e"
 KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin \

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workload objectives | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Workload objectives</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/access">Back to current access</a></p>
+  <p>These are recorded objective states, not measured performance or proof of compliance.
+    This view does not propose, approve, or activate objectives.</p>
+  <search>
+    <form method="get" th:action="@{/objectives}">
+      <label for="workloadId">Workload ID (optional)</label>
+      <p id="scope-help">Global objective-read authority is required, even when filtering by workload.
+        Leave empty to show all workloads.</p>
+      <input id="workloadId" name="workloadId" type="text" maxlength="200" th:value="${workloadId}"
+             aria-describedby="scope-help" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <button type="submit">Show objectives</button>
+    </form>
+  </search>
+  <p role="status" th:if="${objectivesError != null}" th:text="${objectivesError}"></p>
+  <p th:if="${objectivesError == null and #lists.isEmpty(objectives)}">No objectives are available on this page.</p>
+  <ul class="inventory-list">
+    <li th:each="item : ${objectives}">
+      <h2 th:text="${item.title}">Objective</h2>
+      <dl>
+        <dt>Objective ID</dt><dd th:text="${item.id}">ID</dd>
+        <dt>Workload ID</dt><dd th:text="${item.workloadId}">Workload</dd>
+        <dt>Recorded state</dt><dd th:text="${item.state}">State</dd>
+        <dt>Metric</dt><dd th:text="${item.metric}">Metric</dd>
+        <dt>Comparator</dt><dd th:text="${item.comparator}">Comparator</dd>
+        <dt>Target</dt><dd th:text="${item.target}">Target</dd>
+        <dt>Unit</dt><dd th:text="${item.unit}">Unit</dd>
+        <dt>Window in seconds</dt><dd th:text="${item.windowSeconds}">Window</dd>
+        <dt>Origin</dt><dd th:text="${item.origin}">Origin</dd>
+        <dt>Source reference</dt><dd th:text="${item.sourceRef != null ? item.sourceRef : 'Not specified'}">Source</dd>
+        <dt>Source definition</dt><dd th:text="${item.sourceDefinitionId != null ? item.sourceDefinitionId : 'Not specified'}">Definition</dd>
+        <dt>Source revision</dt><dd th:text="${item.sourceRevision != null ? item.sourceRevision : 'Not specified'}">Source revision</dd>
+        <dt>Source verified at</dt><dd th:text="${item.sourceVerifiedAt != null ? item.sourceVerifiedAt : 'Not recorded'}">Time</dd>
+        <dt>Content digest</dt><dd th:text="${item.contentDigest}">Digest</dd>
+        <dt>Revision</dt><dd th:text="${item.revision}">Revision</dd>
+        <dt>Proposed by</dt><dd th:text="${item.proposedBy}">Proposer</dd>
+        <dt>Decided by</dt><dd th:text="${item.decidedBy != null ? item.decidedBy : 'Not recorded'}">Reviewer</dd>
+        <dt>Decision reason</dt><dd th:text="${item.decisionReason != null ? item.decisionReason : 'Not recorded'}">Reason</dd>
+        <dt>Activated by</dt><dd th:text="${item.activatedBy != null ? item.activatedBy : 'Not recorded'}">Activator</dd>
+      </dl>
+    </li>
+  </ul>
+  <nav aria-label="Objective pages" th:if="${nextCursor != null}">
+    <a th:if="${workloadId == null}" th:href="@{/objectives(cursor=${nextCursor})}">Next objectives</a>
+    <a th:if="${workloadId != null}" th:href="@{/objectives(cursor=${nextCursor},workloadId=${workloadId})}">Next objectives</a>
+  </nav>
+</main>
+</body>
+</html>

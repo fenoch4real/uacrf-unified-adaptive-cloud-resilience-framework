@@ -262,11 +262,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
+      'objectives.objective.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
       { principalId: transfereePrincipalId, capability: 'owner.eligible' },
       { principalId: transfereePrincipalId, capability: 'evidence.event.read', scope: fixtureServiceId },
+      { principalId: transfereePrincipalId, capability: 'objectives.objective.read', scope: 'browser-objective-workload' },
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
       { principalId: runtimePrincipalId, capability: 'evidence.inbox.write' },
       { principalId: collectorPrincipalId, capability: 'connections.observation.write' },
@@ -361,6 +363,16 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: 'Unified Adaptive Cloud Resilience Framework' }))
       .toBeVisible();
     await selectLocalContext(sample);
+    await sample.goto('/objectives');
+    await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
+      .toContainText('Synthetic browser objective');
+    await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-b' }))
+      .toContainText('DRAFT');
+    await sample.getByLabel('Workload ID (optional)').fill('browser-objective-workload');
+    await sample.getByRole('button', { name: 'Show objectives' }).click();
+    await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
+      .toBeVisible();
+    await expect(sample.getByText('browser-objective-b', { exact: true })).toHaveCount(0);
     await sample.goto('/evidence');
     const evidenceRow = sample.getByRole('listitem').filter({ hasText: fixtureId });
     await expect(evidenceRow).toContainText('Synthetic sample; never qualified evidence.');
@@ -506,6 +518,26 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ).toBeVisible();
       await selectLocalContext(restricted);
       await expectCurrentAccess(restricted, 'Browser Transferee', ['owner.eligible']);
+
+      const globalObjectives = await restricted.goto('/objectives');
+      expect(globalObjectives.status()).toBe(403);
+      await restricted.getByLabel('Workload ID (optional)').fill('browser-objective-workload');
+      const [scopedObjectives] = await Promise.all([
+        restricted.waitForResponse((response) =>
+          response.url().includes('/objectives?') && response.request().isNavigationRequest()),
+        restricted.getByRole('button', { name: 'Show objectives' }).click(),
+      ]);
+      expect(scopedObjectives.status()).toBe(403);
+      await expect(restricted.getByText('browser-objective-a', { exact: true })).toHaveCount(0);
+      await expect(restricted.getByText('browser-objective-b', { exact: true })).toHaveCount(0);
+      await restricted.getByLabel('Workload ID (optional)').fill('other-objective-workload');
+      const [deniedObjectives] = await Promise.all([
+        restricted.waitForResponse((response) =>
+          response.url().includes('/objectives?') && response.request().isNavigationRequest()),
+        restricted.getByRole('button', { name: 'Show objectives' }).click(),
+      ]);
+      expect(deniedObjectives.status()).toBe(403);
+      await expect(restricted.getByText('browser-objective-b', { exact: true })).toHaveCount(0);
 
       const globalEvidence = await restricted.goto('/evidence');
       expect(globalEvidence.status()).toBe(403);

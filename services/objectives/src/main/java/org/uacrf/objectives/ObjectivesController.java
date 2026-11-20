@@ -94,6 +94,6 @@ class ObjectivesController {
   @PostMapping("/internal/v1/workloads/{id}/objectives:receipt")
   ObjectiveReceipt receipt(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody ReceiptRequest request) {
-    return objectives.receipt(DelegationPrincipal.from(jwt), id, request);
+    return objectives.receipt(jwt, id, request);
   }
 }

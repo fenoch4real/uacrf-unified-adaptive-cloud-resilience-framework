@@ -51,6 +51,7 @@ class WebApplicationTests {
   @MockitoBean private CatalogClient catalog;
   @MockitoBean private ConnectionsClient connections;
   @MockitoBean private EvidenceClient evidence;
+  @MockitoBean private ObjectivesClient objectives;
 
   @Test
   void offersAnOidcSignInWithoutRequiringAuthentication() throws Exception {
@@ -963,6 +964,69 @@ class WebApplicationTests {
     verify(identity).createDelegation(
         "test-access-token", "S04", "service-a", List.of("evidence.event.read"),
         "tenant-test", "environment-test");
+  }
+
+  @Test
+  void displaysObjectivesWithGlobalDelegationAndEscapedTitle() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S05", null, List.of("objectives.objective.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s05-delegation", "Bearer", 30));
+    when(objectives.list("s05-delegation", "current", "workload-a"))
+        .thenReturn(new ObjectivesClient.ObjectivePage(List.of(new ObjectivesClient.Objective(
+            "objective", "workload-a", "Latency <target>", "latency", "LTE",
+            new java.math.BigDecimal("99.75"), "ms", 60, "LOCAL", null, null, null, null,
+            "a".repeat(64), "DRAFT", 1L, "proposer", null, null, null)), "next"));
+    mockMvc.perform(get("/objectives").param("workloadId", "workload-a").param("cursor", "current")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Latency &lt;target&gt;")))
+        .andExpect(content().string(containsString("DRAFT")))
+        .andExpect(content().string(containsString("not measured performance or proof of compliance")))
+        .andExpect(content().string(containsString("/objectives?cursor=next&amp;workloadId=workload-a")))
+        .andExpect(content().string(not(containsString("s05-delegation"))));
+    verify(identity).createDelegation(
+        "test-access-token", "S05", null, List.of("objectives.objective.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
+  void objectiveReadDenialAndMalformedPageAreVisible() throws Exception {
+    mockMvc.perform(get("/objectives").with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(redirectedUrl("/contexts"));
+    verifyNoInteractions(objectives);
+    when(identity.createDelegation(
+            "test-access-token", "S05", null, List.of("objectives.objective.read"),
+            "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(
+            org.springframework.http.HttpStatus.FORBIDDEN))
+        .thenReturn(new IdentityAccessClient.Delegation("s05-delegation", "Bearer", 30));
+    mockMvc.perform(get("/objectives").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("Objective access failed (HTTP 403)")))
+        .andExpect(content().string(not(containsString("No objectives are available"))));
+    verifyNoInteractions(objectives);
+    when(objectives.list("s05-delegation", null, null))
+        .thenThrow(new IllegalStateException("invalid"));
+    mockMvc.perform(get("/objectives").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("returned an invalid response")))
+        .andExpect(content().string(not(containsString("No objectives are available"))));
+  }
+
+  @Test
+  void emptyObjectivePageIsNotReportedAsAnError() throws Exception {
+    when(identity.createDelegation(
+            "test-access-token", "S05", null, List.of("objectives.objective.read"),
+            "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("s05-delegation", "Bearer", 30));
+    when(objectives.list("s05-delegation", null, null))
+        .thenReturn(new ObjectivesClient.ObjectivePage(List.of(), null));
+    mockMvc.perform(get("/objectives").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("No objectives are available on this page.")))
+        .andExpect(content().string(not(containsString("Objective access failed"))));
   }
 
   @Test

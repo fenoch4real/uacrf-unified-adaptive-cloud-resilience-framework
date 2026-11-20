@@ -1,0 +1,58 @@
+package org.uacrf.web;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
+
+class ObjectivesClientTests {
+  private static final String RECORD = """
+      {"id":"objective","workload_id":"workload-a","title":"Latency","metric":"latency",
+       "comparator":"LTE","target":99.75,"unit":"ms","window_seconds":60,"origin":"LOCAL",
+       "content_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "state":"DRAFT","revision":1,"proposed_by":"proposer"}
+      """;
+
+  @Test
+  void readsExactWorkloadAndCursorThroughEdge() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/objectives");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/internal/objectives/v1/objectives?pageSize=25&workloadId=workload-a&cursor=start"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withSuccess("{\"items\":[" + RECORD + "],\"next_cursor\":\"next\"}", MediaType.APPLICATION_JSON));
+    var page = new ObjectivesClient(builder.build()).list("delegated", "start", "workload-a");
+    assertThat(page.nextCursor()).isEqualTo("next");
+    assertThat(page.items()).singleElement().satisfies(item -> {
+      assertThat(item.target()).isEqualByComparingTo("99.75");
+      assertThat(item.state()).isEqualTo("DRAFT");
+    });
+    server.verify();
+  }
+
+  @Test
+  void rejectsMalformedOrOutOfScopePages() {
+    for (String body : List.of(
+        "{\"items\":null}",
+        "{\"items\":[null]}",
+        "{\"items\":[" + RECORD.replace("\"window_seconds\":60", "\"window_seconds\":null") + "]}",
+        "{\"items\":[" + RECORD.replace("workload-a", "workload-b") + "]}",
+        "{\"items\":[],\"next_cursor\":\"\"}")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objectives?pageSize=25&workloadId=workload-a"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      assertThatThrownBy(() -> client.list("delegated", null, "workload-a"))
+          .isInstanceOf(IllegalStateException.class);
+      server.verify();
+    }
+  }
+}

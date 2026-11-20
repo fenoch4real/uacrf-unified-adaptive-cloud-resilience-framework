@@ -67,6 +67,23 @@ services:
       timeout: 3s
       retries: 12
 
+  objectives-db:
+    image: postgres@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_DB: uacrf_objectives
+      POSTGRES_USER: ${OBJECTIVES_DB_ADMIN_USER:?}
+      POSTGRES_PASSWORD: ${OBJECTIVES_DB_ADMIN_PASSWORD:?}
+      APP_DB_USER: ${OBJECTIVES_DB_USER:?}
+      APP_DB_PASSWORD: ${OBJECTIVES_DB_PASSWORD:?}
+    volumes:
+      - objectives-data:/var/lib/postgresql
+      - ../config/postgres/10-restrict-application-role.sql:/docker-entrypoint-initdb.d/10-restrict-application-role.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
     command: ["start-dev", "--import-realm"]
@@ -158,6 +175,7 @@ services:
       UACRF_EDGE_CATALOG_BASE_URL: http://estate-catalog:8083
       UACRF_EDGE_CONNECTIONS_BASE_URL: http://connections:8085
       UACRF_EDGE_EVIDENCE_BASE_URL: http://evidence:8086
+      UACRF_EDGE_OBJECTIVES_BASE_URL: http://objectives:8087
     depends_on:
       - identity
       - estate-catalog
@@ -204,6 +222,23 @@ services:
     ports:
       - "127.0.0.1:8086:8086"
 
+  objectives:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: objectives
+    environment:
+      OBJECTIVES_JDBC_URL: jdbc:postgresql://objectives-db:5432/uacrf_objectives
+      OBJECTIVES_DB_USER: ${OBJECTIVES_DB_USER:?}
+      OBJECTIVES_DB_PASSWORD: ${OBJECTIVES_DB_PASSWORD:?}
+      UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?}
+      UACRF_DELEGATION_KEY_ID: uacrf-e2e-key
+    depends_on:
+      objectives-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8087:8087"
+
   experience-api:
     build:
       context: ..
@@ -232,6 +267,7 @@ services:
       UACRF_CATALOG_BASE_URL: http://api-edge:8080/internal/catalog
       UACRF_CONNECTIONS_BASE_URL: http://api-edge:8080/internal/connections
       UACRF_EVIDENCE_BASE_URL: http://api-edge:8080/internal/evidence
+      UACRF_OBJECTIVES_BASE_URL: http://api-edge:8080/internal/objectives
       UACRF_SESSION_COOKIE_SECURE: "false"
     depends_on:
       - experience-api
@@ -244,3 +280,4 @@ volumes:
   catalog-data:
   connections-data:
   evidence-data:
+  objectives-data:
