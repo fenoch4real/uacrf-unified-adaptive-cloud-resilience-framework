@@ -1290,9 +1290,12 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   intents cannot dispatch from a planned run. The package-local `registerRun`
   path also requires and persists a complete plan. Migration V5 defaults new
   run fences to plan-required and rejects inserts that disable the requirement.
-  Existing pre-V5 fences are not assigned invented plans and retain legacy
-  behavior; a drain/migration policy is still required before connecting a
-  runtime that could use them. No service handler uses either library path.
+  Existing pre-V5 fences are not assigned invented plans; `begin` now requires
+  an exact retained plan for every run, regardless of that flag, so legacy
+  fences fail closed for new intents. Previously persisted dispatch intents
+  remain available for completion and reconciliation. Their lifecycle still
+  needs an operational disposition before a connected runtime is introduced.
+  No service handler uses either library path.
   PostgreSQL-backed tests cover concurrent same-key admission, scope isolation,
   immutable plans and records, substitution rejection, and deadline-failure
   rollback.

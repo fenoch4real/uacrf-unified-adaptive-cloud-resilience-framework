@@ -580,18 +580,15 @@ final class DispatchJournal {
               AND journal.run_id = fence.run_id AND journal.generation = fence.generation
           ) + ?::numeric <= fence.max_tokens::numeric
           AND allocation.role = ? AND allocation.profile_id = ?
-          AND (
-            NOT fence.dispatch_plan_required
-            OR EXISTS (
-              SELECT 1 FROM uacrf_advisory.run_dispatch_plan plan
-              WHERE plan.tenant_id = fence.tenant_id AND plan.environment_id = fence.environment_id
-                AND plan.run_id = fence.run_id AND plan.generation = fence.generation
-                AND plan.assignment_id = ? AND plan.attempt_id = ?
-                AND plan.role = allocation.role AND plan.profile_id = allocation.profile_id
-                AND plan.model_ref = ? AND plan.max_output_tokens = ?
-                AND plan.timeout_seconds = ? AND plan.timeout_nanos = ?
-                AND plan.context_digest = ? AND plan.packet_bytes = ? AND plan.packet_bytes_digest = ?
-            )
+          AND EXISTS (
+            SELECT 1 FROM uacrf_advisory.run_dispatch_plan plan
+            WHERE plan.tenant_id = fence.tenant_id AND plan.environment_id = fence.environment_id
+              AND plan.run_id = fence.run_id AND plan.generation = fence.generation
+              AND plan.assignment_id = ? AND plan.attempt_id = ?
+              AND plan.role = allocation.role AND plan.profile_id = allocation.profile_id
+              AND plan.model_ref = ? AND plan.max_output_tokens = ?
+              AND plan.timeout_seconds = ? AND plan.timeout_nanos = ?
+              AND plan.context_digest = ? AND plan.packet_bytes = ? AND plan.packet_bytes_digest = ?
           )
         ON CONFLICT DO NOTHING
         """;

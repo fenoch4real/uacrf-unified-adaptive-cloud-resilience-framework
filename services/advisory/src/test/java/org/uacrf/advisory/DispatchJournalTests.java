@@ -738,6 +738,36 @@ class DispatchJournalTests {
   }
 
   @Test
+  void legacyPlanlessRunCannotStartNewDispatches() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var intent = intent("legacy-planless", "attempt", "assignment");
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.createStatement()) {
+      connection.setAutoCommit(false);
+      statement.execute("ALTER TABLE uacrf_advisory.run_fence DISABLE TRIGGER require_dispatch_plan_for_new_run");
+      statement.executeUpdate("""
+          INSERT INTO uacrf_advisory.run_fence
+            (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
+             deadline_epoch_second, deadline_nano, dispatch_plan_required, state, revision)
+          VALUES ('legacy-planless', 'env', 'run', 1, 2, 300, 10, 4070908800, 0, false, 'DRAFT', 1)
+          """);
+      statement.executeUpdate("""
+          INSERT INTO uacrf_advisory.run_allocation
+          VALUES ('legacy-planless', 'env', 'run', 1, 'ANALYST', 'analyst', 100, 4)
+          """);
+      statement.executeUpdate("""
+          UPDATE uacrf_advisory.run_fence SET state = 'ACTIVE'
+          WHERE tenant_id = 'legacy-planless' AND run_id = 'run'
+          """);
+      statement.execute("ALTER TABLE uacrf_advisory.run_fence ENABLE TRIGGER require_dispatch_plan_for_new_run");
+      connection.commit();
+    }
+
+    assertFalse(journal.begin(intent));
+    assertTrue(journal.find(intent.key()).isEmpty());
+  }
+
+  @Test
   void cancellationRejectsNewIntentsButRetainsLateResults() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("cancel", "attempt", "assignment");
