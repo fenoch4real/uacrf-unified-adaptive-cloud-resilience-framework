@@ -12,7 +12,7 @@ sequenceDiagram
         Note over P2: Continue only with accepted scoped context
     else denied, stale or incomplete
         break F1 stop this path
-            Note over P2: Retain restrictive disposition; no later success steps
+            Note over P2: Retain restrictive disposition, no later success steps
         end
     end
     P2->>P2: S03 Validate mappings units windows comparison coverage and authoritative withdrawal
@@ -20,7 +20,7 @@ sequenceDiagram
         Note over P2: Continue only with accepted scoped context
     else denied, stale or incomplete
         break F1 stop this path
-            Note over P2: Retain restrictive disposition; no later success steps
+            Note over P2: Retain restrictive disposition, no later success steps
         end
     end
     P2->>P3: S04 Deduplicate immutable candidate and checkpoint in an atomic transaction
@@ -29,7 +29,7 @@ sequenceDiagram
         Note over P5: Continue only with accepted scoped context
     else denied, stale or incomplete
         break F1 stop this path
-            Note over P5: Retain restrictive disposition; no later success steps
+            Note over P5: Retain restrictive disposition, no later success steps
         end
     end
     P4->>P5: S06 Choose keep local propose source or detach with expected revisions and reason
@@ -38,7 +38,7 @@ sequenceDiagram
         Note over P5: Continue only with accepted scoped context
     else denied, stale or incomplete
         break F1 stop this path
-            Note over P5: Retain restrictive disposition; no later success steps
+            Note over P5: Retain restrictive disposition, no later success steps
         end
     end
     P5->>P3: S08 Atomically retain resolution history audit outbox and any proposal link

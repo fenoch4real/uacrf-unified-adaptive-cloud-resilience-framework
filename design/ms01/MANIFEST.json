@@ -29,13 +29,13 @@
     },
     {
       "path": "IMPLEMENTATION_PLAN.md",
-      "bytes": 11810,
-      "sha256": "1c83abd8e2f45cbfe5dba0478403b89339d73774a5f6fa7d24c5728842beb9a8"
+      "bytes": 18165,
+      "sha256": "6dbfd22e70d5c2cac00f55483bfe529eb24cb8b36623d209a3444f45b7735550"
     },
     {
       "path": "INTERNAL_INTERFACES.md",
-      "bytes": 36402,
-      "sha256": "eb020615aacc6cf5a74fa580e09b1e5390d23c25953ef6702cbf2193f9eb34fa"
+      "bytes": 38050,
+      "sha256": "840397c2fad12b554a492dcd2c9ce3223973000f2032a80f2b363f1208b3b4c7"
     },
     {
       "path": "README.md",
@@ -184,13 +184,13 @@
     },
     {
       "path": "contracts/source/api_reference/core.openapi.json",
-      "bytes": 360144,
-      "sha256": "b5345aad1041d21e99756327313afbd4da1c7caf8da4a958c1a5749937a3917b"
+      "bytes": 366456,
+      "sha256": "f825778355ecb111c9bb334092f97ee3c7e0bee276fbfc339df9d09d2ff79d9b"
     },
     {
       "path": "contracts/source/api_reference/openapi.json",
-      "bytes": 503851,
-      "sha256": "d078faf3194b7695825e0a21cc6ab4b213e0984f8ee5be4cdb2d94f9ce025412"
+      "bytes": 510163,
+      "sha256": "f4753d33dbbeeb6b9d75ed4365dd0b025d61e4cb57c777d11640e96e3e6475b6"
     },
     {
       "path": "contracts/source/assurance_design/openapi.proposed.json",
@@ -314,8 +314,8 @@
     },
     {
       "path": "contracts/source/import_signal_design/openapi.proposed.json",
-      "bytes": 49715,
-      "sha256": "da86aa4b4879eac1afb77582b5343288700262310cf600239172feb65aba5152"
+      "bytes": 49947,
+      "sha256": "0b92102da1374cf628d27a294277fc2f7c38d8495e7aaa8265f19455404169a4"
     },
     {
       "path": "contracts/source/objective_design/objective-revision.schema.json",
