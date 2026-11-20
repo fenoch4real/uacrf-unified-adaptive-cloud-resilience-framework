@@ -149,6 +149,10 @@ final class RequesterSourceCheck {
           new AgentProfileVersionClient(catalogBase, allowLoopbackHttp, s01, http)
               .fetchActive(tenantId, environmentId, expectedProfiles);
     }
+    var refreshedCase = owners.fetchCase(tenantId, environmentId, expected);
+    if (!caseReceipt.equals(refreshedCase)) {
+      throw new IOException("Assessment receipt changed during source checking.");
+    }
     var refreshed =
         access.check(
             requesterToken,

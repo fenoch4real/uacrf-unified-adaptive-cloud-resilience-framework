@@ -90,6 +90,7 @@ class OwnerReceiptClientTests {
   private final AtomicReference<Reply> retrievalReply = new AtomicReference<>(new Reply(200, RETRIEVAL_BODY));
   private final AtomicReference<Reply> contentReply = new AtomicReference<>(new Reply(200, CONTENT_BODY));
   private final AtomicReference<Reply> retrievalReplyAfterContent = new AtomicReference<>();
+  private final AtomicReference<Reply> caseReplyAfterContent = new AtomicReference<>();
   private final AtomicReference<String> caseAuthorization = new AtomicReference<>();
   private final AtomicReference<String> retrievalAuthorization = new AtomicReference<>();
   private final AtomicReference<String> retrievalRequest = new AtomicReference<>();
@@ -161,6 +162,7 @@ class OwnerReceiptClientTests {
       }
       if (requesterReplyAfterContent.get() != null) requesterReply.set(requesterReplyAfterContent.get());
       if (retrievalReplyAfterContent.get() != null) retrievalReply.set(retrievalReplyAfterContent.get());
+      if (caseReplyAfterContent.get() != null) caseReply.set(caseReplyAfterContent.get());
       respond(exchange, contentReply.get());
     });
     server.createContext("/internal/v1/delegations", exchange -> {
@@ -303,7 +305,8 @@ class OwnerReceiptClientTests {
     assertThrows(UnsupportedOperationException.class, () -> snapshot.requester().capabilities().clear());
     assertEquals("Bearer requester-token", requesterAuthorization.get());
     assertEquals(2, requesterAccessCalls.get());
-    assertEquals(List.of("Bearer requester-token", "Bearer requester-token", "Bearer requester-token"),
+    assertEquals(List.of(
+        "Bearer requester-token", "Bearer requester-token", "Bearer requester-token", "Bearer requester-token"),
         identityAuthorizations);
     assertTrue(identityRequests.get(0).contains("\"assessment.case.read\""));
     assertTrue(identityRequests.get(1).contains("\"assessment.case.read\""));
@@ -616,7 +619,7 @@ class OwnerReceiptClientTests {
         SourceReceiptConsistency.Classification.RESTRICTED);
     setClassification("RESTRICTED");
     verifier.check("requester-token", "tenant-1", "env-1", restrictedExpected);
-    assertTrue(identityRequests.get(5).contains("\"knowledge.classification.restricted.read\""));
+    assertTrue(identityRequests.get(6).contains("\"knowledge.classification.restricted.read\""));
   }
 
   @Test
@@ -626,8 +629,8 @@ class OwnerReceiptClientTests {
     requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));
     assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED));
     assertEquals(3, requesterAccessCalls.get());
-    assertEquals(3, identityCalls.get());
-    assertEquals(1, caseCalls.get());
+    assertEquals(4, identityCalls.get());
+    assertEquals(2, caseCalls.get());
     assertEquals(2, retrievalCalls.get());
   }
 
@@ -673,6 +676,18 @@ class OwnerReceiptClientTests {
     }
     assertEquals(6, retrievalCalls.get());
     assertEquals(3, contentCalls.get());
+  }
+
+  @Test
+  void rejectsCaseReceiptChangeDuringContentRead() {
+    caseReplyAfterContent.set(new Reply(200, CASE_BODY.replace(CASE_DIGEST, "b".repeat(64))));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+    assertEquals("Assessment receipt changed during source checking.",
+        assertThrows(IOException.class, () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED))
+            .getMessage());
+    assertEquals(2, caseCalls.get());
+    assertEquals(2, retrievalCalls.get());
+    assertEquals(1, contentCalls.get());
   }
 
   @Test

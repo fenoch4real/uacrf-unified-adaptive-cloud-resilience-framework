@@ -1323,7 +1323,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   fails, and single-winner concurrent acknowledgments. The broader
   PostgreSQL-backed regressions cover concurrent same-key admission, scope
   isolation, immutable plans and records, substitution rejection, and deadline
-  failure. The clean advisory suite passed 151 tests with no failures, errors,
+  failure. The clean advisory suite passed 152 tests with no failures, errors,
   or skips. No service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
   The primitive still trusts its caller-supplied principal and does not
@@ -1495,9 +1495,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   receipt and material and S08 receipt and excerpt reads using fresh S01
   delegations obtained with the same requester token, rather than a service
   actor. It validates case material before fetching the retrieval, then
-  refreshes S08 eligibility after the excerpts. After those reads it checks
-  requester grants again and rejects a changed principal; this narrows but does
-  not eliminate revocation races. It requests a restricted
+  refreshes S08 eligibility after the excerpts. After those reads it refreshes
+  the S07 case receipt and rejects any change, then checks requester grants
+  again and rejects a changed principal; this narrows but does not eliminate
+  source or revocation races. It requests a restricted
   classification delegation for an internal retrieval when that is the
   requester's applicable grant. The combined flow has also been tested against
   a real S01 instance and simulated owners that validate its signed requester
