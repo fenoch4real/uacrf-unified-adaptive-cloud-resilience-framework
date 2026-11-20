@@ -260,7 +260,74 @@ The diagram distinguishes those target components from the currently
 implemented service slices; it does not mark any provider or full-system
 workflow as accepted.
 
-## Additional target diagrams
+## Verified local sequence: S03 to S04
+
+The following is the local HTTP outbox/inbox path, not the planned Kafka
+workflow. The optional S03 publisher uses a narrow S01 delegation. In the
+[focused process test](../integration-tests/m2-live/runtime-validation-report.md#test-evidence-and-journeys),
+a test proxy returns 503 after S04 persists the first event; S03 retries it,
+receives `DUPLICATE`, verifies the acknowledgement event ID, and marks the
+outbox row published. S01, S03, and S04 run as real services in that test,
+but the directory and OAuth/OIDC components are test fixtures.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#e8f2ff", "primaryBorderColor": "#7893ad", "primaryTextColor": "#152b43", "lineColor": "#45617d", "noteBkgColor": "#f4f7fc", "noteBorderColor": "#7893ad", "noteTextColor": "#152b43", "fontFamily": "Arial"}}}%%
+sequenceDiagram
+    participant S03 as S03 connections
+    participant DB03 as S03 database
+    participant S01 as S01 identity
+    participant Proxy as Test proxy
+    participant S04 as S04 evidence
+    participant DB04 as S04 database
+    S03->>DB03: Commit business record and outbox event
+    S03->>S01: Request S04 scoped delegation
+    S01-->>S03: Delegation
+    S03->>Proxy: Send event
+    Proxy->>S04: Forward event
+    S04->>DB04: Persist inbox event
+    DB04-->>S04: Commit
+    S04-->>Proxy: RECEIVED and event ID
+    Proxy-->>S03: Inject 503 after persistence
+    Note over S03,DB03: Outbox event remains pending
+    S03->>Proxy: Retry same event
+    Proxy->>S04: Forward retry
+    S04->>DB04: Check retained event
+    DB04-->>S04: Duplicate
+    S04-->>Proxy: DUPLICATE and event ID
+    Proxy-->>S03: Forward acknowledgement
+    Note over S03: Verify acknowledgement event ID
+    S03->>DB03: Mark outbox event published
+```
+
+The proxy is test-only. This evidence does not establish Kafka delivery,
+production identity, live provider conformance, or full M2 acceptance.
+The [connections guide](../services/connections/README.md#s03-outbox-publisher)
+describes the publisher's other acknowledgement and retry behavior.
+
+## Target and historical diagram index
+
+The following diagrams describe intended behavior, not verified deployed
+workflows. Consult the [implementation status](IMPLEMENTATION_STATUS.md) for
+what is currently implemented and tested.
+
+- **Activity:** [advisory request to human review](../design/ms01/diagrams/advisory_activity.svg).
+- **Sequences:** [onboarding](../design/ms01/diagrams/onboarding.svg),
+  [advisory](../design/ms01/diagrams/advisory_sequence.svg),
+  [Kafka event delivery](../design/ms01/diagrams/event_delivery.svg),
+  [authorized execution](../design/ms01/diagrams/execution_sequence.svg), and
+  [recovery validation](../design/ms01/diagrams/recovery_validation.svg).
+- **Design and operations:** [domain ownership model](../design/ms01/diagrams/platform_domain_classes.svg),
+  [infrastructure](../design/ms01/diagrams/infrastructure_detail.svg), and
+  [deployment](../design/ms01/diagrams/deployment_detail.svg).
+- **Historical:** [technical-approach graph and runtime illustrations](../design/technical-approach/diagrams/README.md)
+  are archival, with known limitations described in their index.
+
+The [full MS01 diagram index](../design/ms01/README.md#diagram-index) includes
+additional views and editable sources. Update current-state diagrams alongside
+the relevant implementation and test evidence; retain target and historical
+artifacts with their provenance rather than presenting them as runtime proof.
+
+### Additional target diagrams
 
 The system-context diagram shows the browser, API edge, experience API,
 domain services, and supporting infrastructure:
@@ -270,8 +337,3 @@ domain services, and supporting infrastructure:
 The deployment diagram shows the planned deployment and privilege boundaries:
 
 ![UACRF deployment and privilege boundaries](images/deployment.svg)
-
-The [MS01 diagram index](../design/ms01/README.md#diagram-index) links
-activity, sequence, conceptual class, infrastructure, and deployment views,
-with editable sources. These depict the target architecture, not proof that
-the pictured capabilities are deployed.

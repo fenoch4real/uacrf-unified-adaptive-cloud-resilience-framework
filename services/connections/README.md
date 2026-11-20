@@ -68,10 +68,10 @@ next scheduled time; missing and never-run values are called out explicitly.
 The page clarifies that timestamps do not establish freshness or staleness and
 that `COLLECTED` only means the batch was submitted to intake.
 It visibly labels `SAMPLE_LOCAL` as synthetic and does not qualify or promote it.
-The [sample fixture](../../sample-data/README.md#import-synthetic-inventory)
+The [sample fixture](../../sample-data/README.md#import-synthetic-estate)
 is not loaded automatically. An explicit browser import uses S01 owner
-selection and S03 write delegations to load only the synthetic inventory
-subset. Failed or quarantined operations stop the import and are reported.
+selection and S03 write delegations to load synthetic inventory and metric
+observations. Failed or quarantined operations stop the import and are reported.
 
 Deploy V3 before the updated service and avoid mixed old/new ingestion instances: older instances
 neither retain exact times nor acquire the new ID lock. Rollback to older intake also loses these
@@ -96,6 +96,8 @@ before its token, delegation, and intake calls; renewal fails closed if another 
 the lease token. Failure to record one lost lease is logged without stopping unrelated claims in
 the same collection cycle. It claims one source at a time, up to the configured cycle limit, so
 queued sources do not hold expiring leases while earlier collections run.
+
+## S03 outbox publisher
 
 The optional S03 outbox publisher delivers retained events to the S04 inbox using its own
 client-credentials identity and narrow S01 delegation. When enabled, it requires nonblank client
