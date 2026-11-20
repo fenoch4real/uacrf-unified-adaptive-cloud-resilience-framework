@@ -7,6 +7,14 @@
 ## Latest live browser run
 
 On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
+stack where S07 learning review was explicitly enabled. The browser rejected
+self-review and approval of a directly inserted synthetic proposal, recorded
+and read an independent rejection, rejected a duplicate and denied an
+ungranted user. The fixture does not establish evidence-qualified approval,
+provider acceptance, adoption or authorization to act. The normal feature
+default remains disabled. The stack was removed after the run.
+
+On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
 stack. An independently authorized user submitted and replayed a learning
 proposal through UX01, EDGE01, S01 and S07, then found one retained proposal;
 an ungranted user was denied submission. The incident and its references were

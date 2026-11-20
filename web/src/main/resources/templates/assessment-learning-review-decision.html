@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learning review decision | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Learning review decision</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p role="alert" th:if="${reviewError != null}" th:text="${reviewError}"></p>
+  <dl th:if="${review != null}">
+    <dt>Proposal ID</dt><dd th:text="${review.learningRecordId}">ID</dd>
+    <dt>Proposal revision</dt><dd th:text="${review.expectedRevision}">Revision</dd>
+    <dt>Decision</dt><dd th:text="${review.decision}">Decision</dd>
+    <dt>Reason</dt><dd th:text="${review.reason}">Reason</dd>
+    <dt>Reviewed by</dt><dd th:text="${review.reviewedBy}">Reviewer</dd>
+    <dt>Reviewed at</dt><dd th:text="${review.reviewedAt}">Time</dd>
+  </dl>
+  <p>This historical decision does not establish current evidence qualification,
+    adoption or authorization to act.</p>
+  <p th:if="${recordId != null}"><a th:href="@{/assessment-learning-records/{id}/review(id=${recordId})}">Review proposal details</a></p>
+</main>
+</body>
+</html>

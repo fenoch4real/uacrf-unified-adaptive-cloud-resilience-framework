@@ -20,6 +20,8 @@
   <ol class="inventory-list">
     <li th:each="item : ${items}">
       <h2 th:text="${item.id}">Learning record ID</h2>
+      <p><a th:href="@{/assessment-learning-records/{id}/review(id=${item.id})}"
+            th:attr="aria-label=|Review learning proposal ${item.id}|">Review proposal</a></p>
       <dl>
         <dt>State</dt><dd th:text="${item.state}">Proposed</dd>
         <dt>Experiment</dt><dd th:text="${item.experimentId != null ? item.experimentId : 'None'}">Experiment</dd>

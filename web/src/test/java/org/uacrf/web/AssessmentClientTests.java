@@ -58,6 +58,39 @@ class AssessmentClientTests {
        "reason":"test","state":"PROPOSED","revision":1,"proposed_by":"user",
        "created_at":"2026-01-01T00:00:00Z"}
       """;
+  private static final String REVIEW = """
+      {"learning_record_id":"00000000-0000-0000-0000-000000000002",
+       "expected_revision":1,"decision":"REJECT","reason":"test",
+       "reviewed_by":"reviewer","reviewed_at":"2026-01-03T00:00:00Z"}
+      """;
+
+  @Test
+  void readsAndReviewsLearningWithStrictReceiptChecks() {
+    String id = "00000000-0000-0000-0000-000000000002";
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/learning-records/" + id))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withSuccess(LEARNING, MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/learning-records/" + id + ":review"))
+        .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reviewer"))
+        .andExpect(content().json("{\"expected_revision\":1,\"decision\":\"REJECT\",\"reason\":\"test\"}"))
+        .andRespond(withSuccess(REVIEW, MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/learning-records/" + id + "/review"))
+        .andRespond(withSuccess(REVIEW, MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/learning-records/" + id + ":review"))
+        .andRespond(withSuccess(REVIEW.replace("\"REJECT\"", "\"APPROVE\""), MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/learning-records/" + id + "/review"))
+        .andRespond(withSuccess(REVIEW.replace("\"reviewer\"", "\"\""), MediaType.APPLICATION_JSON));
+    var client = new AssessmentClient(builder.build());
+    var request = new AssessmentClient.LearningReviewRequest(1L, "REJECT", "test");
+    assertThat(client.getLearningRecord("reader", id).id()).isEqualTo(id);
+    assertThat(client.reviewLearningRecord("reviewer", id, request).decision()).isEqualTo("REJECT");
+    assertThat(client.getLearningReview("reader", id).reason()).isEqualTo("test");
+    assertThatThrownBy(() -> client.reviewLearningRecord("reviewer", id, request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.getLearningReview("reader", id)).isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
 
   @Test
   void proposesLearningOnlyThroughKeyedRouteAndValidatesReceipt() {

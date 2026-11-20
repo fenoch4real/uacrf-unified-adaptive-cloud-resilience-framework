@@ -281,6 +281,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
+      'assessment.learning.review',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -443,6 +444,42 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       matchingProposals += await sample.getByRole('heading', { name: proposalId }).count();
     }
     expect(matchingProposals).toBe(1);
+    await sample.goto(`/assessment-learning-records/${proposalId}/review`);
+    await sample.getByLabel('Decision (required)').selectOption('REJECT');
+    await sample.getByLabel('Reason (required)').fill('Self review must be denied');
+    const [selfReview] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === `/assessment-learning-records/${proposalId}/review`),
+      sample.getByRole('button', { name: 'Record review decision' }).click(),
+    ]);
+    expect(selfReview.status()).toBe(409);
+    await expect(sample.getByRole('alert')).toContainText('Read the retained decision');
+    const fixtureLearningId = '10000000-0000-0000-0000-000000000001';
+    await sample.goto(`/assessment-learning-records/${fixtureLearningId}/review`);
+    await sample.getByLabel('Decision (required)').selectOption('APPROVE');
+    await sample.getByLabel('Reason (required)').fill('Synthetic evidence must not be approved');
+    const [approval] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === `/assessment-learning-records/${fixtureLearningId}/review`),
+      sample.getByRole('button', { name: 'Record review decision' }).click(),
+    ]);
+    expect(approval.status()).toBe(409);
+    await sample.goto(`/assessment-learning-records/${fixtureLearningId}/review`);
+    await sample.getByLabel('Decision (required)').selectOption('REJECT');
+    await sample.getByLabel('Reason (required)').fill('Synthetic proposal is not qualified');
+    const [reviewRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === `/assessment-learning-records/${fixtureLearningId}/review`),
+      sample.getByRole('button', { name: 'Record review decision' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Learning review decision' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('REJECT');
+    const reviewReplay = await sample.request.post(`/assessment-learning-records/${fixtureLearningId}/review`, {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: reviewRequest.postData(),
+    });
+    expect(reviewReplay.status()).toBe(409);
+    await sample.goto(`/assessment-learning-records/${fixtureLearningId}/review/decision`);
+    await expect(sample.locator('main')).toContainText('Synthetic proposal is not qualified');
     await sample.goto('/assessment-cases/browser-case-a/incidents');
     await sample.getByRole('link', { name: 'Next incidents' }).click();
     await expect(sample.getByText('Synthetic browser incident 51', { exact: true })).toBeVisible();
@@ -731,6 +768,12 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       });
       expect(deniedProposal.status()).toBe(403);
       expect(await deniedProposal.text()).toContain('Learning proposal was not authorized');
+      const deniedReview = await restricted.request.post('/assessment-learning-records/10000000-0000-0000-0000-000000000002/review', {
+        form: { _csrf: csrfToken, tenantId: 'local-dev', environmentId: 'local',
+          expectedRevision: '1', decision: 'REJECT', reason: 'Verify authorization' },
+      });
+      expect(deniedReview.status()).toBe(403);
+      expect(await deniedReview.text()).toContain('Learning review was not authorized');
       await sample.goto('/assessment-cases/browser-case-b/seal');
       await expect(sample.getByRole('button', { name: 'Seal this draft' })).toBeVisible();
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');

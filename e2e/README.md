@@ -104,7 +104,16 @@ the test submits and replays a learning proposal for one synthetic incident and
 verifies only one retained proposal. An ungranted user is denied proposal
 submission. Proposal creation does not revalidate evidence or establish review
 or adoption. The test does not demonstrate successful verified incident creation,
-evidence qualification or learning review and cannot establish provider acceptance.
+evidence qualification or evidence-qualified learning approval and cannot
+establish provider acceptance.
+
+The disposable stack explicitly enables S07 learning review and independently
+grants `assessment.learning.review` to the sample human. The browser verifies
+self-review denial, denial of approval for a directly inserted synthetic
+fixture, an independent rejection and historical read, duplicate-decision
+conflict, and denial for an ungranted user. The synthetic fixture does not
+demonstrate successful evidence-qualified approval; review remains disabled by
+default outside this test stack and a decision does not authorize adoption.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

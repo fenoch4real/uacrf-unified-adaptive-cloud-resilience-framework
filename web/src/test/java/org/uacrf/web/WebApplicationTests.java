@@ -238,6 +238,74 @@ class WebApplicationTests {
   }
 
   @Test
+  void learningReviewUsesIndependentDelegationsAndHandlesUnconfirmedDecision() throws Exception {
+    String id = "00000000-0000-0000-0000-000000000002";
+    String incident = "00000000-0000-0000-0000-000000000001";
+    Instant time = Instant.parse("2026-01-01T00:00:00Z");
+    var action = new AssessmentClient.LearningAction("Check", "owner", time, null, "Verify");
+    var record = new AssessmentClient.LearningRecord(id, incident, null, List.of("Hypothesis"),
+        List.of(action), List.of("receipt-1"), 1L, "test", "PROPOSED", 1L, "proposer", time);
+    var review = new AssessmentClient.LearningReview(id, 1L, "REJECT", "reason", "reviewer", time);
+    var request = new AssessmentClient.LearningReviewRequest(1L, "REJECT", "reason");
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.learning.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.learning.review"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("reviewer-token", "Bearer", 30));
+    when(assessment.getLearningRecord("reader", id)).thenReturn(record);
+    when(assessment.reviewLearningRecord("reviewer-token", id, request))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(review);
+    when(assessment.getLearningReview("reader", id)).thenReturn(review);
+    mockMvc.perform(get("/assessment-learning-records/" + id + "/review").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Hypothesis")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")));
+    mockMvc.perform(learningReviewRequest(id).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(learningReviewRequest(id).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable()).andExpect(content().string(containsString("Review is unconfirmed")))
+        .andExpect(content().string(not(containsString("Record review decision</button>"))));
+    mockMvc.perform(get("/assessment-learning-records/" + id + "/review/decision")
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("REJECT")))
+        .andExpect(content().string(containsString("reviewer")));
+    mockMvc.perform(learningReviewRequest(id).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Learning review decision")));
+    verify(assessment, times(2)).reviewLearningRecord("reviewer-token", id, request);
+  }
+
+  @Test
+  void learningReviewRejectsInvalidInputAndContextBeforeDelegation() throws Exception {
+    String id = "00000000-0000-0000-0000-000000000002";
+    mockMvc.perform(learningReviewRequest(id).with(request -> {
+      request.setParameter("tenantId", "other"); return request;
+    }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())).andExpect(status().isConflict());
+    mockMvc.perform(learningReviewRequest(id).with(request -> {
+      request.setParameter("decision", "EXECUTE"); return request;
+    }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest()).andExpect(content().string(containsString("decision-error")));
+    verifyNoInteractions(identity, assessment);
+  }
+
+  @Test
+  void missingReviewIsNotReportedAsAnUnreviewedProposal() throws Exception {
+    String id = "00000000-0000-0000-0000-000000000002";
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.learning.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(assessment.getLearningReview("reader", id))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.NOT_FOUND));
+    mockMvc.perform(get("/assessment-learning-records/" + id + "/review/decision")
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isNotFound())
+        .andExpect(content().string(containsString("does not confirm whether review occurred")))
+        .andExpect(content().string(not(containsString("<dt>Decision</dt>"))));
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder learningReviewRequest(String id) {
+    return post("/assessment-learning-records/" + id + "/review").param("tenantId", "tenant-test")
+        .param("environmentId", "environment-test").param("expectedRevision", "1")
+        .param("decision", "REJECT").param("reason", "reason");
+  }
+
+  @Test
   void startsAuthorizationCodeFlowWithPkce() throws Exception {
     MvcResult result =
         mockMvc

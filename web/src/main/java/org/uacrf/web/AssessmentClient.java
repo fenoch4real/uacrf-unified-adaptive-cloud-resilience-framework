@@ -201,20 +201,57 @@ class AssessmentClient {
         }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
         .retrieve().body(LearningRecordPage.class);
     if (page == null || page.items() == null || page.items().stream().anyMatch(item ->
-        item == null || !validCursor(item.id()) || !incidentId.equals(item.incidentId())
-            || !validStrings(item.hypotheses()) || !validStrings(item.evidenceRefs())
-            || item.actionItems() == null || item.actionItems().isEmpty()
-            || item.actionItems().size() > 100 || item.actionItems().stream().anyMatch(action ->
-                action == null || !present(action.description()) || !present(action.ownerId())
-                    || action.dueAt() == null || !present(action.closureTest()))
-            || item.expectedRevision() == null || item.expectedRevision() < 1
-            || !present(item.reason()) || !"PROPOSED".equals(item.state())
-            || item.revision() == null || item.revision() != 1
-            || !present(item.proposedBy()) || item.createdAt() == null)
+        !validLearningRecord(item) || !incidentId.equals(item.incidentId()))
         || !validPage(page.items().stream().map(LearningRecord::id).toList(), page.nextCursor(), after)) {
       throw new IllegalStateException("S07 returned an incomplete or mismatched learning-record page.");
     }
     return new LearningRecordPage(List.copyOf(page.items()), page.nextCursor());
+  }
+
+  LearningRecord getLearningRecord(String token, String id) {
+    LearningRecord item = restClient.get().uri(uri -> uri.path("/v1/learning-records/{id}").build(id))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(LearningRecord.class);
+    if (!validLearningRecord(item) || !id.equals(item.id())) {
+      throw new IllegalStateException("S07 returned incomplete or mismatched learning-record details.");
+    }
+    return item;
+  }
+
+  LearningReview getLearningReview(String token, String id) {
+    LearningReview item = restClient.get().uri(uri -> uri.path("/v1/learning-records/{id}/review").build(id))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(LearningReview.class);
+    if (!validReview(item, id)) throw new IllegalStateException("S07 returned an invalid learning review.");
+    return item;
+  }
+
+  LearningReview reviewLearningRecord(String token, String id, LearningReviewRequest request) {
+    LearningReview item = restClient.post().uri(uri -> uri.path("/v1/learning-records/{id}:review").build(id))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).body(request).retrieve().body(LearningReview.class);
+    if (!validReview(item, id) || !request.expectedRevision().equals(item.expectedRevision())
+        || !request.decision().equals(item.decision()) || !request.reason().equals(item.reason())) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched learning review.");
+    }
+    return item;
+  }
+
+  private static boolean validLearningRecord(LearningRecord item) {
+    return item != null && validCursor(item.id()) && validCursor(item.incidentId())
+        && validStrings(item.hypotheses()) && validStrings(item.evidenceRefs())
+        && item.actionItems() != null && !item.actionItems().isEmpty()
+        && item.actionItems().size() <= 100 && item.actionItems().stream().allMatch(action ->
+            action != null && present(action.description()) && present(action.ownerId())
+                && action.dueAt() != null && present(action.closureTest()))
+        && item.expectedRevision() != null && item.expectedRevision() >= 1
+        && present(item.reason()) && "PROPOSED".equals(item.state())
+        && item.revision() != null && item.revision() == 1
+        && present(item.proposedBy()) && item.createdAt() != null;
+  }
+
+  private static boolean validReview(LearningReview item, String id) {
+    return item != null && id.equals(item.learningRecordId())
+        && item.expectedRevision() != null && item.expectedRevision() == 1
+        && ("APPROVE".equals(item.decision()) || "REJECT".equals(item.decision()))
+        && present(item.reason()) && present(item.reviewedBy()) && item.reviewedAt() != null;
   }
 
   static boolean validCursor(String cursor) {
@@ -348,4 +385,8 @@ class AssessmentClient {
       @JsonProperty("due_at") @NotNull Instant dueAt,
       @JsonProperty("proposed_version_ref") @Size(max=1000) String proposedVersionRef,
       @JsonProperty("closure_test") @NotBlank @Size(max=2000) String closureTest) {}
+  record LearningReviewRequest(@JsonProperty("expected_revision") Long expectedRevision, String decision, String reason) {}
+  record LearningReview(@JsonProperty("learning_record_id") String learningRecordId,
+      @JsonProperty("expected_revision") Long expectedRevision, String decision, String reason,
+      @JsonProperty("reviewed_by") String reviewedBy, @JsonProperty("reviewed_at") Instant reviewedAt) {}
 }

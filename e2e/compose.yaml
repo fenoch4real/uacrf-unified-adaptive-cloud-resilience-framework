@@ -268,6 +268,7 @@ services:
       ASSESSMENT_DB_PASSWORD: ${ASSESSMENT_DB_PASSWORD:?}
       UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?}
       UACRF_DELEGATION_KEY_ID: uacrf-e2e-key
+      UACRF_ASSESSMENT_LEARNING_REVIEW_ENABLED: "true"
     depends_on:
       assessment-db:
         condition: service_healthy
