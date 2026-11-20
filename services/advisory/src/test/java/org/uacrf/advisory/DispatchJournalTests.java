@@ -104,6 +104,7 @@ class DispatchJournalTests {
     var reopened = new DispatchJournal(dataSource);
     var retained = reopened.find(intent.key()).orElseThrow();
     assertEquals(intent.key(), retained.intent().key());
+    assertEquals(TEST_DEADLINE, retained.intent().runDeadline());
     assertEquals(intent.role(), retained.intent().role());
     assertEquals(intent.profileId(), retained.intent().profileId());
     assertEquals(intent.contextDigest(), retained.intent().contextDigest());
