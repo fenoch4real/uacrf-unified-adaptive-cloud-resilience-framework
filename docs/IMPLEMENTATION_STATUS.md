@@ -1281,8 +1281,17 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   retries return the retained run key without another event; changed digests
   conflict. The digest is computed from the validated typed request using a
   deterministic JSON form; JSON property ordering and equivalent deadline
-  offsets do not change it. PostgreSQL-backed tests cover concurrent same-key
-  admission, scope isolation, immutable records, and deadline-failure rollback.
+  offsets do not change it. Admission now persists a complete immutable
+  per-role dispatch plan in the same transaction. A run requiring a plan cannot
+  activate until every allocation is covered, and `begin` requires an exact
+  match for the retained attempt, assignment, role/profile, model, output
+  ceiling, timeout, context digest, and packet bytes before it records a
+  dispatch intent. Incomplete plans fail before creating a run; substituted
+  intents cannot dispatch from an admitted run. The older package-local
+  `registerRun` path remains only for isolated journal tests and does not set
+  this plan-required fence; no service handler uses it. PostgreSQL-backed tests
+  cover concurrent same-key admission, scope isolation, immutable plans and
+  records, substitution rejection, and deadline-failure rollback.
   The primitive still trusts its caller-supplied principal and does not
   authenticate the principal or recheck that owner context is unchanged at
   commit. No connected handler,

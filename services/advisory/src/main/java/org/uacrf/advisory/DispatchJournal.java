@@ -12,9 +12,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 
@@ -200,7 +204,7 @@ final class DispatchJournal {
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
       try {
-        if (!insertActiveRun(connection, key, generation, budget, deadline)) {
+        if (!insertActiveRun(connection, key, generation, budget, deadline, false)) {
           connection.rollback();
           return false;
         }
@@ -217,7 +221,7 @@ final class DispatchJournal {
     }
   }
 
-  AdmissionResult admitRun(RunKey key, long generation, AdvisoryRunRequest request,
+  AdmissionResult admitRun(RunKey key, long generation, AdvisoryRunRequest request, List<Intent> dispatchPlan,
                            String principalId, String operation, String idempotencyKey)
       throws SQLException {
     Objects.requireNonNull(request, "request");
@@ -236,10 +240,12 @@ final class DispatchJournal {
           connection.commit();
           return existing;
         }
-        if (!insertActiveRun(connection, key, generation, request.budget(), request.deadline())) {
+        List<Intent> plan = validateDispatchPlan(key, generation, request, dispatchPlan);
+        if (!insertDraftRun(connection, key, generation, request.budget(), request.deadline(), true)) {
           connection.rollback();
           return findAdmissionAfterRace(key, principalId, operation, idempotencyKey, requestDigest);
         }
+        insertDispatchPlan(connection, plan);
 
         String idempotencySql = """
             INSERT INTO uacrf_advisory.run_idempotency
@@ -282,6 +288,7 @@ final class DispatchJournal {
           statement.setString(8, requestDigest);
           statement.executeUpdate();
         }
+        activateRun(connection, key);
         connection.commit();
         return new AdmissionResult(AdmissionStatus.CREATED, Optional.of(key));
       } catch (SQLException | RuntimeException failure) {
@@ -350,13 +357,82 @@ final class DispatchJournal {
     }
   }
 
+  private static List<Intent> validateDispatchPlan(
+      RunKey key, long generation, AdvisoryRunRequest request, List<Intent> dispatchPlan) {
+    Objects.requireNonNull(dispatchPlan, "dispatchPlan");
+    Map<String, AdvisoryBudget.Allocation> allocations = new HashMap<>();
+    for (var allocation : request.budget().allocations()) {
+      allocations.put(allocation.agentProfileId(), allocation);
+    }
+    Set<String> profiles = new HashSet<>();
+    Set<String> attempts = new HashSet<>();
+    Set<String> assignments = new HashSet<>();
+    if (dispatchPlan.size() != allocations.size()) {
+      throw new IllegalArgumentException("Dispatch plan must contain one intent per run allocation.");
+    }
+    for (Intent intent : dispatchPlan) {
+      Objects.requireNonNull(intent, "dispatch plan intent");
+      AdvisoryBudget.Allocation allocation = allocations.get(intent.profileId());
+      if (!intent.runKey().equals(key) || intent.generation() != generation
+          || !intent.runDeadline().equals(request.deadline()) || allocation == null
+          || intent.role() != allocation.role() || intent.request().maxOutputTokens() > allocation.tokens()
+          || !profiles.add(intent.profileId()) || !attempts.add(intent.key().attemptId())
+          || !assignments.add(intent.assignmentId())) {
+        throw new IllegalArgumentException("Dispatch plan must exactly cover the admitted run allocations.");
+      }
+    }
+    return List.copyOf(dispatchPlan);
+  }
+
+  private static void insertDispatchPlan(Connection connection, List<Intent> plan) throws SQLException {
+    String sql = """
+        INSERT INTO uacrf_advisory.run_dispatch_plan
+          (tenant_id, environment_id, run_id, generation, assignment_id, attempt_id, role, profile_id,
+           model_ref, max_output_tokens, timeout_seconds, timeout_nanos, context_digest, packet_bytes,
+           packet_bytes_digest)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      for (Intent intent : plan) {
+        statement.setString(1, intent.key().tenantId());
+        statement.setString(2, intent.key().environmentId());
+        statement.setString(3, intent.runId());
+        statement.setLong(4, intent.generation());
+        statement.setString(5, intent.assignmentId());
+        statement.setString(6, intent.key().attemptId());
+        statement.setString(7, intent.role().name());
+        statement.setString(8, intent.profileId());
+        statement.setString(9, intent.request().model());
+        statement.setInt(10, intent.request().maxOutputTokens());
+        statement.setLong(11, intent.request().timeout().getSeconds());
+        statement.setInt(12, intent.request().timeout().getNano());
+        statement.setString(13, intent.contextDigest());
+        statement.setBytes(14, intent.packet().bytes());
+        statement.setString(15, intent.packet().bytesDigest());
+        statement.addBatch();
+      }
+      statement.executeBatch();
+    }
+  }
+
   private static boolean insertActiveRun(
-      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline) throws SQLException {
+      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
+      boolean dispatchPlanRequired) throws SQLException {
+    if (!insertDraftRun(connection, key, generation, budget, deadline, dispatchPlanRequired)) {
+      return false;
+    }
+    activateRun(connection, key);
+    return true;
+  }
+
+  private static boolean insertDraftRun(
+      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
+      boolean dispatchPlanRequired) throws SQLException {
     String runSql = """
         INSERT INTO uacrf_advisory.run_fence
           (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
-           deadline_epoch_second, deadline_nano, state, revision)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', 1)
+           deadline_epoch_second, deadline_nano, dispatch_plan_required, state, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', 1)
         ON CONFLICT DO NOTHING
         """;
     try (PreparedStatement statement = connection.prepareStatement(runSql)) {
@@ -369,6 +445,7 @@ final class DispatchJournal {
       statement.setInt(7, budget.maxCostUnits());
       statement.setLong(8, deadline.getEpochSecond());
       statement.setInt(9, deadline.getNano());
+      statement.setBoolean(10, dispatchPlanRequired);
       if (statement.executeUpdate() == 0) {
         return false;
       }
@@ -393,7 +470,10 @@ final class DispatchJournal {
       }
       statement.executeBatch();
     }
+    return true;
+  }
 
+  private static void activateRun(Connection connection, RunKey key) throws SQLException {
     String activateSql = """
         UPDATE uacrf_advisory.run_fence SET state = 'ACTIVE'
         WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND state = 'DRAFT'
@@ -406,7 +486,6 @@ final class DispatchJournal {
         throw new SQLException("Run activation failed.");
       }
     }
-    return true;
   }
 
   boolean cancel(RunKey key, long generation, long revision, String actor, String reason)
@@ -466,7 +545,7 @@ final class DispatchJournal {
     // Materialization acquires the run lock before evaluating the remaining run deadline.
     String sql = """
         WITH locked AS MATERIALIZED (
-          SELECT tenant_id, environment_id, run_id, generation, state, max_tokens,
+          SELECT tenant_id, environment_id, run_id, generation, state, max_tokens, dispatch_plan_required,
                  deadline_epoch_second, deadline_nano
           FROM uacrf_advisory.run_fence
           WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND generation = ?
@@ -506,6 +585,19 @@ final class DispatchJournal {
               AND journal.run_id = fence.run_id AND journal.generation = fence.generation
           ) + ?::numeric <= fence.max_tokens::numeric
           AND allocation.role = ? AND allocation.profile_id = ?
+          AND (
+            NOT fence.dispatch_plan_required
+            OR EXISTS (
+              SELECT 1 FROM uacrf_advisory.run_dispatch_plan plan
+              WHERE plan.tenant_id = fence.tenant_id AND plan.environment_id = fence.environment_id
+                AND plan.run_id = fence.run_id AND plan.generation = fence.generation
+                AND plan.assignment_id = ? AND plan.attempt_id = ?
+                AND plan.role = allocation.role AND plan.profile_id = allocation.profile_id
+                AND plan.model_ref = ? AND plan.max_output_tokens = ?
+                AND plan.timeout_seconds = ? AND plan.timeout_nanos = ?
+                AND plan.context_digest = ? AND plan.packet_bytes = ? AND plan.packet_bytes_digest = ?
+            )
+          )
         ON CONFLICT DO NOTHING
         """;
     try (Connection connection = committedConnection();
@@ -535,6 +627,15 @@ final class DispatchJournal {
       statement.setInt(23, intent.request().maxOutputTokens());
       statement.setString(24, intent.role().name());
       statement.setString(25, intent.profileId());
+      statement.setString(26, intent.assignmentId());
+      statement.setString(27, intent.key().attemptId());
+      statement.setString(28, intent.request().model());
+      statement.setInt(29, intent.request().maxOutputTokens());
+      statement.setLong(30, intent.request().timeout().getSeconds());
+      statement.setInt(31, intent.request().timeout().getNano());
+      statement.setString(32, intent.contextDigest());
+      statement.setBytes(33, intent.packet().bytes());
+      statement.setString(34, intent.packet().bytesDigest());
       return statement.executeUpdate() == 1;
     }
   }
