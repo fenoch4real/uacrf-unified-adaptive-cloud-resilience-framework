@@ -1274,15 +1274,25 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   operation and key; a same-request replay returns the retained run's current
   state, while changed content conflicts. Source verification remains outside
   locks, and admission requires the context to remain unchanged. This is
-  contract-only: no connected handler, run/idempotency/outbox repository or
-  current-context commit guard is wired; provider dispatch remains gated and the
-  operation remains
+  not yet connected. `DispatchJournal.admitRun` now provides a durable library
+  primitive that commits the run fence and allocations, immutable
+  principal/tenant/environment/operation-scoped idempotency record, and
+  `uacrf.s09.run.admitted.v1` scheduling outbox event in one transaction. Exact
+  retries return the retained run key without another event; changed digests
+  conflict. PostgreSQL-backed tests cover concurrent same-key admission,
+  scope isolation, immutable records, and deadline-failure rollback. The
+  primitive trusts its caller-supplied principal and validated-request digest;
+  it does not authenticate the principal, verify digest construction, or
+  recheck that owner context is unchanged at commit. No connected handler,
+  current-context commit guard, outbox publisher, or provider dispatch is wired;
+  provider dispatch remains gated and the operation remains
   `PENDING_CONNECTED_VERIFICATION`. The MS01 design check passes 24 consistency
   checks; target runtime acceptance remains not evaluated.
 - `services/advisory` contains an internal provider-neutral invocation contract
   and a disabled gateway. This is a library foundation, not a deployable service;
-  no provider adapter, runtime journal, or orchestration is wired. An unknown
-  model outcome is represented separately from a response with usage.
+  its durable journal and scheduling outbox are not consumed by a connected
+  runtime. An unknown model outcome is represented separately from a response
+  with usage.
 - An unwired OpenAI-compatible chat-completions adapter is restricted to a
   literal-loopback HTTP test endpoint; it has no runtime wiring. Loopback alone
   does not prevent a local endpoint from forwarding to a live provider, so only
@@ -1293,8 +1303,8 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   errors, refusals, truncation, missing usage, and unsupported responses yield
   unknown outcomes. Local simulated-endpoint tests cover request mapping, size
   limits, redirects, failures, and timeouts. This is a narrow protocol slice,
-  not verification of any provider or model, runtime budget enforcement, durable
-  admission, idempotency, or reconciliation. The adapter has no runtime
+  not verification of any provider or model, runtime budget enforcement,
+  connected admission, or reconciliation. The adapter has no runtime
   configuration or wiring; the default gateway remains disabled.
 - An unwired Microsoft Foundry v1 chat adapter reuses that protocol handling,
   sends the deployment name as `model`, and uses a supplied bearer token.
@@ -1352,8 +1362,8 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   S01, S07 and S08 with caller-supplied configuration and source bytes. Its
   successful result is only a point-in-time
   consistency snapshot: artifact authorization, independent human review of
-  profile activation, proposal eligibility, run admission and provider dispatch
-  remain unimplemented.
+  profile activation, proposal eligibility, requester-authorized connected run
+  admission and provider dispatch remain unimplemented.
   A profile-aware variant requires exactly one profile pin and gateway request
   per allocation, obtains the current active-version receipt from S02, and
   binds profile/version identity, manifest digest, model and instruction pins,
@@ -1377,10 +1387,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   prepared request's validity. Mismatch leaves no journal entry. The expired-
   snapshot, deadline-extension and injected-clock regressions pass; intent
   derivation now uses the same injected clock as preparation instead of
-  switching to the system clock. The full advisory module suite passed 136
-  tests with no failures or skips. This remains only intent
-  derivation and journal guarding, not requester authorization, idempotent
-  durable run admission, outbox scheduling or provider dispatch.
+  switching to the system clock. The full advisory module suite passed 139
+  tests with no failures or skips. Intent derivation and journal guarding
+  remain separate from requester authorization and connected run admission;
+  provider dispatch remains disabled.
   Future profile changes, run-boundary authorization, complete graph/evidence
   inputs, and current eligibility beyond point-in-time owner checks remain
   unestablished; provider dispatch remains disabled. Preparation rejects a

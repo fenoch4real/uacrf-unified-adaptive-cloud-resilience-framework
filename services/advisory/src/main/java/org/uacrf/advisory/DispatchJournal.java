@@ -13,7 +13,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import javax.sql.DataSource;
 
 final class DispatchJournal {
@@ -92,6 +94,21 @@ final class DispatchJournal {
 
   record RunSnapshot(long generation, long revision, Instant deadline, boolean cancelled, String cancelledBy,
                      String cancellationReason) {}
+
+  enum AdmissionStatus {
+    CREATED, REPLAYED, IDEMPOTENCY_CONFLICT, RUN_ID_CONFLICT
+  }
+
+  record AdmissionResult(AdmissionStatus status, Optional<RunKey> runKey) {
+    AdmissionResult {
+      Objects.requireNonNull(status, "status");
+      runKey = Objects.requireNonNull(runKey, "runKey");
+      boolean hasRun = status == AdmissionStatus.CREATED || status == AdmissionStatus.REPLAYED;
+      if (runKey.isPresent() != hasRun) {
+        throw new IllegalArgumentException("Admission result has an invalid run identity.");
+      }
+    }
+  }
 
   enum UnresolvedState {
     DISPATCH_INTENT, UNKNOWN
@@ -179,66 +196,13 @@ final class DispatchJournal {
   }
 
   boolean registerRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline) throws SQLException {
-    if (generation < 1) {
-      throw new IllegalArgumentException("Run generation must be positive.");
-    }
-    java.util.Objects.requireNonNull(budget, "budget");
-    java.util.Objects.requireNonNull(deadline, "deadline");
-    String runSql = """
-        INSERT INTO uacrf_advisory.run_fence
-          (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
-           deadline_epoch_second, deadline_nano, state, revision)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', 1)
-        ON CONFLICT DO NOTHING
-        """;
-    String allocationSql = """
-        INSERT INTO uacrf_advisory.run_allocation
-          (tenant_id, environment_id, run_id, generation, role, profile_id, tokens, cost_units)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """;
-    String activateSql = """
-        UPDATE uacrf_advisory.run_fence SET state = 'ACTIVE'
-        WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND state = 'DRAFT'
-        """;
+    validateRunAdmission(key, generation, budget, deadline);
     try (Connection connection = committedConnection()) {
       connection.setAutoCommit(false);
       try {
-        try (PreparedStatement statement = connection.prepareStatement(runSql)) {
-          statement.setString(1, key.tenantId());
-          statement.setString(2, key.environmentId());
-          statement.setString(3, key.runId());
-          statement.setLong(4, generation);
-          statement.setInt(5, budget.maxCalls());
-          statement.setInt(6, budget.maxTokens());
-          statement.setInt(7, budget.maxCostUnits());
-          statement.setLong(8, deadline.getEpochSecond());
-          statement.setInt(9, deadline.getNano());
-          if (statement.executeUpdate() == 0) {
-            connection.rollback();
-            return false;
-          }
-        }
-        try (PreparedStatement statement = connection.prepareStatement(allocationSql)) {
-          for (var allocation : budget.allocations()) {
-            statement.setString(1, key.tenantId());
-            statement.setString(2, key.environmentId());
-            statement.setString(3, key.runId());
-            statement.setLong(4, generation);
-            statement.setString(5, allocation.role().name());
-            statement.setString(6, allocation.agentProfileId());
-            statement.setInt(7, allocation.tokens());
-            statement.setInt(8, allocation.costUnits());
-            statement.addBatch();
-          }
-          statement.executeBatch();
-        }
-        try (PreparedStatement statement = connection.prepareStatement(activateSql)) {
-          statement.setString(1, key.tenantId());
-          statement.setString(2, key.environmentId());
-          statement.setString(3, key.runId());
-          if (statement.executeUpdate() != 1) {
-            throw new SQLException("Run activation failed.");
-          }
+        if (!insertActiveRun(connection, key, generation, budget, deadline)) {
+          connection.rollback();
+          return false;
         }
         connection.commit();
         return true;
@@ -251,6 +215,199 @@ final class DispatchJournal {
         throw failure;
       }
     }
+  }
+
+  AdmissionResult admitRun(RunKey key, long generation, AdvisoryBudget budget, Instant deadline,
+                           String principalId, String operation, String idempotencyKey, String requestDigest)
+      throws SQLException {
+    validateRunAdmission(key, generation, budget, deadline);
+    requireId(principalId);
+    requireId(operation);
+    validateIdempotencyKey(idempotencyKey);
+    if (requestDigest == null || !requestDigest.matches("[0-9a-f]{64}")) {
+      throw new IllegalArgumentException("Request digest must be a lowercase SHA-256 value.");
+    }
+
+    try (Connection connection = committedConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        AdmissionResult existing = findAdmission(
+            connection, key.tenantId(), key.environmentId(), principalId, operation, idempotencyKey, requestDigest);
+        if (existing != null) {
+          connection.commit();
+          return existing;
+        }
+        if (!insertActiveRun(connection, key, generation, budget, deadline)) {
+          connection.rollback();
+          return findAdmissionAfterRace(key, principalId, operation, idempotencyKey, requestDigest);
+        }
+
+        String idempotencySql = """
+            INSERT INTO uacrf_advisory.run_idempotency
+              (tenant_id, environment_id, principal_id, operation, idempotency_key, request_digest, run_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT DO NOTHING
+            """;
+        try (PreparedStatement statement = connection.prepareStatement(idempotencySql)) {
+          statement.setString(1, key.tenantId());
+          statement.setString(2, key.environmentId());
+          statement.setString(3, principalId);
+          statement.setString(4, operation);
+          statement.setString(5, idempotencyKey);
+          statement.setString(6, requestDigest);
+          statement.setString(7, key.runId());
+          if (statement.executeUpdate() == 0) {
+            connection.rollback();
+            AdmissionResult raced = findAdmissionAfterRace(key, principalId, operation, idempotencyKey, requestDigest);
+            if (raced.status() == AdmissionStatus.RUN_ID_CONFLICT) {
+              throw new SQLException("Idempotency record disappeared after a conflicting insert.");
+            }
+            return raced;
+          }
+        }
+
+        String outboxSql = """
+            INSERT INTO uacrf_advisory.outbox_event
+              (event_id, tenant_id, environment_id, run_id, generation, event_type, payload, state)
+            VALUES (?, ?, ?, ?, ?, 'uacrf.s09.run.admitted.v1',
+              jsonb_build_object('run_id', ?, 'generation', ?, 'request_digest', ?), 'PENDING')
+            """;
+        try (PreparedStatement statement = connection.prepareStatement(outboxSql)) {
+          statement.setString(1, UUID.randomUUID().toString());
+          statement.setString(2, key.tenantId());
+          statement.setString(3, key.environmentId());
+          statement.setString(4, key.runId());
+          statement.setLong(5, generation);
+          statement.setString(6, key.runId());
+          statement.setLong(7, generation);
+          statement.setString(8, requestDigest);
+          statement.executeUpdate();
+        }
+        connection.commit();
+        return new AdmissionResult(AdmissionStatus.CREATED, Optional.of(key));
+      } catch (SQLException | RuntimeException failure) {
+        try {
+          connection.rollback();
+        } catch (SQLException rollbackFailure) {
+          failure.addSuppressed(rollbackFailure);
+        }
+        throw failure;
+      }
+    }
+  }
+
+  private AdmissionResult findAdmissionAfterRace(
+      RunKey requestedKey, String principalId, String operation, String idempotencyKey, String requestDigest)
+      throws SQLException {
+    try (Connection connection = committedConnection()) {
+      AdmissionResult existing = findAdmission(connection, requestedKey.tenantId(), requestedKey.environmentId(),
+          principalId, operation, idempotencyKey, requestDigest);
+      return existing == null
+          ? new AdmissionResult(AdmissionStatus.RUN_ID_CONFLICT, Optional.empty())
+          : existing;
+    }
+  }
+
+  private AdmissionResult findAdmission(
+      Connection connection, String tenantId, String environmentId, String principalId, String operation,
+      String idempotencyKey, String requestDigest) throws SQLException {
+    String sql = """
+        SELECT request_digest, run_id FROM uacrf_advisory.run_idempotency
+        WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? AND operation = ? AND idempotency_key = ?
+        FOR UPDATE
+        """;
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, tenantId);
+      statement.setString(2, environmentId);
+      statement.setString(3, principalId);
+      statement.setString(4, operation);
+      statement.setString(5, idempotencyKey);
+      try (ResultSet result = statement.executeQuery()) {
+        if (!result.next()) {
+          return null;
+        }
+        if (!requestDigest.equals(result.getString(1))) {
+          return new AdmissionResult(AdmissionStatus.IDEMPOTENCY_CONFLICT, Optional.empty());
+        }
+        RunKey retainedKey = new RunKey(tenantId, environmentId, result.getString(2));
+        return new AdmissionResult(AdmissionStatus.REPLAYED, Optional.of(retainedKey));
+      }
+    }
+  }
+
+  private static void validateRunAdmission(RunKey key, long generation, AdvisoryBudget budget, Instant deadline) {
+    Objects.requireNonNull(key, "key");
+    if (generation < 1) {
+      throw new IllegalArgumentException("Run generation must be positive.");
+    }
+    Objects.requireNonNull(budget, "budget");
+    Objects.requireNonNull(deadline, "deadline");
+  }
+
+  private static void validateIdempotencyKey(String key) {
+    if (key == null || key.isBlank() || key.indexOf('\0') >= 0
+        || key.codePointCount(0, key.length()) > 200) {
+      throw new IllegalArgumentException("Idempotency key must contain 1 to 200 non-whitespace characters.");
+    }
+  }
+
+  private static boolean insertActiveRun(
+      Connection connection, RunKey key, long generation, AdvisoryBudget budget, Instant deadline) throws SQLException {
+    String runSql = """
+        INSERT INTO uacrf_advisory.run_fence
+          (tenant_id, environment_id, run_id, generation, max_calls, max_tokens, max_cost_units,
+           deadline_epoch_second, deadline_nano, state, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', 1)
+        ON CONFLICT DO NOTHING
+        """;
+    try (PreparedStatement statement = connection.prepareStatement(runSql)) {
+      statement.setString(1, key.tenantId());
+      statement.setString(2, key.environmentId());
+      statement.setString(3, key.runId());
+      statement.setLong(4, generation);
+      statement.setInt(5, budget.maxCalls());
+      statement.setInt(6, budget.maxTokens());
+      statement.setInt(7, budget.maxCostUnits());
+      statement.setLong(8, deadline.getEpochSecond());
+      statement.setInt(9, deadline.getNano());
+      if (statement.executeUpdate() == 0) {
+        return false;
+      }
+    }
+
+    String allocationSql = """
+        INSERT INTO uacrf_advisory.run_allocation
+          (tenant_id, environment_id, run_id, generation, role, profile_id, tokens, cost_units)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+    try (PreparedStatement statement = connection.prepareStatement(allocationSql)) {
+      for (var allocation : budget.allocations()) {
+        statement.setString(1, key.tenantId());
+        statement.setString(2, key.environmentId());
+        statement.setString(3, key.runId());
+        statement.setLong(4, generation);
+        statement.setString(5, allocation.role().name());
+        statement.setString(6, allocation.agentProfileId());
+        statement.setInt(7, allocation.tokens());
+        statement.setInt(8, allocation.costUnits());
+        statement.addBatch();
+      }
+      statement.executeBatch();
+    }
+
+    String activateSql = """
+        UPDATE uacrf_advisory.run_fence SET state = 'ACTIVE'
+        WHERE tenant_id = ? AND environment_id = ? AND run_id = ? AND state = 'DRAFT'
+        """;
+    try (PreparedStatement statement = connection.prepareStatement(activateSql)) {
+      statement.setString(1, key.tenantId());
+      statement.setString(2, key.environmentId());
+      statement.setString(3, key.runId());
+      if (statement.executeUpdate() != 1) {
+        throw new SQLException("Run activation failed.");
+      }
+    }
+    return true;
   }
 
   boolean cancel(RunKey key, long generation, long revision, String actor, String reason)

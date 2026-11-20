@@ -95,6 +95,140 @@ class DispatchJournalTests {
   }
 
   @Test
+  void admissionAtomicallyPersistsRunIdempotencyAndSchedulingEvent() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var requestedRun = new DispatchJournal.RunKey("admission", "env", "run-1");
+    String digest = "a".repeat(64);
+    var created = journal.admitRun(requestedRun, 1, budget(), TEST_DEADLINE,
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest);
+    assertEquals(DispatchJournal.AdmissionStatus.CREATED, created.status());
+    assertEquals(java.util.Optional.of(requestedRun), created.runKey());
+
+    var replay = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-replay"),
+        1, budget(), Instant.EPOCH, "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest);
+    assertEquals(DispatchJournal.AdmissionStatus.REPLAYED, replay.status());
+    assertEquals(java.util.Optional.of(requestedRun), replay.runKey());
+
+    var conflict = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-conflict"),
+        1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-1", "b".repeat(64));
+    assertEquals(DispatchJournal.AdmissionStatus.IDEMPOTENCY_CONFLICT, conflict.status());
+    assertTrue(conflict.runKey().isEmpty());
+
+    var anotherPrincipal = journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-2"),
+        1, budget(), TEST_DEADLINE, "principal-2", "CREATE_ADVISORY_RUN", "idem-1", digest);
+    assertEquals(DispatchJournal.AdmissionStatus.CREATED, anotherPrincipal.status());
+    assertEquals(DispatchJournal.AdmissionStatus.CREATED,
+        journal.admitRun(new DispatchJournal.RunKey("admission", "env", "run-3"), 1, budget(), TEST_DEADLINE,
+            "principal-1", "CREATE_OTHER_OPERATION", "idem-1", digest).status());
+    assertEquals(DispatchJournal.AdmissionStatus.CREATED,
+        journal.admitRun(new DispatchJournal.RunKey("admission", "env-2", "run-4"), 1, budget(), TEST_DEADLINE,
+            "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest).status());
+    assertEquals(DispatchJournal.AdmissionStatus.CREATED,
+        journal.admitRun(new DispatchJournal.RunKey("admission-other-tenant", "env", "run-5"),
+            1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-1", digest).status());
+
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("""
+             SELECT
+               (SELECT count(*) FROM uacrf_advisory.run_fence WHERE tenant_id = ?),
+               (SELECT count(*) FROM uacrf_advisory.run_idempotency WHERE tenant_id = ?),
+               (SELECT count(*) FROM uacrf_advisory.outbox_event WHERE tenant_id = ?),
+               (SELECT payload->>'run_id' FROM uacrf_advisory.outbox_event
+                WHERE tenant_id = ? AND run_id = 'run-1')
+             """)) {
+      for (int index = 1; index <= 4; index++) {
+        statement.setString(index, "admission");
+      }
+      try (var result = statement.executeQuery()) {
+        assertTrue(result.next());
+        assertEquals(4, result.getInt(1));
+        assertEquals(4, result.getInt(2));
+        assertEquals(4, result.getInt(3));
+        assertEquals("run-1", result.getString(4));
+      }
+    }
+    assertEquals(1, countForTenant("uacrf_advisory.run_idempotency", "admission-other-tenant"));
+    assertEquals(1, countForTenant("uacrf_advisory.outbox_event", "admission-other-tenant"));
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.createStatement()) {
+      assertThrows(SQLException.class, () -> statement.executeUpdate(
+          "UPDATE uacrf_advisory.run_idempotency SET request_digest = '" + "e".repeat(64)
+              + "' WHERE tenant_id = 'admission' AND run_id = 'run-1'"));
+      assertThrows(SQLException.class, () -> statement.executeUpdate(
+          "DELETE FROM uacrf_advisory.run_idempotency WHERE tenant_id = 'admission' AND run_id = 'run-1'"));
+      assertThrows(SQLException.class, () -> statement.executeUpdate(
+          "UPDATE uacrf_advisory.outbox_event SET payload = '{}'::jsonb"
+              + " WHERE tenant_id = 'admission' AND run_id = 'run-1'"));
+      assertThrows(SQLException.class, () -> statement.executeUpdate(
+          "DELETE FROM uacrf_advisory.outbox_event WHERE tenant_id = 'admission' AND run_id = 'run-1'"));
+      assertEquals(1, statement.executeUpdate("""
+          UPDATE uacrf_advisory.outbox_event
+          SET state = 'PUBLISHED', published_at = clock_timestamp()
+          WHERE tenant_id = 'admission' AND run_id = 'run-1' AND state = 'PENDING'
+          """));
+      assertThrows(SQLException.class, () -> statement.executeUpdate("""
+          UPDATE uacrf_advisory.outbox_event
+          SET published_at = clock_timestamp()
+          WHERE tenant_id = 'admission' AND run_id = 'run-1'
+          """));
+    }
+  }
+
+  @Test
+  void concurrentSameKeyAdmissionCreatesOneRunAndOneSchedulingEvent() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var start = new CountDownLatch(1);
+    try (var executor = Executors.newFixedThreadPool(2)) {
+      Future<DispatchJournal.AdmissionResult> first = executor.submit(() -> {
+        start.await();
+        return journal.admitRun(new DispatchJournal.RunKey("admission-race", "env", "run-a"),
+            1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-race", "c".repeat(64));
+      });
+      Future<DispatchJournal.AdmissionResult> second = executor.submit(() -> {
+        start.await();
+        return journal.admitRun(new DispatchJournal.RunKey("admission-race", "env", "run-b"),
+            1, budget(), TEST_DEADLINE, "principal-1", "CREATE_ADVISORY_RUN", "idem-race", "c".repeat(64));
+      });
+      start.countDown();
+      var firstResult = first.get(20, TimeUnit.SECONDS);
+      var secondResult = second.get(20, TimeUnit.SECONDS);
+      assertTrue(List.of(firstResult.status(), secondResult.status()).containsAll(
+          List.of(DispatchJournal.AdmissionStatus.CREATED, DispatchJournal.AdmissionStatus.REPLAYED)));
+      assertEquals(firstResult.runKey(), secondResult.runKey());
+      assertTrue(firstResult.runKey().isPresent());
+      assertEquals(1, countForTenant("uacrf_advisory.run_fence", "admission-race"));
+      assertEquals(1, countForTenant("uacrf_advisory.run_idempotency", "admission-race"));
+      assertEquals(1, countForTenant("uacrf_advisory.outbox_event", "admission-race"));
+    }
+  }
+
+  @Test
+  void failedDeadlineAdmissionLeavesNoRunIdempotencyOrOutboxRows() throws Exception {
+    var journal = new DispatchJournal(dataSource);
+    var runKey = new DispatchJournal.RunKey("admission-rollback", "env", "run-1");
+    assertThrows(SQLException.class, () -> journal.admitRun(runKey, 1, budget(), Instant.EPOCH,
+        "principal-1", "CREATE_ADVISORY_RUN", "idem-rollback", "d".repeat(64)));
+    assertTrue(journal.findRun(runKey).isEmpty());
+    assertEquals(0, countForTenant("uacrf_advisory.run_idempotency", "admission-rollback"));
+    assertEquals(0, countForTenant("uacrf_advisory.outbox_event", "admission-rollback"));
+  }
+
+  private static int countForTenant(String table, String tenant) throws SQLException {
+    if (!List.of("uacrf_advisory.run_fence", "uacrf_advisory.run_idempotency",
+        "uacrf_advisory.outbox_event").contains(table)) {
+      throw new IllegalArgumentException("Unexpected test table.");
+    }
+    try (Connection connection = dataSource.getConnection();
+         var statement = connection.prepareStatement("SELECT count(*) FROM " + table + " WHERE tenant_id = ?")) {
+      statement.setString(1, tenant);
+      try (var result = statement.executeQuery()) {
+        result.next();
+        return result.getInt(1);
+      }
+    }
+  }
+
+  @Test
   void committedIntentSurvivesReopeningAndNeverAuthorizesDuplicate() throws Exception {
     var journal = new DispatchJournal(dataSource);
     var intent = intent("intent", "attempt", "assignment");
