@@ -41,9 +41,7 @@ class AssessmentService {
         canonical(request.threshold()), request.unit(), request.windowSeconds(), request.objectiveRef(), request.graphRef(), List.copyOf(kinds));
     String serialized = write(content);
     if (key != null) {
-      if (key.isBlank() || key.length() > 200 || key.chars().anyMatch(Character::isWhitespace)) {
-        throw invalid("Idempotency-Key must be a non-empty token of at most 200 characters.");
-      }
+      validateIdempotencyKey(key);
       String digest = hash(serialized);
       int inserted = jdbc.update("INSERT INTO " + DB + "case_idempotency "
               + "(tenant_id,environment_id,actor_id,idempotency_key,payload_digest) VALUES (?,?,?,?,?) "
@@ -112,7 +110,7 @@ class AssessmentService {
     return new CaseMaterial(id, item.caseDigest(), canonicalText);
   }
   @Transactional
-  Evaluation evaluate(DelegationPrincipal actor, String id, Evaluate request) {
+  Evaluation evaluate(DelegationPrincipal actor, String id, Evaluate request, String key) {
     permit(actor, "assessment.evaluation.run");
     Case item = findCase(actor, id, true);
     if (!item.state().equals("SEALED")) throw conflict("INVALID_STATE", "Evaluation requires a sealed case.");
@@ -125,6 +123,28 @@ class AssessmentService {
       inputs.add(new Measurement(m.sourceReceiptId(), m.sourceKind(), m.observedAt(), canonical(m.value()), m.unit()));
     }
     inputs.sort(java.util.Comparator.comparing(Measurement::sourceKind).thenComparing(Measurement::observedAt).thenComparing(Measurement::sourceReceiptId));
+    if (key != null) {
+      validateIdempotencyKey(key);
+      String digest = hash(write(new EvaluationRequestMaterial(id, cutoff, request.mode(), List.copyOf(inputs))));
+      int inserted = jdbc.update("INSERT INTO " + DB + "evaluation_idempotency "
+              + "(tenant_id,environment_id,actor_id,idempotency_key,payload_digest) VALUES (?,?,?,?,?) "
+              + "ON CONFLICT DO NOTHING",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest);
+      if (inserted == 0) {
+        List<EvaluationRequest> prior = jdbc.query("SELECT payload_digest,evaluation_id FROM " + DB
+                + "evaluation_idempotency WHERE tenant_id=? AND environment_id=? AND actor_id=? "
+                + "AND idempotency_key=? FOR UPDATE",
+            (rs, row) -> new EvaluationRequest(rs.getString("payload_digest"), rs.getString("evaluation_id")),
+            actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+        if (prior.isEmpty() || !digest.equals(prior.getFirst().digest())) {
+          throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different content.");
+        }
+        if (prior.getFirst().evaluationId() == null) {
+          throw conflict("COMMAND_IN_PROGRESS", "The original request has not completed.");
+        }
+        return findEvaluation(actor, prior.getFirst().evaluationId());
+      }
+    }
     // The window is inclusive; latest observation per required kind wins, with receipt ID breaking ties.
     Map<String, Measurement> selected = new HashMap<>();
     for (Measurement m : inputs) {
@@ -165,8 +185,20 @@ class AssessmentService {
       String recDigest = hash(write(new Recommendation(recId, evalId, id, item.workloadId(), "INVESTIGATE_BREACH", bounds, refs, false)));
       event(actor, "RECOMMENDATION", recId, 1, "uacrf.s07.recommendation.retained.v1", recDigest, Map.of("evaluation_id", evalId, "executable", false));
     }
+    if (key != null) {
+      jdbc.update("UPDATE " + DB + "evaluation_idempotency SET evaluation_id=? "
+              + "WHERE tenant_id=? AND environment_id=? AND actor_id=? AND idempotency_key=?",
+          evalId, actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+    }
     return findEvaluation(actor, evalId);
   }
+  private static void validateIdempotencyKey(String key) {
+    if (key.isBlank() || key.length() > 200 || key.chars().anyMatch(Character::isWhitespace)) {
+      throw invalid("Idempotency-Key must be a non-empty token of at most 200 characters.");
+    }
+  }
+  private record EvaluationRequest(String digest, String evaluationId) {}
+  private record EvaluationRequestMaterial(String caseId, Instant observationCutoff, Mode mode, List<Measurement> measurements) {}
   private record ResultMaterial(Instant observationCutoff, Mode mode, String outcome, DependencyVector dependencyVector) {}
   @Transactional(readOnly=true)
   List<Evaluation> evaluations(DelegationPrincipal actor, String id) {

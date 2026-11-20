@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prepare assessment evaluation | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Prepare an assessment evaluation</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Case: <strong th:text="${caseId}">Case ID</strong></p>
+  <p><a th:href="@{/assessment-cases/{id}/evaluations(id=${caseId})}">Back to evaluation history</a></p>
+  <p th:if="${caseItem != null}">Workload: <strong th:text="${caseItem.workloadId}">Workload</strong>;
+    metric: <strong th:text="${caseItem.metric}">Metric</strong>;
+    case digest: <code th:text="${caseItem.caseDigest}">Digest</code></p>
+  <p>An evaluation does not authorize action. S07 may report owner receipt verification as
+    SKIPPED, FAILED, or VERIFIED; a skipped check does not establish evidence qualification.
+    LIVE may retain an investigation-only recommendation, including when verification is skipped;
+    it cannot execute an action.</p>
+  <p>If submission is unconfirmed, retry this same form unchanged in the same context.
+    Check evaluation history before opening a new form.</p>
+  <p role="alert" th:if="${evaluationError != null}" th:text="${evaluationError}"></p>
+  <div role="alert" th:if="${validationErrors != null and !#lists.isEmpty(validationErrors)}">
+    <h2>Check the evaluation details</h2>
+    <ul><li th:each="error : ${validationErrors}" th:text="${error}">Validation error</li></ul>
+  </div>
+  <form th:if="${showForm == true}" method="post"
+        th:action="@{/assessment-cases/{id}/evaluate(id=${caseId})}" th:object="${evaluationForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <p>
+      <label for="observationCutoff">Observation cutoff (required)</label>
+      <input id="observationCutoff" type="text" th:field="*{observationCutoff}" maxlength="100" required
+             th:attr="aria-invalid=${#fields.hasErrors('observationCutoff') ? 'true' : null}" aria-describedby="cutoff-help">
+      <span id="cutoff-help">ISO-8601 with UTC offset, for example 2026-01-01T12:00:00Z.</span>
+    </p>
+    <fieldset>
+      <legend>Evaluation mode (required)</legend>
+      <p><input id="mode-shadow" type="radio" th:field="*{mode}" value="SHADOW" required>
+        <label for="mode-shadow">Shadow</label></p>
+      <p><input id="mode-dry" type="radio" th:field="*{mode}" value="DRY_RUN" required>
+        <label for="mode-dry">Dry run</label></p>
+      <p><input id="mode-live" type="radio" th:field="*{mode}" value="LIVE" required>
+        <label for="mode-live">Live (investigation-only recommendation on breach)</label></p>
+    </fieldset>
+    <p>
+      <label for="measurementsJson">Measurements JSON array (required)</label>
+      <textarea id="measurementsJson" th:field="*{measurementsJson}" maxlength="1000000" rows="8" required
+                th:attr="aria-invalid=${#fields.hasErrors('measurementsJson') ? 'true' : null}"
+                aria-describedby="measurements-help"></textarea>
+    </p>
+    <div id="measurements-help">
+      <p>Supply 0 to 1,000 entries. Each entry must have exactly the five fields shown,
+        a unique receipt ID, an ISO-8601 observation time with UTC offset, and a numeric value
+        of at most 100 integer and 50 fractional digits. An empty array yields insufficient evidence.
+        This example is synthetic and is not qualified evidence.</p>
+      <pre><code>[{"source_receipt_id":"sample-receipt","source_kind":"measurement.latency","observed_at":"2026-01-01T11:59:00Z","value":10,"unit":"ms"}]</code></pre>
+    </div>
+    <button type="submit">Run evaluation</button>
+  </form>
+</main>
+</body>
+</html>

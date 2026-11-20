@@ -279,6 +279,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
       'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
+      'assessment.evaluation.run',
       'assessment.recommendation.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
@@ -460,6 +461,25 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Review current case state' }).click();
     await expect(sample.getByText('This case is already sealed', { exact: false })).toBeVisible();
     await expect(sample.getByRole('button', { name: 'Seal this draft' })).toHaveCount(0);
+    await sample.goto(`/assessment-cases/${createdId}/evaluate`);
+    await sample.getByLabel('Observation cutoff (required)').fill('2026-01-01T12:00:00Z');
+    const [evaluationRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === `/assessment-cases/${createdId}/evaluate`),
+      sample.getByRole('button', { name: 'Run evaluation' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Assessment evaluation receipt' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('INSUFFICIENT_EVIDENCE');
+    await expect(sample.locator('main')).toContainText('SKIPPED');
+    const evaluationId = await sample.locator('dt').filter({ hasText: 'Evaluation ID' })
+      .locator('+ dd').innerText();
+    const evaluationReplay = await sample.request.post(`/assessment-cases/${createdId}/evaluate`, {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: evaluationRequest.postData(),
+    });
+    expect(evaluationReplay.status()).toBe(200);
+    expect(await evaluationReplay.text()).toContain(evaluationId);
+    await sample.getByRole('link', { name: 'View evaluation history' }).click();
+    await expect(sample.getByRole('listitem').filter({ hasText: evaluationId })).toHaveCount(1);
     await sample.goto('/evidence');
     const evidenceRow = sample.getByRole('listitem').filter({ hasText: fixtureId });
     await expect(evidenceRow).toContainText('Synthetic sample; never qualified evidence.');
@@ -626,6 +646,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       });
       expect(deniedSeal.status()).toBe(403);
       expect(await deniedSeal.text()).toContain('Sealing was not authorized');
+      const deniedEvaluation = await restricted.request.post(`/assessment-cases/${createdId}/evaluate`, {
+        form: { _csrf: csrfToken, tenantId: 'local-dev', environmentId: 'local',
+          idempotencyKey: randomUUID(), observationCutoff: '2026-01-01T12:00:00Z',
+          mode: 'SHADOW', measurementsJson: '[]' },
+      });
+      expect(deniedEvaluation.status()).toBe(403);
+      expect(await deniedEvaluation.text()).toContain('Evaluation was not authorized');
       await sample.goto('/assessment-cases/browser-case-b/seal');
       await expect(sample.getByRole('button', { name: 'Seal this draft' })).toBeVisible();
       const deniedEvaluations = await restricted.goto('/assessment-cases/browser-case-a/evaluations');

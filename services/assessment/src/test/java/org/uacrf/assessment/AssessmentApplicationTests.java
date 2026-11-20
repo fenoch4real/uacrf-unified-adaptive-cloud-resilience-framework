@@ -173,6 +173,96 @@ class AssessmentApplicationTests {
     assertEquals(receipt.get("case_digest").asString(), material.get("case_digest").asString());
     assertEquals(id, material.get("case_id").asString());
   }
+  @Test void keyedEvaluationsAreAtomicScopedAndReplayHistoricalResults() throws Exception {
+    String tenant = "t-evaluation-idempotency";
+    String writer = token(tenant, "*", ALL);
+    String id = sealed(writer, "[\"a\",\"b\"]", "LTE");
+    String otherCase = sealed(writer, "[\"a\",\"b\"]", "LTE");
+    String a = measurement("r1", "a", "2026-01-01T00:59:00Z", "20", "ms");
+    String b = measurement("r2", "b", "2026-01-01T00:59:30Z", "20", "ms");
+    String input = evalJson("2026-01-01T01:00:00Z", "LIVE", a + "," + b);
+    String equivalent = evalJson("2026-01-01T01:00:00.000Z", "LIVE", b + "," + a.replace("\"value\":20", "\"value\":20.00"));
+    String path = "/v1/cases/" + id + ":idempotent-evaluate";
+    assertEquals(400, post(path, writer, input).statusCode());
+    assertEquals(400, postAdaptation(path, writer, input, "invalid key").statusCode());
+    JsonNode first = body(postAdaptation(path, writer, input, "key-1"), 201);
+    assertEquals("CONFIRMED_BREACH", first.get("outcome").asString());
+    assertEquals(first.get("id").asString(), body(postAdaptation(path, writer, equivalent, "key-1"), 201).get("id").asString());
+    ModelReceiptFixture.UNAVAILABLE.add(tenant);
+    try {
+      JsonNode replay = body(postAdaptation(path, writer, input, "key-1"), 201);
+      assertEquals(first.get("id").asString(), replay.get("id").asString());
+      assertEquals("SKIPPED", replay.at("/dependency_vector/receipt_verification").asString());
+    } finally {
+      ModelReceiptFixture.UNAVAILABLE.remove(tenant);
+    }
+    assertEquals("IDEMPOTENCY_CONFLICT", body(postAdaptation(path, writer,
+        input.replace("\"LIVE\"", "\"SHADOW\""), "key-1"), 409).get("code").asString());
+    assertEquals(409, postAdaptation("/v1/cases/" + otherCase + ":idempotent-evaluate", writer, input, "key-1").statusCode());
+    assertEquals(403, postAdaptation(path, token(tenant, "*", List.of("assessment.evaluation.read")), input, "key-1").statusCode());
+    assertEquals(403, postAdaptation(path, token(tenant, "w1", List.of("assessment.evaluation.run")), input, "key-1").statusCode());
+    assertNotEquals(first.get("id").asString(), body(postAdaptation(path,
+        token(tenant, "*", List.of("assessment.evaluation.run"), "other-user"), input, "key-1"), 201).get("id").asString());
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var x = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "race"); });
+      var y = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "race"); });
+      gate.countDown();
+      assertEquals(body(x.get(), 201).get("id").asString(), body(y.get(), 201).get("id").asString());
+    }
+    assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.evaluation WHERE tenant_id=?", Integer.class, tenant));
+    assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.recommendation WHERE tenant_id=?", Integer.class, tenant));
+    assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.outbox_event WHERE tenant_id=? "
+        + "AND event_type='uacrf.s07.evaluation.completed.v1'", Integer.class, tenant));
+    var actor = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-1", "*",
+        "https://idp.example.test", "user", List.of("assessment.evaluation.run"), List.of(), List.of());
+    var request = json.readValue(input, AssessmentRequests.Evaluate.class);
+    new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+      assessment.evaluate(actor, id, request, "rollback");
+      status.setRollbackOnly();
+    });
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.evaluation_idempotency "
+        + "WHERE tenant_id=? AND idempotency_key='rollback'", Integer.class, tenant));
+    assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.evaluation WHERE tenant_id=?", Integer.class, tenant));
+    assertEquals(201, postAdaptation(path, writer, input, "rollback").statusCode());
+  }
+  @Test void competingEvaluationContentsBindOneResult() throws Exception {
+    String tenant = "t-evaluation-race-conflict";
+    String writer = token(tenant, "*", ALL);
+    String id = sealed(writer, "[\"a\"]", "LTE");
+    String path = "/v1/cases/" + id + ":idempotent-evaluate";
+    String input = evalJson("2026-01-01T01:00:00Z", "SHADOW", "");
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+      var gate = new java.util.concurrent.CountDownLatch(1);
+      var first = executor.submit(() -> { gate.await(); return postAdaptation(path, writer, input, "conflict-race"); });
+      var second = executor.submit(() -> { gate.await(); return postAdaptation(path, writer,
+          input.replace("\"SHADOW\"", "\"DRY_RUN\""), "conflict-race"); });
+      gate.countDown();
+      assertEquals(List.of(201, 409), java.util.stream.Stream.of(first.get().statusCode(), second.get().statusCode())
+          .sorted().toList());
+    }
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.evaluation WHERE tenant_id=?", Integer.class, tenant));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.evaluation_idempotency WHERE tenant_id=?", Integer.class, tenant));
+  }
+  @Test void evaluationKeysAreIsolatedByTenantAndEnvironment() throws Exception {
+    String tenant = "t-evaluation-scope";
+    String writer = token(tenant, "*", ALL);
+    String otherTenant = token("t-evaluation-other-tenant", "*", ALL);
+    var principal = new DelegationPrincipal("https://uacrf.local/s01|user", tenant, "env-2", "*",
+        "https://idp.example.test", "user", ALL, List.of(), List.of());
+    String otherEnvironment = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(principal, "S07");
+    String input = evalJson("2026-01-01T01:00:00Z", "SHADOW", "");
+    Set<String> results = new java.util.HashSet<>();
+    for (String actor : List.of(writer, otherTenant, otherEnvironment)) {
+      String id = sealed(actor, "[\"a\"]", "LTE");
+      results.add(body(postAdaptation("/v1/cases/" + id + ":idempotent-evaluate", actor, input, "shared-key"), 201)
+          .get("id").asString());
+    }
+    assertEquals(3, results.size());
+    assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM uacrf_assessment.evaluation_idempotency "
+        + "WHERE idempotency_key='shared-key' AND tenant_id IN (?,?)", Integer.class, tenant, "t-evaluation-other-tenant"));
+  }
   @Test void caseMaterialFailsClosedWhenStoredDigestDoesNotMatch() throws Exception {
     String token = token("t-material-corrupt", "*", ALL);
     String id = create(token, "[\"a\"]", "LTE").get("id").asString();

@@ -76,11 +76,14 @@ is identity/delegation evidence only—not collection execution or provider
 acceptance.
 
 The same user receives independently approved global `assessment.case.read`,
-`assessment.case.write`, `assessment.evaluation.read`, and
+`assessment.case.write`, `assessment.evaluation.read`, `assessment.evaluation.run`, and
 `assessment.recommendation.read` grants. The suite creates and replays a draft
 through UX01, EDGE01, S01 and S07, reads it back, reviews and seals it, and
-verifies that replaying the old seal request conflicts. A separately admitted
-user is denied both creation and sealing. The supplied objective and graph
+verifies that replaying the old seal request conflicts. It evaluates the sealed
+case with an empty measurement set, replays the same request and checks that
+only one historical result is retained. The result is `INSUFFICIENT_EVIDENCE`
+with verification `SKIPPED`, not qualified evidence. A separately admitted
+user is denied creation, sealing and evaluation. The supplied objective and graph
 references are synthetic and not verified at creation or sealing. Separately,
 the user browses fixture
 cases, evaluations, and an investigation-only recommendation. Those fixture

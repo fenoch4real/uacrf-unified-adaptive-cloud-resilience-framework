@@ -1078,6 +1078,86 @@ class WebApplicationTests {
   }
 
   @Test
+  void preparesAndRetriesEvaluationWithRunOnlyDelegation() throws Exception {
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    var item = new AssessmentClient.AssessmentCase("case-1", "workload-1", "assessment",
+        "latency", "LTE", new java.math.BigDecimal("10"), "ms", 60, "SEALED", 2L, "a".repeat(64),
+        new AssessmentClient.ObjectiveRef("o", 1L, "d"), new AssessmentClient.GraphRef("g", 1L, "d"),
+        List.of("measurement.latency"));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.case.read"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("case-reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S07", null, List.of("assessment.evaluation.run"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("evaluation-runner", "Bearer", 30));
+    when(assessment.getCase("case-reader", "case-1")).thenReturn(item);
+    var result = new AssessmentClient.Evaluation("evaluation-1", "case-1", 1L,
+        Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-01T00:00:01Z"),
+        "SHADOW", "CONFIRMED_SUCCESS", new AssessmentClient.EvaluationDependencies("SKIPPED", null), "a".repeat(64));
+    var request = new AssessmentClient.EvaluationRequest(Instant.parse("2026-01-01T00:00:00Z"), "SHADOW",
+        List.of(new AssessmentClient.EvaluationMeasurement("receipt-1", "measurement.latency",
+            Instant.parse("2025-12-31T23:59:30Z"), new java.math.BigDecimal("6.50"), "ms")));
+    when(assessment.evaluateCase("evaluation-runner", "case-1", key, request))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(result);
+    mockMvc.perform(get("/assessment-cases/case-1/evaluate").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("SKIPPED, FAILED, or VERIFIED")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")));
+    mockMvc.perform(evaluationRequest(key).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verify(assessment, never()).evaluateCase(anyString(), anyString(), anyString(), any());
+    mockMvc.perform(evaluationRequest(key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Evaluation is unconfirmed")))
+        .andExpect(content().string(containsString(key)))
+        .andExpect(content().string(containsString("receipt-1")));
+    mockMvc.perform(evaluationRequest(key).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("evaluation-1")))
+        .andExpect(content().string(containsString("SKIPPED does not establish qualified evidence")))
+        .andExpect(content().string(not(containsString("evaluation-runner"))));
+    verify(assessment, times(2)).evaluateCase("evaluation-runner", "case-1", key, request);
+  }
+
+  @Test
+  void rejectsInvalidEvaluationInputsAndChangedContextBeforeAuthorization() throws Exception {
+    String key = "a18cd8fe-8ca1-4144-8178-9525fe57aa26";
+    for (String invalid : List.of(
+        "[{}]", "[null]", "[{\"source_receipt_id\":\"x\",\"source_kind\":\"a\",\"observed_at\":\"2026-01-01T00:00:00Z\",\"value\":1,\"unit\":\"ms\",\"extra\":1}]",
+        "[{\"source_receipt_id\":\"x\",\"source_receipt_id\":\"y\",\"source_kind\":\"a\",\"observed_at\":\"2026-01-01T00:00:00Z\",\"value\":1,\"unit\":\"ms\"}]",
+        "[{\"source_receipt_id\":\"x\",\"source_kind\":\"a\",\"observed_at\":\"2026-01-01T00:00:00Z\",\"value\":1,\"unit\":\"ms\"},"
+            + "{\"source_receipt_id\":\"x\",\"source_kind\":\"b\",\"observed_at\":\"2026-01-01T00:00:00Z\",\"value\":2,\"unit\":\"ms\"}]",
+        "[] {}", "[{\"source_receipt_id\":\"x\",\"source_kind\":\"a\",\"observed_at\":\"2026-01-01T00:00:00Z\",\"value\":1e101,\"unit\":\"ms\"}]")) {
+      mockMvc.perform(evaluationRequest(key).with(request -> {
+                request.setParameter("measurementsJson", invalid); return request;
+              }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+          .andExpect(status().isBadRequest())
+          .andExpect(content().string(containsString("valid measurements")));
+    }
+    mockMvc.perform(evaluationRequest(key).with(request -> {
+              request.setParameter("tenantId", "other"); return request;
+            }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isConflict());
+    mockMvc.perform(evaluationRequest(key).with(request -> {
+              request.setParameter("observationCutoff", "2026-01-01T00:00:00"); return request;
+            }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(evaluationRequest(key).with(request -> {
+              request.setParameter("observationCutoff", "-1000000000-01-01T00:00:00Z"); return request;
+            }).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(identity, assessment);
+  }
+
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder evaluationRequest(String key) {
+    return post("/assessment-cases/case-1/evaluate").param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("observationCutoff", "2026-01-01T00:00:00Z").param("mode", "SHADOW")
+        .param("measurementsJson", "[{\"source_receipt_id\":\"receipt-1\",\"source_kind\":\"measurement.latency\","
+            + "\"observed_at\":\"2025-12-31T23:59:30Z\",\"value\":6.50,\"unit\":\"ms\"}]");
+  }
+
+  @Test
   void assessmentCasesRequireContextAndReportDeniedOrInvalidReads() throws Exception {
     mockMvc.perform(get("/assessment-cases").with(browserLogin()))
         .andExpect(status().is3xxRedirection())

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assessment evaluation receipt | UACRF</title>
+</head>
+<body>
+<main>
+  <h1>Assessment evaluation receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <dl>
+    <dt>Case ID</dt><dd th:text="${caseId}">Case</dd>
+    <dt>Evaluation ID</dt><dd th:text="${evaluation.id}">Evaluation</dd>
+    <dt>Mode</dt><dd th:text="${evaluation.mode}">Mode</dd>
+    <dt>Outcome</dt><dd th:text="${evaluation.outcome}">Outcome</dd>
+    <dt>Receipt verification</dt><dd th:text="${evaluation.dependencyVector.receiptVerification}">Status</dd>
+    <dt th:if="${evaluation.dependencyVector.receiptReasonCode != null}">Verification reason</dt>
+    <dd th:if="${evaluation.dependencyVector.receiptReasonCode != null}"
+        th:text="${evaluation.dependencyVector.receiptReasonCode}">Reason</dd>
+    <dt>Observation cutoff</dt><dd th:text="${evaluation.observationCutoff}">Cutoff</dd>
+    <dt>Revision</dt><dd th:text="${evaluation.revision}">Revision</dd>
+    <dt>Result digest</dt><dd th:text="${evaluation.resultDigest}">Digest</dd>
+  </dl>
+  <p>This is a retained historical result, not current evidence qualification or authorization to act.
+    SKIPPED does not establish qualified evidence; retries return the original result without rechecking owners.</p>
+  <p><a th:href="@{/assessment-cases/{id}/evaluations(id=${caseId})}">View evaluation history</a></p>
+</main>
+</body>
+</html>

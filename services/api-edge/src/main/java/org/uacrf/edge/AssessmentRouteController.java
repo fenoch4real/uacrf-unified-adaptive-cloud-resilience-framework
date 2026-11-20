@@ -80,6 +80,14 @@ class AssessmentRouteController {
     return forward(() -> assessment.evaluate(authorization, id, requestBody));
   }
 
+  @PostMapping("/v1/cases/{id}:idempotent-evaluate")
+  ResponseEntity<String> evaluateIdempotently(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader("Idempotency-Key") String idempotencyKey,
+      @PathVariable String id, @RequestBody String requestBody) {
+    return forward(() -> assessment.evaluateIdempotently(authorization, id, idempotencyKey, requestBody));
+  }
+
   @GetMapping("/v1/cases/{id}/evaluations")
   ResponseEntity<String> evaluations(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

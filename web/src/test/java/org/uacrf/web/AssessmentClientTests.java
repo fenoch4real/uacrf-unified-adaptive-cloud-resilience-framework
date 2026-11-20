@@ -119,6 +119,37 @@ class AssessmentClientTests {
   }
 
   @Test
+  void submitsKeyedEvaluationAndRejectsMismatchedOrMisleadingReceipts() {
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    String url = "http://edge.test/v1/cases/case-1:idempotent-evaluate";
+    server.expect(requestTo(url)).andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer runner"))
+        .andExpect(header("Idempotency-Key", "evaluation-key"))
+        .andExpect(content().json("""
+            {"observation_cutoff":"2026-01-01T00:00:00Z","mode":"SHADOW","measurements":[]}
+            """))
+        .andRespond(withSuccess(EVALUATION, MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withSuccess(
+        EVALUATION.replace("\"INSUFFICIENT_EVIDENCE\"", "\"CONFIRMED_SUCCESS\""), MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withSuccess(
+        EVALUATION.replace("\"case-1\"", "\"other\""), MediaType.APPLICATION_JSON));
+    server.expect(requestTo(url)).andRespond(withStatus(HttpStatus.NOT_FOUND));
+    AssessmentClient client = new AssessmentClient(builder.build());
+    var request = new AssessmentClient.EvaluationRequest(
+        java.time.Instant.parse("2026-01-01T00:00:00Z"), "SHADOW", List.of());
+    assertThat(client.evaluateCase("runner", "case-1", "evaluation-key", request).outcome())
+        .isEqualTo("INSUFFICIENT_EVIDENCE");
+    assertThatThrownBy(() -> client.evaluateCase("runner", "case-1", "evaluation-key", request))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.evaluateCase("runner", "case-1", "evaluation-key", request))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> client.evaluateCase("runner", "case-1", "evaluation-key", request))
+        .isInstanceOf(HttpClientErrorException.NotFound.class);
+    server.verify();
+  }
+
+  @Test
   void readsWorkloadCasesThroughTheAssessmentEdge() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/assessment");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

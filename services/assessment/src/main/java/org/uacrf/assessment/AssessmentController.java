@@ -49,7 +49,12 @@ class AssessmentController {
   @PostMapping("/internal/v1/cases/{id}:material")
   CaseMaterial material(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.material(DelegationPrincipal.from(jwt), id); }
   @PostMapping("/v1/cases/{id}:evaluate") @ResponseStatus(HttpStatus.CREATED)
-  Evaluation evaluate(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Evaluate request) { return service.evaluate(DelegationPrincipal.from(jwt), id, request); }
+  Evaluation evaluate(@AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Evaluate request) { return service.evaluate(DelegationPrincipal.from(jwt), id, request, null); }
+  @PostMapping("/v1/cases/{id}:idempotent-evaluate") @ResponseStatus(HttpStatus.CREATED)
+  Evaluation evaluateIdempotently(@AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @Valid @RequestBody Evaluate request, @RequestHeader("Idempotency-Key") String key) {
+    return service.evaluate(DelegationPrincipal.from(jwt), id, request, key);
+  }
   @GetMapping("/v1/cases/{id}/evaluations")
   List<Evaluation> evaluations(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) { return service.evaluations(DelegationPrincipal.from(jwt), id); }
   @GetMapping("/v1/cases/{id}/evaluations:latest")

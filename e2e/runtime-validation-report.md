@@ -7,6 +7,15 @@
 ## Latest live browser run
 
 On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
+stack. An independently authorized user created and sealed a synthetic case,
+submitted an empty-measurement evaluation through UX01, EDGE01, S01 and S07,
+replayed the identical request, and saw exactly one retained result. It was
+`INSUFFICIENT_EVIDENCE` with receipt verification `SKIPPED`; an ungranted
+user was denied submission. The inputs and references do not establish
+qualified evidence or live-provider acceptance, and the evaluation does not
+authorize action. The stack was removed after the run.
+
+On 2026-11-20, `bash e2e/run-live.sh` passed **11 tests** with a disposable
 stack. An independently authorized user reviewed and sealed a created draft
 through UX01, EDGE01, S01 and S07; an old seal request returned HTTP 409, and
 the current case showed SEALED. An ungranted user was denied sealing and a

@@ -1,6 +1,10 @@
 package org.uacrf.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -89,6 +93,21 @@ class AssessmentClient {
     return List.copyOf(evaluations);
   }
 
+  Evaluation evaluateCase(String token, String caseId, String key, EvaluationRequest request) {
+    Evaluation item = restClient.post()
+        .uri(uri -> uri.path("/v1/cases/{id}:idempotent-evaluate").build(caseId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key).body(request).retrieve().body(Evaluation.class);
+    if (!valid(item, caseId) || !request.observationCutoff().equals(item.observationCutoff())
+        || !request.mode().equals(item.mode())
+        || ("FAILED".equals(item.dependencyVector().receiptVerification())
+            && !"INSUFFICIENT_EVIDENCE".equals(item.outcome()))
+        || (request.measurements().isEmpty() && !"INSUFFICIENT_EVIDENCE".equals(item.outcome()))) {
+      throw new IllegalStateException("S07 returned an incomplete or mismatched evaluation receipt.");
+    }
+    return item;
+  }
+
   List<Recommendation> listRecommendations(String token, String workloadId) {
     List<Recommendation> recommendations = restClient.get()
         .uri(uri -> uri.path("/v1/recommendations").queryParam("workload_id", "{workloadId}")
@@ -165,6 +184,12 @@ class AssessmentClient {
   record ObjectiveRef(@JsonProperty("objective_id") String id, Long revision, String digest) {}
   record GraphRef(@JsonProperty("graph_id") String id, Long revision, String digest) {}
   record CaseTransition(@JsonProperty("expected_revision") long expectedRevision) {}
+  record EvaluationRequest(@JsonProperty("observation_cutoff") Instant observationCutoff, String mode,
+      List<EvaluationMeasurement> measurements) {}
+  record EvaluationMeasurement(@JsonProperty("source_receipt_id") @NotBlank @Size(max=200) String sourceReceiptId,
+      @JsonProperty("source_kind") @NotBlank @Size(max=200) String sourceKind,
+      @JsonProperty("observed_at") @NotNull Instant observedAt,
+      @NotNull @Digits(integer=100, fraction=50) BigDecimal value, @NotBlank @Size(max=30) String unit) {}
   record Evaluation(
       String id, @JsonProperty("case_id") String caseId, Long revision,
       @JsonProperty("observation_cutoff") Instant observationCutoff,

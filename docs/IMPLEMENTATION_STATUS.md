@@ -21,7 +21,7 @@ estimate.
 | M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile the full inherited baseline; close remaining threat-model and release-control gaps. |
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after the aggregate-type contract change (5 tests, 0 failures, 0 errors, 0 skips). S04 sequence identity now includes aggregate type; the V8 migration classifies retained S03 events and conservatively preserves ambiguous legacy quarantines. The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain. |
-| M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | UX01 creates retry-protected S07 draft cases, reviews and seals drafts, and browses cases, retained evaluation history, and workload recommendations through EDGE01 with separate globally scoped, context-bound delegations. Creation and sealing do not verify references. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation. |
+| M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | UX01 creates retry-protected S07 draft cases, reviews and seals drafts, runs retry-protected evaluations, and browses cases, retained evaluation history, and workload recommendations through EDGE01 with separate globally scoped, context-bound delegations. Creation and sealing do not verify references; skipped receipt verification does not qualify evidence. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation. |
 | M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | Implement policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
 | M6 — Commercial and operational administration | Usage admission, rating, invoicing, payment reconciliation, notifications, evidence export | Not started | Implement and test the commercial and operational workflows, including duplicate/reordered events and interrupted reconciliation. |
@@ -1214,6 +1214,29 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   tests; a subsequent nine-test focused run checked conflict and receipt
   validation. The isolated browser suite passed 11 tests, including a real
   draft-to-sealed transition, stale replay conflict, and denied sealing.
+- `POST /v1/cases/{id}:idempotent-evaluate`, also routed by EDGE01, requires a
+  key and global `assessment.evaluation.run`. The key is scoped to tenant,
+  environment and actor. Evaluation, optional investigation-only recommendation,
+  outbox events and key binding commit together; identical canonical content
+  returns the original historical result without rechecking owners, and
+  changed content conflicts. The original `:evaluate` route remains unkeyed.
+  S07 and EDGE01 must be deployed before UX01; the browser never falls back to
+  the old route. Canonical matching depends on current serialization.
+- UX01 submits a CSRF-protected evaluation for a sealed case with a separate
+  run delegation. It preserves the key and input on rendered errors, rejects
+  context changes, and validates the receipt. An unconfirmed request must be
+  retried unchanged by the same actor in the same context; a lost session or
+  newly opened form cannot recover its key. Empty measurements yield
+  `INSUFFICIENT_EVIDENCE`. `SKIPPED` verification does not establish evidence
+  qualification; even an investigation-only recommendation is non-executable
+  and no evaluation authorizes action. Synthetic measurements are not live
+  provider acceptance. The clean web suite passed 129 tests. Focused S07 and
+  EDGE01 suites passed 38 and 3 tests, including competing same-key inputs,
+  rollback, authorization and historical replay; an additional focused test
+  verified tenant and environment key isolation. The isolated 11-test browser
+  run created and sealed a case, submitted and replayed an empty evaluation,
+  confirmed one retained `INSUFFICIENT_EVIDENCE` / `SKIPPED` result, and
+  checked denial without the run grant.
 - Case, evaluation and recommendation reads, including internal case receipts and
   material, now require the relevant capability and global (`*`) service scope.
   Previously a service-scoped delegation could read records outside its scope.

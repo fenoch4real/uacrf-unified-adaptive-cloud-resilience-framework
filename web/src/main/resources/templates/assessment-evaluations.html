@@ -13,6 +13,7 @@
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p>Case: <strong th:text="${caseId}">Case ID</strong></p>
   <p><a href="/assessment-cases">Back to assessment cases</a></p>
+  <p><a th:href="@{/assessment-cases/{id}/evaluate(id=${caseId})}">Prepare an evaluation</a></p>
   <p>These are retained results, not current evidence qualification or authorization to act.
     Receipt verification describes the check performed when the evaluation was created.</p>
   <p role="status" th:if="${assessmentError != null}" th:text="${assessmentError}"></p>

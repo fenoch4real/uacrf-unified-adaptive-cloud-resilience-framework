@@ -64,6 +64,15 @@ class AssessmentRouteClient {
     return sendBody(HttpMethod.POST, "/v1/cases/{id}:evaluate", id, authorization, requestBody);
   }
 
+  ResponseEntity<String> evaluateIdempotently(String authorization, String id, String key, String requestBody) {
+    RestClient.RequestBodySpec request = assessmentRestClient.post()
+        .uri(uri -> uri.path("/v1/cases/{id}:idempotent-evaluate").build(id))
+        .contentType(MediaType.APPLICATION_JSON);
+    request.header("Idempotency-Key", key);
+    request.body(requestBody);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> evaluations(String authorization, String id) {
     return send(
         assessmentRestClient.get().uri(uriBuilder -> uriBuilder.path("/v1/cases/{id}/evaluations").build(id)),
