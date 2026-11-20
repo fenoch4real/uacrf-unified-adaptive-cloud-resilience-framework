@@ -98,6 +98,7 @@ class AssessmentAdvisoryIntegrationTests {
            "capability_expiry_horizon":"2099-01-01T00:00:00Z",
            "session_expires_at":"2098-01-01T00:00:00Z",
            "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+           "membership_generation":"5",
            "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
            "knowledge.classification.internal.read"]}
           """ : "{}");

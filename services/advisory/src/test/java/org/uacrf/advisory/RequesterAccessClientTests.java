@@ -22,7 +22,8 @@ class RequesterAccessClientTests {
       {"principal_id":"human-1","display_name":"User","kind":"HUMAN","service_id":null,
        "scope":"GLOBAL_GRANTS_ONLY","capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read"],
        "capability_expiry_horizon":"2099-01-01T00:00:00Z","session_expires_at":"2098-01-01T00:00:00Z",
-       "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+       "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "membership_generation":"5"}
       """;
   private HttpServer server;
   private URI base;
@@ -114,6 +115,10 @@ class RequesterAccessClientTests {
             "\"membership_snapshot_digest\":null"),
         PUBLIC_ACCESS.replace(",\n \"membership_snapshot_digest\":\"" + "a".repeat(64) + "\"", ""),
         PUBLIC_ACCESS.replace("a".repeat(64), "A".repeat(64)),
+        PUBLIC_ACCESS.replace("\"membership_generation\":\"5\"", "\"membership_generation\":null"),
+        PUBLIC_ACCESS.replace(",\n \"membership_generation\":\"5\"", ""),
+        PUBLIC_ACCESS.replace("\"membership_generation\":\"5\"", "\"membership_generation\":\"01\""),
+        PUBLIC_ACCESS.replace("\"membership_generation\":\"5\"", "\"membership_generation\":\"9223372036854775808\""),
         PUBLIC_ACCESS + "{}")) {
       body.set(invalid);
       assertThrows(IOException.class, () -> client.check("requester-token", "tenant-1", "env-1", PUBLIC));

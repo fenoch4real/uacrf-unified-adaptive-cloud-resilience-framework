@@ -2672,7 +2672,8 @@ class WebApplicationTests {
                   "capability_ids":["identity.membership.read"],
                   "capability_expiry_horizon":"2099-01-01T00:00:00Z",
                   "session_expires_at":"2098-01-01T00:00:00Z",
-                  "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                  "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "membership_generation":"5"
                 }
                 """,
                 MediaType.APPLICATION_JSON));

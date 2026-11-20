@@ -53,7 +53,8 @@ class OwnerReceiptClientTests {
        "capability_ids":["advisory.run.create","assessment.case.read","knowledge.retrieval.read",
        "knowledge.classification.internal.read","catalog.agent.read"],
        "capability_expiry_horizon":"2099-01-01T00:00:00Z","session_expires_at":"2098-01-01T00:00:00Z",
-       "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+       "membership_snapshot_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "membership_generation":"5"}
       """;
   private static final String WORKLOAD_VERSION_MANIFEST =
       "{\"instructions_digest\":\"" + "a".repeat(64)
@@ -817,6 +818,17 @@ class OwnerReceiptClientTests {
     var verifier = new RequesterSourceCheck(true, base, base, base, true);
 
     assertEquals("Requester membership snapshot changed during source checking.",
+        assertThrows(IOException.class,
+            () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)).getMessage());
+  }
+
+  @Test
+  void rejectsMembershipGenerationChangesEvenWhenSnapshotReturnsToItsPriorValue() {
+    requesterReplyAfterContent.set(
+        new Reply(200, REQUESTER_ACCESS.replace("\"membership_generation\":\"5\"", "\"membership_generation\":\"7\"")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+
+    assertEquals("Requester membership generation changed during source checking.",
         assertThrows(IOException.class,
             () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)).getMessage());
   }

@@ -299,8 +299,21 @@ test passed with no failures, errors, or skips.
   PostgreSQL regression shows a redundant grant changes the digest even when
   the capability list and expiry horizon do not; unrelated service-scoped
   grants do not change it. The digest is not monotonic and cannot detect a
-  change fully reversed between reads. Deploy S01's response changes before
-  that S09 client; older responses fail closed. A web client regression
+  change fully reversed between reads. S01 now supplements it with scoped,
+  transactionally incremented membership generations, read with memberships
+  under repeatable-read isolation; S09 checks the global generation across
+  its two reads. This detects committed changes reversed between reads, but
+  natural expiry does not increment a generation and neither mechanism is a
+  commit fence. Deploy the S01 migration and response changes before the S09
+  client; older responses fail closed. PostgreSQL tests cover backfilling
+  pre-existing memberships, rollback, concurrent increments, scope moves,
+  reversed changes and natural expiry. The clean selected reactor passed
+  delegation (8), advisory (169), identity (41), catalog (24), evidence (27),
+  assessment (50), knowledge (17), and web (110) tests; the live
+  S01/S02/S07/S08 advisory process test also passed. The separate
+  evidence/assessment process test failed because its existing provider
+  fixture does not meet S04's observation schema; the combined reactor is
+  therefore not green. A web client regression
   verifies that the additive S01 fields do not break current access
   deserialization; the web suite passed 110 tests.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed

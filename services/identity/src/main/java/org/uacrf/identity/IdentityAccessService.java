@@ -23,6 +23,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.uacrf.security.DelegationPrincipal;
@@ -279,7 +280,7 @@ class IdentityAccessService {
     return new IdentityResponses.CurrentContextList(visible, nextCursor);
   }
 
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   IdentityResponses.MeAccess getCurrentAccess(
       Jwt jwt, String serviceId, String tenantId, String environmentId) {
     if (serviceId != null && !isValidId(serviceId)) {
@@ -322,6 +323,19 @@ class IdentityAccessService {
           updateMembershipDigest(membershipDigest, Long.toString(rs.getLong("revision")));
         },
         membershipArguments);
+    Map<String, Long> generations = new java.util.HashMap<>();
+    jdbc.query(
+        "SELECT service_scope, generation FROM uacrf_identity.membership_generation "
+            + "WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? "
+            + "AND (service_scope = '*' OR service_scope = ?)",
+        rs -> {
+          generations.put(rs.getString("service_scope"), rs.getLong("generation"));
+        },
+        actor.tenantId(), actor.environmentId(), actor.principalId(), serviceId);
+    String membershipGeneration = Long.toString(generations.getOrDefault("*", 0L));
+    if (serviceId != null) {
+      membershipGeneration += ":" + generations.getOrDefault(serviceId, 0L);
+    }
     String scope =
         serviceId == null
             ? "GLOBAL_GRANTS_ONLY"
@@ -335,7 +349,8 @@ class IdentityAccessService {
         List.copyOf(expirations.keySet()),
         expirations.values().stream().min(Instant::compareTo).orElse(null),
         jwt.getExpiresAt(),
-        HexFormat.of().formatHex(membershipDigest.digest()));
+        HexFormat.of().formatHex(membershipDigest.digest()),
+        membershipGeneration);
   }
 
   private static void updateMembershipDigest(MessageDigest digest, String value) {

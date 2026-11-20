@@ -182,6 +182,68 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void membershipGenerationMigrationBackfillsExistingRows() throws Exception {
+    String database = "uacrf_identity_generation_migration";
+    jdbc.execute("CREATE DATABASE " + database);
+    String url = POSTGRES.getJdbcUrl().replace("/uacrf_identity", "/" + database);
+    String migrations = "filesystem:"
+        + java.nio.file.Path.of(URI.create(
+            IdentityApplication.class.getProtectionDomain().getCodeSource().getLocation().toString()))
+            .resolve("db/migration");
+    try {
+      org.flywaydb.core.Flyway.configure()
+          .dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
+          .locations(migrations).target("6").load().migrate();
+      try (var connection = java.sql.DriverManager.getConnection(
+          url, POSTGRES.getUsername(), POSTGRES.getPassword());
+          var statement = connection.createStatement()) {
+        statement.executeUpdate("INSERT INTO uacrf_identity.tenant "
+            + "(id, display_name, status, revision) VALUES ('tenant', 'Tenant', 'ACTIVE', 1)");
+        statement.executeUpdate("INSERT INTO uacrf_identity.environment "
+            + "(tenant_id, id, display_name, status, revision) "
+            + "VALUES ('tenant', 'env', 'Environment', 'ACTIVE', 1)");
+        statement.executeUpdate("INSERT INTO uacrf_identity.identity_provider "
+            + "(id, issuer_uri, display_name, status, revision) "
+            + "VALUES ('provider', 'https://example.test', 'Provider', 'TRUSTED', 1)");
+        statement.executeUpdate("INSERT INTO uacrf_identity.principal "
+            + "(id, issuer_uri, subject, display_name, kind, enabled, token_valid_after, revision) "
+            + "VALUES ('principal', 'https://example.test', 'subject', 'Principal', 'HUMAN', true, now(), 1)");
+        statement.executeUpdate("INSERT INTO uacrf_identity.membership "
+            + "(id, tenant_id, environment_id, principal_id, capability, service_scope, expires_at, revision) "
+            + "VALUES ('00000000-0000-0000-0000-000000000001', 'tenant', 'env', 'principal', "
+            + "'test.alpha', '*', '2099-01-01', 1), "
+            + "('00000000-0000-0000-0000-000000000002', 'tenant', 'env', 'principal', "
+            + "'test.beta', 'svc-1', '2099-01-01', 1)");
+      }
+      org.flywaydb.core.Flyway.configure()
+          .dataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword())
+          .locations(migrations).load().migrate();
+      try (var connection = java.sql.DriverManager.getConnection(
+          url, POSTGRES.getUsername(), POSTGRES.getPassword());
+          var statement = connection.createStatement()) {
+        try (var rows = statement.executeQuery(
+            "SELECT service_scope, generation FROM uacrf_identity.membership_generation ORDER BY service_scope")) {
+          assertThat(rows.next()).isTrue();
+          assertEquals("*", rows.getString(1));
+          assertEquals(1, rows.getLong(2));
+          assertThat(rows.next()).isTrue();
+          assertEquals("svc-1", rows.getString(1));
+          assertEquals(1, rows.getLong(2));
+          assertThat(rows.next()).isFalse();
+        }
+        statement.executeUpdate("DELETE FROM uacrf_identity.membership WHERE service_scope = '*'");
+        try (var rows = statement.executeQuery(
+            "SELECT generation FROM uacrf_identity.membership_generation WHERE service_scope = '*'")) {
+          assertThat(rows.next()).isTrue();
+          assertEquals(2, rows.getLong(1));
+        }
+      }
+    } finally {
+      jdbc.execute("DROP DATABASE " + database);
+    }
+  }
+
+  @Test
   void allowsLoopbackHttpBootstrapIssuerButRejectsRemoteHttpIssuer() {
     IdentityBootstrap.validateIssuer(URI.create("http://localhost:8180/realms/uacrf"));
     org.assertj.core.api.Assertions.assertThatIllegalStateException()
@@ -252,6 +314,7 @@ class IdentityApplicationTests {
           .doesNotContain("test.beta", "test.other", "test.revoked", "test.expired");
       var json = tools.jackson.databind.json.JsonMapper.builder().build();
       String digest = json.readTree(global.body()).path("membership_snapshot_digest").asString();
+      long generation = Long.parseLong(json.readTree(global.body()).path("membership_generation").asString());
       assertThat(digest).matches("[a-f0-9]{64}");
       assertEquals(digest, json.readTree(get(path, actor).body())
           .path("membership_snapshot_digest").asString());
@@ -269,9 +332,14 @@ class IdentityApplicationTests {
           json.readTree(withRedundantGrant.body()).path("capability_ids"));
       assertThat(json.readTree(withRedundantGrant.body()).path("membership_snapshot_digest").asString())
           .isNotEqualTo(digest);
+      long withRedundantGeneration =
+          Long.parseLong(json.readTree(withRedundantGrant.body()).path("membership_generation").asString());
+      assertThat(withRedundantGeneration).isGreaterThan(generation);
       jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", redundant);
-      assertEquals(digest, json.readTree(get(path, actor).body())
-          .path("membership_snapshot_digest").asString());
+      var restored = json.readTree(get(path, actor).body());
+      assertEquals(digest, restored.path("membership_snapshot_digest").asString());
+      assertThat(Long.parseLong(restored.path("membership_generation").asString()))
+          .isGreaterThan(withRedundantGeneration);
       HttpResponse<String> scoped = get(path + "&service_id=svc-1", actor);
       assertEquals(200, scoped.statusCode());
       assertThat(scoped.body())
@@ -279,6 +347,8 @@ class IdentityApplicationTests {
           .contains("test.alpha", "test.beta")
           .doesNotContain("test.other", "test.revoked", "test.expired");
       String scopedDigest = json.readTree(scoped.body()).path("membership_snapshot_digest").asString();
+      String scopedGeneration = json.readTree(scoped.body()).path("membership_generation").asString();
+      String globalGeneration = restored.path("membership_generation").asString();
       assertThat(scopedDigest).isNotEqualTo(digest);
       jdbc.update(
           "INSERT INTO uacrf_identity.membership "
@@ -290,6 +360,69 @@ class IdentityApplicationTests {
           .path("membership_snapshot_digest").asString());
       assertEquals(scopedDigest, json.readTree(get(path + "&service_id=svc-1", actor).body())
           .path("membership_snapshot_digest").asString());
+      assertEquals(globalGeneration, json.readTree(get(path, actor).body())
+          .path("membership_generation").asString());
+      assertEquals(scopedGeneration, json.readTree(get(path + "&service_id=svc-1", actor).body())
+          .path("membership_generation").asString());
+
+      try (var connection = java.util.Objects.requireNonNull(jdbc.getDataSource()).getConnection()) {
+        connection.setAutoCommit(false);
+        try (var statement = connection.prepareStatement(
+            "INSERT INTO uacrf_identity.membership "
+                + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+                + "expires_at, revision) VALUES (?, 'tenant-test', 'environment-test', ?, "
+                + "'test.alpha', '*', ?, 1)")) {
+          statement.setObject(1, UUID.randomUUID());
+          statement.setString(2, principal);
+          statement.setTimestamp(3, java.sql.Timestamp.from(now.plusSeconds(1800)));
+          statement.executeUpdate();
+        }
+        assertEquals(globalGeneration, json.readTree(get(path, actor).body())
+            .path("membership_generation").asString());
+        connection.rollback();
+      }
+      assertEquals(globalGeneration, json.readTree(get(path, actor).body())
+          .path("membership_generation").asString());
+
+      String otherGeneration = json.readTree(get(path + "&service_id=svc-2", actor).body())
+          .path("membership_generation").asString();
+      jdbc.update("UPDATE uacrf_identity.membership SET service_scope = 'svc-2' WHERE id = ?", scopedBeta);
+      assertThat(json.readTree(get(path + "&service_id=svc-1", actor).body())
+          .path("membership_generation").asString()).isNotEqualTo(scopedGeneration);
+      assertThat(json.readTree(get(path + "&service_id=svc-2", actor).body())
+          .path("membership_generation").asString()).isNotEqualTo(otherGeneration);
+      assertEquals(globalGeneration, json.readTree(get(path, actor).body())
+          .path("membership_generation").asString());
+      jdbc.update("UPDATE uacrf_identity.membership SET service_scope = 'svc-1' WHERE id = ?", scopedBeta);
+
+      var firstInsert = CompletableFuture.runAsync(() -> jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, expires_at, revision) "
+              + "VALUES (?, 'tenant-test', 'environment-test', ?, 'test.alpha', '*', ?, 1)",
+          UUID.randomUUID(), principal, java.sql.Timestamp.from(now.plusSeconds(1800))));
+      var secondInsert = CompletableFuture.runAsync(() -> jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, expires_at, revision) "
+              + "VALUES (?, 'tenant-test', 'environment-test', ?, 'test.alpha', '*', ?, 1)",
+          UUID.randomUUID(), principal, java.sql.Timestamp.from(now.plusSeconds(1800))));
+      CompletableFuture.allOf(firstInsert, secondInsert).join();
+      assertEquals(Long.parseLong(globalGeneration) + 2,
+          Long.parseLong(json.readTree(get(path, actor).body()).path("membership_generation").asString()));
+
+      Instant naturalExpiry = Instant.now().plusSeconds(5);
+      jdbc.update(
+          "INSERT INTO uacrf_identity.membership "
+              + "(id, tenant_id, environment_id, principal_id, capability, service_scope, expires_at, revision) "
+              + "VALUES (?, 'tenant-test', 'environment-test', ?, 'test.transient', '*', ?, 1)",
+          UUID.randomUUID(), principal, java.sql.Timestamp.from(naturalExpiry));
+      var beforeExpiry = json.readTree(get(path, actor).body());
+      assertThat(beforeExpiry.path("capability_ids").toString()).contains("test.transient");
+      Thread.sleep(Math.max(0, java.time.Duration.between(Instant.now(), naturalExpiry).toMillis()) + 100);
+      var afterExpiry = json.readTree(get(path, actor).body());
+      assertThat(afterExpiry.path("capability_ids").toString()).doesNotContain("test.transient");
+      assertEquals(beforeExpiry.path("membership_generation"), afterExpiry.path("membership_generation"));
+      assertThat(afterExpiry.path("membership_snapshot_digest"))
+          .isNotEqualTo(beforeExpiry.path("membership_snapshot_digest"));
 
       jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", laterGlobal);
       assertThat(get(path, actor).body())

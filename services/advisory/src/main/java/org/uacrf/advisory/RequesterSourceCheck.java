@@ -175,6 +175,9 @@ final class RequesterSourceCheck {
     if (!requester.membershipSnapshotDigest().equals(refreshed.membershipSnapshotDigest())) {
       throw new IOException("Requester membership snapshot changed during source checking.");
     }
+    if (!requester.membershipGeneration().equals(refreshed.membershipGeneration())) {
+      throw new IOException("Requester membership generation changed during source checking.");
+    }
     if (profileReader != null
         && !profileVersions.equals(profileReader.fetchActive(tenantId, environmentId, expectedProfiles))) {
       throw new IOException("S02 active workload versions changed during source checking.");

@@ -25,10 +25,12 @@ final class RequesterAccessClient {
     private final Instant capabilityExpiryHorizon;
     private final Instant sessionExpiresAt;
     private final String membershipSnapshotDigest;
+    private final String membershipGeneration;
 
     private Principal(
         String id, String kind, String tenantId, String environmentId, Set<String> capabilities,
-        Instant capabilityExpiryHorizon, Instant sessionExpiresAt, String membershipSnapshotDigest) {
+        Instant capabilityExpiryHorizon, Instant sessionExpiresAt, String membershipSnapshotDigest,
+        String membershipGeneration) {
       this.id = id;
       this.kind = kind;
       this.tenantId = tenantId;
@@ -37,6 +39,7 @@ final class RequesterAccessClient {
       this.capabilityExpiryHorizon = capabilityExpiryHorizon;
       this.sessionExpiresAt = sessionExpiresAt;
       this.membershipSnapshotDigest = membershipSnapshotDigest;
+      this.membershipGeneration = membershipGeneration;
     }
 
     String id() {
@@ -69,6 +72,10 @@ final class RequesterAccessClient {
 
     String membershipSnapshotDigest() {
       return membershipSnapshotDigest;
+    }
+
+    String membershipGeneration() {
+      return membershipGeneration;
     }
   }
 
@@ -107,8 +114,15 @@ final class RequesterAccessClient {
         || !body.containsKey("service_id") || body.get("service_id") != null
         || !(body.get("capability_ids") instanceof List<?> values)
         || !(body.get("membership_snapshot_digest") instanceof String membershipDigest)
-        || !membershipDigest.matches("[a-f0-9]{64}")) {
+        || !membershipDigest.matches("[a-f0-9]{64}")
+        || !(body.get("membership_generation") instanceof String membershipGeneration)
+        || !membershipGeneration.matches("(?:0|[1-9][0-9]{0,18})")) {
       throw new IOException("S01 returned invalid requester access.");
+    }
+    try {
+      Long.parseLong(membershipGeneration);
+    } catch (NumberFormatException failure) {
+      throw new IOException("S01 returned invalid requester membership generation.", failure);
     }
     Instant horizon = futureExpiry(body.get("capability_expiry_horizon"), "capability expiry horizon");
     Instant sessionExpiresAt = futureExpiry(body.get("session_expires_at"), "session expiry");
@@ -136,7 +150,8 @@ final class RequesterAccessClient {
       throw new IOException("Requester lacks required advisory or source access capabilities.");
     }
     return new Principal(
-        principalId, kind, tenantId, environmentId, capabilities, horizon, sessionExpiresAt, membershipDigest);
+        principalId, kind, tenantId, environmentId, capabilities, horizon, sessionExpiresAt, membershipDigest,
+        membershipGeneration);
   }
 
   private static Instant futureExpiry(Object value, String field) throws IOException {

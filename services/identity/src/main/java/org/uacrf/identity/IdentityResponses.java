@@ -14,7 +14,8 @@ final class IdentityResponses {
       List<String> capabilityIds,
       java.time.Instant capabilityExpiryHorizon,
       java.time.Instant sessionExpiresAt,
-      String membershipSnapshotDigest) {}
+      String membershipSnapshotDigest,
+      String membershipGeneration) {}
 
   record CurrentContext(String tenantId, String tenantName, String environmentId, String environmentName) {}
 

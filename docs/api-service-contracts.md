@@ -65,9 +65,18 @@ capabilities, scopes, expirations and revisions, using versioned,
 length-prefixed UTF-8 fields. S09 requires both expirations to be parseable
 and future and the digest to be valid; it rejects changes between its two
 S01 reads. The fingerprint is not monotonic and cannot detect a change that
-is fully reversed between reads. Its journal also rejects expired snapshots
-at method entry, not atomically at commit. Deploy the S01 response changes
-before the S09 client; older S01 responses fail closed.
+is fully reversed between reads. `membership_generation` supplements the
+digest with transactional per-scope mutation counters: a global response
+contains a decimal counter, while a service-scoped response contains the
+global and selected-service counters separated by `:`. A missing scope starts
+at zero; mutation rows remain after membership deletion. The counter and
+membership snapshot are read in the same repeatable-read transaction. S09
+requires and compares the global counter, detecting committed changes even
+when the active snapshot returns to its former state. Natural expiry does not
+increment the counter, so the digest and expiry checks still matter. These
+checks do not fence changes after the last read; the journal rejects expired
+snapshots at method entry, not atomically at commit. Deploy S01's migration
+and response changes before the S09 client; older S01 responses fail closed.
 
 S02's active workload-version receipt accepts `profile_id` to identify a
 version within its workload. Without it, a version ID matching multiple
