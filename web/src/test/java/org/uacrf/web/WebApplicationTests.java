@@ -54,6 +54,61 @@ class WebApplicationTests {
   @MockitoBean private EvidenceClient evidence;
   @MockitoBean private ObjectivesClient objectives;
   @MockitoBean private AssessmentClient assessment;
+  @MockitoBean private KnowledgeClient knowledge;
+
+  @Test
+  void knowledgeReadsOnlySelectedClassificationAndEscapesMetadata() throws Exception {
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.classification.internal.read"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("knowledge-delegation", "Bearer", 30));
+    var item = new KnowledgeClient.ItemVersion("item-1", "v1", "<title>", "javascript:<unsafe>",
+        KnowledgeClient.Classification.INTERNAL, List.of("review"), List.of(),
+        Instant.parse("2030-01-01T00:00:00Z"), "reason", "a".repeat(64),
+        KnowledgeClient.State.CANDIDATE, 1L, "user", null, null, null, null,
+        Instant.parse("2026-01-01T00:00:00Z"));
+    when(knowledge.list("knowledge-delegation", "item-1", "review", KnowledgeClient.Classification.INTERNAL))
+        .thenReturn(List.of(item));
+    mockMvc.perform(get("/knowledge").param("classification", "INTERNAL").param("itemId", "item-1")
+            .param("purpose", "review").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("&lt;title&gt;")))
+        .andExpect(content().string(containsString("javascript:&lt;unsafe&gt;")))
+        .andExpect(content().string(containsString("CANDIDATE")))
+        .andExpect(content().string(containsString("not fetched")))
+        .andExpect(content().string(not(containsString("knowledge-delegation"))));
+    verify(identity).createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.classification.internal.read"),
+        "tenant-test", "environment-test");
+  }
+
+  @Test
+  void knowledgeDenialsInvalidFiltersAndInvalidUpstreamAreVisible() throws Exception {
+    mockMvc.perform(get("/knowledge").with(browserLogin())).andExpect(redirectedUrl("/contexts"));
+    mockMvc.perform(get("/knowledge").param("purpose", "bad value")
+            .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
+    mockMvc.perform(get("/knowledge").param("classification", "")
+            .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
+    verifyNoInteractions(identity, knowledge);
+    when(identity.createDelegation("test-access-token", "S08", null,
+        List.of("knowledge.item.read", "knowledge.classification.restricted.read"),
+        "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/knowledge").param("classification", "RESTRICTED")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("Knowledge access failed (HTTP 403)")))
+        .andExpect(content().string(not(containsString("No knowledge metadata matches"))));
+    verifyNoInteractions(knowledge);
+    when(identity.createDelegation("test-access-token", "S08", null, List.of("knowledge.item.read"),
+        "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("public-token", "Bearer", 30));
+    when(knowledge.list("public-token", null, null, KnowledgeClient.Classification.PUBLIC))
+        .thenThrow(new IllegalStateException("invalid"));
+    mockMvc.perform(get("/knowledge").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadGateway())
+        .andExpect(content().string(containsString("returned an invalid response")))
+        .andExpect(content().string(not(containsString("No knowledge metadata matches"))));
+  }
 
   @Test
   void offersAnOidcSignInWithoutRequiringAuthentication() throws Exception {

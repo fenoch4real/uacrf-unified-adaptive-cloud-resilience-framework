@@ -282,6 +282,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
+      'knowledge.item.read', 'knowledge.classification.internal.read',
       'catalog.journey.read', 'catalog.journey.write', 'catalog.service.read',
       'catalog.service.write', 'catalog.agent.read', 'catalog.agent.write',
       ].map((capability) => ({ principalId, capability })),
@@ -382,6 +383,24 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: 'Unified Adaptive Cloud Resilience Framework' }))
       .toBeVisible();
     await selectLocalContext(sample);
+    await sample.goto('/knowledge');
+    await expect(sample.getByText('Synthetic public knowledge')).toBeVisible();
+    await expect(sample.getByText('Synthetic internal knowledge')).toHaveCount(0);
+    await expect(sample.getByText('Other tenant synthetic knowledge')).toHaveCount(0);
+    await sample.getByLabel('Internal and public').check();
+    await sample.getByLabel('Purpose', { exact: true }).fill('sample:review');
+    await sample.getByRole('button', { name: 'Show metadata' }).click();
+    await expect(sample.getByText('Synthetic public knowledge')).toBeVisible();
+    await expect(sample.getByText('Synthetic internal knowledge')).toBeVisible();
+    await expect(sample.getByText('Other tenant synthetic knowledge')).toHaveCount(0);
+    await sample.getByLabel('Restricted and lower').check();
+    const [deniedKnowledge] = await Promise.all([
+      sample.waitForResponse((response) => new URL(response.url()).pathname === '/knowledge'
+        && response.request().method() === 'GET'),
+      sample.getByRole('button', { name: 'Show metadata' }).click(),
+    ]);
+    expect(deniedKnowledge.status()).toBe(403);
+    await expect(sample.getByText('Synthetic public knowledge')).toHaveCount(0);
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -724,6 +743,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await selectLocalContext(restricted);
       await expectCurrentAccess(restricted, 'Browser Transferee', ['owner.eligible']);
 
+      const deniedKnowledge = await restricted.goto('/knowledge');
+      expect(deniedKnowledge.status()).toBe(403);
+      await expect(restricted.getByText('Synthetic public knowledge')).toHaveCount(0);
       const globalObjectives = await restricted.goto('/objectives');
       expect(globalObjectives.status()).toBe(403);
       const deniedCases = await restricted.goto('/assessment-cases');

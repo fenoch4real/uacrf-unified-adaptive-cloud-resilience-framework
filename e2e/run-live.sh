@@ -62,6 +62,8 @@ objectives_admin_password="$(openssl rand -hex 24)"
 objectives_runtime_password="$(openssl rand -hex 24)"
 assessment_admin_password="$(openssl rand -hex 24)"
 assessment_runtime_password="$(openssl rand -hex 24)"
+knowledge_admin_password="$(openssl rand -hex 24)"
+knowledge_runtime_password="$(openssl rand -hex 24)"
 keycloak_admin_password="$(openssl rand -hex 24)"
 e2e_admin_password="$(openssl rand -hex 24)"
 e2e_approver_password="$(openssl rand -hex 24)"
@@ -97,6 +99,10 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'ASSESSMENT_DB_ADMIN_PASSWORD=%s\n' "$assessment_admin_password"
   printf 'ASSESSMENT_DB_USER=uacrf_assessment_runtime\n'
   printf 'ASSESSMENT_DB_PASSWORD=%s\n' "$assessment_runtime_password"
+  printf 'KNOWLEDGE_DB_ADMIN_USER=uacrf_knowledge_admin\n'
+  printf 'KNOWLEDGE_DB_ADMIN_PASSWORD=%s\n' "$knowledge_admin_password"
+  printf 'KNOWLEDGE_DB_USER=uacrf_knowledge_runtime\n'
+  printf 'KNOWLEDGE_DB_PASSWORD=%s\n' "$knowledge_runtime_password"
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME=admin\n'
   printf 'KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD=%s\n' "$keycloak_admin_password"
   printf 'KEYCLOAK_LOCAL_ADMIN_PASSWORD=%s\n' "$e2e_admin_password"
@@ -144,6 +150,7 @@ wait_for_url connections 'http://localhost:8085/actuator/health'
 wait_for_url evidence 'http://localhost:8086/actuator/health'
 wait_for_url objectives 'http://localhost:8087/actuator/health'
 wait_for_url assessment 'http://localhost:8089/actuator/health'
+wait_for_url knowledge 'http://localhost:8090/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'
 wait_for_url web 'http://localhost:8084/actuator/health'
@@ -163,6 +170,25 @@ VALUES
    'Other synthetic objective', 'sample.latency', 'LTE', 99.5, 'ms', 60, 'LOCAL',
    '3b374d98d7f9dbe4578f776d21aa4ef6d99952ec93a9a01695b9a8674a67be3f',
    'DRAFT', 1, 'test-fixture');
+SQL
+
+# Isolated synthetic metadata; insertion bypasses the knowledge lifecycle.
+"${compose[@]}" exec -T knowledge-db psql -v ON_ERROR_STOP=1 \
+  -U uacrf_knowledge_admin -d uacrf_knowledge <<'SQL'
+INSERT INTO uacrf_knowledge.knowledge_item (tenant_id, environment_id, item_id, revision)
+VALUES ('local-dev', 'local', 'browser-public', 1),
+       ('local-dev', 'local', 'browser-internal', 1),
+       ('other-tenant', 'local', 'browser-other', 1);
+INSERT INTO uacrf_knowledge.knowledge_version
+  (tenant_id, environment_id, item_id, version, title, source_ref, content, classification,
+   allowed_purposes, target_workload_ids, review_deadline, reason, source_digest, state, revision, proposed_by)
+VALUES
+  ('local-dev', 'local', 'browser-public', 'v1', 'Synthetic public knowledge', 'sample:public', 'fixture',
+   'PUBLIC', ARRAY['sample:review'], ARRAY[]::text[], '2035-01-01T00:00:00Z', 'Synthetic fixture', repeat('a',64), 'CANDIDATE', 1, 'test-fixture'),
+  ('local-dev', 'local', 'browser-internal', 'v1', 'Synthetic internal knowledge', 'sample:internal', 'fixture',
+   'INTERNAL', ARRAY['sample:review'], ARRAY[]::text[], '2035-01-01T00:00:00Z', 'Synthetic fixture', repeat('b',64), 'CANDIDATE', 1, 'test-fixture'),
+  ('other-tenant', 'local', 'browser-other', 'v1', 'Other tenant synthetic knowledge', NULL, 'fixture',
+   'PUBLIC', ARRAY['sample:review'], ARRAY[]::text[], '2035-01-01T00:00:00Z', 'Synthetic fixture', repeat('c',64), 'CANDIDATE', 1, 'test-fixture');
 SQL
 
 # Isolated synthetic records; insertion bypasses their workflows.

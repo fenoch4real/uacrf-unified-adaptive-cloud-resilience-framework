@@ -6,7 +6,7 @@ EDGE01 → S01/S02/S07 workflows against disposable infrastructure.
 ## Run
 
 Prerequisites: Docker with a running daemon, Node.js, npm, and free loopback
-ports 8080–8087, 8089, and 8180.
+ports 8080–8087, 8089, 8090, and 8180.
 
 ```sh
 npm ci --prefix e2e
@@ -15,7 +15,7 @@ npm --prefix e2e run test:live
 ```
 
 `test:live` builds the required application images, starts an isolated
-PostgreSQL/Keycloak/application stack, including S02, S03, and S07, waits for service
+PostgreSQL/Keycloak/application stack, including S02, S03, S07, and S08, waits for service
 health endpoints, and runs Playwright headlessly. It generates test passwords,
 client secrets, and delegation keys in a private temporary directory;
 credentials are not stored
@@ -114,6 +114,13 @@ fixture, an independent rejection and historical read, duplicate-decision
 conflict, and denial for an ungranted user. The synthetic fixture does not
 demonstrate successful evidence-qualified approval; review remains disabled by
 default outside this test stack and a decision does not authorize adoption.
+
+The suite also browses S08 metadata through UX01 and EDGE01. Independently
+granted public and internal read capabilities show the appropriate synthetic
+rows, exclude another tenant, and reject an ungranted restricted classification.
+A user without knowledge-read access is denied. These metadata fixtures are
+inserted directly into the disposable database, bypass the knowledge lifecycle,
+and are not provider acceptance or evidence of current eligibility.
 
 An identity manager can also disable an enabled principal from the directory
 with a required audit reason and the displayed revision. The browser does not

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Knowledge metadata | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css">
+</head>
+<body>
+<main>
+  <h1>Knowledge metadata</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/access">Back to current access</a></p>
+  <p>This unpaginated view lists recorded metadata, including candidate, approved, rejected,
+    superseded, and withdrawn versions. It does not retrieve content or establish current
+    eligibility or authorization to act. Source references are inert text and are not fetched.</p>
+  <search>
+    <form method="get" th:action="@{/knowledge}">
+      <fieldset>
+        <legend>Maximum classification</legend>
+        <p>Higher classifications require an explicit grant; denial will not fall back to public.</p>
+        <input id="public" type="radio" name="classification" value="PUBLIC" th:checked="${classification == 'PUBLIC'}">
+        <label for="public">Public</label>
+        <input id="internal" type="radio" name="classification" value="INTERNAL" th:checked="${classification == 'INTERNAL'}">
+        <label for="internal">Internal and public</label>
+        <input id="restricted" type="radio" name="classification" value="RESTRICTED" th:checked="${classification == 'RESTRICTED'}">
+        <label for="restricted">Restricted and lower</label>
+      </fieldset>
+      <p id="filter-help">Optional exact filters: up to 200 letters, digits, dots, underscores, colons, or hyphens, beginning with a letter or digit. Filters appear in the URL.</p>
+      <label for="itemId">Item ID</label>
+      <input id="itemId" name="itemId" type="text" maxlength="200" pattern="[A-Za-z0-9][A-Za-z0-9_.:\-]{0,199}"
+             th:value="${itemId}" aria-describedby="filter-help" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <label for="purpose">Purpose</label>
+      <input id="purpose" name="purpose" type="text" maxlength="200" pattern="[A-Za-z0-9][A-Za-z0-9_.:\-]{0,199}"
+             th:value="${purpose}" aria-describedby="filter-help" autocorrect="off" autocapitalize="none" spellcheck="false">
+      <button type="submit">Show metadata</button>
+    </form>
+  </search>
+  <p role="status" th:if="${knowledgeError != null}" th:text="${knowledgeError}"></p>
+  <p th:if="${knowledgeError == null and #lists.isEmpty(items)}">No knowledge metadata matches these filters.</p>
+  <ul class="inventory-list">
+    <li th:each="item : ${items}">
+      <h2 th:text="${item.title}">Title</h2>
+      <dl>
+        <dt>Item ID</dt><dd th:text="${item.itemId}">ID</dd>
+        <dt>Version</dt><dd th:text="${item.version}">Version</dd>
+        <dt>Recorded state</dt><dd th:text="${item.state}">State</dd>
+        <dt>Classification</dt><dd th:text="${item.classification}">Classification</dd>
+        <dt>Allowed purposes</dt><dd th:text="${#strings.listJoin(item.allowedPurposes, ', ')}">Purposes</dd>
+        <dt>Target workloads</dt><dd th:text="${#lists.isEmpty(item.targetWorkloadIds) ? 'No workload restriction recorded' : #strings.listJoin(item.targetWorkloadIds, ', ')}">Workloads</dd>
+        <dt>Review deadline</dt><dd th:text="${item.reviewDeadline}">Deadline</dd>
+        <dt>Source reference (inert)</dt><dd th:text="${item.sourceRef != null ? item.sourceRef : 'Not specified'}">Source</dd>
+        <dt>Source digest</dt><dd th:text="${item.sourceDigest}">Digest</dd>
+        <dt>Reason</dt><dd th:text="${item.reason}">Reason</dd>
+        <dt>Revision</dt><dd th:text="${item.revision}">Revision</dd>
+        <dt>Proposed by</dt><dd th:text="${item.proposedBy}">Proposer</dd>
+        <dt>Reviewed by</dt><dd th:text="${item.reviewedBy != null ? item.reviewedBy : 'Not recorded'}">Reviewer</dd>
+        <dt>Review reason</dt><dd th:text="${item.reviewReason != null ? item.reviewReason : 'Not recorded'}">Review reason</dd>
+        <dt>Withdrawn by</dt><dd th:text="${item.withdrawnBy != null ? item.withdrawnBy : 'Not recorded'}">Withdrawer</dd>
+        <dt>Withdrawal reason</dt><dd th:text="${item.withdrawalReason != null ? item.withdrawalReason : 'Not recorded'}">Withdrawal reason</dd>
+        <dt>Created at</dt><dd th:text="${item.createdAt}">Created</dd>
+      </dl>
+    </li>
+  </ul>
+</main>
+</body>
+</html>

@@ -15,7 +15,7 @@ RUN mkdir -p /opt/maven \
     && rm /tmp/apache-maven-3.10.0-bin.tar.gz
 COPY . .
 RUN /opt/maven/bin/mvn --batch-mode --no-transfer-progress \
-    -pl services/api-edge,services/experience-api,services/identity,services/estate-catalog,services/connections,services/decision-governance,services/evidence,services/objectives,services/topology,services/assessment,web \
+    -pl services/api-edge,services/experience-api,services/identity,services/estate-catalog,services/connections,services/decision-governance,services/evidence,services/objectives,services/topology,services/assessment,services/knowledge,web \
     -am -Dmaven.test.skip=true package \
     && mkdir -p /out \
     && cp services/api-edge/target/api-edge-*.jar /out/api-edge.jar \
@@ -28,6 +28,7 @@ RUN /opt/maven/bin/mvn --batch-mode --no-transfer-progress \
     && cp services/objectives/target/objectives-service-*.jar /out/objectives-service.jar \
     && cp services/topology/target/topology-service-*.jar /out/topology-service.jar \
     && cp services/assessment/target/assessment-service-*.jar /out/assessment-service.jar \
+    && cp services/knowledge/target/knowledge-service-*.jar /out/knowledge-service.jar \
     && cp web/target/web-*.jar /out/web.jar \
     && rm -rf /root/.m2
 
@@ -87,6 +88,11 @@ ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
 FROM runtime-base AS assessment
 COPY --from=build --chown=10001:10001 /out/assessment-service.jar /app/app.jar
 EXPOSE 8089
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
+
+FROM runtime-base AS knowledge
+COPY --from=build --chown=10001:10001 /out/knowledge-service.jar /app/app.jar
+EXPOSE 8090
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "/app/app.jar"]
 
 FROM runtime-base AS web
