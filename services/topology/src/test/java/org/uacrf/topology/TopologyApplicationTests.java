@@ -71,6 +71,12 @@ class TopologyApplicationTests {
     HttpResponse<String> pending=get("/v1/commands/"+receipt.get("command_id").asString(),bob);
     assertEquals(200,pending.statusCode());
     assertEquals("ACCEPTED",json.readTree(pending.body()).get("status").asString());
+    String scopedBob=token("bob","command-admission","svc",List.of("topology.graph.read"));
+    String otherScope=token("bob","command-admission","other-service",List.of("topology.graph.read"));
+    assertEquals(202,postCommand("/v1/graphs/subgraphs:select",scopedBob,"selection-key",body).statusCode());
+    assertEquals(200,get("/v1/commands/"+receipt.get("command_id").asString(),scopedBob).statusCode());
+    assertEquals(403,postCommand("/v1/graphs/subgraphs:select",otherScope,"selection-key",body).statusCode());
+    assertEquals(404,get("/v1/commands/"+receipt.get("command_id").asString(),otherScope).statusCode());
     while (graphCommandWorker.processNext()) {
       if (!activeCommandStatus(json.readTree(get("/v1/commands/"+receipt.get("command_id").asString(),bob).body()).get("status").asString())) break;
     }
@@ -564,6 +570,30 @@ class TopologyApplicationTests {
     JsonNode receipt=json.readTree(post("/internal/v1/graphs/"+id+":receipt",reviewer,"{}").body());
     assertEquals(digest,receipt.get("digest").asString()); assertEquals("PENDING",receipt.get("projection_status").asString()); assertThat(receipt.get("eligibility").asBoolean()).isFalse();
     assertEquals(1,db.queryForObject("SELECT count(*) FROM uacrf_topology.outbox_event WHERE tenant_id='life' AND event_type='uacrf.s06.graph.accepted.v1'",Integer.class));
+  }
+
+  @Test void genericTopologyReadsRequireGlobalScope() throws Exception {
+    String writer=token("alice","read-scope","*",ALL), reviewer=token("bob","read-scope","*",ALL);
+    createAndApprove(writer,reviewer,proposal("scope-proposal","service","svc","DEPENDS_ON",
+        "agent_workload","agent","AUTHORED",""),"scope-proposal");
+    String graphId=json.readTree(post("/v1/graphs:accept",reviewer,accept(0)).body()).get("id").asString();
+    String scoped=token("reader","read-scope","svc",List.of("topology.graph.read"));
+    String other=token("reader","read-scope","other-service",List.of("topology.graph.read"));
+    for (String reader:List.of(scoped,other)) {
+      for (String path:List.of(
+          "/v1/dependency-proposals",
+          "/v1/dependency-proposals/scope-proposal",
+          "/v1/graphs/"+graphId,
+          "/v1/graphs/"+graphId+"/reconciliation",
+          "/v1/graphs/"+graphId+"/subgraph?root_type=service&root_id=svc&depth=1",
+          "/v1/graphs/"+graphId+"/impact?entity_type=service&entity_id=svc")) {
+        assertEquals(403,get(path,reader).statusCode(),path);
+      }
+      assertEquals(403,post("/internal/v1/graphs/"+graphId+":receipt",reader,"{}").statusCode());
+    }
+    assertEquals(200,get("/v1/dependency-proposals/scope-proposal",reviewer).statusCode());
+    assertEquals(200,get("/v1/graphs/"+graphId,reviewer).statusCode());
+    assertEquals(200,post("/internal/v1/graphs/"+graphId+":receipt",reviewer,"{}").statusCode());
   }
   @Test void validatesProvenanceRolesAndDatabaseInvariant() throws Exception {
     String actor=token("alice","validation","*",ALL);

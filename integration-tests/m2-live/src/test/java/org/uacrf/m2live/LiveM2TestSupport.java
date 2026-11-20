@@ -733,6 +733,14 @@ final class LiveM2TestSupport {
           tenantId, environmentId, principalId, actorSubject, "S06", TOPOLOGY_CAPABILITIES);
     }
 
+    String scopedTopologyToken(String principalId, String actorSubject, String serviceId) {
+      DelegationPrincipal principal =
+          new DelegationPrincipal(
+              principalId, tenantId, environmentId, serviceId, IDP_ISSUER, actorSubject,
+              List.of("topology.graph.read"), List.of(), List.of());
+      return "Bearer " + TOKEN_ISSUER.issue(principal, "S06");
+    }
+
     String objectiveToken(String principalId, String actorSubject, List<String> capabilities) {
       return bearer(tenantId, environmentId, principalId, actorSubject, "S05", capabilities);
     }
@@ -787,7 +795,11 @@ final class LiveM2TestSupport {
 
     Response select(Fixture fixture, String principalId, String actorSubject, String suffix)
         throws IOException, InterruptedException {
-      String token = topologyToken(principalId, actorSubject);
+      return select(fixture, topologyToken(principalId, actorSubject), suffix);
+    }
+
+    Response select(Fixture fixture, String token, String suffix)
+        throws IOException, InterruptedException {
       String body =
           json(
               Map.of(

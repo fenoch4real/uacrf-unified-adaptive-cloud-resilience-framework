@@ -1,5 +1,37 @@
 # M2 Focused Runtime Validation Report
 
+## 2026-11-20: rebuilt-service scope verification
+
+The following targeted API-only rerun repackaged the live S01, S02, S05, S06
+and S07 JARs before starting isolated PostgreSQL-backed service processes and
+Neo4j:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress \
+  -pl services/identity,services/estate-catalog,services/assessment,services/objectives,services/topology \
+  -am -DskipTests package
+./mvnw --batch-mode --no-transfer-progress -pl integration-tests/m2-live -am \
+  -Dtest=M2AuthorizedSelectionLiveTests,M2ObjectiveDriftLiveTests \
+  -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+Both commands exited 0. The two process tests passed with no failures, errors
+or skips; service readiness took 48.4 and 42.3 seconds respectively. The
+authorized-selection test used a locally signed, exact-service fixture
+assertion and seeded membership, exercised real S01 exchanges and S02/S05/S06/S07,
+and verified that generic graph and graph-receipt reads are denied, while the
+matching service command succeeds and another scope cannot read its status.
+The drift test exercised the S05 objective receipt and classification against
+an objective change. Docker was available; Node.js v26.13.1 was available, but
+browser E2E is not applicable to this API-only scope.
+
+The later five-test run previously described in the S05 tracker used Maven
+`test` without repackaging the service JARs, so it cannot establish that the
+then-current S05 scope changes were exercised. This rebuilt two-test run
+supersedes that claim for the covered paths only. Production identity and
+provider conformance, S04 evidence-backed topology and full M2 acceptance
+remain unverified.
+
 **Generated**: 2026-11-19
 **Target**: UACRF objective-context API and S03-to-S04 outbox process flow
 

@@ -55,7 +55,12 @@ class M2AuthorizedSelectionLiveTests {
       String expectedSetDigest =
           sha256(workloadId + "|" + objectiveId + ":" + revision + ":" + contentDigest);
 
-      String bearer = environment.topologyToken(principalId, actorSubject);
+      String bearer = environment.scopedTopologyToken(principalId, actorSubject, serviceId);
+      String otherScope = environment.scopedTopologyToken(principalId, actorSubject, "other-service");
+      assertEquals(403, environment.request(environment.topologyUrl(), "GET",
+          "/v1/graphs/" + fixture.graphId(), bearer, null, null).statusCode());
+      assertEquals(403, environment.request(environment.topologyUrl(), "POST",
+          "/internal/v1/graphs/" + fixture.graphId() + ":receipt", bearer, null, null).statusCode());
       LiveM2TestSupport.Response missingToken =
           environment.request(
               environment.topologyUrl(),
@@ -67,10 +72,12 @@ class M2AuthorizedSelectionLiveTests {
       assertEquals(401, missingToken.statusCode());
 
       LiveM2TestSupport.Response accepted =
-          environment.select(fixture, principalId, actorSubject, suffix);
+          environment.select(fixture, bearer, suffix);
       assertEquals(202, accepted.statusCode(), accepted.body());
       String commandId = (String) LiveM2TestSupport.readJson(accepted.body()).get("command_id");
       assertNotNull(commandId);
+      assertEquals(404, environment.request(environment.topologyUrl(), "GET",
+          "/v1/commands/" + commandId, otherScope, null, null).statusCode());
 
       Map<String, Object> status = environment.awaitCommand(commandId, bearer);
       assertEquals("SUCCEEDED", status.get("status"));

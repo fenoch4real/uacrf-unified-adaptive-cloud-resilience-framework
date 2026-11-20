@@ -12,7 +12,7 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Milestone and capability tracker
 
-**Status snapshot: 2026-11-19.** This roll-up summarizes the evidence and gaps
+**Status snapshot: 2026-11-20.** This roll-up summarizes the evidence and gaps
 recorded in the detailed sections below; it is not a percentage-complete
 estimate.
 
@@ -994,9 +994,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   an objective proposal, approval, activation or ownership-validation test.
   A separately admitted user with only a matching service-scoped objective
   grant was denied both global and filtered browser reads.
-  The five-test live M2 process suite passed with no failures, errors or skips,
-  including the S06 selection and classification flows using S01 workload-
-  and purpose-bound S05 receipt delegations.
+  The earlier five-test live M2 process suite passed, but its `test` command
+  did not repackage service JARs and therefore cannot establish that it
+  exercised the latest S05 changes. The rebuilt-service targeted verification
+  is recorded in the S06 section below.
 - Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
   (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
   APPROVED, ACTIVE). Activation supersedes the active objective for the same
@@ -1098,6 +1099,22 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 ## M2 / S06 topology (first slice)
 
 - `services/topology` (port 8088, audience S06, schema/database `uacrf_topology`) is the sole authority, backed by PostgreSQL. Neo4j is provisioned in Compose for the S06 projection; only S06 writes it. The off-by-default projection worker is lease-based, idempotent, reads back projected content and verifies the accepted revision digest before a graph can be eligible. Reconciliation reports missing/extra topology and makes drifted receipts ineligible.
+- Generic proposal, graph, subgraph, impact, reconciliation and internal graph
+  receipt reads require global `topology.graph.read`. A service-scoped grant
+  previously reached tenant-wide results; matching an arbitrary graph scope
+  or a node ID does not prove service ownership of all returned content.
+  These reads fail closed until an owner-verified boundary is implemented.
+  Service-bound selection/classification commands and their status retain their
+  existing exact-service scope checks; no grant is widened.
+- The topology/delegation reactor passed 50 tests with no failures, errors or
+  skips. After rebuilding the S01, S02, S05, S06 and S07 service JARs, two
+  focused M2 process tests passed: the authorized selection used a locally
+  signed, service-scoped fixture assertion and real S01 resource exchanges,
+  while the drift test exercised the S05 objective receipt and change
+  classification. The live test also verified that generic graph and receipt
+  reads are denied for that scope and command status is denied for a different
+  scope. Memberships and caller assertions were test fixtures; production
+  identity conformance and broader M2 acceptance remain unverified.
 - Public operations are routed by EDGE01 under `/internal/topology`: `POST/GET /v1/dependency-proposals`, `POST /v1/dependency-proposals:evidence-backed`, `GET /v1/dependency-proposals/{id}`, `POST /v1/dependency-proposals/{id}:review`, `POST /v1/graphs:accept`, `GET /v1/graphs/{id}`, `GET /v1/graphs/{id}/subgraph`, `GET /v1/graphs/{id}/impact`, `GET /v1/graphs/{id}/reconciliation`, `POST /v1/graphs/subgraphs:select`, `POST /v1/graphs/differences:classify`, and `GET /v1/commands/{id}`. The private `POST /internal/v1/graphs/{id}:receipt` endpoint is not routed.
 - The evidence-backed path currently accepts only human-authored `agent_workload DEPENDS_ON agent_workload` proposals. S06 obtains short-lived, resource/purpose-bound delegations from S01, signed active-version receipts from S02, and a bounded qualified-evidence summary from S04. It rechecks owner state during proposal, review, and current-use receipt preparation; stale or unavailable evidence fails closed without rewriting historical accepted revisions. Separate S02 RSA signing-key and S06 public-verification-key settings are required before enabling this path. Focused service tests cover each boundary and the EDGE01 route, but a live S01/S02/S04/S06 deployment integration test has not yet been run.
 - PostgreSQL owns `permitted_relationships`, `dependency_proposals`, `graph_revisions`, `graph_nodes`, `graph_edges`, `graph_edge_conflicts`, `graph_projections`, and `outbox_event`. New revisions receive a `PENDING` projection row transactionally; existing revisions are backfilled. Projection status is `PENDING`, `PROJECTING`, `PROJECTED`, `FAILED`, or `DRIFTED`; only `PROJECTED` with a matching verified digest is eligible. Proposals are tenant/environment scoped and constrained by a relationship allowlist. Observed proposals require source system, source revision, and verification time; authored proposals forbid those observed-source fields. Reviews use expected revisions and require a reviewer distinct from the proposer.

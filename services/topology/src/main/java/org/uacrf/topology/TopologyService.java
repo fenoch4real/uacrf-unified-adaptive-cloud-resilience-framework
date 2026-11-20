@@ -27,7 +27,7 @@ class TopologyService {
   @Transactional
   Proposal proposeEvidence(Jwt jwt, EvidenceBackedPropose r) {
     DelegationPrincipal a=DelegationPrincipal.from(jwt);
-    permit(a,"topology.proposal.write",true);
+    permit(a,"topology.proposal.write");
     requireHuman(a);
     if (!"agent_workload".equals(r.sourceType()) || !"agent_workload".equals(r.targetType()) || !"DEPENDS_ON".equals(r.relationshipType()))
       throw bad("INVALID_RELATIONSHIP","Evidence-backed proposals only support agent workload dependencies.");
@@ -43,7 +43,7 @@ class TopologyService {
 
   @Transactional
   Proposal propose(DelegationPrincipal a, Propose r) {
-    permit(a,"topology.proposal.write",true);
+    permit(a,"topology.proposal.write");
     String relationshipType=canonicalRelationshipType(r.relationshipType());
     boolean any = r.sourceSystem()!=null || r.sourceRevision()!=null || r.verifiedAt()!=null;
     if (r.provenanceKind()==ProvenanceKind.AUTHORED && any || r.provenanceKind()==ProvenanceKind.OBSERVED && (r.sourceSystem()==null || r.sourceSystem().isBlank() || r.sourceRevision()==null || r.sourceRevision().isBlank() || r.verifiedAt()==null))
@@ -56,7 +56,7 @@ class TopologyService {
   @Transactional
   Proposal review(Jwt jwt, String id, Review r) {
     DelegationPrincipal a=DelegationPrincipal.from(jwt);
-    permit(a,"topology.proposal.review",true);
+    permit(a,"topology.proposal.review");
     List<Map<String,Object>> rows=db.queryForList("SELECT proposer,status,revision FROM "+S+"dependency_proposals WHERE tenant_id=? AND environment_id=? AND id=? FOR UPDATE",a.tenantId(),a.environmentId(),id);
     if(rows.isEmpty()) throw missing();
     Map<String,Object> row=rows.getFirst();
@@ -74,7 +74,7 @@ class TopologyService {
     return result;
   }
   @Transactional(readOnly=true)
-  Proposal proposal(DelegationPrincipal a,String id) { permit(a,"topology.graph.read",false); return findProposal(a,id); }
+  Proposal proposal(DelegationPrincipal a,String id) { permit(a,"topology.graph.read"); return findProposal(a,id); }
   private Proposal findProposal(DelegationPrincipal a,String id) {
     List<Proposal> rows=db.query("SELECT "+PC+" FROM "+S+"dependency_proposals WHERE tenant_id=? AND environment_id=? AND id=?",(rs,n)->proposalRow(rs),a.tenantId(),a.environmentId(),id);
     if(rows.isEmpty()) throw missing(); return enrich(a,rows.getFirst());
@@ -109,7 +109,7 @@ class TopologyService {
   }
   @Transactional(readOnly=true)
   Page<Proposal> list(DelegationPrincipal a,int size,String cursor) {
-    permit(a,"topology.graph.read",false);
+    permit(a,"topology.graph.read");
     if(size<1||size>100) throw bad("INVALID_REQUEST","pageSize must be between 1 and 100.");
     String after="";
     if(cursor!=null && !cursor.isBlank()) try { after=new String(Base64.getUrlDecoder().decode(cursor),StandardCharsets.UTF_8); if(after.isBlank()||after.length()>200) throw new IllegalArgumentException(); } catch(IllegalArgumentException ex) { throw bad("INVALID_REQUEST","Invalid cursor."); }
@@ -134,7 +134,7 @@ class TopologyService {
   private static List<Object> provenance(Proposal p) { return Arrays.asList(p.provenanceKind(),p.sourceSystem(),p.sourceRevision(),p.verifiedAt()); }
   @Transactional
   Graph accept(DelegationPrincipal a,Accept r) {
-    permit(a,"topology.graph.accept",true);
+    permit(a,"topology.graph.accept");
     db.queryForList("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",a.tenantId().length()+":"+a.tenantId()+a.environmentId().length()+":"+a.environmentId()+r.scope().length()+":"+r.scope());
     List<Map<String,Object>> latest=db.queryForList("SELECT id,revision_number,digest FROM "+S+"graph_revisions WHERE tenant_id=? AND environment_id=? AND scope=? ORDER BY revision_number DESC LIMIT 1",a.tenantId(),a.environmentId(),r.scope());
     long current=latest.isEmpty()?0:((Number)latest.getFirst().get("revision_number")).longValue();
@@ -185,7 +185,7 @@ class TopologyService {
     db.update("INSERT INTO "+S+"outbox_event (event_id,tenant_id,environment_id,aggregate_type,aggregate_id,aggregate_sequence,event_type,payload,payload_digest) VALUES (?,?,?,'GRAPH',?,?,?,?::jsonb,?)",UUID.randomUUID(),a.tenantId(),a.environmentId(),id,revision,type,payload,GraphDigest.sha256(payload));
   }
   @Transactional(readOnly=true)
-  Graph graph(DelegationPrincipal a,String id) { permit(a,"topology.graph.read",false); return findGraph(a,id); }
+  Graph graph(DelegationPrincipal a,String id) { permit(a,"topology.graph.read"); return findGraph(a,id); }
   private Graph findGraph(DelegationPrincipal a,String id) {
     List<Map<String,Object>> rows=db.queryForList("SELECT scope,revision_number,digest,accepted_by,accepted_at FROM "+S+"graph_revisions WHERE tenant_id=? AND environment_id=? AND id=?",a.tenantId(),a.environmentId(),id);
     if(rows.isEmpty()) throw missing(); Map<String,Object> r=rows.getFirst();
@@ -198,7 +198,7 @@ class TopologyService {
   @Transactional
   Receipt receipt(Jwt jwt,String id) {
     DelegationPrincipal a=DelegationPrincipal.from(jwt);
-    permit(a,"topology.graph.read",false);
+    permit(a,"topology.graph.read");
     Graph g=findGraph(a,id);
     List<Map<String,Object>> rows=db.queryForList("SELECT status,verified_digest FROM "+S+"graph_projections WHERE tenant_id=? AND environment_id=? AND graph_id=?",a.tenantId(),a.environmentId(),id);
     if(rows.isEmpty()) throw missing();
@@ -230,7 +230,7 @@ class TopologyService {
 
   @Transactional
   Reconciliation reconciliation(DelegationPrincipal a,String id) {
-    permit(a,"topology.graph.read",false);
+    permit(a,"topology.graph.read");
     Graph expected=findGraph(a,id);
     List<Map<String,Object>> projections=db.queryForList("SELECT status FROM "+S+"graph_projections WHERE tenant_id=? AND environment_id=? AND graph_id=?",a.tenantId(),a.environmentId(),id);
     if(projections.isEmpty()) throw missing();
@@ -263,7 +263,7 @@ class TopologyService {
   private static List<Edge> edgesMissing(Map<EdgeIdentity,Edge> left,Map<EdgeIdentity,Edge> right) { return left.entrySet().stream().filter(entry->!right.containsKey(entry.getKey())).map(Map.Entry::getValue).toList(); }
   @Transactional(readOnly=true)
   Subgraph subgraph(DelegationPrincipal a,String id,String type,String rootId,int depth) {
-    permit(a,"topology.graph.read",false); if(depth<0||depth>5) throw bad("INVALID_DEPTH","depth must be between 0 and 5.");
+    permit(a,"topology.graph.read"); if(depth<0||depth>5) throw bad("INVALID_DEPTH","depth must be between 0 and 5.");
     Graph g=findGraph(a,id); Node root=new Node(type,rootId); if(!g.nodes().contains(root)) throw missing();
     Set<Node> seen=new LinkedHashSet<>(); seen.add(root); Set<Edge> selected=new LinkedHashSet<>(); Set<Node> frontier=Set.of(root);
     for(int i=0;i<depth;i++) { Set<Node> next=new LinkedHashSet<>(); for(Edge e:g.edges()) if(frontier.contains(new Node(e.sourceType(),e.sourceId()))) { selected.add(e); Node target=new Node(e.targetType(),e.targetId()); if(seen.add(target)) next.add(target); } frontier=next; }
@@ -272,7 +272,7 @@ class TopologyService {
   private record Walk(Node node,int flags,List<Node> path) {}
   @Transactional(readOnly=true)
   Impact impact(DelegationPrincipal a,String id,String type,String entityId) {
-    permit(a,"topology.graph.read",false); Graph g=findGraph(a,id); Node root=new Node(type,entityId); if(!g.nodes().contains(root)) throw missing();
+    permit(a,"topology.graph.read"); Graph g=findGraph(a,id); Node root=new Node(type,entityId); if(!g.nodes().contains(root)) throw missing();
     ArrayDeque<Walk> queue=new ArrayDeque<>(); queue.add(new Walk(root,flag(root),List.of(root))); List<Path> paths=new ArrayList<>(); Set<Node> models=new LinkedHashSet<>(),identities=new LinkedHashSet<>(),cloud=new LinkedHashSet<>(),regions=new LinkedHashSet<>(),domains=new LinkedHashSet<>();
     while(!queue.isEmpty()) { Walk w=queue.remove(); paths.add(new Path(w.node,w.flags==3?"MIXED":w.flags==2?"AGENT_ONLY":"SERVICE_ONLY",w.path));
       switch(w.node.entityType()){case "model"->models.add(w.node);case "identity"->identities.add(w.node);case "cloud_resource"->cloud.add(w.node);case "region"->regions.add(w.node);case "failure_domain"->domains.add(w.node);default->{}}
@@ -281,7 +281,7 @@ class TopologyService {
     return new Impact(id,root,paths,List.copyOf(models),List.copyOf(identities),List.copyOf(cloud),List.copyOf(regions),List.copyOf(domains));
   }
   private static int flag(Node n) { return n.entityType().equals("service")?1:n.entityType().equals("agent_workload")?2:0; }
-  private static void permit(DelegationPrincipal a,String capability,boolean write) { if(!a.capabilities().contains(capability)||write&&!a.serviceScope().equals("*")) throw new TopologyException(HttpStatus.FORBIDDEN,"PERMISSION_DENIED","The current principal cannot perform this topology operation."); }
+  private static void permit(DelegationPrincipal a,String capability) { if(!a.capabilities().contains(capability)||!"*".equals(a.serviceScope())) throw new TopologyException(HttpStatus.FORBIDDEN,"PERMISSION_DENIED","The current principal cannot perform this topology operation."); }
   private static void requireHuman(DelegationPrincipal a) {
     if(!a.eligibleOwnerIds().contains(a.principalId()))
       throw new TopologyException(HttpStatus.FORBIDDEN,"HUMAN_IDENTITY_UNVERIFIED","A signed S01 eligible-human assertion is required.");
