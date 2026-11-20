@@ -217,6 +217,63 @@ class IdentityApplicationTests {
   }
 
   @Test
+  void currentAccessReportsEarliestEffectiveCapabilityExpiryForItsScope() throws Exception {
+    String principal = "expiry-horizon-test";
+    Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    UUID laterGlobal = UUID.randomUUID();
+    UUID scopedBeta = UUID.randomUUID();
+    try {
+      seedGrantParticipant(principal);
+      for (Object[] grant :
+          List.of(
+              new Object[] {UUID.randomUUID(), "test.alpha", "*", now.plusSeconds(3600), null},
+              new Object[] {laterGlobal, "test.alpha", "*", now.plusSeconds(7200), null},
+              new Object[] {UUID.randomUUID(), "test.alpha", "svc-1", now.plusSeconds(10800), null},
+              new Object[] {scopedBeta, "test.beta", "svc-1", now.plusSeconds(1800), null},
+              new Object[] {UUID.randomUUID(), "test.other", "svc-2", now.plusSeconds(600), null},
+              new Object[] {UUID.randomUUID(), "test.revoked", "*", now.plusSeconds(300), now},
+              new Object[] {UUID.randomUUID(), "test.expired", "*", now.minusSeconds(300), null})) {
+        jdbc.update(
+            "INSERT INTO uacrf_identity.membership "
+                + "(id, tenant_id, environment_id, principal_id, capability, service_scope, "
+                + "expires_at, revoked_at, revision) VALUES (?, 'tenant-test', 'environment-test', "
+                + "?, ?, ?, ?, ?, 1)",
+            grant[0], principal, grant[1], grant[2], java.sql.Timestamp.from((Instant) grant[3]),
+            grant[4] == null ? null : java.sql.Timestamp.from((Instant) grant[4]));
+      }
+      String actor = token(principal + "-subject");
+      String path = "/v1/me/access?tenant_id=tenant-test&environment_id=environment-test";
+      HttpResponse<String> global = get(path, actor);
+      assertEquals(200, global.statusCode());
+      assertThat(global.body())
+          .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(7200) + "\"")
+          .doesNotContain("test.beta", "test.other", "test.revoked", "test.expired");
+      HttpResponse<String> scoped = get(path + "&service_id=svc-1", actor);
+      assertEquals(200, scoped.statusCode());
+      assertThat(scoped.body())
+          .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(1800) + "\"")
+          .contains("test.alpha", "test.beta")
+          .doesNotContain("test.other", "test.revoked", "test.expired");
+
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", laterGlobal);
+      assertThat(get(path, actor).body())
+          .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(3600) + "\"");
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", scopedBeta);
+      assertThat(get(path + "&service_id=svc-1", actor).body())
+          .contains("\"capability_expiry_horizon\":\"" + now.plusSeconds(10800) + "\"");
+      jdbc.update(
+          "UPDATE uacrf_identity.membership SET revoked_at = now() "
+              + "WHERE principal_id = ? AND service_scope = '*' AND revoked_at IS NULL",
+          principal);
+      assertThat(get(path, actor).body())
+          .contains("\"capability_ids\":[]", "\"capability_expiry_horizon\":null");
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id = ?", principal);
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id = ?", principal);
+    }
+  }
+
+  @Test
   void advisoryRunGrantRequiresIndependentApprovalHumanAndGlobalScope() throws Exception {
     String context = "?tenant_id=tenant-test&environment_id=environment-test";
     String expiresAt = Instant.now().plusSeconds(30L * 86400)

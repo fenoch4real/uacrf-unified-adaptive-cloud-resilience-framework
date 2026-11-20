@@ -11,7 +11,8 @@ final class IdentityResponses {
       String kind,
       String serviceId,
       String scope,
-      List<String> capabilityIds) {}
+      List<String> capabilityIds,
+      java.time.Instant capabilityExpiryHorizon) {}
 
   record CurrentContext(String tenantId, String tenantName, String environmentId, String environmentName) {}
 

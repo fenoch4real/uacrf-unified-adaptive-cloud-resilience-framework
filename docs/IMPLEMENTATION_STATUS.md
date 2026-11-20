@@ -284,6 +284,14 @@ test passed with no failures, errors, or skips.
   UX01; S01 remains authoritative for validation and mutation. These are
   initial slices, not full public route coverage, edge traffic-limit policies,
   or live service-to-service acceptance.
+- S01 current access returns a capability expiry horizon computed from the
+  selected scope: the earliest of each returned capability's latest active
+  membership expiry, or null for an empty set. Duplicate grants and
+  global/service scope are included in the calculation. This point-in-time
+  metadata is not a guarantee of continued access: revocation, newly granted
+  capabilities, principal or context changes, and token expiry can change
+  authority sooner. S09 does not yet consume it; it is not a cross-service
+  reservation or commit fence.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed
   capabilities, owners, and runtime principals. S01 now issues narrowed
   delegations after checking the user's current membership authority. The

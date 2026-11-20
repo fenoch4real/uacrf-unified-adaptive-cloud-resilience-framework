@@ -290,14 +290,16 @@ class IdentityAccessService {
         serviceId == null
             ? new Object[] {actor.tenantId(), actor.environmentId(), actor.principalId()}
             : new Object[] {actor.tenantId(), actor.environmentId(), actor.principalId(), serviceId};
-    List<String> capabilities =
+    List<CapabilityExpiry> grants =
         jdbc.query(
-            "SELECT DISTINCT capability FROM uacrf_identity.membership "
+            "SELECT capability, max(expires_at) AS expires_at FROM uacrf_identity.membership "
                 + "WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? "
                 + "AND revoked_at IS NULL AND expires_at > now() "
                 + serviceScopeClause
-                + "ORDER BY capability",
-            (rs, row) -> rs.getString("capability"),
+                + "GROUP BY capability ORDER BY capability",
+            (rs, row) ->
+                new CapabilityExpiry(
+                    rs.getString("capability"), rs.getTimestamp("expires_at").toInstant()),
             membershipArguments);
     String scope =
         serviceId == null
@@ -309,7 +311,8 @@ class IdentityAccessService {
         actor.kind(),
         serviceId,
         scope,
-        capabilities);
+        grants.stream().map(CapabilityExpiry::capability).toList(),
+        grants.stream().map(CapabilityExpiry::expiresAt).min(Instant::compareTo).orElse(null));
   }
 
   @Transactional(readOnly = true)
@@ -1648,6 +1651,8 @@ class IdentityAccessService {
 
   private record MembershipState(
       String capability, String serviceScope, long revision, boolean revoked) {}
+
+  private record CapabilityExpiry(String capability, Instant expiresAt) {}
 
   private record ContextCursor(String tenantId, String environmentId) {}
 

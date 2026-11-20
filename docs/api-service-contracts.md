@@ -50,6 +50,14 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 
 Creation routes generally return 201; ordinary reads and synchronous mutations return 200. The asynchronous S06 command endpoints and accepted observation/inbox operations return 202. Validation and authorization failures use service error responses; gateways preserve downstream status except when an upstream connection is unavailable.
 
+S01's `/v1/me/access` includes `capability_expiry_horizon`: the earliest
+expiration among the latest active membership for each returned capability
+in the selected scope, or `null` when the capability set is empty. Duplicate
+grants extend a capability to their latest expiration. This is snapshot
+metadata, not a validity guarantee: revocations, additions, principal or
+context changes, and token expiry can take effect sooner. It is not a
+reservation or a commit fence.
+
 S02's active workload-version receipt accepts `profile_id` to identify a
 version within its workload. Without it, a version ID matching multiple
 visible active workloads returns `AMBIGUOUS_WORKLOAD_VERSION` (409).
