@@ -48,7 +48,7 @@ measured against the target services and their executed tests.
 
 - [Microservices architecture](docs/ARCHITECTURE.md) —
   service boundaries, data ownership, and system behavior.
-- [Cloud-ecosystem architecture diagram](docs/architecture-diagram.md) and
+- [Architecture overview and diagrams](docs/architecture-overview.md) and
   [API and service communication contracts](docs/api-service-contracts.md) —
   service, infrastructure, provider, agent, and communication views.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —

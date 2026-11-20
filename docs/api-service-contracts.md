@@ -65,10 +65,10 @@ The existing decision expiry, single-use, and membership expiry rules apply.
 No automatic membership is created.
 
 The browser's explicit sample-import form requires a current eligible owner and
-global S03 connection and observation write grants. It imports the inventory
-subset only, reports quarantine or uncertain partial results, and replays
-identical operations for the same user, context, and owner. No provider is
-contacted, and no evidence is qualified.
+global S03 connection and observation write grants. It imports accepted
+synthetic inventory and metric observations, reports quarantine or uncertain
+partial results, and replays identical operations for the same user, context,
+and owner. No provider is contacted, and no evidence is qualified.
 
 ## Management & Observability Endpoints
 
@@ -84,8 +84,9 @@ S03's [inventory-observation projection](../services/connections/README.md#read-
 is an authorized, on-read view of retained observations, not qualified evidence or a
 deduplicated resource inventory. EDGE01 forwards its internal route; the browser application
 uses a context-bound S03 read delegation to list connections, inventory observations, and the
-paginated collection outcome report. The report's browser cursor is independent of inventory
-pagination, and its status and timestamp semantics are documented in the
+paginated collection outcome report. Paginated raw observation payloads are shown only for
+`SAMPLE_LOCAL` connections. The report's browser cursor is independent of inventory pagination,
+and its status and timestamp semantics are documented in the
 [S03 collection outcome report](../services/connections/README.md#collection-outcome-report).
 
 For S06 command status, `TopologyController.commandStatus` returns the compact map produced by `TopologyGraphCommandService.status`: `command_id`, `status`, `terminal`, `domain_completion`, and conditionally `advisory_result`. The declared `TopologyResponses.CommandStatus` record has a different field set and is not used by this handler. The public advisory result exposes bounded selection nodes/edges or bounded classification changes; the internal `s04_summary_coverage` map and evidence summaries are not part of the status response.

@@ -6,7 +6,7 @@ complete yet. The repository now contains tested slices across several
 services, but they do not yet constitute an accepted end-to-end microservices
 system.
 
-The [comprehensive UACRF cloud-ecosystem architecture diagram](architecture-diagram.md)
+The [UACRF architecture overview and diagrams](architecture-overview.md)
 shows the current services, agents, cloud-provider integrations, and target
 infrastructure; dotted connections identify planned or unaccepted paths.
 
