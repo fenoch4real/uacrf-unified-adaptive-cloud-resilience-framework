@@ -311,9 +311,11 @@ test passed with no failures, errors, or skips.
   delegation (8), advisory (169), identity (41), catalog (24), evidence (27),
   assessment (50), knowledge (17), and web (110) tests; the live
   S01/S02/S07/S08 advisory process test also passed. The separate
-  evidence/assessment process test failed because its existing provider
-  fixture does not meet S04's observation schema; the combined reactor is
-  therefore not green. A web client regression
+  evidence/assessment process test initially failed because its existing
+  provider fixture did not meet S04's observation schema. After updating the
+  fixture, a clean rerun of the selected reactor passed all 448 tests,
+  including both live process tests, with no failures or skips. This is not a
+  full-reactor or production-acceptance result. A web client regression
   verifies that the additive S01 fields do not break current access
   deserialization; the web suite passed 110 tests.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed

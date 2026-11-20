@@ -139,12 +139,17 @@ class EvidenceAssessmentCrossServiceTests {
           List.of("assessment.model.write"));
       String other = token(issuer, "other", "other-tenant", ENVIRONMENT, "S04", List.of("evidence.event.read"));
       String observedAt = Instant.now().minusSeconds(30).truncatedTo(java.time.temporal.ChronoUnit.MICROS).toString();
-      String payload = "{\"metric\":\"latency\",\"value\":5,\"unit\":\"ms\"}";
+      String payload = "{\"metric\":\"latency\",\"value\":5,\"unit\":\"ms\","
+          + "\"window_start\":\"" + Instant.parse(observedAt).minusSeconds(60) + "\","
+          + "\"window_end\":\"" + observedAt + "\"}";
       String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
           .digest(payload.getBytes(StandardCharsets.UTF_8)));
-      String observation = JSON.writeValueAsString(Map.of("id", "e1", "source_class", "PROVIDER",
-          "source_ref", "source-1", "sequence", 1, "observed_at", observedAt,
-          "kind", "a", "payload", payload, "payload_digest", digest));
+      String observation = JSON.writeValueAsString(Map.ofEntries(
+          Map.entry("id", "e1"), Map.entry("source_class", "PROVIDER"),
+          Map.entry("source_ref", "source-1"), Map.entry("sequence", 1),
+          Map.entry("observed_at", observedAt), Map.entry("kind", "measurement.latency"),
+          Map.entry("service_id", "svc-1"), Map.entry("schema_version", "UACRF_OBSERVATION_V1"),
+          Map.entry("payload", payload), Map.entry("payload_digest", digest)));
       assertEquals("ACCEPTED", post(evidence, "/internal/v1/observations", submit, observation, 202)
           .get("status").asString());
       post(evidence, "/v1/evidence/e1/reviews", review,
@@ -153,12 +158,12 @@ class EvidenceAssessmentCrossServiceTests {
           + "\"comparator\":\"LTE\",\"threshold\":10,\"unit\":\"ms\",\"window_seconds\":3600,"
           + "\"objective_ref\":{\"objective_id\":\"o1\",\"revision\":1,\"digest\":\"od\"},"
           + "\"graph_ref\":{\"graph_id\":\"g1\",\"revision\":1,\"digest\":\"gd\"},"
-          + "\"required_source_kinds\":[\"a\"]}";
+          + "\"required_source_kinds\":[\"measurement.latency\"]}";
       String caseId = post(assessment, "/v1/cases", actor, caseBody, 201).get("id").asString();
       post(assessment, "/v1/cases/" + caseId + ":seal", actor, "{\"expected_revision\":1}", 200);
       String cutoff = Instant.now().plusSeconds(5).toString();
       String evaluation = "{\"mode\":\"LIVE\",\"observation_cutoff\":\"" + cutoff
-          + "\",\"measurements\":[{\"source_receipt_id\":\"e1\",\"source_kind\":\"a\","
+          + "\",\"measurements\":[{\"source_receipt_id\":\"e1\",\"source_kind\":\"measurement.latency\","
           + "\"observed_at\":\"" + observedAt + "\",\"value\":5,\"unit\":\"ms\"}]}";
       String path = "/v1/cases/" + caseId + ":evaluate";
       JsonNode before = post(assessment, path, actor, evaluation, 201);
@@ -213,7 +218,8 @@ class EvidenceAssessmentCrossServiceTests {
       assertEquals(401, send("POST", evidence, "/internal/v1/qualifications/e1:measurement", actor,
           "{\"purpose\":\"assessment\",\"metric\":\"latency\",\"cutoff\":\"" + cutoff + "\"}").statusCode());
       assertEquals("REPLAY_CONFLICT", post(evidence, "/internal/v1/observations", submit,
-          observation.replace("\"kind\":\"a\"", "\"kind\":\"other\""), 202).get("reason").asString());
+          observation.replace("\"kind\":\"measurement.latency\"", "\"kind\":\"measurement.other\""), 202)
+          .get("reason").asString());
       JsonNode rejectedIncident = post(assessment, "/v1/incidents", actor, incidentBody, 409);
       assertEquals("OWNER_REVALIDATION_FAILED", rejectedIncident.get("code").asString());
       assertEquals("OWNER_REVALIDATION_FAILED", post(assessment,
