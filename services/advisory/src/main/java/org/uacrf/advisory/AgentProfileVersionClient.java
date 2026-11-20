@@ -233,14 +233,18 @@ final class AgentProfileVersionClient {
   }
 
   private static long integer(Object value, long min, long max, String field) throws IOException {
-    if (!(value instanceof Number number)
-        || number instanceof Float
-        || number instanceof Double
-        || number.longValue() < min
-        || number.longValue() > max) {
+    long number;
+    if (value instanceof Integer integer) {
+      number = integer.longValue();
+    } else if (value instanceof Long integer) {
+      number = integer;
+    } else {
       throw new IOException("S02 returned invalid " + field + ".");
     }
-    return number.longValue();
+    if (number < min || number > max) {
+      throw new IOException("S02 returned invalid " + field + ".");
+    }
+    return number;
   }
 
   private static void requireFields(Map<?, ?> value, Set<String> required, String field)

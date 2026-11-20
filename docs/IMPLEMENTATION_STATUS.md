@@ -1332,7 +1332,8 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   isolation, immutable plans and records, substitution rejection, and deadline
   failure. A delayed-plan regression confirms that expiration before database
   activation rejects and rolls back the run, idempotency, and outbox rows. The
-  clean advisory suite passed 160 tests with no failures, errors, or skips. No
+  advisory suite passed 163 tests with no failures, errors, or skips in an
+  isolated copy of the changed source. No
   service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
   Both durable journal admission and its lower-level run-registration path
@@ -1429,6 +1430,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   binds profile/version identity, manifest digest, model and instruction pins,
   and request limits to that receipt before final S01 requester, S02 profile,
   and S08 retrieval rechecks.
+  S02 receipt integer parsing rejects out-of-range and non-integral version
+  numbers and limits rather than truncating oversized values. A regression
+  reproduces the former wraparound, including a manifest with a matching
+  digest. Two existing digest-mismatch and missing-catalog-grant tests were
+  moved out of an anonymous clock so the test runner actually executes them.
   It retains immutable copies of the checked requests and selections. The
   cross-service test exercises this composition with real S01, S02, S07 and
   S08 services; this remains a point-in-time check, not an atomic authorization

@@ -497,50 +497,6 @@ class OwnerReceiptClientTests {
         return ZoneOffset.UTC;
       }
 
-      @Test
-      void rejectsProfileReceiptWithManifestDigestMismatch() throws Exception {
-        activeVersionReply.set(
-            new Reply(200, ACTIVE_VERSION_BODY.replace("\"model-a\"", "\"model-b\"")));
-        var reader =
-            new AgentProfileVersionClient(
-                base,
-                true,
-                (tenant, environment, audience, capabilities) -> "test-token-S02",
-                new InternalJsonClient(Duration.ofSeconds(5)));
-        assertThrows(
-            IOException.class,
-            () ->
-                reader.fetchActive(
-                    "tenant-1",
-                    "env-1",
-                    Map.of("analyst", profilePins("model-a", "a".repeat(64)))));
-      }
-
-      @Test
-      void profilePreparationRequiresCurrentCatalogReadBeforeOwnerReads() {
-        requesterReply.set(
-            new Reply(200, REQUESTER_ACCESS.replace(",\"catalog.agent.read\"", "")));
-        var verifier = new RequesterSourceCheck(true, base, base, base, base, true);
-        var source =
-            new DigestBoundArtifact(
-                "artifact:sha256:" + EXCERPT_DIGEST,
-                EXCERPT_DIGEST,
-                EXCERPT.getBytes(StandardCharsets.UTF_8));
-        assertThrows(
-            IOException.class,
-            () ->
-                verifier.checkWithProfiles(
-                    "requester-token",
-                    "tenant-1",
-                    "env-1",
-                    EXPECTED,
-                    Map.of(EXCERPT_DIGEST, source),
-                    Map.of("analyst", profilePins("model-a", "a".repeat(64)))));
-        assertEquals(1, requesterAccessCalls.get());
-        assertEquals(0, identityCalls.get());
-        assertEquals(0, caseCalls.get());
-      }
-
       @Override
       public Clock withZone(ZoneId zone) {
         return this;
@@ -565,6 +521,71 @@ class OwnerReceiptClientTests {
     assertThrows(IOException.class,
         () -> check.checkWithProfiles("requester-token", "tenant-1", "env-1", request,
             EXPECTED, model, prompt, sources, Map.of("analyst", pin), Map.of("analyst", limits)));
+  }
+
+  @Test
+  void rejectsProfileReceiptWithManifestDigestMismatch() {
+    activeVersionReply.set(
+        new Reply(200, ACTIVE_VERSION_BODY.replace("\"model-a\"", "\"model-b\"")));
+    var reader =
+        new AgentProfileVersionClient(
+            base, true, (tenant, environment, audience, capabilities) -> "test-token-S02",
+            new InternalJsonClient(Duration.ofSeconds(5)));
+    assertThrows(IOException.class,
+        () -> reader.fetchActive("tenant-1", "env-1",
+            Map.of("analyst", profilePins("model-a", "a".repeat(64)))));
+  }
+
+  @Test
+  void profilePreparationRequiresCurrentCatalogReadBeforeOwnerReads() {
+    requesterReply.set(new Reply(200, REQUESTER_ACCESS.replace(",\"catalog.agent.read\"", "")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, base, true);
+    var source =
+        new DigestBoundArtifact(
+            "artifact:sha256:" + EXCERPT_DIGEST, EXCERPT_DIGEST,
+            EXCERPT.getBytes(StandardCharsets.UTF_8));
+    assertThrows(IOException.class,
+        () -> verifier.checkWithProfiles("requester-token", "tenant-1", "env-1", EXPECTED,
+            Map.of(EXCERPT_DIGEST, source),
+            Map.of("analyst", profilePins("model-a", "a".repeat(64)))));
+    assertEquals(1, requesterAccessCalls.get());
+    assertEquals(0, identityCalls.get());
+    assertEquals(0, caseCalls.get());
+  }
+
+  @Test
+  void rejectsOutOfRangeAndNonIntegralProfileReceiptNumbers() throws Exception {
+    var reader =
+        new AgentProfileVersionClient(
+            base, true, (tenant, environment, audience, capabilities) -> "test-token-S02",
+            new InternalJsonClient(Duration.ofSeconds(5)));
+    var pins = Map.of("analyst", profilePins("model-a", "a".repeat(64)));
+    assertEquals(1, reader.fetchActive("tenant-1", "env-1", pins).get("analyst").versionNumber());
+    activeVersionReply.set(new Reply(200,
+        ACTIVE_VERSION_BODY.replace("\"version_number\":1", "\"version_number\":9223372036854775807")));
+    assertEquals(Long.MAX_VALUE,
+        reader.fetchActive("tenant-1", "env-1", pins).get("analyst").versionNumber());
+    for (String invalid : List.of(
+        "18446744073709551617", "9223372036854775808", "-18446744073709551615", "1.5", "0")) {
+      activeVersionReply.set(new Reply(200,
+          ACTIVE_VERSION_BODY.replace("\"version_number\":1", "\"version_number\":" + invalid)));
+      assertEquals("S02 returned invalid version_number.",
+          assertThrows(IOException.class, () -> reader.fetchActive("tenant-1", "env-1", pins), invalid)
+              .getMessage());
+    }
+
+    String invalidManifest = WORKLOAD_VERSION_MANIFEST.replace(
+        "\"tokens\":100", "\"tokens\":18446744073709551716");
+    var json = JsonMapper.builder().build();
+    String invalidDigest = Sha256.hex(
+        json.writeValueAsBytes(json.readValue(invalidManifest, Object.class)));
+    activeVersionReply.set(new Reply(200, ACTIVE_VERSION_BODY
+        .replace(WORKLOAD_VERSION_MANIFEST, invalidManifest)
+        .replace(WORKLOAD_VERSION_DIGEST, invalidDigest)));
+    var invalidPins = new ProfileConfigurationCheck.VersionPins(
+        "version-1", invalidDigest, "model-a", "a".repeat(64), 100, 5, 30);
+    assertEquals("S02 returned invalid tokens.", assertThrows(IOException.class,
+        () -> reader.fetchActive("tenant-1", "env-1", Map.of("analyst", invalidPins))).getMessage());
   }
 
   private static DigestBoundArtifact configuration(String text) {
