@@ -752,6 +752,19 @@ class OwnerReceiptClientTests {
   }
 
   @Test
+  void rejectsRequesterCapabilityChangesDuringSourceReads() {
+    requesterReplyAfterContent.set(
+        new Reply(200, REQUESTER_ACCESS.replace("\"catalog.agent.read\"", "\"knowledge.extra.read\"")));
+    var verifier = new RequesterSourceCheck(true, base, base, base, true);
+
+    assertEquals("Requester capabilities changed during source checking.",
+        assertThrows(IOException.class,
+            () -> verifier.check("requester-token", "tenant-1", "env-1", EXPECTED)).getMessage());
+    assertEquals(2, requesterAccessCalls.get());
+    assertEquals(1, contentCalls.get());
+  }
+
+  @Test
   void refreshRejectsRequesterRevokedDuringCaseMaterialRead() {
     requesterReplyAfterCaseMaterial.set(
         new Reply(200, REQUESTER_ACCESS.replace("\"advisory.run.create\",", "")));

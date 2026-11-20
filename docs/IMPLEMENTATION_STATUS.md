@@ -1332,18 +1332,22 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   isolation, immutable plans and records, substitution rejection, and deadline
   failure. A delayed-plan regression confirms that expiration before database
   activation rejects and rolls back the run, idempotency, and outbox rows. The
-  clean advisory suite passed 159 tests with no failures, errors, or skips. No
+  clean advisory suite passed 160 tests with no failures, errors, or skips. No
   service handler uses the admission or delivery library paths;
   no outbox publisher or provider dispatch is wired.
   Journal admission now accepts only the private-constructor S01 requester
   proof, which binds a HUMAN principal with `advisory.run.create` to the exact
   tenant/environment; a scope-mismatch regression confirms no journal or
-  outbox rows are created. This is a point-in-time check and does not prevent
-  later S01 revocation or establish that owner context remains unchanged at
-  commit. No connected handler or current-context commit guard is wired; the
-  publisher and provider dispatch remain disabled, and the operation remains
-  `PENDING_CONNECTED_VERIFICATION`. The MS01 design check passes 24 consistency
-  checks; target runtime acceptance remains not evaluated.
+  outbox rows are created. Requester source checking also requires the refreshed
+  S01 capability set to exactly match the initial proof and fails closed on
+  drift; a changed-but-still-eligible capability regression verifies that
+  stale permissions cannot drive delegated owner reads. These are point-in-time
+  checks and do not prevent later S01 revocation or establish that owner
+  context remains unchanged at commit. No connected handler or current-context
+  commit guard is wired; the publisher and provider dispatch remain disabled,
+  and the operation remains `PENDING_CONNECTED_VERIFICATION`. The MS01 design
+  check passes 24 consistency checks; target runtime acceptance remains not
+  evaluated.
 - `services/advisory` contains an internal provider-neutral invocation contract
   and a disabled gateway. This is a library foundation, not a deployable service;
   its durable journal and scheduling outbox are not consumed by a connected
@@ -1431,7 +1435,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   decision. After the final S07, requester and S02 refreshes, preparation
   re-reads the S08 retrieval receipt with a fresh delegation and rejects a
   changed, withdrawn, or unavailable receipt before returning the snapshot.
-  A simulated-owner regression covers withdrawal during the requester refresh.
+  Requester refresh also rejects capability-set drift, including a changed set
+  that would still pass minimum authorization checks; a regression covers this
+  case. These sequential checks do not provide an atomic authorization
+  decision. A simulated-owner regression covers withdrawal during the
+  requester refresh.
   Preparation now constructs a distinct,
   bounded JSON input packet per role from the verified sealed case material,
   selected prompt text, and receipt-verified excerpts. It generates each

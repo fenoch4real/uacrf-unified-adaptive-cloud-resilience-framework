@@ -163,6 +163,9 @@ final class RequesterSourceCheck {
     if (!requester.id().equals(refreshed.id())) {
       throw new IOException("Requester identity changed during source checking.");
     }
+    if (!requester.capabilities().equals(refreshed.capabilities())) {
+      throw new IOException("Requester capabilities changed during source checking.");
+    }
     if (profileReader != null
         && !profileVersions.equals(profileReader.fetchActive(tenantId, environmentId, expectedProfiles))) {
       throw new IOException("S02 active workload versions changed during source checking.");
