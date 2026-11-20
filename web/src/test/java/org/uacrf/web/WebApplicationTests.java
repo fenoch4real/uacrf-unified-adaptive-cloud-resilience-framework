@@ -2669,7 +2669,9 @@ class WebApplicationTests {
                   "kind":"HUMAN",
                   "service_id":null,
                   "scope":"GLOBAL_GRANTS_ONLY",
-                  "capability_ids":["identity.membership.read"]
+                  "capability_ids":["identity.membership.read"],
+                  "capability_expiry_horizon":"2099-01-01T00:00:00Z",
+                  "session_expires_at":"2098-01-01T00:00:00Z"
                 }
                 """,
                 MediaType.APPLICATION_JSON));

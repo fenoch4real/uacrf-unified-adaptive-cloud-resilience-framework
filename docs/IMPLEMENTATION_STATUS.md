@@ -294,7 +294,9 @@ test passed with no failures, errors, or skips.
   S01 also reports `session_expires_at` from the authenticated JWT, or null
   when absent. S09 requires both expirations to be parseable and future and
   rejects changes between initial and refreshed requester reads. Deploy S01's
-  response changes before that S09 client; older responses fail closed.
+  response changes before that S09 client; older responses fail closed. A web
+  client regression verifies that the additive S01 fields do not break current
+  access deserialization; the web suite passed 110 tests.
 - S02 authenticates short-lived RS256 delegation JWTs and checks claimed
   capabilities, owners, and runtime principals. S01 now issues narrowed
   delegations after checking the user's current membership authority. The
