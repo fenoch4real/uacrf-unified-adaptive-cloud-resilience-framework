@@ -85,6 +85,12 @@ class ObjectivesRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> inspectImportSample(String authorization, String id) {
+    return send(objectivesRestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/v1/objective-imports/{id}/sample-source").build(id)),
+        authorization);
+  }
+
   ResponseEntity<String> listImportPreviews(String authorization, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uriBuilder -> {
       uriBuilder.path("/v1/objective-imports").queryParam("pageSize", pageSize);

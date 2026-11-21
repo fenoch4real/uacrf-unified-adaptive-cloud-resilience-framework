@@ -181,7 +181,8 @@ the unkeyed route.
   digest detects inconsistency, not privileged tampering or trusted provenance.
   The client is disabled by default; endpoints require HTTPS except explicitly
   enabled loopback HTTP. This read does not approve mappings, verify a provider,
-  or process an import.
+  or process an import. EDGE01 forwards the same pending-request inspection
+  with its original S05 delegation and `no-store` responses.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

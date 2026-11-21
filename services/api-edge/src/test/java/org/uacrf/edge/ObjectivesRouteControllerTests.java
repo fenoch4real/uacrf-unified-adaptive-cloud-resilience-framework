@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
@@ -24,6 +25,31 @@ import org.springframework.web.client.RestClient;
 
 class ObjectivesRouteControllerTests {
   private static final String URL = "http://objectives.test";
+
+  @Test
+  void forwardsSampleInspectionWithAuthorizationAndNoStoreOnSuccessAndDenial() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    HttpStatus[] statuses = {HttpStatus.OK, HttpStatus.FORBIDDEN, HttpStatus.NOT_FOUND,
+        HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus status : statuses) {
+      server.expect(requestTo(URL + "/v1/objective-imports/import-1/sample-source"))
+          .andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withStatus(status).contentType(MediaType.APPLICATION_JSON)
+              .body("{\"verification\":\"SYNTHETIC_UNVERIFIED\"}"));
+    }
+    for (HttpStatus status : statuses) {
+      mvc.perform(get("/internal/objectives/v1/objective-imports/import-1/sample-source")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(status().is(status.value()))
+          .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json("{\"verification\":\"SYNTHETIC_UNVERIFIED\"}"));
+    }
+    server.verify();
+  }
 
   @Test
   void forwardsPublicOperationsToTheFixedOwnerAndDoesNotRouteInternalEndpoints() throws Exception {

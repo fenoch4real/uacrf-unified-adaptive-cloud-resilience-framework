@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**144 completed / 803 total** · 659 open
+**145 completed / 804 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 54 | 216 |
+| Milestone items | 55 | 217 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -320,6 +320,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-025a Read an explicitly synthetic objective definition through a matching active sample connection and binding, without asserting source verification. Evidence: R-0124–R-0125.
   - [x] M2-025b Add a purpose-bound S05-to-S03 synthetic-read exchange with separate current global grants; verify its issuer and receiver independently. Evidence: R-0142–R-0143.
   - [x] M2-025c Connect and verify the purpose-bound synthetic source read across S05, S01 and S03 using real local services. Evidence: R-0150–R-0153; not trusted source verification or import processing.
+  - [x] M2-025d Forward pending-request synthetic inspection through EDGE01 without changing authorization, no-store or failure semantics. Evidence: R-0166.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
@@ -1261,6 +1262,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0161 | 2026-11-20 | M2-027b | Started binding standalone comparisons to the supported definition fingerprint version rather than comparing unversioned digest strings. | No persisted comparison or migration is enabled. |
 | R-0162 | 2026-11-20 | M2-027b | `./mvnw -pl services/objectives -am clean test` passed 44 S05 and 8 shared-security tests; three-way comparison accepts typed supported-version digests and rejects missing, malformed or unsupported values. | The standalone classifier does not establish completeness, verified withdrawal or persisted source/local state. |
 | R-0163 | 2026-11-20 | M2-027b | Updated private technical approach Appendix AB to revision 197; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the classifier is not connected to persisted imports. |
+| R-0164 | 2026-11-20 | M2-027b | Committed the version-bound comparison foundation as `919ec38` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0165 | 2026-11-20 | M2-025d | Started forwarding the S05 pending-request sample inspection through EDGE01. | This is not yet a browser flow or import processing. |
+| R-0166 | 2026-11-20 | M2-025d | `./mvnw -pl services/api-edge -am clean test` passed 33 EDGE01 tests; the new route forwards the S05 delegation, response body and success/denial/not-found/unavailable statuses with no-store. | The test uses a mock owner; browser integration and import processing remain open. |
+| R-0167 | 2026-11-20 | M2-025d | Updated private technical approach Appendix AB to revision 198; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; browser integration remains open. |
 
 ## Implementation evidence
 

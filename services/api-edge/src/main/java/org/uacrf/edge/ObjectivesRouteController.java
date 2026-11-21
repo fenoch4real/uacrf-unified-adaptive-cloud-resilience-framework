@@ -88,6 +88,13 @@ class ObjectivesRouteController {
     return forward(() -> objectives.getImportPreview(authorization, id));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-source")
+  ResponseEntity<String> inspectImportSample(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> objectives.inspectImportSample(authorization, id));
+  }
+
   @GetMapping("/v1/objective-imports")
   ResponseEntity<String> listImportPreviews(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
