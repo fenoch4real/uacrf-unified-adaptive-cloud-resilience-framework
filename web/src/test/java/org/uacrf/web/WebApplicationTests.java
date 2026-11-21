@@ -291,6 +291,51 @@ class WebApplicationTests {
         .param("principalName", "local-admin-subject");
   }
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveImport() {
+    return post("/objectives/import").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("connectionId", "sample-connection").param("externalObjectiveId", "sample-slo")
+        .param("targetWorkloadId", "workload-a").param("mappingRevision", "1")
+        .param("expectedLocalRevision", "0").param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void objectiveImportPreservesUncertainRetryAndSeparatesReadAuthorization() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-writer", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    var receipt = new ObjectivesClient.ImportReceipt(id, "PENDING", "/v1/objective-imports/" + id, "NOT_ESTABLISHED");
+    when(objectives.previewImport(anyString(), anyString(), any()))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(receipt);
+    when(objectives.importReceipt("objective-reader", id))
+        .thenReturn(new ObjectivesClient.ImportReceipt(id, "PENDING", "/v1/objective-imports/" + id, null));
+    mockMvc.perform(objectiveImport()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("outcome is unconfirmed")))
+        .andExpect(content().string(containsString("sample-slo")));
+    mockMvc.perform(objectiveImport()).andExpect(status().isOk())
+        .andExpect(content().string(containsString("no source has been fetched or verified")));
+    mockMvc.perform(get("/objectives/import/receipt").param("id", id).with(browserLogin())
+        .session(sessionWithSelectedContext())).andExpect(status().isOk())
+        .andExpect(content().string(containsString("PENDING")));
+    verify(objectives).importReceipt("objective-reader", id);
+  }
+
+  @Test
+  void objectiveImportRejectsInvalidContextInputAndMissingCsrf() throws Exception {
+    mockMvc.perform(objectiveImport().with(request -> { request.setParameter("mappingRevision", "0"); return request; }))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(objectiveImport().with(request -> { request.setParameter("tenantId", "other"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(post("/objectives/import").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(identity, objectives);
+  }
+
   @Test
   void objectiveCreationUsesGlobalWriteGrantAndRetainsUnconfirmedForm() throws Exception {
     when(identity.createDelegation("test-access-token", "S05", null,

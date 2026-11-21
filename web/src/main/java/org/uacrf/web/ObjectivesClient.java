@@ -92,6 +92,35 @@ class ObjectivesClient {
     return result;
   }
 
+  ImportReceipt previewImport(String token, String key, ImportPreview request) {
+    ImportReceipt receipt = restClient.post().uri("/v1/objective-imports:preview")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(request).retrieve().body(ImportReceipt.class);
+    if (!validImportReceipt(receipt) || !"NOT_ESTABLISHED".equals(receipt.runtimeVerification())) {
+      throw new IllegalStateException("S05 returned an invalid import preview receipt.");
+    }
+    return receipt;
+  }
+
+  ImportReceipt importReceipt(String token, String id) {
+    ImportReceipt receipt = restClient.get().uri("/v1/objective-imports/{id}", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(ImportReceipt.class);
+    if (!validImportReceipt(receipt) || !id.equals(receipt.receiptId())) {
+      throw new IllegalStateException("S05 returned an invalid import preview receipt.");
+    }
+    return receipt;
+  }
+
+  private static boolean validImportReceipt(ImportReceipt receipt) {
+    if (receipt == null || !present(receipt.receiptId()) || !"PENDING".equals(receipt.status())
+        || !("/v1/objective-imports/" + receipt.receiptId()).equals(receipt.readResource())) return false;
+    try {
+      return java.util.UUID.fromString(receipt.receiptId()).toString().equals(receipt.receiptId());
+    } catch (IllegalArgumentException error) {
+      return false;
+    }
+  }
+
   Objective submit(String token, String id, String key, long revision, String digest) {
     Objective result = restClient.post().uri("/v1/objectives/{id}:idempotent-submit", id)
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
@@ -168,6 +197,16 @@ class ObjectivesClient {
   record DecisionRecordPage(@JsonProperty("objective_id") String objectiveId, List<DecisionRecord> items,
       @JsonProperty("next_cursor") String nextCursor,
       @JsonProperty("history_may_be_incomplete") Boolean historyMayBeIncomplete) {}
+
+  record ImportPreview(@JsonProperty("connection_id") String connectionId,
+      @JsonProperty("external_objective_id") String externalObjectiveId,
+      @JsonProperty("target_workload_id") String targetWorkloadId,
+      @JsonProperty("mapping_revision") Long mappingRevision,
+      @JsonProperty("expected_local_revision") Long expectedLocalRevision) {}
+
+  record ImportReceipt(@JsonProperty("receipt_id") String receiptId, String status,
+      @JsonProperty("read_resource") String readResource,
+      @JsonProperty("runtime_verification") String runtimeVerification) {}
 
   record LocalObjective(String id, @JsonProperty("workload_id") String workloadId,
       String title, String metric, String comparator, BigDecimal target, String unit,

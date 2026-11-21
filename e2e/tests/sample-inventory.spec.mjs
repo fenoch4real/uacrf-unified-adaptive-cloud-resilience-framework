@@ -958,6 +958,32 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('link', { name: 'Older decision records' })).toHaveCount(0);
     await sample.getByRole('link', { name: 'First decision records page' }).click();
     await expect(sample.getByRole('listitem')).toHaveCount(25);
+    await sample.goto('/objectives/import');
+    await expect(sample.locator('main')).toContainText('No worker currently resolves the connection');
+    await sample.getByLabel('Connection ID (required)').fill('synthetic-import-connection');
+    await sample.getByLabel('External objective ID (required)').fill('synthetic-objective-definition');
+    await sample.getByLabel('Target workload ID (required)').fill('browser-objective-workload');
+    await sample.getByLabel('Mapping revision (required, at least 1)').fill('1');
+    await sample.getByLabel('Expected local revision (required, 0 if none)').fill('0');
+    const [importRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/objectives/import'),
+      sample.getByRole('button', { name: 'Record pending preview request' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Objective import request receipt' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('PENDING');
+    await expect(sample.locator('main')).toContainText('no source has been fetched or verified');
+    expect((await sample.request.post('/objectives/import', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: importRequest.postData(),
+    })).status()).toBe(200);
+    const changedImport = new URLSearchParams(importRequest.postData());
+    changedImport.set('externalObjectiveId', 'changed-synthetic-definition');
+    expect((await sample.request.post('/objectives/import', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedImport.toString(),
+    })).status()).toBe(409);
+    const importReceiptUrl = await sample.getByRole('link', { name: 'Read current request status' }).getAttribute('href');
+    await sample.getByRole('link', { name: 'Read current request status' }).click();
+    await expect(sample.locator('main')).toContainText('PENDING');
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -1329,6 +1355,20 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       expect(deniedSubmissionRead.status()).toBe(403);
       const deniedReviewRead = await restricted.goto(`/objectives/review?id=${newObjectiveId}`);
       expect(deniedReviewRead.status()).toBe(403);
+      expect((await restricted.goto(importReceiptUrl)).status()).toBe(403);
+      await restricted.goto('/objectives/import');
+      await restricted.getByLabel('Connection ID (required)').fill('synthetic-import-connection');
+      await restricted.getByLabel('External objective ID (required)').fill('denied-synthetic-definition');
+      await restricted.getByLabel('Target workload ID (required)').fill('browser-objective-workload');
+      await restricted.getByLabel('Mapping revision (required, at least 1)').fill('1');
+      await restricted.getByLabel('Expected local revision (required, 0 if none)').fill('0');
+      const [deniedImport] = await Promise.all([
+        restricted.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/objectives/import'),
+        restricted.getByRole('button', { name: 'Record pending preview request' }).click(),
+      ]);
+      expect(deniedImport.status()).toBe(403);
+      await expect(restricted.getByRole('alert')).toContainText('not authorized');
       await restricted.goto('/objectives/new');
       const restrictedSubmission = new URLSearchParams(submissionRequest.postData());
       for (const field of ['_csrf', 'principalName', 'tenantId', 'environmentId']) {

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Objective import receipt | UACRF</title></head>
+<body><main>
+  <h1>Objective import request receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/objectives">Back to objectives</a></p>
+  <p>The request is pending and no source has been fetched or verified. It is not a preview,
+    a proposal, approval, activation or evidence of provider acceptance.</p>
+  <p role="alert" th:if="${receiptError != null}" th:text="${receiptError}"></p>
+  <div th:if="${receipt != null}">
+    <dl><dt>Receipt ID</dt><dd th:text="${receipt.receiptId}">ID</dd>
+      <dt>Status</dt><dd th:text="${receipt.status}">PENDING</dd></dl>
+    <p><a th:href="@{/objectives/import/receipt(id=${receipt.receiptId})}">Read current request status</a>
+      (requires separate global read access)</p>
+  </div>
+</main></body></html>

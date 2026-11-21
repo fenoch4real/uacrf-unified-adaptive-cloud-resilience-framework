@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**129 completed / 788 total** · 659 open
+**131 completed / 790 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 39 | 201 |
+| Milestone items | 41 | 203 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -322,6 +322,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
+  - [x] M2-030a Connect pending preview admission and receipt readback to UX01 without implying that a source was fetched. Evidence: R-0094–R-0097.
+  - [x] M2-030b Verify pending preview admission, replay, conflict, authorization and receipt readback in the isolated browser. Evidence: R-0097.
 - [ ] M2-031 Publish and consume objective outbox events with idempotent downstream handling.
 
 ### S06 graph and S14 reporting
@@ -1174,6 +1176,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0089 | 2026-11-20 | M2-024a | Packaged S01, S02, S05, S06 and S07 and dependencies with `-DskipTests`; Maven exited 0. | The real-service owner-check test has not yet run against these artifacts. |
 | R-0090 | 2026-11-20 | M2-024b | Rebuilt-service `M2ObjectiveWorkloadOwnerLiveTests` exited 0: 1 test passed against real local S01, S02 and S05 processes, including retry-safe owner proposal and activation, unchanged replays and non-owner denial preserving the existing active objective. | Test-signed identities and seeded memberships are not production identity acceptance; checks remain point-in-time, not atomic cross-service fences. |
 | R-0091 | 2026-11-20 | M2-024 | Updated private technical approach Appendix AB to revision 184; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; production identity and provider acceptance remain open. |
+| R-0092 | 2026-11-20 | M2-024 | Committed retry-safe owner-check process verification as `4b0d39c` and pushed it to `origin/main`. | Production identity and provider acceptance remain open. |
+| R-0093 | 2026-11-20 | M2-030a–M2-030b | Started connecting the existing pending import-preview command to the browser. | No worker fetches or verifies a source yet; receipt status remains PENDING. |
+| R-0094 | 2026-11-20 | M2-030a | Clean focused UX01 tests passed 3/3 for pending import request forwarding, separate receipt read authorization, CSRF, invalid input and uncertain retries. | Full regression and isolated browser verification remain pending. |
+| R-0095 | 2026-11-20 | M2-030a | `./mvnw -pl web -am -Dsurefire.failIfNoSpecifiedTests=false clean test` exited 0: 200 tests passed. | Isolated browser verification remains pending. |
+| R-0096 | 2026-11-20 | M2-030b | Checked the runner's fixed loopback ports; no listeners were reported. Started the isolated browser suite. | Awaiting result; its disposable Compose project is scoped to the runner. |
+| R-0097 | 2026-11-20 | M2-030a–M2-030b | `bash e2e/run-live.sh` exited 0: all 11 browser tests passed, including pending import admission, unchanged replay, changed-request conflict, separate receipt readback and ungranted-user denial. | The stack is disposable and synthetic; it does not fetch or verify a source or establish provider acceptance. |
+| R-0098 | 2026-11-20 | M2-030a–M2-030b | Updated private technical approach Appendix AB to revision 185; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; actual import processing and provider acceptance remain open. |
 
 ## Implementation evidence
 
@@ -2341,6 +2350,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   admission only; it is not import completion or a provider/source acceptance claim.
   The focused `./mvnw -q -pl services/objectives,services/api-edge -am test`
   gate passed 36 S05 and API Edge tests with no failures, errors or skips.
+- UX01 now submits pending import-preview requests with a context- and
+  principal-bound retry key and reads receipts with a separate read delegation.
+  The clean UX01 regression passed 200 tests and the isolated browser suite
+  passed 11 tests, including admission, replay, conflict and denial. No worker
+  fetches or verifies a source, performs comparison or creates a proposal.
 - S01 registers the `objectives.*` capabilities and issues S05 delegations. EDGE01
   routes only the public operations under `/internal/objectives`.
 - S01 now restricts new `objectives.objective.review` grants to human principals

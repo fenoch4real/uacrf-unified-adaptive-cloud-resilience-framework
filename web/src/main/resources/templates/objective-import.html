@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request objective import preview | UACRF</title></head>
+<body><main>
+  <h1>Request objective import preview</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/objectives">Back to objectives</a></p>
+  <p>This only records a pending request. No worker currently resolves the connection, fetches or verifies
+    a source definition, compares objectives, or creates a proposal. It will remain pending.</p>
+  <p role="alert" th:if="${importError != null}" th:text="${importError}"></p>
+  <form method="post" th:action="@{/objectives/import}" th:object="${importForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <p><label for="connectionId">Connection ID (required)</label>
+      <input id="connectionId" th:field="*{connectionId}" maxlength="200" required
+             autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+    <p><label for="externalObjectiveId">External objective ID (required)</label>
+      <input id="externalObjectiveId" th:field="*{externalObjectiveId}" maxlength="1000" required
+             autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+    <p><label for="targetWorkloadId">Target workload ID (required)</label>
+      <input id="targetWorkloadId" th:field="*{targetWorkloadId}" maxlength="200" required
+             autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+    <p><label for="mappingRevision">Mapping revision (required, at least 1)</label>
+      <input id="mappingRevision" th:field="*{mappingRevision}" type="number" min="1" required></p>
+    <p><label for="expectedLocalRevision">Expected local revision (required, 0 if none)</label>
+      <input id="expectedLocalRevision" th:field="*{expectedLocalRevision}" type="number" min="0" required></p>
+    <p>If the outcome is unconfirmed, retry this same form unchanged as the same user in the same context.
+      Changed details require a new form.</p>
+    <button type="submit">Record pending preview request</button>
+  </form>
+</main></body></html>

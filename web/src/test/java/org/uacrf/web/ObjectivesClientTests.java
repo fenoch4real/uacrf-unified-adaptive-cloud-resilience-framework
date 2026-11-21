@@ -74,6 +74,30 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void importPreviewForwardsBoundRequestAndValidatesReceipt() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/objective-imports:preview"))
+        .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header("Idempotency-Key", "key"))
+        .andExpect(jsonPath("$.connection_id").value("sample"))
+        .andExpect(jsonPath("$.mapping_revision").value(1))
+        .andRespond(withSuccess("{\"receipt_id\":\"" + id + "\",\"status\":\"PENDING\","
+            + "\"read_resource\":\"/v1/objective-imports/" + id + "\","
+            + "\"runtime_verification\":\"NOT_ESTABLISHED\"}", MediaType.APPLICATION_JSON));
+    server.expect(requestTo("http://edge.test/v1/objective-imports/" + id))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withSuccess("{\"receipt_id\":\"" + id + "\",\"status\":\"PENDING\","
+            + "\"read_resource\":\"/v1/objective-imports/other\"}", MediaType.APPLICATION_JSON));
+    ObjectivesClient client = new ObjectivesClient(builder.build());
+    assertThat(client.previewImport("delegated", "key",
+        new ObjectivesClient.ImportPreview("sample", "slo", "workload", 1L, 0L)).receiptId()).isEqualTo(id);
+    assertThatThrownBy(() -> client.importReceipt("reader", id)).isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
   void activationBindsRequestAndRejectsMismatchedReceipt() {
     String digest = "a".repeat(64);
     for (String actor : List.of("activator", "other")) {

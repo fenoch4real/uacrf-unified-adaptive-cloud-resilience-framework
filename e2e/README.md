@@ -113,6 +113,11 @@ approval reason and a warning that earlier decisions may be missing. It
 traverses both pages of 26 directly inserted synthetic decision records and
 returns to the first page. Those paging rows bypass the review workflow and
 are not decisions actually made against the draft fixture.
+The same user records a pending import-preview request, replays it unchanged,
+checks that changing its contents conflicts, and reads its receipt with
+separate read authority. An ungranted user is denied both submission and
+receipt access. No connector is resolved, no source is fetched or verified,
+and no comparison or imported proposal is produced by this flow.
 S05's optional S02 owner check is not enabled in this browser stack; this does
 not establish workload ownership, measured compliance or provider acceptance.
 
