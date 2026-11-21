@@ -7,9 +7,9 @@ import static org.uacrf.objectives.ObjectiveImportClassification.Status;
 import org.junit.jupiter.api.Test;
 
 class ObjectiveImportClassificationTests {
-  private static final String A = "a".repeat(64);
-  private static final String B = "b".repeat(64);
-  private static final String C = "c".repeat(64);
+  private static final ObjectiveImportFingerprint.Value A = value("a".repeat(64));
+  private static final ObjectiveImportFingerprint.Value B = value("b".repeat(64));
+  private static final ObjectiveImportFingerprint.Value C = value("c".repeat(64));
 
   @Test
   void comparesBaseLocalAndSourceWithoutChoosingAConflictWinner() {
@@ -34,11 +34,20 @@ class ObjectiveImportClassificationTests {
   @Test
   void rejectsMissingOrMalformedDigestsForComparison() {
     assertThatThrownBy(() -> classify(A, A, null)).isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> classify("invalid", A, B)).isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> classify(A, "A".repeat(64), B)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> value("invalid")).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> value("A".repeat(64))).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new ObjectiveImportFingerprint.Value("other-version", "a".repeat(64)))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new ObjectiveImportFingerprint.Value(null, "a".repeat(64)))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
-  private Status classify(String base, String local, String source) {
+  private static ObjectiveImportFingerprint.Value value(String digest) {
+    return new ObjectiveImportFingerprint.Value(ObjectiveImportFingerprint.VERSION, digest);
+  }
+
+  private Status classify(ObjectiveImportFingerprint.Value base, ObjectiveImportFingerprint.Value local,
+      ObjectiveImportFingerprint.Value source) {
     return ObjectiveImportClassification.classify(base, local, source, true, true, false);
   }
 }

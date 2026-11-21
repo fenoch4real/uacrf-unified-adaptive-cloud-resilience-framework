@@ -10,7 +10,8 @@ final class ObjectiveImportClassification {
   private ObjectiveImportClassification() {}
 
   static Status classify(
-      String baseDigest, String localDigest, String sourceDigest,
+      ObjectiveImportFingerprint.Value baseDigest, ObjectiveImportFingerprint.Value localDigest,
+      ObjectiveImportFingerprint.Value sourceDigest,
       boolean scopeComplete, boolean valid, boolean explicitWithdrawal) {
     if (!scopeComplete || !valid) {
       return Status.INVALID;
@@ -18,9 +19,9 @@ final class ObjectiveImportClassification {
     if (explicitWithdrawal) {
       return Status.WITHDRAWN;
     }
-    requireDigest(sourceDigest);
-    if (baseDigest != null) requireDigest(baseDigest);
-    if (localDigest != null) requireDigest(localDigest);
+    if (sourceDigest == null) {
+      throw new IllegalArgumentException("Expected a versioned source definition digest.");
+    }
     if (sourceDigest.equals(localDigest) || sourceDigest.equals(baseDigest)) {
       return Status.UNCHANGED;
     }
@@ -30,9 +31,4 @@ final class ObjectiveImportClassification {
     return Status.CONFLICT;
   }
 
-  private static void requireDigest(String digest) {
-    if (digest == null || !digest.matches("[a-f0-9]{64}")) {
-      throw new IllegalArgumentException("Expected a lowercase SHA-256 definition digest.");
-    }
-  }
 }

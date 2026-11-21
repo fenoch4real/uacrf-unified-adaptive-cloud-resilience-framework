@@ -18,6 +18,9 @@ class ObjectiveImportFingerprintTests {
     var definition = ObjectiveImportSampleParser.parse(fixture.path("normalized_definition").toString());
     assertThat(ObjectiveImportFingerprint.digest(definition))
         .isEqualTo(fixture.path("normalized_definition_digest").asString());
+    assertThat(ObjectiveImportFingerprint.fingerprint(definition)).isEqualTo(
+        new ObjectiveImportFingerprint.Value(ObjectiveImportFingerprint.VERSION,
+            fixture.path("normalized_definition_digest").asString()));
   }
 
   @Test

@@ -12,6 +12,18 @@ final class ObjectiveImportFingerprint {
 
   private ObjectiveImportFingerprint() {}
 
+  record Value(String version, String digest) {
+    Value {
+      if (!VERSION.equals(version) || digest == null || !digest.matches("[a-f0-9]{64}")) {
+        throw new IllegalArgumentException("Expected a supported version and lowercase SHA-256 digest.");
+      }
+    }
+  }
+
+  static Value fingerprint(ObjectiveImportDefinition definition) {
+    return new Value(VERSION, digest(definition));
+  }
+
   static String digest(ObjectiveImportDefinition definition) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

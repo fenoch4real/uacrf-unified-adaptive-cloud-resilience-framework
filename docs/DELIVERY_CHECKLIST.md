@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**143 completed / 802 total** · 659 open
+**144 completed / 803 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 53 | 215 |
+| Milestone items | 54 | 216 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -327,6 +327,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026d Define and test an exact-decimal, versioned normalized-definition fingerprint compatible with the existing design fixture; do not imply approved mappings or provenance. Evidence: R-0157–R-0158.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
+  - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1256,6 +1257,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0157 | 2026-11-20 | M2-026d | Focused `ObjectiveImportFingerprintTests` passed 3/3 against the existing design fixture, exact high-precision decimals, semantic changes, bounds and invalid Unicode. | String serialization was subsequently made independent of library defaults and required re-verification. |
 | R-0158 | 2026-11-20 | M2-026d | `./mvnw -pl services/objectives -am clean test` passed 44 S05 and 8 shared-security tests, including the versioned exact-decimal fingerprint and deterministic string escaping. | This standalone helper is not persisted or wired to a mapping or import worker; it is not trusted provenance. |
 | R-0159 | 2026-11-20 | M2-026d | Updated private technical approach Appendix AB to revision 196; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the fingerprint does not establish trusted provenance. |
+| R-0160 | 2026-11-20 | M2-026d | Committed the versioned definition fingerprint as `ebb1e8f` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0161 | 2026-11-20 | M2-027b | Started binding standalone comparisons to the supported definition fingerprint version rather than comparing unversioned digest strings. | No persisted comparison or migration is enabled. |
+| R-0162 | 2026-11-20 | M2-027b | `./mvnw -pl services/objectives -am clean test` passed 44 S05 and 8 shared-security tests; three-way comparison accepts typed supported-version digests and rejects missing, malformed or unsupported values. | The standalone classifier does not establish completeness, verified withdrawal or persisted source/local state. |
+| R-0163 | 2026-11-20 | M2-027b | Updated private technical approach Appendix AB to revision 197; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the classifier is not connected to persisted imports. |
 
 ## Implementation evidence
 
