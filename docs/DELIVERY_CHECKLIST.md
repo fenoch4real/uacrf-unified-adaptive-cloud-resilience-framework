@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**117 completed / 778 total** · 661 open
+**117 completed / 781 total** · 664 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 27 | 191 |
+| Milestone items | 27 | 194 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -305,6 +305,9 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-022f Disclose up to 25 retained decision events through UX01, identifying missing history and unavailable reasons. Evidence: R-0054.
   - [ ] M2-022g Provide complete, durable and navigable decision history including attributable reasons, without inventing legacy records.
 - [ ] M2-023 Connect objective activation and active-objective readback through the browser.
+  - [ ] M2-023a Implement a retry-safe, revision-bound activation command without weakening owner and review checks.
+  - [ ] M2-023b Forward activation and connect the browser form with separate read and activation delegations.
+  - [ ] M2-023c Verify activation, retries, stale state, denial and readback; document remaining limits.
 - [ ] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
@@ -1132,6 +1135,8 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0057 | 2026-11-20 | M2-022f | The focused UX01 history rendering recheck passed one test. | A real-browser history run remains open. |
 | R-0058 | 2026-11-20 | M2-022f, M3-007c | Updated private technical approach Appendix AB to revision 177; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete decision history and current requester-authority refresh remain open. |
 | R-0059 | 2026-11-20 | Delivery tracking | Verified 778 unique checkbox IDs and the displayed 117 completed / 778 total count and category totals. | Counts include parent and child items and are not release-completion percentages. |
+| R-0060 | 2026-11-20 | M2-022f, M3-007c | Committed bounded objective history and the S08 metadata-scope guard as `7cf2b4e` and pushed them to `origin/main`. | Complete decision history and broader knowledge disclosure acceptance remain open. |
+| R-0061 | 2026-11-20 | M2-023a–M2-023c | Started the next objective-activation slice. | The work is in progress; production owner checks and full milestone acceptance remain open. |
 
 ## Implementation evidence
 
