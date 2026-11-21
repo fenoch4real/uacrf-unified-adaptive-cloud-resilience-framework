@@ -50,6 +50,14 @@ class ObjectivesRouteController {
     return forward(() -> objectives.decisionHistory(authorization, id));
   }
 
+  @GetMapping("/v1/objectives/{id}/decision-records")
+  ResponseEntity<String> decisionRecords(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return forward(() -> objectives.decisionRecords(authorization, id, pageSize, cursor));
+  }
+
   @PostMapping("/v1/objectives")
   ResponseEntity<String> propose(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

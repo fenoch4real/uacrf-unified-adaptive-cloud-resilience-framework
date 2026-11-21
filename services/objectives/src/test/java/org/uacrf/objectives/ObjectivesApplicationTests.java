@@ -582,6 +582,40 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void decisionRecordsPageWithinGlobalAuthorizedContextAndDisclosePossibleGaps() throws Exception {
+    String tenant = "t-decision-pages";
+    String creator = bearer("creator", tenant, PROPOSER);
+    String reviewer = bearer("reviewer", tenant, DECIDER);
+    String created = post("/v1/objectives", creator,
+        objective("page-objective", "w-page", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    assertEquals(200, post("/v1/objectives/page-objective:submit", creator, "{\"expected_revision\":1}").statusCode());
+    assertEquals(200, post("/v1/objectives/page-objective:decide", reviewer, decision("REJECT", 2)).statusCode());
+    for (int revision : List.of(5, 7)) {
+      jdbc.update("INSERT INTO uacrf_objectives.objective_decision "
+              + "(tenant_id, environment_id, objective_id, revision, content_digest, decision, reason, decided_by) "
+              + "VALUES (?, 'env-1', 'page-objective', ?, ?, 'APPROVE', ?, 'fixture')",
+          tenant, revision, digest, "reason-" + revision);
+    }
+    String path = "/v1/objectives/page-objective/decision-records";
+    var first = json.readTree(get(path + "?pageSize=2", creator).body());
+    assertEquals(2, first.path("items").size());
+    assertEquals(7, first.path("items").get(0).path("revision").asInt());
+    assertEquals("reason-5", first.path("items").get(1).path("reason").asText());
+    assertThat(first.path("history_may_be_incomplete").asBoolean()).isTrue();
+    String cursor = first.path("next_cursor").asText();
+    var second = json.readTree(get(path + "?pageSize=2&cursor=" + cursor, creator).body());
+    assertEquals(1, second.path("items").size());
+    assertEquals(3, second.path("items").get(0).path("revision").asInt());
+    assertThat(second.path("next_cursor").isNull()).isTrue();
+    assertEquals(400, get(path + "?cursor=bad!", creator).statusCode());
+    assertEquals(400, get(path + "?pageSize=0", creator).statusCode());
+    assertEquals(403, get(path, token("reader", tenant, "w-page", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(403, get(path, bearer("writer", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(404, get(path, bearer("reader", "t-other-decision-pages", List.of("objectives.objective.read"))).statusCode());
+  }
+
+  @Test
   void localObjectiveCreationSerializesReplayAndReturnsCurrentState() throws Exception {
     String path = "/v1/objectives:local-idempotent-create";
     String propose = bearer("creator", "t-local-idempotent", PROPOSER);

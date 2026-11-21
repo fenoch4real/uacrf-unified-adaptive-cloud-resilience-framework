@@ -93,6 +93,11 @@ class ObjectivesRouteControllerTests {
         .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
         .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/objectives/o-1/decision-records?pageSize=5&cursor=abc"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/organization-constraints/latency.p95"))
         .andExpect(method(HttpMethod.PUT))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -137,6 +142,9 @@ class ObjectivesRouteControllerTests {
     mvc.perform(get("/internal/objectives/v1/objectives/o-1/decision-history")
             .header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
         .andExpect(status().isForbidden()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    mvc.perform(get("/internal/objectives/v1/objectives/o-1/decision-records")
+            .param("pageSize", "5").param("cursor", "abc").header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(put("/internal/objectives/v1/organization-constraints/latency.p95").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(get("/internal/objectives/v1/objectives/o-1")).andExpect(status().isBadGateway());

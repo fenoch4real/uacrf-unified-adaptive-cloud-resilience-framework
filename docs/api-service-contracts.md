@@ -182,8 +182,7 @@ the unkeyed route.
   binds the record. Both this route and the original decide route retain the
   decision, exact reason, reviewer, resulting revision and content digest in
   a separate record protected against update or delete. No records are
-  backfilled for past decisions, and the current history endpoint does not yet
-  expose these records. Review is
+  backfilled for past decisions. Review is
   not activation, compliance, or an atomic cross-service authority fence.
 - **Retry-safe objective activation:** `POST /v1/objectives/{id}:idempotent-activate`
   requires global `objectives.objective.activate`, an `Idempotency-Key`, expected
@@ -206,6 +205,14 @@ the unkeyed route.
   is the outbox creation timestamp. These events do not contain reasons, and
   outbox retention is not a completeness guarantee. An empty response does not
   prove no review occurred. No legacy history is inferred or backfilled.
+- **Retained objective decision records:** `GET /v1/objectives/{id}/decision-records`
+  requires global `objectives.objective.read` and an objective in the delegated
+  tenant and environment. It returns new retained records, including the exact
+  reason and reviewer, in descending revision order. `pageSize` defaults to 25
+  and must be 1–100; use `next_cursor` as `cursor` to continue. Records are not
+  backfilled, and `history_may_be_incomplete` is always true: missing records
+  do not prove a review did not occur. Pagination does not include subsequent
+  decisions inserted above the cursor; restart to see newer records.
 - **S08 read scope:** Knowledge metadata listing, retained retrieval content
   and internal receipt reads require global service scope; service-scoped
   delegations are denied. Existing classification filtering remains unchanged.

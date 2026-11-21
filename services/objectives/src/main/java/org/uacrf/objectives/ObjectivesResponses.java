@@ -12,6 +12,12 @@ final class ObjectivesResponses {
 
   record DecisionHistory(String objectiveId, List<DecisionEvent> items, boolean moreRecorded) {}
 
+  record DecisionRecord(long revision, String contentDigest, String decision, String reason,
+      String decidedBy, String decidedAt) {}
+
+  record DecisionRecordPage(String objectiveId, List<DecisionRecord> items, String nextCursor,
+      boolean historyMayBeIncomplete) {}
+
   record Objective(
       String id,
       String workloadId,

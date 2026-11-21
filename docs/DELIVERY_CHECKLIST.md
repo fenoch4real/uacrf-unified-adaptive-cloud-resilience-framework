@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**123 completed / 785 total** · 662 open
+**124 completed / 785 total** · 661 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 33 | 198 |
+| Milestone items | 34 | 198 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -305,7 +305,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-022f Disclose up to 25 retained decision events through UX01, identifying missing history and unavailable reasons. Evidence: R-0054.
   - [ ] M2-022g Provide complete, durable and navigable decision history including attributable reasons, without inventing legacy records.
     - [x] M2-022g1 Retain new decisions and exact reasons atomically in immutable records for both review routes, without fabricating historical entries. Evidence: R-0070–R-0072.
-    - [ ] M2-022g2 Expose paginated retained decision records with explicit pre-retention gaps through S05 and EDGE01.
+    - [x] M2-022g2 Expose paginated retained decision records with explicit pre-retention gaps through S05 and EDGE01. Evidence: R-0075–R-0076.
     - [ ] M2-022g3 Connect paginated decision records and gap disclosure to UX01 and verify the browser flow.
 - [x] M2-023 Connect objective activation and active-objective readback through the browser. Evidence: R-0062–R-0063, R-0066.
   - [x] M2-023a Implement a retry-safe, revision-bound activation command without weakening owner and review checks. Evidence: R-0062.
@@ -1153,6 +1153,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0071 | 2026-11-20 | M2-022g1 | Clean S05 regression exited 1: the new rollback test expected HTTP 500 for a duplicate record, but S05 maps database integrity conflicts to HTTP 409. Corrected the assertion to match the existing `OBJECTIVE_CONFLICT` contract. | Retry required before completing the slice. |
 | R-0072 | 2026-11-20 | M2-022g1 | Clean S05 reactor retry exited 0: 33 tests passed, including concurrent replay, both decision routes, rejection, immutable update/delete denial and rollback when the decision record cannot be inserted. | Only new decisions are retained in the new table; browsing and pre-retention gaps remain open. |
 | R-0073 | 2026-11-20 | M2-022g1 | Updated private technical approach Appendix AB to revision 180; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; decision-record browsing remains open. |
+| R-0074 | 2026-11-20 | M2-022g1 | Committed decision-record capture as `800ea51` and pushed it to `origin/main`. | Browsing, pagination and historical gaps remain open. |
+| R-0075 | 2026-11-20 | M2-022g2 | Clean focused S05 and EDGE01 tests passed 2/2 for paginated decision-record retrieval, global scope, malformed cursor and edge forwarding. | Broader regression and browser disclosure remain pending. |
+| R-0076 | 2026-11-20 | M2-022g2 | Clean S05/EDGE01 reactor exited 0: 65 tests passed with no failures or skips. New-record pagination returns exact reasons and discloses that history may be incomplete. | The UX01 history page still shows bounded outbox events; older missing records cannot be recovered from this table. |
+| R-0077 | 2026-11-20 | M2-022g2 | Updated private technical approach Appendix AB to revision 181; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; browser access remains open. |
 
 ## Implementation evidence
 
@@ -2274,8 +2278,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   reason, reviewer, resulting revision and digest in an update/delete-protected
   S05 table in the same transaction as the decision and outbox event. The
   retry-safe route's key is committed in that transaction too. The clean S05
-  reactor passed 33 tests. Existing decisions were not fabricated or backfilled,
-  and the bounded history endpoint does not yet read the new records.
+  reactor passed 33 tests. Existing decisions were not fabricated or backfilled.
+  A separate paginated endpoint exposes the new records and always discloses
+  possible historical gaps; S05/EDGE01 regression passed 65 tests. The UX01
+  history page still reads the bounded outbox events.
 - UX01 exposes objective activation through EDGE01 with separate global read and
   activation delegations. S05 atomically retains an actor/context-scoped key,
   expected objective revision and digest, activation, supersession and outbox

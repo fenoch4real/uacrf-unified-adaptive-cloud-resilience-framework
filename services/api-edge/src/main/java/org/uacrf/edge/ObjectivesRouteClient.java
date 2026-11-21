@@ -49,6 +49,14 @@ class ObjectivesRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> decisionRecords(String authorization, String id, int pageSize, String cursor) {
+    return send(objectivesRestClient.get().uri(uriBuilder -> {
+      uriBuilder.path("/v1/objectives/{id}/decision-records").queryParam("pageSize", pageSize);
+      if (cursor != null && !cursor.isBlank()) uriBuilder.queryParam("cursor", cursor);
+      return uriBuilder.build(id);
+    }), authorization);
+  }
+
   ResponseEntity<String> proposeObjective(String authorization, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/objectives", null, authorization, requestBody);
   }

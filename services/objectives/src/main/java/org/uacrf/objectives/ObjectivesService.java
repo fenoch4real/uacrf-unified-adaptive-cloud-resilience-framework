@@ -548,6 +548,38 @@ class ObjectivesService {
   }
 
   @Transactional(readOnly = true)
+  DecisionRecordPage decisionRecords(DelegationPrincipal actor, String id, int pageSize, String cursor) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    find(actor, id);
+    String decoded = decodeCursor(cursor);
+    long maxRevision = Long.MAX_VALUE;
+    if (!decoded.isEmpty()) {
+      try {
+        maxRevision = Long.parseLong(decoded);
+        if (maxRevision < 1) throw new NumberFormatException();
+      } catch (NumberFormatException error) {
+        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");
+      }
+    }
+    List<DecisionRecord> rows = jdbc.query(
+        "SELECT revision, content_digest, decision, reason, decided_by, decided_at FROM " + SCHEMA
+            + "objective_decision WHERE tenant_id = ? AND environment_id = ? AND objective_id = ? "
+            + "AND revision <= ? ORDER BY revision DESC LIMIT ?",
+        (rs, n) -> new DecisionRecord(rs.getLong("revision"), rs.getString("content_digest").trim(),
+            rs.getString("decision"), rs.getString("reason"), rs.getString("decided_by"),
+            rs.getTimestamp("decided_at").toInstant().toString()),
+        actor.tenantId(), actor.environmentId(), id, maxRevision, pageSize + 1);
+    boolean more = rows.size() > pageSize;
+    List<DecisionRecord> items = more ? rows.subList(0, pageSize) : rows;
+    String next = more
+        ? Base64.getUrlEncoder().withoutPadding().encodeToString(
+            Long.toString(items.getLast().revision() - 1).getBytes(StandardCharsets.UTF_8))
+        : null;
+    return new DecisionRecordPage(id, items, next, true);
+  }
+
+  @Transactional(readOnly = true)
   Page<Objective> list(DelegationPrincipal actor, String workloadId, int pageSize, String cursor) {
     requireCapability(actor, "objectives.objective.read");
     requireGlobalScope(actor);

@@ -83,6 +83,14 @@ class ObjectivesController {
     return objectives.decisionHistory(DelegationPrincipal.from(jwt), id);
   }
 
+  @GetMapping("/v1/objectives/{id}/decision-records")
+  DecisionRecordPage decisionRecords(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestParam(defaultValue = "25") int pageSize, @RequestParam(required = false) String cursor) {
+    return objectives.decisionRecords(
+        DelegationPrincipal.from(jwt), id, ObjectivesService.validatePageSize(pageSize), cursor);
+  }
+
   @PostMapping("/v1/objectives/{id}:submit")
   Objective submit(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) {
