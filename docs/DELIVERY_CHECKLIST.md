@@ -1211,6 +1211,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0119 | 2026-11-20 | M2-030e | `bash e2e/run-live.sh` exited 0: all 11 browser tests passed, including traversal of 26 synthetic requests over two pages, first-page navigation and denied access. | Synthetic requests remain pending; added an environment-isolation assertion afterward for re-verification. |
 | R-0120 | 2026-11-20 | M2-030d | Focused `ObjectivesApplicationTests#pendingImportListingIsPaginatedAndContextScoped` exited 0, including tenant and environment isolation and read-scope denial. | Keyset order is receipt ID, not chronological; concurrent inserts may require restarting from the first page. |
 | R-0121 | 2026-11-20 | M2-030d–M2-030e | Updated private technical approach Appendix AB to revision 189; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; source processing and provider acceptance remain open. |
+| R-0122 | 2026-11-20 | M2-030d–M2-030e | Committed pending-request listing as `85e18a9` and pushed it to `origin/main`. | Import resolution, proposal and provider acceptance remain open. |
 
 ## Implementation evidence
 
