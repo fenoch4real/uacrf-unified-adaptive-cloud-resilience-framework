@@ -206,8 +206,9 @@ the unkeyed route.
   objective-read and connection-read memberships at exchange time; S05 checks
   write capability in the incoming delegation, not an atomic current-write
   fence. Captures do not verify provenance, approve mappings or change the
-  pending request. There is no public capture-history read, EDGE01 route or
-  browser capture flow yet.
+  pending request. EDGE01 forwards the same delegation and idempotency key and
+  preserves the owner response and `no-store`; there is no public
+  capture-history read or browser capture flow yet.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

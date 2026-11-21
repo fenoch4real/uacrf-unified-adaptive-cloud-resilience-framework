@@ -52,6 +52,38 @@ class ObjectivesRouteControllerTests {
   }
 
   @Test
+  void forwardsSampleCaptureWithIdempotencyAndPreservesOwnerResponses() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    HttpStatus[] statuses = {HttpStatus.CREATED, HttpStatus.OK, HttpStatus.BAD_REQUEST,
+        HttpStatus.FORBIDDEN, HttpStatus.NOT_FOUND, HttpStatus.CONFLICT, HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus status : statuses) {
+      server.expect(requestTo(URL + "/v1/objective-imports/import-1/sample-captures"))
+          .andExpect(method(HttpMethod.POST))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", "capture-key"))
+          .andRespond(withStatus(status).contentType(MediaType.APPLICATION_JSON)
+              .body("{\"verification\":\"SYNTHETIC_UNVERIFIED\"}"));
+    }
+    server.expect(requestTo(URL + "/v1/objective-imports/import-1/sample-captures"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist("Idempotency-Key"))
+        .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    for (HttpStatus status : statuses) {
+      mvc.perform(post("/internal/objectives/v1/objective-imports/import-1/sample-captures")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer delegated").header("Idempotency-Key", "capture-key"))
+          .andExpect(status().is(status.value()))
+          .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json("{\"verification\":\"SYNTHETIC_UNVERIFIED\"}"));
+    }
+    mvc.perform(post("/internal/objectives/v1/objective-imports/import-1/sample-captures"))
+        .andExpect(status().isBadRequest()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsToTheFixedOwnerAndDoesNotRouteInternalEndpoints() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

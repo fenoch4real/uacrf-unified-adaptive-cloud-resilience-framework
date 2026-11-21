@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**149 completed / 808 total** · 659 open
+**150 completed / 809 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 59 | 221 |
+| Milestone items | 60 | 222 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -330,6 +330,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026d Define and test an exact-decimal, versioned normalized-definition fingerprint compatible with the existing design fixture; do not imply approved mappings or provenance. Evidence: R-0157–R-0158.
   - [x] M2-026e Expose a versioned fingerprint of the inspected fictional source definition in its original units through S05, EDGE01 and UX01; verify exact values, invalid input and browser readback without implying mapping approval or persistence. Evidence: R-0182–R-0185.
   - [x] M2-026f Retain immutable, retry-safe fictional source captures for pending requests in S05, including exact source payload and versioned definition fingerprint; verify authorization, isolation and transactional integrity without treating captures as trusted provenance. Evidence: R-0189–R-0193.
+  - [x] M2-026g Forward the explicit synthetic source-capture operation through EDGE01, preserving the original delegation, idempotency key, owner response and no-store behavior. Evidence: R-0199.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1298,6 +1299,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0193 | 2026-11-21 | M2-026f | Focused S05 rerun passed 28/28 after adding changed-request replay protection; the rebuilt real-service test passed 1/1 including denial of replay after connection-read revocation. | Capture and exchange checks remain point-in-time, not an atomic current-authority fence. |
 | R-0194 | 2026-11-21 | M2-026f | A documentation patch partially applied because one context did not match; the remaining design README update was applied separately. | No code or test results were affected. |
 | R-0195 | 2026-11-21 | M2-026f | Updated private technical approach Appendix AB to revision 202; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The document remains private and uncommitted; capture routing, history and import processing remain open. |
+| R-0196 | 2026-11-21 | M2-026f | Committed the immutable synthetic capture as `59c8a6b` and pushed it to `origin/main`. | Capture is not yet exposed through EDGE01 or UX01. |
+| R-0197 | 2026-11-21 | M2-026g | Started routing synthetic capture through EDGE01. | S05 remains the authorization and persistence owner. |
+| R-0198 | 2026-11-21 | M2-026g | Initial focused EDGE01 test run failed because a mock-server expectation was added after requests had begun. | Moved the expectation before execution; rerun required. |
+| R-0199 | 2026-11-21 | M2-026g | `./mvnw -pl services/api-edge -am clean test` passed 34 EDGE01 tests, including capture authorization and idempotency-header forwarding, owner status/body propagation and `no-store`. | The browser capture flow is not connected. |
+| R-0200 | 2026-11-21 | M2-026g | Updated private technical approach Appendix AB to revision 203; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The document remains private and uncommitted; capture history and browser access remain open. |
 
 ## Implementation evidence
 

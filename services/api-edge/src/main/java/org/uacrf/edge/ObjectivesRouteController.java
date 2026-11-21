@@ -95,6 +95,14 @@ class ObjectivesRouteController {
     return forward(() -> objectives.inspectImportSample(authorization, id));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures")
+  ResponseEntity<String> captureImportSample(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @PathVariable String id) {
+    return forward(() -> objectives.captureImportSample(authorization, id, idempotencyKey));
+  }
+
   @GetMapping("/v1/objective-imports")
   ResponseEntity<String> listImportPreviews(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

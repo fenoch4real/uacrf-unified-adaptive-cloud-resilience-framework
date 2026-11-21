@@ -91,6 +91,13 @@ class ObjectivesRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> captureImportSample(String authorization, String id, String idempotencyKey) {
+    var request = objectivesRestClient.post()
+        .uri(uriBuilder -> uriBuilder.path("/v1/objective-imports/{id}/sample-captures").build(id));
+    if (idempotencyKey != null) request.header("Idempotency-Key", idempotencyKey);
+    return send(request, authorization);
+  }
+
   ResponseEntity<String> listImportPreviews(String authorization, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uriBuilder -> {
       uriBuilder.path("/v1/objective-imports").queryParam("pageSize", pageSize);
