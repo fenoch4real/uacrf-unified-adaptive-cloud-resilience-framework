@@ -2467,6 +2467,58 @@ class IdentityApplicationTests {
         """.formatted(id, principalId, capability, expiresAt, ref);
   }
 
+  @Test
+  void syntheticSourceExchangeRequiresBothCurrentGlobalGrants() throws Exception {
+    String principal = "objective-sample-exchange-test";
+    var json = tools.jackson.databind.json.JsonMapper.builder().build();
+    UUID scopedGrant = UUID.randomUUID();
+    UUID globalGrant = UUID.randomUUID();
+    try {
+      seedGrantParticipant(principal, "objectives.objective.read");
+      String oidc = token(principal + "-subject");
+      var delegated = post("/internal/v1/delegations", oidc,
+          "{\"audience\":\"S05\",\"capability_ids\":[\"objectives.objective.read\"]}");
+      assertEquals(200, delegated.statusCode());
+      String assertion = "Bearer " + json.readTree(delegated.body()).path("access_token").asString();
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test',?,'connections.connection.read','sample-connection',"
+          + "'2099-12-31T23:59:59Z',1)", scopedGrant, principal);
+      assertEquals(403, post("/internal/v1/delegations:exchange", assertion, sampleExchangeBody()).statusCode());
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test',?,'connections.connection.read','*',"
+          + "'2099-12-31T23:59:59Z',1)", globalGrant, principal);
+      var accepted = post("/internal/v1/delegations:exchange", assertion, sampleExchangeBody());
+      assertEquals(200, accepted.statusCode());
+      Jwt result = NimbusJwtDecoder.withPublicKey((RSAPublicKey) DELEGATION_KEY_PAIR.getPublic()).build()
+          .decode(json.readTree(accepted.body()).path("access_token").asString());
+      assertThat(result.getSubject()).isEqualTo(principal);
+      assertThat(result.getAudience()).containsExactly("S03");
+      assertThat(result.getClaimAsStringList("capabilities")).containsExactly("connections.sample-objective.read");
+      assertThat(result.getClaimAsString("resource_id")).isEqualTo("sample-connection");
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() WHERE id = ?", globalGrant);
+      assertEquals(403, post("/internal/v1/delegations:exchange", assertion, sampleExchangeBody()).statusCode());
+      jdbc.update("INSERT INTO uacrf_identity.membership "
+          + "(id,tenant_id,environment_id,principal_id,capability,service_scope,expires_at,revision) "
+          + "VALUES (?,'tenant-test','environment-test',?,'connections.connection.read','*',"
+          + "'2099-12-31T23:59:59Z',1)", UUID.randomUUID(), principal);
+      jdbc.update("UPDATE uacrf_identity.membership SET revoked_at = now() "
+          + "WHERE principal_id = ? AND capability = 'objectives.objective.read'", principal);
+      assertEquals(403, post("/internal/v1/delegations:exchange", assertion, sampleExchangeBody()).statusCode());
+    } finally {
+      jdbc.update("DELETE FROM uacrf_identity.membership WHERE principal_id = ?", principal);
+      jdbc.update("DELETE FROM uacrf_identity.principal WHERE id = ?", principal);
+    }
+  }
+
+  private static String sampleExchangeBody() {
+    return """
+        {"audience":"S03","resource_type":"connection","resource_id":"sample-connection",
+         "purpose":"objectives.import.synthetic-source","operation_deadline":"%s"}
+        """.formatted(Instant.now().plusSeconds(4));
+  }
+
   private void seedGrantParticipant(String principalId, String... capabilities) {
     jdbc.update(
         "INSERT INTO uacrf_identity.principal "

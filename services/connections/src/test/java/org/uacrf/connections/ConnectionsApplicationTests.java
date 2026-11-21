@@ -181,6 +181,25 @@ class ConnectionsApplicationTests {
     assertEquals(events, jdbc.queryForObject(
         "SELECT count(*) FROM uacrf_connections.outbox_event WHERE tenant_id = ?", Integer.class, tenant));
 
+    String exchanged = sampleExchange(tenant, environment, "sample-conn", "sample-conn",
+        "objectives.import.synthetic-source", "connection", 4);
+    assertEquals(200, get(path, exchanged).statusCode());
+    assertEquals(403, get("/v1/connections/sample-conn", exchanged).statusCode());
+    assertEquals(403, get("/v1/connections/sample-conn/source-bindings", exchanged).statusCode());
+    assertEquals(403, get(path, sampleExchange(tenant, environment, "other-conn", "other-conn",
+        "objectives.import.synthetic-source", "connection", 4)).statusCode());
+    assertEquals(403, get(path, sampleExchange(tenant, environment, "sample-conn", "other-conn",
+        "objectives.import.synthetic-source", "connection", 4)).statusCode());
+    assertEquals(403, get(path, sampleExchange(tenant, environment, "sample-conn", "sample-conn",
+        "other-purpose", "connection", 4)).statusCode());
+    assertEquals(403, get(path, sampleExchange(tenant, environment, "sample-conn", "sample-conn",
+        "objectives.import.synthetic-source", "service", 4)).statusCode());
+    assertEquals(403, get(path, sampleExchange(tenant, environment, "sample-conn", "sample-conn",
+        "objectives.import.synthetic-source", "connection", 30)).statusCode());
+    assertEquals(404, get(path, sampleExchange("other-tenant", environment, "sample-conn", "sample-conn",
+        "objectives.import.synthetic-source", "connection", 4)).statusCode());
+    assertEquals(404, get(path.replace("workload-a", "other-workload"), exchanged).statusCode());
+
     assertEquals(404, get(path.replace("workload-a", "other-workload"), writer).statusCode());
     assertEquals(404, get(path, bearer(actor(tenant, "other-env", RW, List.of()), "S03")).statusCode());
     assertEquals(404, get(path, bearer(actor("other-tenant", environment, RW, List.of()), "S03")).statusCode());
@@ -925,6 +944,23 @@ class ConnectionsApplicationTests {
     return "Bearer "
         + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(), "https://uacrf.local/s01", KEY_ID)
             .issue(principal, audience);
+  }
+
+  private String sampleExchange(String tenant, String environment, String scope, String resourceId,
+      String purpose, String resourceType, int lifetimeSeconds) {
+    Instant issued = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+    var claims = org.springframework.security.oauth2.jwt.JwtClaimsSet.builder()
+        .issuer("https://uacrf.local/s01").subject("exchange-user").audience(List.of("S03"))
+        .issuedAt(issued).expiresAt(issued.plusSeconds(lifetimeSeconds))
+        .claim("tenant_id", tenant).claim("environment_id", environment)
+        .claim("actor_issuer", "https://idp.example.test").claim("actor_subject", "user-1")
+        .claim("service_scope", scope).claim("capabilities", List.of("connections.sample-objective.read"))
+        .claim("resource_id", resourceId).claim("resource_type", resourceType).claim("purpose", purpose)
+        .build();
+    return "Bearer " + ENCODER.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(
+        org.springframework.security.oauth2.jwt.JwsHeader.with(
+            org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.RS256).keyId(KEY_ID).build(),
+        claims)).getTokenValue();
   }
 
   private static DelegationPrincipal actor(

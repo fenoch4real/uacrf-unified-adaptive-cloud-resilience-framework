@@ -52,7 +52,7 @@ class ConnectionsController {
   SampleObjectiveDefinition sampleObjective(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
       @RequestParam String externalObjectiveId, @RequestParam String targetWorkloadId) {
-    return connections.sampleObjective(DelegationPrincipal.from(jwt), id, externalObjectiveId, targetWorkloadId);
+    return connections.sampleObjective(jwt, id, externalObjectiveId, targetWorkloadId);
   }
 
   @PostMapping("/v1/connections/{id}/source-bindings")

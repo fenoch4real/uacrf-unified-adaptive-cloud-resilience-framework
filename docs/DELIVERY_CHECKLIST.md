@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**140 completed / 799 total** · 659 open
+**141 completed / 801 total** · 660 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 50 | 212 |
+| Milestone items | 51 | 214 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -318,6 +318,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-024b Verify retry-safe proposal and activation with real local S01/S02 owner checks, including non-owner denial, unchanged replay and preservation of the previous active objective. Evidence: R-0090.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
   - [x] M2-025a Read an explicitly synthetic objective definition through a matching active sample connection and binding, without asserting source verification. Evidence: R-0124–R-0125.
+  - [x] M2-025b Add a purpose-bound S05-to-S03 synthetic-read exchange with separate current global grants; verify its issuer and receiver independently. Evidence: R-0142–R-0143.
+  - [ ] M2-025c Connect and verify the purpose-bound source read across S05, S01 and S03 using real local services.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
@@ -1234,6 +1236,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0138 | 2026-11-20 | M2-026c | Focused `ObjectiveImportSampleParserTests` passed 2/2, using the actual bundled fictional payload and rejecting ambiguous or invalid inputs. | No worker consumes the parser; precision and payload size are bounded. |
 | R-0139 | 2026-11-20 | M2-026c | `./mvnw -pl services/objectives -am clean test` passed 37 S05 and 8 shared-security tests. | Source verification, approved mapping, canonical digest, provenance retention and import processing remain open. |
 | R-0140 | 2026-11-20 | M2-026c | Updated private technical approach Appendix AB to revision 193; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the parser does not establish trusted provenance. |
+| R-0141 | 2026-11-20 | M2-025b | Started a narrow, purpose-bound S05-to-S03 synthetic source exchange. The first focused test run passed 11 exchange unit tests but the database test errored because its local JSON mapper was not declared. | Added the missing test-local mapper; retry required. |
+| R-0142 | 2026-11-20 | M2-025b | Retried clean focused S01 tests: 11 exchange unit tests and the PostgreSQL-backed independent-grant, scope and revocation test passed. Focused S03 source-read test passed, including wrong purpose, resource, scope, lifetime and tenant denial. | These are independent service tests, not a connected S05/S01/S03 journey. |
+| R-0143 | 2026-11-20 | M2-025b | `./mvnw -pl services/identity,services/connections -am clean test` passed 43 S01, 71 S03, 169 transitive S09 and 8 shared-security tests. | Exchanges are short-lived point-in-time authority, not an atomic cross-service fence; no S05 client uses this path yet. |
+| R-0144 | 2026-11-20 | M2-025b | Updated private technical approach Appendix AB to revision 194; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the connected journey remains open. |
 
 ## Implementation evidence
 

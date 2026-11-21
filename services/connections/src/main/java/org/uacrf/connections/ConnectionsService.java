@@ -6,6 +6,8 @@ import static org.uacrf.connections.ConnectionsResponses.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -16,6 +18,7 @@ import java.util.regex.Pattern;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.uacrf.security.DelegationPrincipal;
@@ -127,9 +130,23 @@ class ConnectionsService {
 
   @Transactional(readOnly = true)
   SampleObjectiveDefinition sampleObjective(
-      DelegationPrincipal actor, String connectionId, String externalId, String workloadId) {
-    requireCapability(actor, "connections.connection.read");
-    requireGlobalScope(actor);
+      Jwt jwt, String connectionId, String externalId, String workloadId) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    Instant now = Instant.now();
+    boolean globalRead = actor.capabilities().contains("connections.connection.read")
+        && "*".equals(actor.serviceScope());
+    boolean exchangedRead = actor.capabilities().equals(List.of("connections.sample-objective.read"))
+        && connectionId.equals(actor.serviceScope()) && List.of("S03").equals(jwt.getAudience())
+        && "connection".equals(jwt.getClaimAsString("resource_type"))
+        && connectionId.equals(jwt.getClaimAsString("resource_id"))
+        && "objectives.import.synthetic-source".equals(jwt.getClaimAsString("purpose"))
+        && jwt.getIssuedAt() != null && !jwt.getIssuedAt().isAfter(now)
+        && jwt.getExpiresAt() != null && jwt.getExpiresAt().isAfter(now)
+        && jwt.getExpiresAt().isAfter(jwt.getIssuedAt())
+        && Duration.between(jwt.getIssuedAt(), jwt.getExpiresAt()).compareTo(Duration.ofSeconds(5)) <= 0;
+    if (!globalRead && !exchangedRead) {
+      throw denied("The current principal cannot read this synthetic objective source.");
+    }
     if (externalId == null || externalId.isBlank() || externalId.length() > 1000
         || workloadId == null || workloadId.isBlank() || workloadId.length() > 200) {
       throw invalid("A sample objective ID and target workload ID are required.");

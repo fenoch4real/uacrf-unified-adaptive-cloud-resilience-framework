@@ -97,7 +97,29 @@ class IdentityExchangeTests {
     assertThat(args.getValue()).containsExactly(
         "tenant-1", "env-1", "principal-1", "https://directory.example", "directory-user",
         java.sql.Timestamp.from(assertion.getIssuedAt()), "topology.proposal.write",
-        "topology.proposal.write", "*");
+        "topology.proposal.write", "*", false);
+  }
+
+  @Test
+  void narrowsSyntheticObjectiveSourceExchangeAndRejectsOtherTargets() {
+    Jwt assertion = incoming("S05", "objectives.objective.read", now.minusSeconds(1), now.plusSeconds(20));
+    String purpose = "objectives.import.synthetic-source";
+    Jwt result = decodeOutput(
+        service.exchange(assertion, request("S03", "connection", "sample-connection", purpose)).accessToken(), "S03");
+    assertThat(result.getClaimAsStringList("capabilities")).containsExactly("connections.sample-objective.read");
+    assertThat(result.getClaimAsString("service_scope")).isEqualTo("sample-connection");
+    assertThat(result.getClaimAsString("resource_type")).isEqualTo("connection");
+    assertThat(result.getClaimAsString("resource_id")).isEqualTo("sample-connection");
+    assertThat(result.getClaimAsString("purpose")).isEqualTo(purpose);
+    assertThat(Duration.between(result.getIssuedAt(), result.getExpiresAt())).isLessThanOrEqualTo(Duration.ofSeconds(5));
+    assertInvalid(assertion, request("S02", "connection", "sample-connection", purpose));
+    assertInvalid(assertion, request("S03", "service", "sample-connection", purpose));
+    Jwt wrongCapability = incoming("S05", "objectives.objective.write", now.minusSeconds(1), now.plusSeconds(20));
+    assertThatThrownBy(() -> service.exchange(wrongCapability, request("S03", "connection", "sample-connection", purpose)))
+        .isInstanceOfSatisfying(IdentityException.class, error -> assertThat(error.status().value()).isEqualTo(403));
+    when(jdbc.queryForObject(anyString(), eq(Boolean.class), any(Object[].class))).thenReturn(false);
+    assertThatThrownBy(() -> service.exchange(assertion, request("S03", "connection", "sample-connection", purpose)))
+        .isInstanceOfSatisfying(IdentityException.class, error -> assertThat(error.status().value()).isEqualTo(403));
   }
 
   @Test

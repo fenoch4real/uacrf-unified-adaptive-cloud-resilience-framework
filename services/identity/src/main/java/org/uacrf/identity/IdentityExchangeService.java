@@ -32,6 +32,7 @@ class IdentityExchangeService {
       Set.of("topology.graph.subgraph-selection", "topology.graph.difference-classification");
   private static final Set<String> OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES =
       Set.of("objectives.objective.proposal", "objectives.objective.activation");
+  private static final String SYNTHETIC_SOURCE_PURPOSE = "objectives.import.synthetic-source";
   private static final Duration BUDGET = Duration.ofSeconds(5);
 
   private final JdbcTemplate jdbc;
@@ -67,8 +68,9 @@ class IdentityExchangeService {
     String resourceType = text(request, "resource_type");
     String resourceId = text(request, "resource_id");
     String purpose = text(request, "purpose");
+    boolean syntheticSource = SYNTHETIC_SOURCE_PURPOSE.equals(purpose);
     String expectedCallerAudience =
-        OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES.contains(purpose) ? "S05" : "S06";
+        OBJECTIVE_WORKLOAD_RECEIPT_PURPOSES.contains(purpose) || syntheticSource ? "S05" : "S06";
     if (!List.of(expectedCallerAudience).equals(assertion.getAudience())) {
       throw denied();
     }
@@ -77,7 +79,12 @@ class IdentityExchangeService {
     }
     boolean graphOperation = GRAPH_OPERATION_PURPOSES.contains(purpose);
     String downstreamCapability;
-    if (graphOperation) {
+    if (syntheticSource) {
+      if (!"S03".equals(audience) || !"connection".equals(resourceType)) {
+        throw invalid("The audience and resource type are not supported for this purpose.");
+      }
+      downstreamCapability = "connections.sample-objective.read";
+    } else if (graphOperation) {
       downstreamCapability = switch (audience + "/" + resourceType) {
         case "S02/service" -> "catalog.service.read";
         case "S04/evidence_event" -> "evidence.topology.summary";
@@ -100,6 +107,7 @@ class IdentityExchangeService {
           "topology.graph.read";
       case "objectives.objective.proposal" -> "objectives.objective.write";
       case "objectives.objective.activation" -> "objectives.objective.activate";
+      case SYNTHETIC_SOURCE_PURPOSE -> "objectives.objective.read";
       default -> throw invalid("The purpose is not supported.");
     };
     Instant deadline;
@@ -132,12 +140,17 @@ class IdentityExchangeService {
             + "AND e.status = 'ACTIVE' AND t.status = 'ACTIVE' "
             + "AND (p.kind = 'HUMAN' OR (p.kind = 'SYSTEM' AND ? = 'topology.graph.read')) "
             + "AND m.capability = ? AND m.revoked_at IS NULL AND m.expires_at > now() "
-            + "AND (m.service_scope = '*' OR m.service_scope = ?))",
+            + "AND (m.service_scope = '*' OR m.service_scope = ?) "
+            + "AND (NOT ? OR EXISTS (SELECT 1 FROM uacrf_identity.membership source_grant "
+            + "WHERE source_grant.principal_id = p.id AND source_grant.tenant_id = e.tenant_id "
+            + "AND source_grant.environment_id = e.id AND source_grant.capability = 'connections.connection.read' "
+            + "AND source_grant.service_scope = '*' AND source_grant.revoked_at IS NULL "
+            + "AND source_grant.expires_at > now())))",
         Boolean.class,
         assertion.getClaimAsString("tenant_id"), assertion.getClaimAsString("environment_id"),
         assertion.getSubject(), assertion.getClaimAsString("actor_issuer"),
         assertion.getClaimAsString("actor_subject"), Timestamp.from(assertion.getIssuedAt()),
-        upstreamCapability, upstreamCapability, scope);
+        upstreamCapability, upstreamCapability, scope, syntheticSource);
     if (!Boolean.TRUE.equals(authorized)) {
       throw denied();
     }

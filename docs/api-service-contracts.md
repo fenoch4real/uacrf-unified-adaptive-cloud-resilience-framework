@@ -166,7 +166,13 @@ the unkeyed route.
   approval, contact a provider, or verify a live source. EDGE01 forwards this
   read without changing its authorization or no-store response; UX01 separately
   requests S03 read authority, checks response identity and digest, and labels
-  it fictional. It is not consumed by S05 and does not process a pending import.
+  it fictional. S01 can also issue a five-second, connection-scoped
+  `connections.sample-objective.read` exchange for the
+  `objectives.import.synthetic-source` purpose, after checking the actor's current
+  global objective-read and connection-read memberships. S03 confines this
+  exchange to the sample endpoint and exact connection. This point-in-time
+  exchange is not an atomic current-authority fence. No S05 client consumes it
+  yet, and it does not process a pending import.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus
