@@ -176,10 +176,14 @@ the unkeyed route.
   requires global `objectives.objective.review`, `Idempotency-Key`, decision,
   exact reason, expected revision and expected content digest. S05 checks
   the submitted record and reviewer independence under the objective lock.
-  The actor/context-scoped key, transition and outbox event commit together;
+  The actor/context-scoped key, transition, immutable decision record and outbox event commit together;
   unchanged retries return the current objective and changed requests conflict.
   The digest does not cover every displayed field; the expected revision also
-  binds the record. The original decide route remains available. Review is
+  binds the record. Both this route and the original decide route retain the
+  decision, exact reason, reviewer, resulting revision and content digest in
+  a separate record protected against update or delete. No records are
+  backfilled for past decisions, and the current history endpoint does not yet
+  expose these records. Review is
   not activation, compliance, or an atomic cross-service authority fence.
 - **Retry-safe objective activation:** `POST /v1/objectives/{id}:idempotent-activate`
   requires global `objectives.objective.activate`, an `Idempotency-Key`, expected

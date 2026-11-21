@@ -1,6 +1,7 @@
 package org.uacrf.objectives;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -91,8 +92,16 @@ class ObjectivesApplicationTests {
 
     String selfDecide = bearer("proposer", "t-life", DECIDER);
     assertThat(post("/v1/objectives/o1:decide", selfDecide, decision("APPROVE", 2)).body()).contains("REVIEWER_NOT_INDEPENDENT");
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.objective_decision WHERE tenant_id = 't-life'", Integer.class));
     assertThat(post("/v1/objectives/o1:activate", activate, "{\"expected_revision\":2}").body()).contains("INVALID_STATE");
     assertThat(post("/v1/objectives/o1:decide", decide, decision("APPROVE", 2)).body()).contains("\"state\":\"APPROVED\"");
+    assertThat(jdbc.queryForMap("SELECT revision, decision, reason, decided_by FROM uacrf_objectives.objective_decision WHERE tenant_id = 't-life'"))
+        .containsEntry("revision", 3L).containsEntry("decision", "APPROVE")
+        .containsEntry("decided_by", "https://uacrf.local/s01|decider");
+    assertThatThrownBy(() -> jdbc.update("DELETE FROM uacrf_objectives.objective_decision WHERE tenant_id = 't-life'"))
+        .hasMessageContaining("objective decisions are immutable and retained");
+    assertThatThrownBy(() -> jdbc.update("UPDATE uacrf_objectives.objective_decision SET reason = 'changed' WHERE tenant_id = 't-life'"))
+        .hasMessageContaining("objective decisions are immutable and retained");
     HttpResponse<String> active = post("/v1/objectives/o1:activate", activate, "{\"expected_revision\":3}");
     assertThat(active.body()).contains("\"state\":\"ACTIVE\"").contains("\"activated_by\":\"https://uacrf.local/s01|activator\"");
     assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.outbox_event WHERE tenant_id = 't-life'", Integer.class));
@@ -494,6 +503,11 @@ class ObjectivesApplicationTests {
     assertEquals(1, jdbc.queryForObject(
         "SELECT count(*) FROM uacrf_objectives.outbox_event WHERE tenant_id = 't-review-replay' AND event_type = 'objectives.objective.decided'",
         Integer.class));
+    assertThat(jdbc.queryForMap(
+        "SELECT revision, content_digest, decision, reason, decided_by FROM uacrf_objectives.objective_decision WHERE tenant_id = 't-review-replay'"))
+        .containsEntry("revision", 3L).containsEntry("content_digest", digest)
+        .containsEntry("decision", "APPROVE").containsEntry("reason", "reviewed exactly")
+        .containsEntry("decided_by", "https://uacrf.local/s01|reviewer");
     assertThat(postWithIdempotency(path, reviewer, body.replace("reviewed exactly", "changed"), "review-key").body())
         .contains("IDEMPOTENCY_CONFLICT");
     assertThat(postWithIdempotency(path, reviewer, body.replace("APPROVE", "REJECT"), "review-key").body())
@@ -537,6 +551,34 @@ class ObjectivesApplicationTests {
     assertThat(postWithIdempotency(path, reviewer, body, "review-key").body())
         .contains("\"state\":\"REJECTED\"").contains("\"decision_reason\":\"not acceptable\"");
     assertThat(postWithIdempotency(path, reviewer, body, "review-key").body()).contains("\"state\":\"REJECTED\"");
+    assertThat(jdbc.queryForMap("SELECT decision, reason FROM uacrf_objectives.objective_decision WHERE tenant_id = 't-review-invalid'"))
+        .containsEntry("decision", "REJECT").containsEntry("reason", "not acceptable");
+  }
+
+  @Test
+  void decisionRecordFailureRollsBackReviewAndOutbox() throws Exception {
+    String creator = bearer("creator", "t-review-record-failure", PROPOSER);
+    String reviewer = bearer("reviewer", "t-review-record-failure", DECIDER);
+    String created = post("/v1/objectives", creator,
+        objective("review-failure", "w-review", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    assertEquals(200, post("/v1/objectives/review-failure:submit", creator, "{\"expected_revision\":1}").statusCode());
+    jdbc.update("INSERT INTO uacrf_objectives.objective_decision "
+            + "(tenant_id, environment_id, objective_id, revision, content_digest, decision, reason, decided_by) "
+            + "VALUES ('t-review-record-failure', 'env-1', 'review-failure', 3, ?, 'REJECT', 'existing', 'existing')",
+        digest);
+    String body = "{\"decision\":\"APPROVE\",\"reason\":\"reviewed\",\"expected_revision\":2,"
+        + "\"expected_content_digest\":\"" + digest + "\"}";
+    HttpResponse<String> failed = postWithIdempotency("/v1/objectives/review-failure:idempotent-decide",
+        reviewer, body, "review-key");
+    assertEquals(409, failed.statusCode());
+    assertThat(failed.body()).contains("OBJECTIVE_CONFLICT");
+    assertThat(get("/v1/objectives/review-failure", creator).body())
+        .contains("\"state\":\"SUBMITTED\"").contains("\"revision\":2");
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.objective_review "
+        + "WHERE tenant_id = 't-review-record-failure'", Integer.class));
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.outbox_event "
+        + "WHERE tenant_id = 't-review-record-failure' AND event_type = 'objectives.objective.decided'", Integer.class));
   }
 
   @Test

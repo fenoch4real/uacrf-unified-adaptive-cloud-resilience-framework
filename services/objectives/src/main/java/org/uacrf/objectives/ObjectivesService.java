@@ -370,6 +370,12 @@ class ObjectivesService {
         reason,
         null,
         "objectives.objective.decided");
+    jdbc.update(
+        "INSERT INTO " + SCHEMA + "objective_decision "
+            + "(tenant_id, environment_id, objective_id, revision, content_digest, decision, reason, decided_by) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        actor.tenantId(), actor.environmentId(), id, expectedRevision + 1,
+        row.get("content_digest").toString().trim(), decision.name(), reason, actor.principalId());
     return find(actor, id);
   }
 

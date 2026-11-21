@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**122 completed / 782 total** · 660 open
+**123 completed / 785 total** · 662 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 32 | 195 |
+| Milestone items | 33 | 198 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -304,6 +304,9 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-022e Update contracts, status and private approach document after verification. Evidence: R-0030.
   - [x] M2-022f Disclose up to 25 retained decision events through UX01, identifying missing history and unavailable reasons. Evidence: R-0054.
   - [ ] M2-022g Provide complete, durable and navigable decision history including attributable reasons, without inventing legacy records.
+    - [x] M2-022g1 Retain new decisions and exact reasons atomically in immutable records for both review routes, without fabricating historical entries. Evidence: R-0070–R-0072.
+    - [ ] M2-022g2 Expose paginated retained decision records with explicit pre-retention gaps through S05 and EDGE01.
+    - [ ] M2-022g3 Connect paginated decision records and gap disclosure to UX01 and verify the browser flow.
 - [x] M2-023 Connect objective activation and active-objective readback through the browser. Evidence: R-0062–R-0063, R-0066.
   - [x] M2-023a Implement a retry-safe, revision-bound activation command without weakening owner and review checks. Evidence: R-0062.
   - [x] M2-023b Forward activation and connect the browser form with separate read and activation delegations. Evidence: R-0062–R-0063, R-0066.
@@ -1144,6 +1147,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0065 | 2026-11-20 | M2-022f, M2-023d | Added synthetic browser assertions for retained decision history, activation, unchanged replay, changed-digest conflict and current readback; `node --check` passes. | Browser stack execution remains pending. |
 | R-0066 | 2026-11-20 | M2-022f, M2-023 | `bash e2e/run-live.sh` exited 0: all 11 Playwright tests passed against the isolated stack, including bounded history, activation, unchanged replay, changed-digest conflict and current-state readback. | Browser tests use synthetic data and disable the optional S02 owner check. Stale revision and authorization denial were verified in the service tests, not this browser flow. |
 | R-0067 | 2026-11-20 | M2-023 | Updated private technical approach Appendix AB to revision 179; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; real owner-service acceptance remains open. |
+| R-0068 | 2026-11-20 | M2-023 | Committed browser verification as `80b7925` and pushed it to `origin/main`. | Complete objective decision history and real owner-service acceptance remain open. |
+| R-0069 | 2026-11-20 | M2-022g1–M2-022g3 | Started the next decision-history slice, separating immutable capture, paginated access and browser disclosure. | Historical reasons absent from retained records cannot be reconstructed. |
+| R-0070 | 2026-11-20 | M2-022g1 | Clean focused S05 PostgreSQL tests passed 2/2 for legacy and concurrent retry-safe decision capture and immutable update/delete denial. | Full regression and rollback-on-record-failure verification are pending. |
+| R-0071 | 2026-11-20 | M2-022g1 | Clean S05 regression exited 1: the new rollback test expected HTTP 500 for a duplicate record, but S05 maps database integrity conflicts to HTTP 409. Corrected the assertion to match the existing `OBJECTIVE_CONFLICT` contract. | Retry required before completing the slice. |
+| R-0072 | 2026-11-20 | M2-022g1 | Clean S05 reactor retry exited 0: 33 tests passed, including concurrent replay, both decision routes, rejection, immutable update/delete denial and rollback when the decision record cannot be inserted. | Only new decisions are retained in the new table; browsing and pre-retention gaps remain open. |
+| R-0073 | 2026-11-20 | M2-022g1 | Updated private technical approach Appendix AB to revision 180; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; decision-record browsing remains open. |
 
 ## Implementation evidence
 
@@ -2261,6 +2270,12 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   discloses missing or older records and does not infer a complete history.
   S05, EDGE01 and UX01 tests passed 245/245; the isolated browser flow also
   verifies the approved event and incomplete-history disclosure.
+- New objective decisions through either review route now retain the exact
+  reason, reviewer, resulting revision and digest in an update/delete-protected
+  S05 table in the same transaction as the decision and outbox event. The
+  retry-safe route's key is committed in that transaction too. The clean S05
+  reactor passed 33 tests. Existing decisions were not fabricated or backfilled,
+  and the bounded history endpoint does not yet read the new records.
 - UX01 exposes objective activation through EDGE01 with separate global read and
   activation delegations. S05 atomically retains an actor/context-scoped key,
   expected objective revision and digest, activation, supersession and outbox
