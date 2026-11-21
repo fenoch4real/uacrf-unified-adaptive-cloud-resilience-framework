@@ -308,7 +308,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
-      'objectives.objective.read', 'objectives.objective.write', 'objectives.objective.review', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
+      'objectives.objective.read', 'objectives.objective.write', 'objectives.objective.review',
+      'objectives.objective.activate', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
@@ -919,6 +920,30 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     } finally {
       await objectiveReviewerContext.close();
     }
+    await sample.goto(`/objectives/history?id=${newObjectiveId}`);
+    await expect(sample.getByRole('heading', { name: 'Recorded objective decision events' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('APPROVED');
+    await expect(sample.locator('main')).toContainText('not a complete audit history');
+    await sample.goto(`/objectives/activate?id=${newObjectiveId}`);
+    await expect(sample.getByRole('heading', { name: 'Objective activation and current state' })).toBeVisible();
+    const [activationRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/objectives/activate'),
+      sample.getByRole('button', { name: 'Activate objective' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Recorded activation result' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('ACTIVE');
+    expect((await sample.request.post('/objectives/activate', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: activationRequest.postData(),
+    })).status()).toBe(200);
+    const changedActivation = new URLSearchParams(activationRequest.postData());
+    changedActivation.set('contentDigest', 'a'.repeat(64));
+    expect((await sample.request.post('/objectives/activate', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedActivation.toString(),
+    })).status()).toBe(409);
+    await sample.getByRole('link', { name: 'Read current objective state' }).click();
+    await expect(sample.locator('main')).toContainText('ACTIVE');
+    await expect(sample.getByRole('button', { name: 'Activate objective' })).toHaveCount(0);
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
