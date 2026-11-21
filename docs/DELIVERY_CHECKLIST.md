@@ -383,6 +383,59 @@ operation-by-operation reconciliation (M0-001–M0-005).
 - [x] HIST-043 Implement S10 independent review, signed approval verification and quorum decisions.
 - [x] HIST-044 Add a local policy-assertion signer; production key management remains M4-013.
 
+### Additional verified details
+
+The following items record narrower local or isolated slices. Their linked
+evidence includes the exact tests and limitations; they do not close their
+broader milestone or release acceptance items.
+
+- [x] HIST-045 Track S01 capability and session expiry horizons, membership digests and scoped generations. Evidence: [identity handoff](#current-handoff); not an atomic fence.
+- [x] HIST-046 Consume context-bound independent grant decisions atomically with membership creation. Evidence: [grant authority](#independent-grant-authority).
+- [x] HIST-047 Test signed delegation key, issuer, audience and lifetime validation. Evidence: [identity handoff](#current-handoff).
+- [x] HIST-048 Test S02 tenant isolation, registration, idempotency, links and snapshot behavior. Evidence: [identity handoff](#current-handoff).
+- [x] HIST-049 Compare S03 duplicate observations using original nanosecond precision. Evidence: [observation replay](#s03-observation-replay-integrity).
+- [x] HIST-050 Implement bounded S03 request timeouts and refresh expiring collection credentials. Evidence: [S03 status](#m2--s03-connections-in-progress).
+- [x] HIST-051 Renew and fence S03 collection leases during bounded cycles. Evidence: [S03 status](#m2--s03-connections-in-progress).
+- [x] HIST-052 Match S04 acknowledgement event IDs before S03 outbox disposition. Evidence: [S03 status](#m2--s03-connections-in-progress).
+- [x] HIST-053 Implement bounded AWS Config and CloudWatch collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
+- [x] HIST-054 Implement bounded Azure Resource Graph and Monitor collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
+- [x] HIST-055 Implement bounded GCP Asset Inventory and Monitoring collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
+- [x] HIST-056 Import and browse synthetic provider-format observations with replay and partial-result disclosure. Evidence: [inventory projection](#s03-inventory-observation-projection).
+- [x] HIST-057 Exercise S03 delivery to S04 with real test delegations and retry after a lost acknowledgement. Evidence: [S03 status](#m2--s03-connections-in-progress); test identities only.
+- [x] HIST-058 Verify distinct S03 aggregate types sharing an ID do not collide at S04. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-059 Record S04 evidence byte length and digest and serialize replay/conflict admission. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-060 Block independent qualification of synthetic SAMPLE_LOCAL evidence. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-061 Validate provider evidence envelopes and schemas before qualification. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-062 Retain versioned qualification policies and independently reviewed gap waivers. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-063 Enforce evidence qualification and measurement cutoff checks in S04 receipts. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows); receipts are point-in-time.
+- [x] HIST-064 Browse S04 evidence metadata through separately scoped browser access. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-065 Enforce S05 activation constraints and supersede the prior active workload/metric objective. Evidence: [S05 status](#m2--s05-objectives-first-slice).
+- [x] HIST-066 Issue S05 active-objective set receipts with retained digests. Evidence: [S05 status](#m2--s05-objectives-first-slice); S05 outbox publishing remains open.
+- [x] HIST-067 Verify S05 workload ownership with optional signed S02 receipts. Evidence: [S05 status](#m2--s05-objectives-first-slice); the check is point-in-time.
+- [x] HIST-068 Reconcile S06 graph projections against retained graph digests. Evidence: [S06 status](#m2--s06-topology-first-slice).
+- [x] HIST-069 Bind S06 dependency selection to retained graph and owner receipts. Evidence: [S06 status](#m2--s06-topology-first-slice); provider acceptance remains open.
+- [x] HIST-070 Verify evidence replay conflicts make affected S06 projected context ineligible. Evidence: [S06 status](#m2--s06-topology-first-slice).
+- [x] HIST-071 Browse S07 cases, evaluation history and investigation-only recommendations. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-072 Submit retry-safe incident creation requests through the browser and verify skipped evidence is rejected. Evidence: [S07 status](#m3--s07-assessment-first-slice); successful qualified browser creation remains open.
+- [x] HIST-073 Browse S07 incident and learning records with separate read grants. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-074 Independently review learning proposals and display retained review decisions. Evidence: [S07 status](#m3--s07-assessment-first-slice); review is not adoption.
+- [x] HIST-075 Force insufficient evidence when enabled S07 owner-receipt checks fail. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-076 Block S07 model promotion without the required model-specific evaluation. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-077 Browse S08 knowledge metadata with explicit classification grants. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-078 Stage and replay synthetic knowledge candidates through UX01, EDGE01 and S08. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-079 Review exact candidate versions and reject stale or self-review requests. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-080 Withdraw an exact approved knowledge version and conceal withdrawn excerpts. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-081 Create and replay exact-term synthetic knowledge retrievals with classification clearance. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-082 Read retained S08 retrievals and paginated classification-filtered retrieval history. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-083 Verify S08 knowledge source and excerpt digests and prevent retained-record substitution. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-084 Test S09 planned-run idempotency, immutable dispatch plans and rejection of unplanned legacy intents. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
+- [x] HIST-085 Test S09 outbox claim exclusivity, lease renewal, token fencing and atomic acknowledgement. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
+- [x] HIST-086 Test bounded, jittered S09 retry scheduling and cancellation/deadline delivery gating. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
+- [x] HIST-087 Test S09 requester capability, expiry and scope snapshots at journal boundaries. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation); not transaction-fenced.
+- [x] HIST-088 Exercise S09 provider adapter contracts with fake transports. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation); adapters remain unwired and unqualified.
+- [x] HIST-089 Test S10 trust rollback and contradictory trust-revision denial. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
+- [x] HIST-090 Test S10 concurrent replay and competing revisions on one service instance. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
+
 ## Item-by-item inventory reconciliation
 
 Each unchecked item below means its allocation still needs reconciliation with
@@ -802,14 +855,14 @@ Source: [requirement allocation](../design/ms01/inventories/REQUIREMENT_ALLOCATI
 - [ ] INV-REQ-097 Reconcile `NFR-CLM-001` (CROSS_CUTTING): Claims-control and negative publication test.
 - [ ] INV-REQ-098 Reconcile `NFR-COM-001` (CROSS_CUTTING): Entitlement outage and contract-expiry exercise.
 - [ ] INV-REQ-099 Reconcile `NFR-OPS-002` (CROSS_CUTTING): Ownership registry and operational-readiness audit.
-- [ ] INV-REQ-100 Reconcile `METH-001` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-101 Reconcile `METH-002` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-102 Reconcile `METH-003` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-103 Reconcile `METH-004` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-104 Reconcile `METH-005` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-105 Reconcile `METH-006` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-106 Reconcile `METH-007` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
-- [ ] INV-REQ-107 Reconcile `METH-008` (CROSS_CUTTING): 26.14 Methodology acceptance criteria
+- [ ] INV-REQ-100 Reconcile `METH-001` (CROSS_CUTTING): Two qualified assessors applying the same pack to the same approved evidence produce the same categorical result or a documented, reviewable judgment difference.
+- [ ] INV-REQ-101 Reconcile `METH-002` (CROSS_CUTTING): Every issued conclusion can be reconstructed from the engagement charter, pack version, scope, graph revision, workpapers, evidence, decisions, reviews, and approvals.
+- [ ] INV-REQ-102 Reconcile `METH-003` (CROSS_CUTTING): Missing, stale, weak, contradictory, and excluded evidence cannot silently produce a passing result or inflated confidence.
+- [ ] INV-REQ-103 Reconcile `METH-004` (CROSS_CUTTING): Sampling decisions are reproducible and failed samples trigger the published expansion rule.
+- [ ] INV-REQ-104 Reconcile `METH-005` (CROSS_CUTTING): Criticality, severity, priority, confidence, residual risk, and conclusion rules operate consistently across supported packs and disclose approved differences.
+- [ ] INV-REQ-105 Reconcile `METH-006` (CROSS_CUTTING): Customer factual challenge, independent quality review, correction, reissuance, withdrawal, expiration, and reassessment preserve history and authority separation.
+- [ ] INV-REQ-106 Reconcile `METH-007` (CROSS_CUTTING): Assessment outputs state intended use, limitations, validity, evidence cutoff, uncertainty, and prohibited claims clearly enough for the target audience.
+- [ ] INV-REQ-107 Reconcile `METH-008` (CROSS_CUTTING): The methodology can be executed manually from controlled templates and through UACRF Assess without changing substantive results.
 - [ ] INV-REQ-108 Reconcile `FR-KNO-001` (S08): Version history and attributable lifecycle audit
 - [ ] INV-REQ-109 Reconcile `FR-KNO-002` (S08): Quarantine, approval and retrieval-denial records
 - [ ] INV-REQ-110 Reconcile `FR-KNO-003` (S08): Denied access and zero unauthorized content exposure
@@ -822,18 +875,18 @@ Source: [requirement allocation](../design/ms01/inventories/REQUIREMENT_ALLOCATI
 - [ ] INV-REQ-117 Reconcile `FR-ORC-004` (S09): Blocked escalation and human-review record
 - [ ] INV-REQ-118 Reconcile `FR-ORC-005` (S09): Grant revocation and independently governed manual continuation
 - [ ] INV-REQ-119 Reconcile `FR-ORC-006` (S09): Version-bound evaluation pack and promotion or rollback disposition
-- [ ] INV-REQ-120 Reconcile `FR-AWL-001` (S02): Appendix X Protected agent workloads
-- [ ] INV-REQ-121 Reconcile `FR-AWL-002` (S02): Appendix X Protected agent workloads
-- [ ] INV-REQ-122 Reconcile `FR-AWL-003` (S06): Appendix X Protected agent workloads
-- [ ] INV-REQ-123 Reconcile `FR-AWL-004` (S11): Appendix X Protected agent workloads
-- [ ] INV-REQ-124 Reconcile `FR-AWL-005` (S11): Appendix X Protected agent workloads
-- [ ] INV-REQ-125 Reconcile `FR-AWL-006` (S11): Appendix X Protected agent workloads
-- [ ] INV-REQ-126 Reconcile `FR-AWL-007` (S11): Appendix X Protected agent workloads
-- [ ] INV-REQ-127 Reconcile `FR-AWL-008` (S10): Appendix X Protected agent workloads
-- [ ] INV-REQ-128 Reconcile `FR-AWL-009` (S11): Appendix X Protected agent workloads
-- [ ] INV-REQ-129 Reconcile `FR-AWL-010` (S12): Appendix X Protected agent workloads
-- [ ] INV-REQ-130 Reconcile `FR-AWL-011` (S10): Appendix X Protected agent workloads
-- [ ] INV-REQ-131 Reconcile `FR-AWL-012` (S13): Appendix X Protected agent workloads
+- [ ] INV-REQ-120 Reconcile `FR-AWL-001` (S02): The platform shall register each protected agent workload with a tenant, environment, service identity, accountable owner, runtime principal, intended purpose and workload kind.
+- [ ] INV-REQ-121 Reconcile `FR-AWL-002` (S02): The platform shall bind each execution to an immutable workload version containing model, instruction, knowledge, tool, memory, data and evaluation contracts, and shall require a new version for a material change.
+- [ ] INV-REQ-122 Reconcile `FR-AWL-003` (S06): The platform shall retain qualified and version-bound agent dependencies, including tool effects, identity, model, knowledge, memory, runtime and handoff dependencies, without treating topology alone as proof of eligibility or recovery independence.
+- [ ] INV-REQ-123 Reconcile `FR-AWL-004` (S11): The platform shall enforce authenticated scoped admission, a deadline and atomic per-attempt limits for steps, tokens and cost before runtime dispatch, including each parallel child.
+- [ ] INV-REQ-124 Reconcile `FR-AWL-005` (S11): The platform shall retain an attributed append-only event stream and shall return the original receipt for an identical source key and content while rejecting a conflicting reuse without a second budget debit.
+- [ ] INV-REQ-125 Reconcile `FR-AWL-006` (S11): The platform shall isolate sensitive memory and checkpoint artifacts by authorized scope and shall bind an eligible checkpoint to verified bytes, the workload version, input digest, event sequence, namespace and expiry.
+- [ ] INV-REQ-126 Reconcile `FR-AWL-007` (S11): The platform shall fence cancellation and pause requests at admission and dispatch, preserve late output without accepting it as eligible, and reconcile uncertain external effects before retry or resumption.
+- [ ] INV-REQ-127 Reconcile `FR-AWL-008` (S10): The platform shall require the existing governed recovery authority chain for consequential agent recovery and shall bind the recovery workflow to the exact source execution, checkpoint, evaluation and target version without granting recovery authority to the agent.
+- [ ] INV-REQ-128 Reconcile `FR-AWL-009` (S11): The platform shall stage resumption as a new linked execution with no greater remaining budget or deadline and shall reject stale evaluation, expired checkpoint, unresolved effects or incompatible context.
+- [ ] INV-REQ-129 Reconcile `FR-AWL-010` (S12): The platform shall assess agent recovery against a versioned mandatory evaluation suite and qualified observations of task, data, security and business outcomes, preserving FAIL or UNKNOWN when required checks are absent.
+- [ ] INV-REQ-130 Reconcile `FR-AWL-011` (S10): The platform shall preserve agent execution, context, tool effect, handoff, evaluation and recovery lineage in its decision evidence and shall retain a governed human continuation route.
+- [ ] INV-REQ-131 Reconcile `FR-AWL-012` (S13): The platform shall distinguish runtime reservations, measured provider usage and customer charges, correlate child attempts, prevent duplicate receipt charges and preserve safety controls when billing is unavailable.
 
 ## Distributed acceptance cases
 
@@ -958,6 +1011,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0033 | 2026-11-20 | Delivery tracking | Verified prior status-detail lines remain in order, combined-document heading links resolve, redirected workspace links point to the combined document, and `git diff --check` passes. | External links to the old file land on its compatibility pointer. |
 | R-0034 | 2026-11-20 | Delivery tracking | Rechecked the combined checklist: 727 unique IDs, including all 144 operations, 153 data allocations and 131 requirements; browser spec syntax and whitespace checks pass. | Unchecked reconciliation entries do not imply unimplemented features and are not a percentage-complete estimate. |
 | R-0035 | 2026-11-20 | M2-022, delivery tracking | Committed the verified review flow and unified tracker as `7b6d2e3` and pushed it to `origin/main`. | Complete decision-history disclosure and historical allocation reconciliation remain open. |
+| R-0036 | 2026-11-20 | Local Docker cleanup | Removed 11 image tags from this run's completed disposable browser stack. | No shared containers, volumes or build cache were removed. |
+| R-0037 | 2026-11-20 | Local Docker cleanup | Removed 357 image tags belonging to 36 prior browser projects identified in this session's logs, after checking none had containers. Docker-reported image usage changed from 15.11 GB to 11.53 GB; all three unrelated running containers remained up. | Other images and shared build cache were left untouched. |
+| R-0038 | 2026-11-20 | M0-004 | Expanded 20 abbreviated requirement checklist entries using their retained source text. | Requirements still need individual evidence reconciliation. |
+| R-0039 | 2026-11-20 | Delivery tracking | Removed the obsolete implementation-status compatibility file at the user's request; workspace references already point to this combined tracker. | External references to the deleted file must be updated. |
+| R-0040 | 2026-11-20 | M0-020, HIST-045–HIST-090 | Backfilled 46 additional narrowly scoped historical slices from the retained implementation evidence. | Further historical reconciliation and release acceptance remain open. |
+| R-0041 | 2026-11-20 | Delivery tracking | Verified the old file is absent, tracked workspace references are absent, all local tracker links and anchors resolve, 773 checklist IDs are unique, all 428 inventory allocations remain represented, and `git diff --check` passes. | Inventory entries remain reconciliation tasks, not acceptance results. |
 
 ## Implementation evidence
 
