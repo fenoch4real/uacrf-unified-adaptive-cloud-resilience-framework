@@ -1438,6 +1438,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0309 | 2026-11-21 | M2-026ad | Ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic-source feature remains disabled by default. |
 | R-0310 | 2026-11-21 | M2-026ac, M2-026ad | Updated the private technical approach Appendix AB to revision 222. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
 | R-0311 | 2026-11-21 | M2-026ad | Re-ran focused UX01 tests after adding capture-link, invalid-ID and missing-context assertions. | 2 tests passed. Checklist totals independently verified at 173 / 832. |
+| R-0312 | 2026-11-21 | M2-026ac, M2-026ad | Committed and pushed proposal discovery through EDGE01 and UX01 as `93a2957`. | Trusted source provenance, candidate creation, comparison and import processing remain open. |
 
 ## Implementation evidence
 
