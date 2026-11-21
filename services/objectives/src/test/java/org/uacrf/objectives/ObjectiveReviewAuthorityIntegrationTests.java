@@ -168,6 +168,16 @@ class ObjectiveReviewAuthorityIntegrationTests {
         """.formatted(digest);
     String reviewer = token("reviewer", List.of("objectives.objective.read", "objectives.objective.review"));
     String self = token("importer", List.of("objectives.objective.read", "objectives.objective.review"));
+    String reader = token("reader", "objectives.objective.read");
+    var empty = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, empty.statusCode());
+    assertThat(empty.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(empty.body()).path("items").size()).isZero();
+    var forbidden = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
+        .header("Authorization", token("writer", "objectives.objective.write")).GET().build(),
+        HttpResponse.BodyHandlers.ofString());
+    assertEquals(403, forbidden.statusCode());
     REQUEST.set(null);
     assertEquals(409, postKeyed(reviews, self, body).statusCode());
     assertThat(REQUEST.get()).isNull();
@@ -193,6 +203,12 @@ class ObjectiveReviewAuthorityIntegrationTests {
     assertThat(review.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
     assertThat(review.path("proposal_digest").asText()).isEqualTo(digest);
     assertThat(REQUEST.get()).contains("\"reviewer_id\":\"reviewer\"");
+    var listed = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, listed.statusCode());
+    assertThat(listed.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(listed.body()).path("items").size()).isEqualTo(1);
+    assertThat(json.readTree(listed.body()).path("items").get(0)).isEqualTo(review);
     var replay = postKeyed(reviews, reviewer, body);
     assertEquals(200, replay.statusCode(), replay.body());
     assertThat(json.readTree(replay.body())).isEqualTo(review);
@@ -215,6 +231,16 @@ class ObjectiveReviewAuthorityIntegrationTests {
     var isolated = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + readPath))
         .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(404, isolated.statusCode());
+    var isolatedList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
+        .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(404, isolatedList.statusCode());
+    var scopedList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
+        .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(403, scopedList.statusCode());
+    String wrongProposal = reviews.replace(proposalId, java.util.UUID.randomUUID().toString());
+    var missingList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + wrongProposal))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(404, missingList.statusCode());
     assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
         "UPDATE uacrf_objectives.synthetic_objective_mapping_review SET reason='changed' WHERE review_id=?::uuid",
         review.path("review_id").asText()));

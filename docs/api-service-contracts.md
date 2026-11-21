@@ -274,12 +274,15 @@ the unkeyed route.
   S05 database commit. One immutable review is retained per proposal; an
   unchanged retry while the request is pending returns it. A known review can
   be read via `GET` ending in `/reviews/{reviewId}` with global objective-read.
-  Both successful responses are `no-store`. The proposal record remains
+  `GET` ending in `/reviews` returns `items` containing zero or one review for
+  a known proposal, with the same global read authority and tenant/environment
+  scope; an unknown proposal returns 404. Successful responses are `no-store`.
+  The proposal record remains
   `UNAPPROVED`; the separate review is `SYNTHETIC_UNVERIFIED` and applies only
   to that historical capture, not a general mapping or provider provenance.
   EDGE01 forwards review admission and known-review read with the original
   delegation and idempotency key and preserves owner responses. No candidate
-  or import is processed; UX01 review access and review discovery remain open.
+  or import is processed; EDGE01 discovery and UX01 review access remain open.
 
   `SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1` hashes UTF-8 compact JSON with keys in
   alphabetical order: `allow_fraction_to_percent`, `capture_id`,

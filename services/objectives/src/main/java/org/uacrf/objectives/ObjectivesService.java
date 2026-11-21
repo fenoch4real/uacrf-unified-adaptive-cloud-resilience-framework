@@ -683,6 +683,21 @@ class ObjectivesService {
   }
 
   @Transactional(readOnly = true)
+  SyntheticMappingReviews listSyntheticMappingReviews(
+      DelegationPrincipal actor, String id, String captureId, String proposalId) {
+    SyntheticMappingProposal proposal = getSyntheticMappingProposal(actor, id, captureId, proposalId);
+    List<UUID> ids = jdbc.query("SELECT review_id FROM " + SCHEMA
+        + "synthetic_objective_mapping_review WHERE tenant_id = ? AND environment_id = ? "
+        + "AND command_id = ? AND capture_id = ? AND proposal_id = ?",
+        (rs, row) -> rs.getObject("review_id", UUID.class), actor.tenantId(), actor.environmentId(),
+        UUID.fromString(proposal.receiptId()), UUID.fromString(proposal.captureId()), UUID.fromString(proposal.proposalId()));
+    return new SyntheticMappingReviews(ids.stream()
+        .map(reviewId -> getSyntheticMappingReview(actor, id, captureId, proposalId, reviewId.toString())).toList());
+  }
+
+  record SyntheticMappingReviews(List<SyntheticMappingReview> items) {}
+
+  @Transactional(readOnly = true)
   SyntheticMappingReview getSyntheticMappingReview(DelegationPrincipal actor, String id, String captureId,
       String proposalId, String reviewId) {
     requireCapability(actor, "objectives.objective.read");

@@ -136,6 +136,14 @@ class ObjectivesController {
         .cacheControl(CacheControl.noStore()).body(result.review());
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews")
+  ResponseEntity<ObjectivesService.SyntheticMappingReviews> listSyntheticMappingReviews(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.listSyntheticMappingReviews(DelegationPrincipal.from(jwt), id, captureId, proposalId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}")
   ResponseEntity<ObjectivesService.SyntheticMappingReview> getSyntheticMappingReview(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
