@@ -13,9 +13,16 @@ s02_private_key="$key_dir/s02-owner-receipt-private.der"
 s02_public_key="$key_dir/s02-owner-receipt-public.der"
 policy_pem_key="$key_dir/policy-review.pem"
 policy_public_key="$key_dir/policy-review-public.der"
+tls_dir="$runtime_dir/tls"
 env_file="$runtime_dir/compose.env"
 project_name="uacrf-e2e-$(openssl rand -hex 5)"
 compose_started=0
+sample_inspection="${UACRF_E2E_SAMPLE_INSPECTION:-0}"
+if [[ "$sample_inspection" != 0 && "$sample_inspection" != 1 ]]; then
+  printf 'UACRF_E2E_SAMPLE_INSPECTION must be 0 or 1.\n' >&2
+  rmdir "$runtime_dir"
+  exit 1
+fi
 mkdir "$key_dir"
 umask 077
 
@@ -23,14 +30,17 @@ cleanup() {
   result=$?
   trap - EXIT
   if [[ "$compose_started" == 1 ]] &&
-      ! docker compose --env-file "$env_file" -p "$project_name" -f "$compose_file" down \
-        --volumes --remove-orphans >/dev/null; then
+      ! "${compose[@]}" down --volumes --remove-orphans >/dev/null; then
     printf 'Failed to remove disposable Compose project %s.\n' "$project_name" >&2
     result=1
   fi
   rm -f \
     "$env_file" "$pem_key" "$private_key" "$public_key" \
     "$s02_pem_key" "$s02_private_key" "$s02_public_key" "$policy_pem_key" "$policy_public_key"
+  if [[ -d "$tls_dir" ]]; then
+    rm -f "$tls_dir/server.p12" "$tls_dir/server.crt" "$tls_dir/trust.p12"
+    rmdir "$tls_dir" || result=1
+  fi
   if ! rmdir "$key_dir" "$runtime_dir"; then
     printf 'Failed to remove temporary E2E credential files in %s.\n' "$runtime_dir" >&2
     result=1
@@ -53,6 +63,18 @@ openssl pkey -in "$s02_pem_key" -pubout -outform DER -out "$s02_public_key"
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$policy_pem_key"
 openssl pkey -in "$policy_pem_key" -pubout -outform DER -out "$policy_public_key"
 rm -f "$pem_key" "$s02_pem_key"
+
+if [[ "$sample_inspection" == 1 ]]; then
+  mkdir "$tls_dir"
+  keytool -genkeypair -alias sample-test -keyalg RSA -keysize 2048 -validity 1 \
+    -dname "CN=sample-test-proxy" -ext "SAN=dns:sample-test-proxy" \
+    -storetype PKCS12 -keystore "$tls_dir/server.p12" -storepass isolated-test-only
+  keytool -exportcert -alias sample-test -keystore "$tls_dir/server.p12" \
+    -storepass isolated-test-only -rfc -file "$tls_dir/server.crt"
+  keytool -importcert -noprompt -alias sample-test -file "$tls_dir/server.crt" \
+    -storetype PKCS12 -keystore "$tls_dir/trust.p12" -storepass isolated-test-only
+  chmod 644 "$tls_dir/server.p12" "$tls_dir/trust.p12"
+fi
 
 identity_admin_password="$(openssl rand -hex 24)"
 identity_runtime_password="$(openssl rand -hex 24)"
@@ -126,10 +148,14 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'UACRF_DELEGATION_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$public_key" | tr -d '\n')"
   printf 'UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64=%s\n' "$(base64 < "$s02_private_key" | tr -d '\n')"
   printf 'UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$s02_public_key" | tr -d '\n')"
+  printf 'UACRF_E2E_TLS_DIR=%s\n' "$tls_dir"
   printf 'UACRF_POLICY_TRUST_SET_JSON={"revision":1,"keys":[{"kid":"e2e-review-key","algorithm":"RS256","public_key_base64":"%s","tenant_id":"local-dev","environment_id":"local","service_id":"browser-signed-policy-service","reviewer_id":"local-approver"}]}\n' "$(base64 < "$policy_public_key" | tr -d '\n')"
 } > "$env_file"
 
 compose=(docker compose --env-file "$env_file" -p "$project_name" -f "$compose_file")
+if [[ "$sample_inspection" == 1 ]]; then
+  compose+=(-f "$repo_root/e2e/compose-sample-tls.yaml")
+fi
 "${compose[@]}" config --quiet
 
 wait_for_url() {

@@ -6,13 +6,27 @@ EDGE01 → S01/S02/S07 workflows against disposable infrastructure.
 ## Run
 
 Prerequisites: Docker with a running daemon, Node.js, npm, and free loopback
-ports 8080–8087, 8089–8091, and 8180.
+ports 8080–8087, 8089–8091, and 8180. The optional TLS inspection run also
+requires `keytool`.
 
 ```sh
 npm ci --prefix e2e
 (cd e2e && npx playwright install --with-deps chromium)
 npm --prefix e2e run test:live
 ```
+
+To additionally exercise enabled pending-receipt sample inspection:
+
+```sh
+UACRF_E2E_SAMPLE_INSPECTION=1 npm --prefix e2e run test:live
+```
+
+This opt-in run generates a short-lived test certificate and trust store, and
+routes S05's HTTPS requests through a test-only TLS terminator on the isolated
+Compose network. The terminator forwards to S01 and S03 over HTTP inside that
+network; this does not demonstrate end-to-end TLS or production deployment
+security. The credentials and containers are removed with the isolated stack.
+The default run leaves S05 inspection disabled.
 
 `test:live` builds the required application images, starts an isolated
 PostgreSQL/Keycloak/application stack, including S02, S03, S07, S08, and S10, waits for service
@@ -115,9 +129,11 @@ returns to the first page. Those paging rows bypass the review workflow and
 are not decisions actually made against the draft fixture.
 The same user records a pending import-preview request, replays it unchanged,
 checks that changing its contents conflicts, and reads its receipt with
-separate read authority. An ungranted user is denied both submission and
-receipt access. No connector is resolved, no source is fetched or verified,
-and no comparison or imported proposal is produced by this flow.
+separate read authority. An ungranted user is denied submission, receipt
+access and inspection. The default run checks the disabled inspection error;
+the opt-in TLS run reads the bound fictional source through UX01, EDGE01, S05,
+S01 and S03 and confirms the receipt remains pending. Neither run verifies a
+provider or produces a comparison or imported proposal.
 The user can also enter a saved receipt ID on the import page to reopen it;
 the browser test checks this lookup and denial without read authority. It is
 not a completed-import history. The suite also admits 25 more synthetic

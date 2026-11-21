@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**146 completed / 806 total** · 660 open
+**147 completed / 806 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 56 | 219 |
+| Milestone items | 57 | 219 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -322,7 +322,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-025c Connect and verify the purpose-bound synthetic source read across S05, S01 and S03 using real local services. Evidence: R-0150–R-0153; not trusted source verification or import processing.
   - [x] M2-025d Forward pending-request synthetic inspection through EDGE01 without changing authorization, no-store or failure semantics. Evidence: R-0166.
   - [x] M2-025e Connect a pending receipt to its fictional source inspection in UX01, with separate read authority and explicit limitations; verify mocked success and the default-disabled browser path. Evidence: R-0170–R-0173.
-  - [ ] M2-025f Verify enabled pending-receipt inspection through the browser and real S05/S01/S03 services without weakening transport controls.
+  - [x] M2-025f Verify enabled pending-receipt inspection through the browser and real S05/S01/S03 services without weakening transport controls. Evidence: R-0177–R-0178; TLS terminates at a test-only proxy before HTTP to the isolated owners, not end-to-end TLS.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
@@ -1276,6 +1276,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0173 | 2026-11-20 | M2-025e | `bash e2e/run-live.sh` passed 11/11 browser tests, including the pending receipt link, explicit disabled-service error and pending readback. | This stack leaves the S05 source client disabled; enabled browser success remains open under M2-025f. |
 | R-0174 | 2026-11-20 | M2-025e | Updated private technical approach Appendix AB to revision 199; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; enabled browser success and import processing remain open. |
 | R-0175 | 2026-11-20 | M2-025e | Committed the pending receipt interface as `b7323ef` and pushed it to `origin/main`. | Enabled browser-to-owner inspection remains open under M2-025f. |
+| R-0176 | 2026-11-20 | M2-025f | Investigated an isolated HTTPS test boundary for the enabled browser journey; existing Compose services use HTTP and S05 correctly rejects non-loopback HTTP. | Keep the item open until the browser and real owner services are verified together over an explicitly test-scoped transport. |
+| R-0177 | 2026-11-20 | M2-025f | `UACRF_E2E_SAMPLE_INSPECTION=1 bash e2e/run-live.sh` passed 11/11 browser tests: fictional source success, ungranted-user denial and pending readback through real services. | S05 uses verified HTTPS to a disposable TLS terminator; the isolated proxy-to-owner hops are HTTP. This is not end-to-end TLS or provider acceptance. |
+| R-0178 | 2026-11-20 | M2-025f | `bash e2e/run-live.sh` passed 11/11 browser tests with inspection disabled, including explicit failure and pending readback. Shell, Java and JavaScript syntax checks also passed. | Source verification, approved mapping, comparison and import processing remain open. |
+| R-0179 | 2026-11-20 | M2-025f | Updated private technical approach Appendix AB to revision 200; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The document remains private and uncommitted; test-only TLS termination is not end-to-end TLS evidence. |
 
 ## Implementation evidence
 

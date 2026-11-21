@@ -1,0 +1,23 @@
+services:
+  sample-test-proxy:
+    image: eclipse-temurin:25-jdk@sha256:b8705e936964c228dfce359e63dbf08f6c69cb380ed1d576b1f6b1064f15567d
+    user: "10001:10001"
+    command: ["java", "/fixture/SampleTlsProxy.java"]
+    volumes:
+      - ./SampleTlsProxy.java:/fixture/SampleTlsProxy.java:ro
+      - ${UACRF_E2E_TLS_DIR:?}/server.p12:/fixture/server.p12:ro
+    depends_on:
+      - identity
+      - connections
+
+  objectives:
+    environment:
+      UACRF_OBJECTIVES_SAMPLE_SOURCE_ENABLED: "true"
+      UACRF_OBJECTIVES_SAMPLE_SOURCE_IDENTITY_BASE_URL: https://sample-test-proxy:8443
+      UACRF_OBJECTIVES_SAMPLE_SOURCE_CONNECTIONS_BASE_URL: https://sample-test-proxy:8443
+      JAVA_TOOL_OPTIONS: "-Djavax.net.ssl.trustStore=/fixture/trust.p12 -Djavax.net.ssl.trustStorePassword=isolated-test-only"
+    volumes:
+      - ${UACRF_E2E_TLS_DIR:?}/trust.p12:/fixture/trust.p12:ro
+    depends_on:
+      sample-test-proxy:
+        condition: service_started
