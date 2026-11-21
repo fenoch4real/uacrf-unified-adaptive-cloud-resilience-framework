@@ -54,6 +54,7 @@
       <p><a th:href="@{/objectives/history(id=${item.id})}">View recorded decision events</a></p>
       <p th:if="${item.state == 'DRAFT'}"><a th:href="@{/objectives/submit(id=${item.id})}">Review draft for submission</a></p>
       <p th:if="${item.state == 'SUBMITTED'}"><a th:href="@{/objectives/review(id=${item.id})}">Review submitted objective</a> (requires separate global review access)</p>
+      <p th:if="${item.state == 'APPROVED' or item.state == 'ACTIVE' or item.state == 'SUPERSEDED'}"><a th:href="@{/objectives/activate(id=${item.id})}">View objective activation</a> (activation requires separate global access)</p>
     </li>
   </ul>
   <nav aria-label="Objective pages" th:if="${nextCursor != null}">

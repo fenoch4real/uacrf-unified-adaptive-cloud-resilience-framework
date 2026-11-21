@@ -378,9 +378,48 @@ class ObjectivesService {
     DelegationPrincipal actor = DelegationPrincipal.from(jwt);
     requireCapability(actor, "objectives.objective.activate");
     requireGlobalScope(actor);
+    return activateObjective(jwt, actor, id, request.expectedRevision(), null);
+  }
+
+  @Transactional
+  Objective activateIdempotent(Jwt jwt, String id, IdempotentSubmission request, String key) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    requireCapability(actor, "objectives.objective.activate");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(key);
+    Map<String, Object> material = new TreeMap<>();
+    material.put("id", id);
+    material.put("expected_revision", request.expectedRevision());
+    material.put("expected_content_digest", request.expectedContentDigest());
+    String digest = sha256(serialize(material));
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA + "objective_activation "
+            + "(tenant_id, environment_id, actor_id, idempotency_key, request_digest, objective_id) "
+            + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), key, digest, id);
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList(
+          "SELECT objective_id, request_digest FROM " + SCHEMA + "objective_activation "
+              + "WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), key);
+      if (rows.isEmpty()) throw new IllegalStateException("The objective activation record disappeared.");
+      Map<String, Object> row = rows.getFirst();
+      if (!digest.equals(row.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for a different activation.");
+      }
+      return find(actor, row.get("objective_id").toString());
+    }
+    return activateObjective(jwt, actor, id, request.expectedRevision(), request.expectedContentDigest());
+  }
+
+  private Objective activateObjective(Jwt jwt, DelegationPrincipal actor, String id,
+      long expectedRevision, String expectedContentDigest) {
     Map<String, Object> row = lock(actor, id);
-    requireRevision(row, request.expectedRevision());
+    requireRevision(row, expectedRevision);
     requireState(row, "APPROVED");
+    if (expectedContentDigest != null && !expectedContentDigest.equals(row.get("content_digest").toString().trim())) {
+      throw conflict("CONTENT_MISMATCH", "The objective content changed since it was read.");
+    }
     enforceConstraint(actor, row);
     reviewerAuthority.check(actor.tenantId(), actor.environmentId(), (String) row.get("decided_by"));
     workloadAuthority.check(

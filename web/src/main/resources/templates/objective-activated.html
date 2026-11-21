@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activation result | UACRF</title></head>
+<body><main>
+  <h1>Recorded activation result</h1>
+  <p>Activation does not prove compliance or measured performance. A replay may return a later superseded state.</p>
+  <dl>
+    <dt>Objective ID</dt><dd th:text="${objective.id}">ID</dd>
+    <dt>Recorded state</dt><dd th:text="${objective.state}">State</dd>
+    <dt>Revision</dt><dd th:text="${objective.revision}">Revision</dd>
+    <dt>Activated by</dt><dd th:text="${objective.activatedBy}">Activator</dd>
+    <dt>Reviewed by</dt><dd th:text="${objective.decidedBy}">Reviewer</dd>
+    <dt>Decision reason</dt><dd th:text="${objective.decisionReason}">Reason</dd>
+  </dl>
+  <p><a th:href="@{/objectives/activate(id=${objective.id})}">Read current objective state</a>
+    (requires global objective read access)</p>
+  <p><a href="/objectives">Back to objectives</a></p>
+</main></body></html>

@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**117 completed / 781 total** · 664 open
+**119 completed / 782 total** · 663 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 27 | 194 |
+| Milestone items | 29 | 195 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -305,9 +305,10 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-022f Disclose up to 25 retained decision events through UX01, identifying missing history and unavailable reasons. Evidence: R-0054.
   - [ ] M2-022g Provide complete, durable and navigable decision history including attributable reasons, without inventing legacy records.
 - [ ] M2-023 Connect objective activation and active-objective readback through the browser.
-  - [ ] M2-023a Implement a retry-safe, revision-bound activation command without weakening owner and review checks.
-  - [ ] M2-023b Forward activation and connect the browser form with separate read and activation delegations.
+  - [x] M2-023a Implement a retry-safe, revision-bound activation command without weakening owner and review checks. Evidence: R-0062.
+  - [x] M2-023b Forward activation and connect the browser form with separate read and activation delegations. Evidence: R-0062–R-0063; MockMvc verification only.
   - [ ] M2-023c Verify activation, retries, stale state, denial and readback; document remaining limits.
+  - [ ] M2-023d Exercise activation and current-state readback in the isolated browser stack using synthetic data.
 - [ ] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
@@ -1137,6 +1138,9 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0059 | 2026-11-20 | Delivery tracking | Verified 778 unique checkbox IDs and the displayed 117 completed / 778 total count and category totals. | Counts include parent and child items and are not release-completion percentages. |
 | R-0060 | 2026-11-20 | M2-022f, M3-007c | Committed bounded objective history and the S08 metadata-scope guard as `7cf2b4e` and pushed them to `origin/main`. | Complete decision history and broader knowledge disclosure acceptance remain open. |
 | R-0061 | 2026-11-20 | M2-023a–M2-023c | Started the next objective-activation slice. | The work is in progress; production owner checks and full milestone acceptance remain open. |
+| R-0062 | 2026-11-20 | M2-023a–M2-023b | Clean selected S05 and EDGE01 suites passed 22 tests, including concurrent replay, stale input, authorization and authority-check rollback. | Owner/reviewer checks remain configuration-dependent point-in-time checks. |
+| R-0063 | 2026-11-20 | M2-023b | Clean selected UX01 tests passed 158 tests, including CSRF, separate delegations, uncertain retry and current-state readback. | MockMvc results do not replace the isolated browser run. |
+| R-0064 | 2026-11-20 | M2-023a–M2-023b | Updated private technical approach Appendix AB to revision 178; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; isolated browser validation remains open. |
 
 ## Implementation evidence
 
@@ -2254,6 +2258,14 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   discloses missing or older records and does not infer a complete history.
   S05, EDGE01 and UX01 tests passed 245/245; no real-browser history run was
   performed.
+- UX01 exposes objective activation through EDGE01 with separate global read and
+  activation delegations. S05 atomically retains an actor/context-scoped key,
+  expected objective revision and digest, activation, supersession and outbox
+  events. Exact retries return current recorded state; changed requests conflict.
+  The original activation route remains available. The clean selected S05 and
+  EDGE01 suites passed 22 tests and UX01 passed 158 tests. No isolated browser
+  activation run has been performed; activation is not compliance and optional
+  owner/reviewer authority checks are not atomic cross-service fences.
 - Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
   (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
   APPROVED, ACTIVE). Activation supersedes the active objective for the same

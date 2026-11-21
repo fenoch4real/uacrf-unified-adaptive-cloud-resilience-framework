@@ -408,6 +408,69 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void idempotentActivationBindsContentSerializesAndReplaysAfterSupersession() throws Exception {
+    String creator = bearer("creator", "t-activation-retry", PROPOSER);
+    String reviewer = bearer("reviewer", "t-activation-retry", DECIDER);
+    String activator = bearer("activator", "t-activation-retry", ACTIVATOR);
+    String created = post("/v1/objectives", creator,
+        objective("activation-one", "w2", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    post("/v1/objectives/activation-one:submit", creator, "{\"expected_revision\":1}");
+    post("/v1/objectives/activation-one:decide", reviewer, decision("APPROVE", 2));
+    String path = "/v1/objectives/activation-one:idempotent-activate";
+    String body = "{\"expected_revision\":3,\"expected_content_digest\":\"" + digest + "\"}";
+    assertEquals(400, post(path, activator, body).statusCode());
+    assertEquals(403, postWithIdempotency(path, token("activator", "t-activation-retry", "w2", ACTIVATOR), body, "k").statusCode());
+    assertEquals(403, postWithIdempotency(path, creator, body, "k").statusCode());
+    assertThat(postWithIdempotency(path, activator, body.replace(digest, "b".repeat(64)), "k").body())
+        .contains("CONTENT_MISMATCH");
+    assertThat(postWithIdempotency(path, activator, body.replace(":3,", ":2,"), "k").body())
+        .contains("REVISION_MISMATCH");
+    String admin = bearer("admin", "t-activation-retry", List.of("objectives.constraint.write"));
+    assertEquals(200, put("/v1/organization-constraints/latency.p95", admin,
+        "{\"unit\":\"ms\",\"max_target\":\"100\"}").statusCode());
+    assertThat(postWithIdempotency(path, activator, body, "k").body()).contains("CONSTRAINT_VIOLATION");
+    assertEquals(200, put("/v1/organization-constraints/latency.p95", admin,
+        "{\"unit\":\"ms\",\"max_target\":\"300\"}").statusCode());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.objective_activation WHERE tenant_id = 't-activation-retry'", Integer.class));
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        .header("Authorization", activator).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "k").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    var first = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var second = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, first.get().statusCode());
+    assertEquals(200, second.get().statusCode());
+    assertThat(first.get().body()).contains("\"state\":\"ACTIVE\"").contains("\"activated_by\":\"https://uacrf.local/s01|activator\"");
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.outbox_event WHERE tenant_id = 't-activation-retry' AND event_type = 'objectives.objective.activated'", Integer.class));
+    assertThat(postWithIdempotency(path, activator, body.replace(digest, "b".repeat(64)), "k").body()).contains("IDEMPOTENCY_CONFLICT");
+    assertThat(postWithIdempotency("/v1/objectives/other:idempotent-activate", activator, body, "k").body()).contains("IDEMPOTENCY_CONFLICT");
+    approveAndActivate("activation-two", "200", creator, reviewer, activator);
+    assertThat(postWithIdempotency(path, activator, body, "k").body()).contains("\"state\":\"SUPERSEDED\"");
+  }
+
+  @Test
+  void idempotentActivationRollsBackReservationOnOwnerDenial() throws Exception {
+    String creator = bearer("creator", "t-activation-owner", PROPOSER);
+    String reviewer = bearer("reviewer", "t-activation-owner", DECIDER);
+    String activator = bearer("activator", "t-activation-owner", ACTIVATOR);
+    approveAndActivate("old-owner", "250", creator, reviewer, activator);
+    String created = post("/v1/objectives", creator,
+        objective("new-owner", "w2", "latency.p95", "LTE", "200", "ms")).body();
+    post("/v1/objectives/new-owner:submit", creator, "{\"expected_revision\":1}");
+    post("/v1/objectives/new-owner:decide", reviewer, decision("APPROVE", 2));
+    doThrow(new ObjectivesException(HttpStatus.CONFLICT, "WORKLOAD_NOT_ELIGIBLE", "Denied"))
+        .when(workloadAuthority).check(any(Jwt.class), eq("w2"),
+            eq(ObjectiveWorkloadAuthorityClient.ACTIVATION_PURPOSE));
+    String body = "{\"expected_revision\":3,\"expected_content_digest\":\""
+        + extractString(created, "content_digest") + "\"}";
+    assertThat(postWithIdempotency("/v1/objectives/new-owner:idempotent-activate", activator, body, "k").body())
+        .contains("WORKLOAD_NOT_ELIGIBLE");
+    assertThat(get("/v1/objectives/old-owner", activator).body()).contains("\"state\":\"ACTIVE\"");
+    assertThat(get("/v1/objectives/new-owner", activator).body()).contains("\"state\":\"APPROVED\"");
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.objective_activation WHERE tenant_id = 't-activation-owner'", Integer.class));
+  }
+
+  @Test
   void idempotentReviewSerializesAndReplaysAfterActivation() throws Exception {
     String creator = bearer("creator", "t-review-replay", PROPOSER);
     String reviewer = bearer("reviewer", "t-review-replay", DECIDER);

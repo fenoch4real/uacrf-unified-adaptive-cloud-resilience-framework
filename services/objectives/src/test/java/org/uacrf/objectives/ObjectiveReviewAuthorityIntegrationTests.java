@@ -124,6 +124,8 @@ class ObjectiveReviewAuthorityIntegrationTests {
     prepare("first", proposer, reviewer);
     assertEquals(200, post("/v1/objectives/first:activate", activator, "{\"expected_revision\":3}").statusCode());
     prepare("second", proposer, reviewer);
+    String digest = jdbc.queryForObject("SELECT trim(content_digest) FROM uacrf_objectives.objective WHERE id='second'", String.class);
+    String activationBody = "{\"expected_revision\":3,\"expected_content_digest\":\"" + digest + "\"}";
     int events = jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.outbox_event", Integer.class);
     REQUEST.set(null);
     assertEquals(409, post("/v1/objectives/second:activate", activator, "{\"expected_revision\":99}").statusCode());
@@ -131,17 +133,18 @@ class ObjectiveReviewAuthorityIntegrationTests {
     for (String mode : List.of("denied", "unavailable", "wrong", "stale", "future", "malformed", "duplicate",
         "oversized", "token-denied", "bad-token")) {
       MODE.set(mode);
-      HttpResponse<String> denied = post("/v1/objectives/second:activate", activator, "{\"expected_revision\":3}");
+      HttpResponse<String> denied = postKeyed("/v1/objectives/second:idempotent-activate", activator, activationBody);
       assertEquals(503, denied.statusCode(), denied.body());
       assertThat(denied.body()).contains("REVIEWER_AUTHORITY_UNAVAILABLE");
       assertEquals("ACTIVE", state("first"));
       assertEquals("APPROVED", state("second"));
       assertEquals(events, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.outbox_event", Integer.class));
+      assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.objective_activation", Integer.class));
     }
     assertThat(REQUEST.get()).contains("\"tenant_id\":\"tenant-check\"",
         "\"environment_id\":\"env-1\"", "\"reviewer_id\":\"reviewer\"");
     MODE.set("ok");
-    assertEquals(200, post("/v1/objectives/second:activate", activator, "{\"expected_revision\":3}").statusCode());
+    assertEquals(200, postKeyed("/v1/objectives/second:idempotent-activate", activator, activationBody).statusCode());
     assertEquals("SUPERSEDED", state("first"));
     assertEquals("ACTIVE", state("second"));
   }
@@ -174,6 +177,13 @@ class ObjectiveReviewAuthorityIntegrationTests {
   private HttpResponse<String> post(String path, String token, String body) throws Exception {
     return http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
         .header("Authorization", token).header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  private HttpResponse<String> postKeyed(String path, String token, String body) throws Exception {
+    return http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
+        .header("Authorization", token).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "activation-key")
         .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
   }
 

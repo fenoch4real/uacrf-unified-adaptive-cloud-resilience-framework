@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Objective activation | UACRF</title></head>
+<body><main>
+  <h1>Objective activation and current state</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/objectives">Back to objectives</a></p>
+  <p>Activation requires a separate global activation grant and may supersede an existing active objective
+    for the same workload and metric. Activation is not measured performance or proof of compliance.</p>
+  <p>The revision identifies the displayed record; the content digest does not cover every displayed field.
+    Owner and reviewer authority checks depend on service configuration and are not an atomic cross-service fence.</p>
+  <p role="alert" th:if="${activationError != null}" th:text="${activationError}"></p>
+  <dl th:if="${objective != null}">
+    <dt>Objective ID</dt><dd th:text="${objective.id}">ID</dd>
+    <dt>Title</dt><dd th:text="${objective.title}">Title</dd>
+    <dt>Workload</dt><dd th:text="${objective.workloadId}">Workload</dd>
+    <dt>Metric</dt><dd th:text="${objective.metric}">Metric</dd>
+    <dt>Comparator</dt><dd th:text="${objective.comparator}">Comparator</dd>
+    <dt>Target</dt><dd th:text="${objective.target}">Target</dd>
+    <dt>Unit</dt><dd th:text="${objective.unit}">Unit</dd>
+    <dt>Window in seconds</dt><dd th:text="${objective.windowSeconds}">Window</dd>
+    <dt>Origin</dt><dd th:text="${objective.origin}">Origin</dd>
+    <dt>Source reference</dt><dd th:text="${objective.sourceRef != null ? objective.sourceRef : 'Not specified'}">Source</dd>
+    <dt>Source definition</dt><dd th:text="${objective.sourceDefinitionId != null ? objective.sourceDefinitionId : 'Not specified'}">Definition</dd>
+    <dt>Source revision</dt><dd th:text="${objective.sourceRevision != null ? objective.sourceRevision : 'Not specified'}">Revision</dd>
+    <dt>Source verified at</dt><dd th:text="${objective.sourceVerifiedAt != null ? objective.sourceVerifiedAt : 'Not recorded'}">Time</dd>
+    <dt>Proposed by</dt><dd th:text="${objective.proposedBy}">Proposer</dd>
+    <dt>Reviewed by</dt><dd th:text="${objective.decidedBy != null ? objective.decidedBy : 'Not recorded'}">Reviewer</dd>
+    <dt>Decision reason</dt><dd th:text="${objective.decisionReason != null ? objective.decisionReason : 'Not recorded'}">Reason</dd>
+    <dt>Activated by</dt><dd th:text="${objective.activatedBy != null ? objective.activatedBy : 'Not recorded'}">Activator</dd>
+    <dt>Recorded state</dt><dd th:text="${objective.state}">State</dd>
+    <dt>Revision</dt><dd th:text="${objective.revision}">Revision</dd>
+    <dt>Content digest</dt><dd th:text="${objective.contentDigest}">Digest</dd>
+  </dl>
+  <p th:if="${objective != null and activation == null}">No activation can be submitted from this current state.</p>
+  <p th:if="${objective == null and mayRetry == true}">Retained activation:
+    <strong th:text="${activation.id}">ID</strong>, revision <strong th:text="${activation.expectedRevision}">revision</strong>,
+    digest <strong th:text="${activation.contentDigest}">digest</strong>.</p>
+  <form th:if="${activation != null and (objective != null or mayRetry == true)}"
+        method="post" th:action="@{/objectives/activate}" th:object="${activation}">
+    <input type="hidden" th:field="*{id}"><input type="hidden" th:field="*{expectedRevision}">
+    <input type="hidden" th:field="*{contentDigest}"><input type="hidden" th:field="*{activatorId}">
+    <input type="hidden" th:field="*{reviewerId}"><input type="hidden" th:field="*{reason}">
+    <input type="hidden" th:field="*{idempotencyKey}"><input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}"><input type="hidden" th:field="*{principalName}">
+    <p>If the outcome is unconfirmed, retry this same form unchanged as the same user in the same context.</p>
+    <button type="submit">Activate objective</button>
+  </form>
+</main></body></html>

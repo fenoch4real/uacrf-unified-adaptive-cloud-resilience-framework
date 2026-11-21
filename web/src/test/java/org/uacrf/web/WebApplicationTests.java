@@ -66,6 +66,60 @@ class WebApplicationTests {
         .param("principalName", "local-admin-subject");
   }
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveActivation() {
+    return post("/objectives/activate").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("id", "objective-a").param("expectedRevision", "3").param("contentDigest", "a".repeat(64))
+        .param("activatorId", "activator").param("reviewerId", "reviewer").param("reason", "Exact reason")
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void objectiveActivationReadsSeparatelyAndRetainsUncertainRetry() throws Exception {
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.MeAccess("activator", "Activator", "HUMAN", null, null, List.of()));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.activate"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("activator-token", "Bearer", 30));
+    var approved = new ObjectivesClient.Objective("objective-a", "workload-a", "Latency", "latency.p95",
+        "LTE", new java.math.BigDecimal("99.75"), "ms", 60, "LOCAL", null, null, null, null,
+        "a".repeat(64), "APPROVED", 3L, "creator", "reviewer", "Exact reason", null);
+    var active = new ObjectivesClient.Objective("objective-a", "workload-a", "Latency", "latency.p95",
+        "LTE", new java.math.BigDecimal("99.75"), "ms", 60, "LOCAL", null, null, null, null,
+        "a".repeat(64), "ACTIVE", 4L, "creator", "reviewer", "Exact reason", "activator");
+    when(objectives.get("reader", "objective-a")).thenReturn(approved, active);
+    mockMvc.perform(get("/objectives/activate").param("id", "objective-a").with(browserLogin())
+        .session(sessionWithSelectedContext())).andExpect(status().isOk())
+        .andExpect(content().string(containsString("name=\"_csrf\"")))
+        .andExpect(content().string(containsString("not measured performance or proof of compliance")))
+        .andExpect(content().string(containsString("Exact reason")));
+    when(objectives.activate("activator-token", "objective-a", "12345678-1234-4234-8234-123456789012",
+        3, "a".repeat(64), "activator", "reviewer", "Exact reason"))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(active);
+    mockMvc.perform(objectiveActivation()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Activation is unconfirmed")))
+        .andExpect(content().string(containsString("12345678-1234-4234-8234-123456789012")));
+    mockMvc.perform(objectiveActivation()).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Recorded activation result")));
+    mockMvc.perform(get("/objectives/activate").param("id", "objective-a").with(browserLogin())
+        .session(sessionWithSelectedContext())).andExpect(status().isOk())
+        .andExpect(content().string(containsString("ACTIVE")))
+        .andExpect(content().string(not(containsString(">Activate objective</button>"))));
+  }
+
+  @Test
+  void objectiveActivationRejectsContextChangesAndMissingCsrf() throws Exception {
+    mockMvc.perform(objectiveActivation().with(request -> { request.setParameter("principalName", "other"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(post("/objectives/activate").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(identity, objectives);
+  }
+
   @Test
   void objectiveDecisionHistoryDisclosesLimitsAndDoesNotInterpretMissingEvents() throws Exception {
     when(identity.createDelegation("test-access-token", "S05", null,

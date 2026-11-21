@@ -181,6 +181,18 @@ the unkeyed route.
   The digest does not cover every displayed field; the expected revision also
   binds the record. The original decide route remains available. Review is
   not activation, compliance, or an atomic cross-service authority fence.
+- **Retry-safe objective activation:** `POST /v1/objectives/{id}:idempotent-activate`
+  requires global `objectives.objective.activate`, an `Idempotency-Key`, expected
+  revision and expected content digest. First execution retains the original
+  activation checks for approved state, organization constraints and configured
+  reviewer and workload authority; the key, supersession, activation and outbox
+  events commit together. The key is scoped to tenant, environment and actor;
+  changed request content conflicts and unchanged replay returns the current
+  objective, possibly `SUPERSEDED`, without re-executing authority checks.
+  Readback uses separate global objective-read authority. Digest coverage is
+  partial, and authority checks are configuration-dependent point-in-time
+  checks, not atomic cross-service fences. Activation is not compliance.
+  The original activation route remains available.
 - **Partial objective decision history:** `GET /v1/objectives/{id}/decision-history`
   requires global `objectives.objective.read` and an objective in the delegated
   tenant and environment. It returns up to 25 retained decision outbox events,

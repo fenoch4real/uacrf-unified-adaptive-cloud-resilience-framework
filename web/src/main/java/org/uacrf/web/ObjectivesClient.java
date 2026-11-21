@@ -102,6 +102,20 @@ class ObjectivesClient {
     return result;
   }
 
+  Objective activate(String token, String id, String key, long revision, String digest,
+      String activatorId, String reviewerId, String reason) {
+    Objective result = restClient.post().uri("/v1/objectives/{id}:idempotent-activate", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(new Submission(revision, digest)).retrieve().body(Objective.class);
+    if (!valid(result) || !id.equals(result.id()) || !digest.equals(result.contentDigest())
+        || result.revision() <= revision || !List.of("ACTIVE", "SUPERSEDED").contains(result.state())
+        || !activatorId.equals(result.activatedBy()) || !reviewerId.equals(result.decidedBy())
+        || !reason.equals(result.decisionReason())) {
+      throw new IllegalStateException("S05 returned an invalid activation result.");
+    }
+    return result;
+  }
+
   private static boolean valid(Objective item) {
     return item != null && present(item.id()) && present(item.workloadId())
         && present(item.title()) && present(item.metric()) && present(item.unit())

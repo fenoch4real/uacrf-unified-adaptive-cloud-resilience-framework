@@ -50,6 +50,31 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void activationBindsRequestAndRejectsMismatchedReceipt() {
+    String digest = "a".repeat(64);
+    for (String actor : List.of("activator", "other")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objectives/objective:idempotent-activate"))
+          .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", "key")).andExpect(jsonPath("$.expected_revision").value(3))
+          .andExpect(jsonPath("$.expected_content_digest").value(digest))
+          .andRespond(withSuccess(RECORD.replace("\"state\":\"DRAFT\",\"revision\":1,\"proposed_by\":\"proposer\"",
+              "\"state\":\"ACTIVE\",\"revision\":4,\"proposed_by\":\"proposer\","
+                  + "\"decided_by\":\"reviewer\",\"decision_reason\":\"reason\",\"activated_by\":\"" + actor + "\""),
+              MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (actor.equals("activator")) {
+        assertThat(client.activate("delegated", "objective", "key", 3, digest, "activator", "reviewer", "reason").state()).isEqualTo("ACTIVE");
+      } else {
+        assertThatThrownBy(() -> client.activate("delegated", "objective", "key", 3, digest, "activator", "reviewer", "reason"))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void submissionBindsRevisionAndDigestAndRejectsMismatchedResult() {
     String digest = "a".repeat(64);
     for (boolean matching : List.of(true, false)) {

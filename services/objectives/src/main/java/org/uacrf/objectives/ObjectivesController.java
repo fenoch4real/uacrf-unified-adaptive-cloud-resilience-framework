@@ -117,6 +117,14 @@ class ObjectivesController {
     return objectives.activate(jwt, id, request);
   }
 
+  @PostMapping("/v1/objectives/{id}:idempotent-activate")
+  Objective activateIdempotent(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String key,
+      @Valid @RequestBody IdempotentSubmission request) {
+    return objectives.activateIdempotent(jwt, id, request, key);
+  }
+
   @PutMapping("/v1/organization-constraints/{metric}")
   Constraint setConstraint(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String metric, @Valid @RequestBody SetConstraint request) {

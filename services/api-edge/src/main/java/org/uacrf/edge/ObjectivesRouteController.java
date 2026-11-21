@@ -122,6 +122,14 @@ class ObjectivesRouteController {
     return forward(() -> objectives.transition(authorization, id, "activate", requestBody));
   }
 
+  @PostMapping("/v1/objectives/{id}:idempotent-activate")
+  ResponseEntity<String> activateIdempotent(
+      @RequestHeader(value = "Authorization", required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String key,
+      @PathVariable String id, @RequestBody String requestBody) {
+    return forward(() -> objectives.activateIdempotent(authorization, id, key, requestBody));
+  }
+
   @PutMapping("/v1/organization-constraints/{metric}")
   ResponseEntity<String> constrain(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
