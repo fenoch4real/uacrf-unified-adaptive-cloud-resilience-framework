@@ -1224,6 +1224,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0130 | 2026-11-20 | M2-030f | Fixed ports were free; `bash e2e/run-live.sh` failed with 10 passed and 1 failed because an existing connection-label locator became ambiguous after the new form was added. | Changed both existing locators to exact matching; retry required. |
 | R-0131 | 2026-11-20 | M2-030f | After rechecking free ports, `bash e2e/run-live.sh` passed all 11 tests, including synthetic source inspection and denial without S03 read authority. | The directly inserted test binding bypasses registration; this does not establish ownership, mapping approval, provider acceptance or import processing. |
 | R-0132 | 2026-11-20 | M2-030f | The private-document update command using `python` failed because that executable is unavailable; retrying with `python3` updated Appendix AB to revision 191. Archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; S05 consumption remains open. |
+| R-0133 | 2026-11-20 | M2-030f | Committed browser synthetic-source inspection as `eda6d87` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
 
 ## Implementation evidence
 
