@@ -356,7 +356,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026ad Connect retained synthetic proposal listing to UX01 and verify browser pagination and authorization. Evidence: R-0307–R-0309.
   - [x] M2-026ae Retain an immutable synthetic normalized candidate bound to an independently approved historical capture and exact proposal, with retry-safe admission, scoped readback and explicit unverified/uncompared limits. Evidence: R-0314–R-0315.
   - [x] M2-026af Forward synthetic candidate admission and scoped readback through EDGE01 with the original delegation, idempotency key and owner responses. Evidence: R-0319.
-  - [x] M2-026ag Connect synthetic candidate admission and readback to UX01 with context-bound retry and explicit unverified/uncompared limits; verify browser success and denial.
+  - [x] M2-026ag Connect synthetic candidate admission and readback to UX01 with context-bound retry and explicit unverified/uncompared limits; verify browser success and denial. Evidence: R-0330–R-0336.
   - [x] M2-026ah Discover the retained synthetic candidate, if any, for a known review with scoped read authority in S05. Evidence: R-0323.
   - [x] M2-026ai Forward synthetic candidate discovery through EDGE01 with the original delegation and owner response. Evidence: R-0325.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
@@ -1468,6 +1468,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0334 | 2026-11-21 | M2-026ag | Ran the default-disabled isolated browser suite after checking fixed ports. | All 11 tests passed; the opt-in source remains disabled by default. |
 | R-0335 | 2026-11-21 | M2-026ag | Updated contracts, UI design notes and private technical approach Appendix AB to revision 226. | Verified the DOCX archive, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; comparison and import processing remain open. |
 | R-0336 | 2026-11-21 | M2-026ag | Re-ran the focused client and controller regression after adding denial cases. | All 188 tests passed; patch whitespace and checklist counts verified. |
+| R-0337 | 2026-11-21 | M2-026ag | Committed and pushed verified UX01 candidate flow as `754cd29`. | Broader comparison, resolution and import processing remain open. |
 
 ## Implementation evidence
 
