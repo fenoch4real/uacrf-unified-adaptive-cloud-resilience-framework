@@ -176,7 +176,11 @@ the unkeyed route.
   objective-read delegation and resolves only a pending request in the caller's
   tenant and environment. It checks the retained request's consistency and
   digest, exchanges the caller's delegation, and validates the bound fictional
-  source's identity and payload digest before returning its parsed definition.
+  source's identity and payload digest before returning its parsed definition
+  and `definition_fingerprint` containing the supported version and SHA-256
+  digest of that definition in its original source units. This fingerprint is
+  distinct from the original payload digest, is not persisted, and does not
+  establish an approved mapping or provenance.
   Responses are `no-store`; inspection leaves the request pending. The request
   digest detects inconsistency, not privileged tampering or trusted provenance.
   The client is disabled by default; endpoints require HTTPS except explicitly

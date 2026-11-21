@@ -67,6 +67,9 @@ class M2ObjectiveSampleSourceLiveTests {
       assertEquals(LiveM2TestSupport.readJson(payload), result.get("definition"));
       assertEquals(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
           .digest(payload.getBytes(StandardCharsets.UTF_8))), result.get("payload_digest"));
+      assertEquals(Map.of("version", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1",
+          "digest", "0615af06050a1ebe47c53362ebd790c68e0abd5ed9749b01605a3b006a9b7e1d"),
+          result.get("definition_fingerprint"));
       var receipt = env.request(env.objectivesUrl(), "GET", "/v1/objective-imports/" + id, actor, null, null);
       assertEquals("PENDING", LiveM2TestSupport.readJson(receipt.body()).get("status"));
 

@@ -99,8 +99,10 @@ zero is `0`. Precision and scale are each bounded to 100. This is a versioned
 exact-decimal format, not RFC 8785 floating-point number serialization. The
 version must accompany any stored or compared digest; differing versions must
 not be compared without an explicit migration. The existing fictional candidate
-fixture matches. This helper is not yet persisted or connected to an approved
-mapping, import processing, source verification or provenance.
+fixture matches. Pending-source inspection also exposes this fingerprint for
+the parsed fictional definition in its original units. It is not retained or
+connected to an approved mapping, import processing, source verification or
+provenance.
 
 A standalone three-way digest classifier implements the finite comparison examples, preserving conflicts and treating incomplete or invalid scope as invalid even when withdrawal is claimed. Its digest values require the supported `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` version; unknown versions and unversioned strings cannot be compared. It does not establish source completeness, verify withdrawal or read persisted definitions.
 

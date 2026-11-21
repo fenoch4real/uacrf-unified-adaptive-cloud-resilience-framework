@@ -24,7 +24,10 @@
       <dt>External objective</dt><dd th:text="${source.externalObjectiveId}"></dd>
       <dt>Source version</dt><dd th:text="${source.sourceVersion}"></dd>
       <dt>Source payload SHA-256</dt><dd th:text="${source.payloadDigest}"></dd>
+      <dt>Source definition fingerprint version</dt><dd th:text="${source.definitionFingerprint.version}"></dd>
+      <dt>Source definition fingerprint</dt><dd th:text="${source.definitionFingerprint.digest}"></dd>
     </dl>
+    <p>The definition fingerprint uses the source units as read; it is not an approved mapping or retained provenance.</p>
     <h2>Fictional definition</h2>
     <dl>
       <dt>Metric</dt><dd th:text="${source.definition.metric}"></dd>

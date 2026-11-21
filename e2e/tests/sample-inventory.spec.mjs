@@ -996,6 +996,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(sample.locator('main')).toContainText('recovery.time');
       await expect(sample.locator('main')).toContainText('720');
       await expect(sample.locator('main')).toContainText('browser-objective-binding');
+      await expect(sample.locator('main')).toContainText('OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1');
+      await expect(sample.locator('main'))
+        .toContainText('0615af06050a1ebe47c53362ebd790c68e0abd5ed9749b01605a3b006a9b7e1d');
     } else {
       expect(inspectionResponse.status()).toBe(503);
       await expect(sample.locator('main')).toContainText('Pending sample inspection failed (HTTP 503)');

@@ -350,12 +350,15 @@ class WebApplicationTests {
         "AT_MOST", "RECOVERY_TIME", null);
     when(objectives.inspectImportSample("objective-reader", id)).thenReturn(new ObjectivesClient.ImportSample(
         "sample", 1L, "binding", 1L, "workload", "sample:monitoring",
-        "sample:checkout-recovery", "sample-v1", "a".repeat(64), "SYNTHETIC_UNVERIFIED", definition));
+        "sample:checkout-recovery", "sample-v1", "a".repeat(64), "SYNTHETIC_UNVERIFIED", definition,
+        new ObjectivesClient.DefinitionFingerprint("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "b".repeat(64))));
     mockMvc.perform(get("/objectives/import/receipt/sample-source").param("id", id)
             .with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isOk()).andExpect(
             org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
         .andExpect(content().string(containsString("SYNTHETIC_UNVERIFIED")))
+        .andExpect(content().string(containsString("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1")))
+        .andExpect(content().string(containsString("b".repeat(64))))
         .andExpect(content().string(containsString("&lt;script&gt;bad&lt;/script&gt;")))
         .andExpect(content().string(containsString("The request remains pending.")));
     verify(objectives).inspectImportSample("objective-reader", id);

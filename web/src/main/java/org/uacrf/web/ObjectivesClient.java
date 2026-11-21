@@ -123,7 +123,11 @@ class ObjectivesClient {
         || sample.connectionRevision() == null || sample.connectionRevision() < 1
         || sample.bindingRevision() == null || sample.bindingRevision() < 1
         || !present(sample.payloadDigest()) || !sample.payloadDigest().matches("[a-f0-9]{64}")
-        || !"SYNTHETIC_UNVERIFIED".equals(sample.verification()) || !valid(sample.definition())) {
+        || !"SYNTHETIC_UNVERIFIED".equals(sample.verification()) || !valid(sample.definition())
+        || sample.definitionFingerprint() == null
+        || !"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(sample.definitionFingerprint().version())
+        || !present(sample.definitionFingerprint().digest())
+        || !sample.definitionFingerprint().digest().matches("[a-f0-9]{64}")) {
       throw new IllegalStateException("S05 returned an invalid synthetic source inspection.");
     }
     return sample;
@@ -267,7 +271,10 @@ class ObjectivesClient {
       @JsonProperty("source_system") String sourceSystem,
       @JsonProperty("external_objective_id") String externalObjectiveId,
       @JsonProperty("source_version") String sourceVersion, @JsonProperty("payload_digest") String payloadDigest,
-      String verification, ImportDefinition definition) {}
+      String verification, ImportDefinition definition,
+      @JsonProperty("definition_fingerprint") DefinitionFingerprint definitionFingerprint) {}
+
+  record DefinitionFingerprint(String version, String digest) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

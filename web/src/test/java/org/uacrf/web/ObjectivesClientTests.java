@@ -105,13 +105,17 @@ class ObjectivesClientTests {
          "binding_revision":1,"target_workload_id":"workload","source_system":"sample:monitoring",
          "external_objective_id":"sample:checkout-recovery","source_version":"sample-v1",
          "payload_digest":"%s","verification":"SYNTHETIC_UNVERIFIED",
+         "definition_fingerprint":{"version":"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1","digest":"%s"},
          "definition":{"metric":"recovery.time","target":720,"unit":"seconds","window":"stable-30m",
          "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME","percentile":null}}
-        """.formatted("a".repeat(64));
+        """.formatted("a".repeat(64), "b".repeat(64));
     for (String response : List.of(body, body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"),
         body.replace("\"measurement_kind\":\"RECOVERY_TIME\"", "\"measurement_kind\":null"),
         body.replace("\"connection_revision\":1", "\"connection_revision\":0"),
-        body.replace("\"payload_digest\":\"" + "a".repeat(64) + "\"", "\"payload_digest\":\"bad\""))) {
+        body.replace("\"payload_digest\":\"" + "a".repeat(64) + "\"", "\"payload_digest\":\"bad\""),
+        body.replace("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "UNKNOWN_VERSION"),
+        body.replace("\"digest\":\"" + "b".repeat(64) + "\"", "\"digest\":\"bad\""),
+        body.replace("\"definition_fingerprint\":{", "\"definition_fingerprint_unused\":{"))) {
       RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
       MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
       server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-source"))

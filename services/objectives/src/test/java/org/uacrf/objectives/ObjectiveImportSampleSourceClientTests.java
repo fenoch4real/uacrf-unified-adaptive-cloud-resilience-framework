@@ -57,6 +57,9 @@ class ObjectiveImportSampleSourceClientTests {
     var result = client.inspect(jwt(), source);
     assertThat(result.verification()).isEqualTo("SYNTHETIC_UNVERIFIED");
     assertThat(result.definition().target()).isEqualByComparingTo("720");
+    assertThat(result.definitionFingerprint().version()).isEqualTo("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1");
+    assertThat(result.definitionFingerprint().digest())
+        .isEqualTo("833ffb467927e077f96e63dd31d0682a959ba009b3628e9703d00f60aae2738e");
     assertThat(result.connectionRevision()).isEqualTo(2);
     assertThat(result.bindingRevision()).isEqualTo(3);
     assertThat(exchangeAuth.get()).isEqualTo("Bearer s05-token");
@@ -68,12 +71,23 @@ class ObjectiveImportSampleSourceClientTests {
   }
 
   @Test
+  void fingerprintsTheDefinitionIndependentlyOfSourceDecimalFormatting() {
+    var original = client.inspect(jwt(), source);
+    mode.set("decimal-format");
+    var reformatted = client.inspect(jwt(), source);
+    assertThat(reformatted.payloadDigest()).isNotEqualTo(original.payloadDigest());
+    assertThat(reformatted.definitionFingerprint()).isEqualTo(original.definitionFingerprint());
+  }
+
+  @Test
   void failsClosedForDenialMismatchInvalidPayloadAndUnavailableSource() {
     for (String scenario : new String[] {"wrong-id", "bad-digest", "duplicate", "not-synthetic", "unavailable"}) {
       mode.set(scenario);
       assertStatus(HttpStatus.SERVICE_UNAVAILABLE);
     }
     mode.set("bad-payload");
+    assertStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+    mode.set("bad-unicode");
     assertStatus(HttpStatus.UNPROCESSABLE_ENTITY);
     mode.set("denied");
     assertStatus(HttpStatus.FORBIDDEN);
@@ -104,7 +118,12 @@ class ObjectiveImportSampleSourceClientTests {
     sourceQuery.set(request.getRequestURI().getRawQuery());
     if ("missing".equals(mode.get())) { reply(request, 404, "{}"); return; }
     if ("unavailable".equals(mode.get())) { reply(request, 503, "{}"); return; }
-    String payload = "bad-payload".equals(mode.get()) ? "{}" : PAYLOAD;
+    String payload = switch (mode.get()) {
+      case "bad-payload" -> "{}";
+      case "bad-unicode" -> PAYLOAD.replace("recovery.time", "\\ud800");
+      case "decimal-format" -> PAYLOAD.replace("720", "720.00");
+      default -> PAYLOAD;
+    };
     String digest;
     try {
       digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

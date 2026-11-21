@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**147 completed / 806 total** · 659 open
+**148 completed / 807 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 57 | 219 |
+| Milestone items | 58 | 220 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -328,6 +328,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
   - [x] M2-026c Parse the bounded fictional source format strictly and preserve decimal precision. Evidence: R-0138–R-0139. This standalone parser does not run an import worker or establish provenance.
   - [x] M2-026d Define and test an exact-decimal, versioned normalized-definition fingerprint compatible with the existing design fixture; do not imply approved mappings or provenance. Evidence: R-0157–R-0158.
+  - [x] M2-026e Expose a versioned fingerprint of the inspected fictional source definition in its original units through S05, EDGE01 and UX01; verify exact values, invalid input and browser readback without implying mapping approval or persistence. Evidence: R-0182–R-0185.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1281,6 +1282,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0178 | 2026-11-20 | M2-025f | `bash e2e/run-live.sh` passed 11/11 browser tests with inspection disabled, including explicit failure and pending readback. Shell, Java and JavaScript syntax checks also passed. | Source verification, approved mapping, comparison and import processing remain open. |
 | R-0179 | 2026-11-20 | M2-025f | Updated private technical approach Appendix AB to revision 200; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The document remains private and uncommitted; test-only TLS termination is not end-to-end TLS evidence. |
 | R-0180 | 2026-11-20 | M2-025f | Committed the enabled browser verification as `ebf6ddf` and pushed it to `origin/main`. | Full objective-import processing and provider acceptance remain open. |
+| R-0181 | 2026-11-21 | M2-026e | Started connecting the versioned definition fingerprint to fictional pending-source inspection. | This fingerprints the parsed source as read, without conversion, approved mapping, durable provenance or import processing. |
+| R-0182 | 2026-11-21 | M2-026e | Focused S05 and UX01 tests passed: 3 source-client tests and 169 web tests, including independently calculated digest, equivalent decimal formatting, malformed Unicode and invalid fingerprint response. | Connected browser verification remains pending. |
+| R-0183 | 2026-11-21 | M2-026e | Checked the isolated browser runner's fixed ports; no listeners were reported. Started the enabled synthetic-inspection browser run. | Awaiting the complete browser result. |
+| R-0184 | 2026-11-21 | M2-026e | The enabled `UACRF_E2E_SAMPLE_INSPECTION=1 bash e2e/run-live.sh` suite passed 11/11, including the exact source-definition version and digest through real services and pending browser readback. | Its test-only TLS terminator forwards to the isolated owners over HTTP; it is not end-to-end TLS evidence. |
+| R-0185 | 2026-11-21 | M2-026e | Repackaged S05 and ran `M2ObjectiveSampleSourceLiveTests` against the fresh JAR; 1/1 passed with the exact fictional source fingerprint, authorization checks and pending readback. | The fingerprint is computed as read, not persisted or independently provider-verified. |
+| R-0186 | 2026-11-21 | M2-026e | Updated private technical approach Appendix AB to revision 201; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; imported-objective mapping, persistence and processing remain open. |
 
 ## Implementation evidence
 
