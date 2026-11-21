@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**173 completed / 832 total** · 659 open
+**174 completed / 833 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 83 | 245 |
+| Milestone items | 84 | 246 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -354,6 +354,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026ab List retained synthetic mapping proposals for a known capture in S05 with bounded, context-bound pagination and read authorization. Evidence: R-0299.
   - [x] M2-026ac Forward synthetic proposal listing through EDGE01 with original delegation, pagination and owner responses. Evidence: R-0305.
   - [x] M2-026ad Connect retained synthetic proposal listing to UX01 and verify browser pagination and authorization. Evidence: R-0307–R-0309.
+  - [x] M2-026ae Retain an immutable synthetic normalized candidate bound to an independently approved historical capture and exact proposal, with retry-safe admission, scoped readback and explicit unverified/uncompared limits. Evidence: R-0314–R-0315.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1439,6 +1440,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0310 | 2026-11-21 | M2-026ac, M2-026ad | Updated the private technical approach Appendix AB to revision 222. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
 | R-0311 | 2026-11-21 | M2-026ad | Re-ran focused UX01 tests after adding capture-link, invalid-ID and missing-context assertions. | 2 tests passed. Checklist totals independently verified at 173 / 832. |
 | R-0312 | 2026-11-21 | M2-026ac, M2-026ad | Committed and pushed proposal discovery through EDGE01 and UX01 as `93a2957`. | Trusted source provenance, candidate creation, comparison and import processing remain open. |
+| R-0313 | 2026-11-21 | M2-026ae | Started durable synthetic candidate retention. | This historical sample is not verified provider provenance, a current mapping, a local comparison, or an import proposal. |
+| R-0314 | 2026-11-21 | M2-026ae | Ran the focused S05 candidate and review integration suite against disposable PostgreSQL. | 3 tests passed, including digest binding, concurrent retries, denial, isolation and immutable readback; reviewer authority was simulated. |
+| R-0315 | 2026-11-21 | M2-026ae | Ran the complete S05 and shared-security regression after adding candidate key-conflict, rejected-review and scoped-read checks. | 47 S05 and 8 shared-security tests passed; the candidate remains `UNCOMPARED` and `SYNTHETIC_UNVERIFIED`. |
+| R-0316 | 2026-11-21 | M2-026ae | Updated contracts, design notes and private technical approach Appendix AB to revision 223. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; EDGE01 and UX01 access remain open. |
 
 ## Implementation evidence
 

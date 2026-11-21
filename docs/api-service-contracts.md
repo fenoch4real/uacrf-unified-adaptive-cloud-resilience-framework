@@ -271,6 +271,20 @@ the unkeyed route.
   forwards pagination, delegation and owner responses. UX01 links from the
   retained capture to the list and provides first/next navigation with separate
   read delegation and the same historical, synthetic limitations.
+- **Historical synthetic normalized candidates:** S05 `POST` ending in
+  `/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates`
+  requires global objective-read and objective-write delegation, an idempotency
+  key and the exact versioned proposal digest. The referenced historical review
+  must be `APPROVE`; S05 revalidates the capture, proposal, digest and conversion.
+  It retains an immutable canonical normalized definition and fingerprint,
+  scoped to that capture and review. An unchanged retry while the request remains
+  pending returns the same record; another key for the same review conflicts.
+  `GET` ending in `/synthetic-candidates/{candidateId}` requires global
+  objective-read and validates the retained fingerprint. Successful responses
+  are `no-store`. These records are `UNCOMPARED` and `SYNTHETIC_UNVERIFIED`:
+  no current membership or source recheck is made, no approved general mapping
+  is established, and no local comparison, import resolution, objective
+  proposal or processing occurs. EDGE01 and UX01 access remain open.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

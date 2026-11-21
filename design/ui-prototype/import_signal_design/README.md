@@ -120,6 +120,15 @@ review for a known proposal, and EDGE01 forwards discovery. UX01 displays and
 submits an independent synthetic decision with digest-bound, context-bound
 retry. Real-provider mapping and import processing remain open.
 
+S05 can retain an immutable normalized candidate for an independently approved
+historical synthetic proposal. Admission binds the exact proposal digest and
+revalidates the captured bytes and conversion; scoped reads validate the stored
+normalized fingerprint. The candidate is `UNCOMPARED` and
+`SYNTHETIC_UNVERIFIED`: it is not trusted provider provenance, a current
+membership or source check, an approved general mapping, a local comparison,
+an import resolution or an objective proposal. EDGE01 and UX01 access to this
+candidate remain open.
+
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact
 JSON with keys in alphabetical order, including a null percentile. Strings use

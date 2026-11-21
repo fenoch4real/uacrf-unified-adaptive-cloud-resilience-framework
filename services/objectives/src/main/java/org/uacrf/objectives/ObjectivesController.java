@@ -162,6 +162,27 @@ class ObjectivesController {
             DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates")
+  ResponseEntity<ObjectivesService.SyntheticCandidate> createSyntheticCandidate(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId, @PathVariable String reviewId,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody SyntheticCandidateRequest request) {
+    var result = objectives.createSyntheticCandidate(
+        DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId, idempotencyKey, request);
+    return ResponseEntity.status(result.newlyCreated() ? HttpStatus.CREATED : HttpStatus.OK)
+        .cacheControl(CacheControl.noStore()).body(result.candidate());
+  }
+
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}")
+  ResponseEntity<ObjectivesService.SyntheticCandidate> getSyntheticCandidate(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId, @PathVariable String reviewId, @PathVariable String candidateId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.getSyntheticCandidate(
+            DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId, candidateId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<Page<ObjectivesService.SampleCaptureSummary>> listSampleCaptures(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id,

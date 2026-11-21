@@ -203,6 +203,47 @@ class ObjectiveReviewAuthorityIntegrationTests {
     assertThat(review.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
     assertThat(review.path("proposal_digest").asText()).isEqualTo(digest);
     assertThat(REQUEST.get()).contains("\"reviewer_id\":\"reviewer\"");
+    String candidates = reviews + "/" + review.path("review_id").asText() + "/synthetic-candidates";
+    String candidateBody = """
+        {"expected_proposal_digest_version":"SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1","expected_proposal_digest":"%s"}
+        """.formatted(digest);
+    assertEquals(403, postWithKey(candidates, reader, candidateBody, "candidate-key").statusCode());
+    assertEquals(409, postWithKey(candidates, importer, candidateBody.replace(digest, "0".repeat(64)),
+        "candidate-key").statusCode());
+    String missingReview = reviews + "/" + java.util.UUID.randomUUID() + "/synthetic-candidates";
+    assertEquals(404, postWithKey(missingReview, importer, candidateBody, "candidate-key").statusCode());
+    java.util.List<HttpResponse<String>> candidateResults = new java.util.ArrayList<>();
+    try (var pool = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+      var attempts = java.util.stream.IntStream.range(0, 8)
+          .mapToObj(index -> pool.submit(() -> postWithKey(candidates, importer, candidateBody, "candidate-key")))
+          .toList();
+      for (var attempt : attempts) candidateResults.add(attempt.get());
+    }
+    assertThat(candidateResults.stream().filter(result -> result.statusCode() == 201)).hasSize(1);
+    assertThat(candidateResults.stream().filter(result -> result.statusCode() == 200)).hasSize(7);
+    var candidate = json.readTree(candidateResults.getFirst().body());
+    assertThat(candidateResults.stream().map(result -> json.readTree(result.body()).path("candidate_id").asText())
+        .distinct()).hasSize(1);
+    assertThat(candidate.path("normalized_definition").path("target").decimalValue())
+        .isEqualByComparingTo("12");
+    assertThat(candidate.path("normalized_definition").path("unit").asText()).isEqualTo("minutes");
+    assertThat(candidate.path("normalized_fingerprint").path("digest").asText())
+        .isEqualTo(proposal.path("normalized_fingerprint").asText());
+    assertThat(candidate.path("status").asText()).isEqualTo("UNCOMPARED");
+    assertThat(candidate.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertEquals(409, postWithKey(candidates, importer, candidateBody, "different-key").statusCode());
+    String candidateReadPath = candidates + "/" + candidate.path("candidate_id").asText();
+    var candidateRead = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidateReadPath))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, candidateRead.statusCode());
+    assertThat(candidateRead.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(candidateRead.body())).isEqualTo(candidate);
+    assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
+        "UPDATE uacrf_objectives.synthetic_normalized_candidate SET status='COMPARED' WHERE candidate_id=?::uuid",
+        candidate.path("candidate_id").asText()));
+    assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
+        "DELETE FROM uacrf_objectives.synthetic_normalized_candidate WHERE candidate_id=?::uuid",
+        candidate.path("candidate_id").asText()));
     var listed = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
         .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(200, listed.statusCode());
@@ -234,9 +275,17 @@ class ObjectiveReviewAuthorityIntegrationTests {
     var isolatedList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
         .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(404, isolatedList.statusCode());
+    var isolatedCandidate = http.send(
+        HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidateReadPath))
+            .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(404, isolatedCandidate.statusCode());
     var scopedList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
         .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(403, scopedList.statusCode());
+    var scopedCandidate = http.send(
+        HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidateReadPath))
+            .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(403, scopedCandidate.statusCode());
     String wrongProposal = reviews.replace(proposalId, java.util.UUID.randomUUID().toString());
     var missingList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + wrongProposal))
         .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
@@ -266,7 +315,25 @@ class ObjectiveReviewAuthorityIntegrationTests {
       assertThat(results.stream().map(result -> json.readTree(result.body()).path("review_id").asText()).distinct())
           .hasSize(1);
       assertThat(json.readTree(results.getFirst().body()).path("decision").asText()).isEqualTo("REJECT");
+      String rejectedReview = json.readTree(results.getFirst().body()).path("review_id").asText();
+      assertEquals(409, postWithKey(secondPath + "/" + rejectedReview + "/synthetic-candidates", importer,
+          candidateBody.replace(digest, secondBody.path("proposal_digest").asText()), "rejected-key").statusCode());
     }
+    var third = postWithKey(proposals, importer,
+        "{\"target_unit\":\"seconds\",\"allow_fraction_to_percent\":false,\"reason\":\"third proposal\"}",
+        "third-proposal-key");
+    assertEquals(201, third.statusCode(), third.body());
+    var thirdBody = json.readTree(third.body());
+    String thirdDigest = thirdBody.path("proposal_digest").asText();
+    String thirdReviews = proposals + "/" + thirdBody.path("proposal_id").asText() + "/reviews";
+    var thirdReview = postWithKey(thirdReviews, reviewer, body.replace(digest, thirdDigest), "third-review-key");
+    assertEquals(201, thirdReview.statusCode(), thirdReview.body());
+    String thirdCandidates = thirdReviews + "/" + json.readTree(thirdReview.body()).path("review_id").asText()
+        + "/synthetic-candidates";
+    assertEquals(409, postWithKey(thirdCandidates, importer, candidateBody.replace(digest, thirdDigest),
+        "candidate-key").statusCode());
+    assertEquals(201, postWithKey(thirdCandidates, importer, candidateBody.replace(digest, thirdDigest),
+        "third-candidate-key").statusCode());
     assertThat(proposal.path("status").asText()).isEqualTo("UNAPPROVED");
   }
 

@@ -777,6 +777,136 @@ class ObjectivesService {
       String reviewerId, String proposalDigestVersion, String proposalDigest, String decision, String reason,
       String verification, String reviewedAt) {}
 
+  @Transactional
+  SyntheticCandidateAdmission createSyntheticCandidate(DelegationPrincipal actor, String id, String captureId,
+      String proposalId, String reviewId, String key, SyntheticCandidateRequest request) {
+    requireCapability(actor, "objectives.objective.read");
+    requireCapability(actor, "objectives.objective.write");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(key);
+    UUID command;
+    try {
+      command = UUID.fromString(id);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<UUID> commands = jdbc.query("SELECT command_id FROM " + SCHEMA
+        + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+        + "AND command_id = ? AND status = 'PENDING' FOR UPDATE",
+        (rs, row) -> rs.getObject("command_id", UUID.class), actor.tenantId(), actor.environmentId(), command);
+    if (commands.isEmpty()) throw notFound();
+    SyntheticMappingProposal proposal = getSyntheticMappingProposal(actor, id, captureId, proposalId);
+    SyntheticMappingReview review = getSyntheticMappingReview(actor, id, captureId, proposalId, reviewId);
+    if (!"APPROVE".equals(review.decision())) {
+      throw conflict("MAPPING_NOT_APPROVED", "The historical synthetic review did not approve this proposal.");
+    }
+    if (!proposal.proposalDigestVersion().equals(request.expectedProposalDigestVersion())
+        || !proposal.proposalDigest().equals(request.expectedProposalDigest())
+        || !proposal.proposalDigestVersion().equals(review.proposalDigestVersion())
+        || !proposal.proposalDigest().equals(review.proposalDigest())) {
+      throw conflict("CONTENT_MISMATCH", "The synthetic proposal differs from the reviewed content.");
+    }
+    SampleNormalizationRehearsal rehearsal = rehearseSampleNormalization(
+        actor, id, captureId, proposal.targetUnit(), proposal.allowFractionToPercent());
+    if (!proposal.fingerprintVersion().equals(rehearsal.sourceFingerprint().version())
+        || !proposal.sourceFingerprint().equals(rehearsal.sourceFingerprint().digest())
+        || !proposal.normalizedFingerprint().equals(rehearsal.normalizedFingerprint().digest())) {
+      throw conflict("CONTENT_MISMATCH", "The retained mapping proposal no longer matches its capture.");
+    }
+    String definition = ObjectiveImportFingerprint.canonical(rehearsal.normalizedDefinition());
+    if (definition.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 16384) {
+      throw new IllegalStateException("The normalized synthetic definition exceeds the retained size limit.");
+    }
+    Map<String, Object> material = new TreeMap<>();
+    material.put("receipt_id", proposal.receiptId());
+    material.put("capture_id", proposal.captureId());
+    material.put("proposal_id", proposal.proposalId());
+    material.put("review_id", review.reviewId());
+    material.put("proposal_digest_version", proposal.proposalDigestVersion());
+    material.put("proposal_digest", proposal.proposalDigest());
+    String requestDigest = sha256(serialize(material));
+    UUID candidateId = UUID.randomUUID();
+    int inserted = jdbc.update("INSERT INTO " + SCHEMA + "synthetic_normalized_candidate "
+        + "(candidate_id, tenant_id, environment_id, command_id, capture_id, proposal_id, review_id, "
+        + "created_by, idempotency_key, request_digest, proposal_digest_version, proposal_digest, "
+        + "fingerprint_version, normalized_fingerprint, normalized_definition, status, verification) "
+        + "VALUES (?, ?, ?, ?, ?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, 'UNCOMPARED', "
+        + "'SYNTHETIC_UNVERIFIED') ON CONFLICT DO NOTHING",
+        candidateId, actor.tenantId(), actor.environmentId(), command, proposal.captureId(), proposal.proposalId(),
+        review.reviewId(), actor.principalId(), key, requestDigest, proposal.proposalDigestVersion(),
+        proposal.proposalDigest(), rehearsal.normalizedFingerprint().version(),
+        rehearsal.normalizedFingerprint().digest(), definition);
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList("SELECT candidate_id, request_digest FROM " + SCHEMA
+          + "synthetic_normalized_candidate WHERE tenant_id = ? AND environment_id = ? "
+          + "AND created_by = ? AND idempotency_key = ?", actor.tenantId(), actor.environmentId(),
+          actor.principalId(), key);
+      if (rows.isEmpty()) {
+        throw conflict("ALREADY_RETAINED", "This historical synthetic review already has a candidate.");
+      }
+      Map<String, Object> existing = rows.getFirst();
+      if (!requestDigest.equals(existing.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key belongs to a different synthetic candidate.");
+      }
+      candidateId = (UUID) existing.get("candidate_id");
+    }
+    return new SyntheticCandidateAdmission(
+        getSyntheticCandidate(actor, id, captureId, proposalId, reviewId, candidateId.toString()), inserted == 1);
+  }
+
+  @Transactional(readOnly = true)
+  SyntheticCandidate getSyntheticCandidate(DelegationPrincipal actor, String id, String captureId,
+      String proposalId, String reviewId, String candidateId) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    UUID command;
+    UUID capture;
+    UUID proposal;
+    UUID review;
+    UUID candidate;
+    try {
+      command = UUID.fromString(id);
+      capture = UUID.fromString(captureId);
+      proposal = UUID.fromString(proposalId);
+      review = UUID.fromString(reviewId);
+      candidate = UUID.fromString(candidateId);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<SyntheticCandidate> rows = jdbc.query("SELECT candidate_id, command_id, capture_id, proposal_id, "
+        + "review_id, created_by, created_at, proposal_digest_version, proposal_digest, fingerprint_version, "
+        + "normalized_fingerprint, normalized_definition, status, verification FROM " + SCHEMA
+        + "synthetic_normalized_candidate WHERE tenant_id = ? AND environment_id = ? AND command_id = ? "
+        + "AND capture_id = ? AND proposal_id = ? AND review_id = ? AND candidate_id = ?",
+        (rs, row) -> {
+          ObjectiveImportDefinition definition;
+          try {
+            definition = ObjectiveImportSampleParser.parse(rs.getString("normalized_definition"));
+          } catch (IllegalArgumentException error) {
+            throw new IllegalStateException("The retained synthetic candidate is invalid.", error);
+          }
+          var fingerprint = ObjectiveImportFingerprint.fingerprint(definition);
+          if (!fingerprint.version().equals(rs.getString("fingerprint_version"))
+              || !fingerprint.digest().equals(rs.getString("normalized_fingerprint").trim())) {
+            throw new IllegalStateException("The retained synthetic candidate fingerprint does not match.");
+          }
+          return new SyntheticCandidate(rs.getString("candidate_id"), rs.getString("command_id"),
+              rs.getString("capture_id"), rs.getString("proposal_id"), rs.getString("review_id"),
+              rs.getString("created_by"), rs.getTimestamp("created_at").toInstant().toString(),
+              rs.getString("proposal_digest_version"), rs.getString("proposal_digest").trim(), definition,
+              fingerprint, rs.getString("status"), rs.getString("verification"));
+        }, actor.tenantId(), actor.environmentId(), command, capture, proposal, review, candidate);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
+  }
+
+  record SyntheticCandidateAdmission(SyntheticCandidate candidate, boolean newlyCreated) {}
+
+  record SyntheticCandidate(String candidateId, String receiptId, String captureId, String proposalId,
+      String reviewId, String createdBy, String createdAt, String proposalDigestVersion, String proposalDigest,
+      ObjectiveImportDefinition normalizedDefinition, ObjectiveImportFingerprint.Value normalizedFingerprint,
+      String status, String verification) {}
+
   @Transactional(readOnly = true)
   Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
     PendingImportReceipt receipt = getImportPreview(actor, id);

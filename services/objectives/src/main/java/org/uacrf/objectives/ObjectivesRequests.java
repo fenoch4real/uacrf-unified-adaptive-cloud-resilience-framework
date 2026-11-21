@@ -61,6 +61,10 @@ final class ObjectivesRequests {
       @NotBlank @Pattern(regexp = "^SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1$") String expectedProposalDigestVersion,
       @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String expectedProposalDigest) {}
 
+  record SyntheticCandidateRequest(
+      @NotBlank @Pattern(regexp = "^SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1$") String expectedProposalDigestVersion,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String expectedProposalDigest) {}
+
   record Transition(@Min(1) long expectedRevision) {}
 
   record IdempotentSubmission(
