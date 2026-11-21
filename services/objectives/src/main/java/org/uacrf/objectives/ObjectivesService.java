@@ -234,16 +234,7 @@ class ObjectivesService {
   Page<PendingImportSummary> listImportPreviews(DelegationPrincipal actor, int pageSize, String cursor) {
     requireCapability(actor, "objectives.objective.read");
     requireGlobalScope(actor);
-    String decoded = decodeCursor(cursor);
-    UUID after = null;
-    if (!decoded.isEmpty()) {
-      try {
-        after = UUID.fromString(decoded);
-        if (!after.toString().equals(decoded)) throw new IllegalArgumentException();
-      } catch (IllegalArgumentException error) {
-        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");
-      }
-    }
+    UUID after = decodeUuidCursor(cursor);
     List<PendingImportSummary> rows = jdbc.query(
         "SELECT command_id, status, target_workload_id, created_at FROM " + SCHEMA
             + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
@@ -458,6 +449,27 @@ class ObjectivesService {
       String requestDigest, String connectionId, long connectionRevision, String bindingId, long bindingRevision,
       String targetWorkloadId, String sourceSystem, String externalObjectiveId, String sourceVersion, String payload,
       String payloadDigest, String definitionFingerprintVersion, String definitionFingerprint, String verification) {}
+
+  @Transactional(readOnly = true)
+  Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
+    PendingImportReceipt receipt = getImportPreview(actor, id);
+    UUID command = UUID.fromString(receipt.receiptId());
+    UUID after = decodeUuidCursor(cursor);
+    List<SampleCaptureSummary> rows = jdbc.query(
+        "SELECT capture_id, captured_at, verification FROM " + SCHEMA
+            + "synthetic_objective_source_capture WHERE tenant_id = ? AND environment_id = ? "
+            + "AND command_id = ? AND (?::uuid IS NULL OR capture_id > ?::uuid) ORDER BY capture_id LIMIT ?",
+        (rs, n) -> new SampleCaptureSummary(rs.getString("capture_id"),
+            rs.getTimestamp("captured_at").toInstant().toString(), rs.getString("verification")),
+        actor.tenantId(), actor.environmentId(), command, after, after, pageSize + 1);
+    boolean more = rows.size() > pageSize;
+    List<SampleCaptureSummary> items = more ? rows.subList(0, pageSize) : rows;
+    String next = more ? Base64.getUrlEncoder().withoutPadding().encodeToString(
+        items.getLast().captureId().getBytes(StandardCharsets.UTF_8)) : null;
+    return new Page<>(items, next);
+  }
+
+  record SampleCaptureSummary(String captureId, String capturedAt, String verification) {}
 
   @Transactional
   Objective submit(DelegationPrincipal actor, String id, Transition request) {
@@ -988,6 +1000,18 @@ class ObjectivesService {
       if (value.isBlank() || value.length() > 200) {
         throw new IllegalArgumentException();
       }
+      return value;
+    } catch (IllegalArgumentException error) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");
+    }
+  }
+
+  private static UUID decodeUuidCursor(String cursor) {
+    String decoded = decodeCursor(cursor);
+    if (decoded.isEmpty()) return null;
+    try {
+      UUID value = UUID.fromString(decoded);
+      if (!value.toString().equals(decoded)) throw new IllegalArgumentException();
       return value;
     } catch (IllegalArgumentException error) {
       throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");

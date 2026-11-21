@@ -500,6 +500,30 @@ class ObjectivesApplicationTests {
     }
     assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_source_capture "
         + "WHERE tenant_id = ?", Integer.class, tenant));
+    String listing = "/v1/objective-imports/" + id + "/sample-captures";
+    var firstPage = get(listing + "?pageSize=1", reader);
+    assertEquals(200, firstPage.statusCode());
+    assertThat(firstPage.headers().firstValue("cache-control")).hasValue("no-store");
+    var firstBody = json.readTree(firstPage.body());
+    assertThat(firstBody.path("items")).hasSize(1);
+    assertThat(firstBody.path("items").get(0).path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    var secondPage = get(listing + "?pageSize=1&cursor=" + firstBody.path("next_cursor").asText(), reader);
+    assertEquals(200, secondPage.statusCode());
+    var secondBody = json.readTree(secondPage.body());
+    assertThat(secondBody.path("items")).hasSize(1);
+    assertThat(secondBody.path("items").get(0).path("capture_id").asText())
+        .isNotEqualTo(firstBody.path("items").get(0).path("capture_id").asText());
+    assertThat(secondBody.path("next_cursor").isNull()).isTrue();
+    assertEquals(400, get(listing + "?cursor=invalid", reader).statusCode());
+    assertEquals(400, get(listing + "?pageSize=101", reader).statusCode());
+    assertEquals(403, get(listing, bearer("writer-only", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(403, get(listing, token("scoped", tenant, "w1", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(listing, bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(listing, tokenForEnvironment("reader", tenant, "other-environment", "*",
+        List.of("objectives.objective.read"))).statusCode());
+    var empty = get("/v1/objective-imports/" + otherId + "/sample-captures", reader);
+    assertEquals(200, empty.statusCode());
+    assertThat(json.readTree(empty.body()).path("items").isEmpty()).isTrue();
     assertThat(get("/v1/objective-imports/" + id, bearer("importer", tenant, PROPOSER)).body())
         .contains("PENDING");
   }

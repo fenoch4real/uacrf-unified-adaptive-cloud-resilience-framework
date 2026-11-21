@@ -96,6 +96,15 @@ class ObjectivesController {
         .body(objectives.getRetainedSampleCapture(DelegationPrincipal.from(jwt), id, captureId));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures")
+  ResponseEntity<Page<ObjectivesService.SampleCaptureSummary>> listSampleCaptures(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestParam(defaultValue = "25") int pageSize, @RequestParam(required = false) String cursor) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.listSampleCaptures(DelegationPrincipal.from(jwt), id,
+            ObjectivesService.validatePageSize(pageSize), cursor));
+  }
+
   @GetMapping("/v1/objective-imports")
   Page<PendingImportSummary> listImportPreviews(
       @AuthenticationPrincipal Jwt jwt,

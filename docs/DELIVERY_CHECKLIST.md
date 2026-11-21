@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**154 completed / 813 total** · 659 open
+**155 completed / 816 total** · 661 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 64 | 226 |
+| Milestone items | 65 | 229 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -335,6 +335,9 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026i Read a specific retained fictional capture from S05 by request and capture ID, scoped to tenant/environment and global objective-read authority, without source reauthorization or trusted-provenance claims. Evidence: R-0210–R-0211.
   - [x] M2-026j Forward the retained fictional capture read through EDGE01 with the original authorization and no-store response. Evidence: R-0215.
   - [x] M2-026k Connect a known capture receipt to an escaped, clearly labeled historical payload and metadata view in UX01; verify real browser success and denial. Evidence: R-0219–R-0221.
+  - [x] M2-026l List bounded, request-scoped retained synthetic captures in S05 with pagination, read authorization and context isolation. Evidence: R-0225–R-0226.
+  - [ ] M2-026m Forward the retained synthetic capture list through EDGE01 with original authorization and no-store.
+  - [ ] M2-026n Connect paginated retained capture listing to UX01 and verify browser navigation and authorization.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1330,6 +1333,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0220 | 2026-11-21 | M2-026k | Ran the isolated enabled browser suite through UX01, EDGE01 and S05 for retained capture readback. | 11 tests passed, including exact payload, fingerprint, no-store, denial and pending readback; test TLS terminates at the disposable proxy. |
 | R-0221 | 2026-11-21 | M2-026k | Ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic source client remains disabled by default. |
 | R-0222 | 2026-11-21 | M2-026k | Updated private technical approach Appendix AB to revision 207 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; capture listing and import processing remain open. |
+| R-0223 | 2026-11-21 | M2-026k | Committed the verified capture detail UI as `6e43d68` and pushed it to `origin/main`. | General capture history and import processing remain open. |
+| R-0224 | 2026-11-21 | M2-026l–M2-026n | Started discoverable, paginated synthetic capture history across S05, EDGE01 and UX01. | Results remain historical and unverified; processing and trusted provenance are not implied. |
+| R-0225 | 2026-11-21 | M2-026l | Ran S05 and shared-security regression after adding capture listing. | Capture-list application tests passed; the unrelated reviewer-authority test received HTTP 400 instead of 201 and needs diagnosis before accepting the regression. |
+| R-0226 | 2026-11-21 | M2-026l | Retried the reviewer and capture tests with response diagnostics, then reran the full S05 regression. | 27 focused tests and then 46 S05 plus 8 shared-security tests passed; the earlier HTTP 400 did not recur and its cause remains unknown. |
+| R-0227 | 2026-11-21 | M2-026l | Updated private technical approach Appendix AB to revision 208 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; the earlier intermittent HTTP 400 remains unexplained. |
 
 ## Implementation evidence
 

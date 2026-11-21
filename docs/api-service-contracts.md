@@ -220,7 +220,12 @@ the unkeyed route.
   and capture IDs. It reads a historical observation without refetching or
   reauthorizing the source; it does not establish trusted provenance. EDGE01
   forwards the original delegation and preserves the owner response with
-  `no-store`. Capture listing and general browser history remain open.
+  `no-store`. S05 also exposes `GET /v1/objective-imports/{id}/sample-captures`
+  for request-scoped capture summaries, requiring the same global read
+  capability. It returns `items` and `next_cursor`, defaults to 25 items and
+  permits 1–100 per page. Pages are ordered by capture ID, not time; they are
+  not a snapshot, so restart from the first page to discover new captures.
+  EDGE01 list forwarding and general browser history remain open.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus
