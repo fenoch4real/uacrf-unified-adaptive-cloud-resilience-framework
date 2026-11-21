@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**145 completed / 804 total** · 659 open
+**146 completed / 806 total** · 660 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 55 | 217 |
+| Milestone items | 56 | 219 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -321,6 +321,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-025b Add a purpose-bound S05-to-S03 synthetic-read exchange with separate current global grants; verify its issuer and receiver independently. Evidence: R-0142–R-0143.
   - [x] M2-025c Connect and verify the purpose-bound synthetic source read across S05, S01 and S03 using real local services. Evidence: R-0150–R-0153; not trusted source verification or import processing.
   - [x] M2-025d Forward pending-request synthetic inspection through EDGE01 without changing authorization, no-store or failure semantics. Evidence: R-0166.
+  - [x] M2-025e Connect a pending receipt to its fictional source inspection in UX01, with separate read authority and explicit limitations; verify mocked success and the default-disabled browser path. Evidence: R-0170–R-0173.
+  - [ ] M2-025f Verify enabled pending-receipt inspection through the browser and real S05/S01/S03 services without weakening transport controls.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
@@ -1266,6 +1268,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0165 | 2026-11-20 | M2-025d | Started forwarding the S05 pending-request sample inspection through EDGE01. | This is not yet a browser flow or import processing. |
 | R-0166 | 2026-11-20 | M2-025d | `./mvnw -pl services/api-edge -am clean test` passed 33 EDGE01 tests; the new route forwards the S05 delegation, response body and success/denial/not-found/unavailable statuses with no-store. | The test uses a mock owner; browser integration and import processing remain open. |
 | R-0167 | 2026-11-20 | M2-025d | Updated private technical approach Appendix AB to revision 198; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; browser integration remains open. |
+| R-0168 | 2026-11-20 | M2-025d | Committed the pending inspection edge route as `8477733` and pushed it to `origin/main`. | UX01 still needs to connect this operation. |
+| R-0169 | 2026-11-20 | M2-025e | Started connecting pending-receipt sample inspection to UX01. | S05 inspection is disabled by default; this does not process a request or verify a provider. |
+| R-0170 | 2026-11-20 | M2-025e | Focused UX01 tests passed 14/14 for response validation, separate objective-read delegation, escaped display, denial, invalid IDs and existing request receipt behavior. | Browser verification remained pending. |
+| R-0171 | 2026-11-20 | M2-025e | `./mvnw -pl web -am clean test` passed 207 UX01 tests. | A real enabled browser-to-S05/S01/S03 journey is not yet demonstrated. |
+| R-0172 | 2026-11-20 | M2-025e | Checked the isolated browser runner's fixed ports; no listeners were reported. Started `bash e2e/run-live.sh`. | Awaiting the browser result; the default-disabled path does not prove enabled inspection. |
+| R-0173 | 2026-11-20 | M2-025e | `bash e2e/run-live.sh` passed 11/11 browser tests, including the pending receipt link, explicit disabled-service error and pending readback. | This stack leaves the S05 source client disabled; enabled browser success remains open under M2-025f. |
+| R-0174 | 2026-11-20 | M2-025e | Updated private technical approach Appendix AB to revision 199; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; enabled browser success and import processing remain open. |
 
 ## Implementation evidence
 

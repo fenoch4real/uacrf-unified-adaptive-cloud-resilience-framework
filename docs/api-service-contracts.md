@@ -182,7 +182,12 @@ the unkeyed route.
   The client is disabled by default; endpoints require HTTPS except explicitly
   enabled loopback HTTP. This read does not approve mappings, verify a provider,
   or process an import. EDGE01 forwards the same pending-request inspection
-  with its original S05 delegation and `no-store` responses.
+  with its original S05 delegation and `no-store` responses. UX01 links from
+  the pending receipt to this read, requests a separate global S05 objective
+  read delegation, and labels the returned definition fictional and
+  unverified. S01 independently checks the connection-read grant at exchange
+  time. UX01 displays an explicit error when the opt-in source read is disabled
+  or access is denied.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

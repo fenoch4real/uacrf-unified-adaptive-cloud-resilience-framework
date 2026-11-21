@@ -151,6 +151,35 @@ class ObjectiveImportController {
     return "objective-import-receipt";
   }
 
+  @GetMapping("/objectives/import/receipt/sample-source")
+  String receiptSampleSource(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("receiptId", id);
+    if (!ObjectivesClient.validUuid(id)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("sourceError", "Provide a valid import receipt ID.");
+      return "objective-import-receipt-source";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("source", objectives.inspectImportSample(token, id));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("sourceError", "Identity or objectives service is unavailable; the sample was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("sourceError", "Pending sample inspection failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("sourceError", "Identity or objectives service returned an invalid response.");
+    }
+    return "objective-import-receipt-source";
+  }
+
   @GetMapping("/objectives/import/requests")
   String requests(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,

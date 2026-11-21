@@ -8,7 +8,7 @@
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/objectives">Back to objectives</a></p>
   <p><a href="/objectives/import">Request or find an import</a></p>
-  <p>The request is pending and no source has been fetched or verified. It is not a preview,
+  <p>The request is pending and no source has been fetched or verified as part of processing. It is not a preview,
     a proposal, approval, activation or evidence of provider acceptance.</p>
   <p role="alert" th:if="${receiptError != null}" th:text="${receiptError}"></p>
   <div th:if="${receipt != null}">
@@ -16,5 +16,7 @@
       <dt>Status</dt><dd th:text="${receipt.status}">PENDING</dd></dl>
     <p><a th:href="@{/objectives/import/receipt(id=${receipt.receiptId})}">Read current request status</a>
       (requires separate global read access)</p>
+    <p><a th:href="@{/objectives/import/receipt/sample-source(id=${receipt.receiptId})}">Inspect this request's fictional sample source</a>
+      (requires separate objective and connection read access; may be disabled)</p>
   </div>
 </main></body></html>

@@ -111,6 +111,37 @@ class ObjectivesClient {
     return receipt;
   }
 
+  ImportSample inspectImportSample(String token, String id) {
+    if (!validUuid(id)) throw new IllegalStateException("Invalid import receipt ID.");
+    ImportSample sample = restClient.get().uri("/v1/objective-imports/{id}/sample-source", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(ImportSample.class);
+    if (sample == null || !present(sample.connectionId()) || !present(sample.bindingId())
+        || !present(sample.targetWorkloadId()) || !present(sample.sourceSystem())
+        || !sample.sourceSystem().startsWith("sample:")
+        || !present(sample.externalObjectiveId()) || !sample.externalObjectiveId().startsWith("sample:")
+        || !present(sample.sourceVersion()) || !sample.sourceVersion().startsWith("sample-")
+        || sample.connectionRevision() == null || sample.connectionRevision() < 1
+        || sample.bindingRevision() == null || sample.bindingRevision() < 1
+        || !present(sample.payloadDigest()) || !sample.payloadDigest().matches("[a-f0-9]{64}")
+        || !"SYNTHETIC_UNVERIFIED".equals(sample.verification()) || !valid(sample.definition())) {
+      throw new IllegalStateException("S05 returned an invalid synthetic source inspection.");
+    }
+    return sample;
+  }
+
+  private static boolean valid(ImportDefinition value) {
+    return value != null && present(value.metric()) && present(value.unit()) && present(value.window())
+        && present(value.measurementRef()) && value.target() != null && value.target().signum() >= 0
+        && present(value.comparison()) && present(value.measurementKind())
+        && List.of("AT_MOST", "AT_LEAST", "EQUAL").contains(value.comparison())
+        && List.of("THRESHOLD", "PERCENTILE", "RATIO", "RECOVERY_TIME", "OUTCOME").contains(value.measurementKind())
+        && ("PERCENTILE".equals(value.measurementKind())
+            ? value.percentile() != null && value.percentile().signum() > 0
+                && value.percentile().compareTo(BigDecimal.valueOf(100)) <= 0
+            : value.percentile() == null)
+        && (!"percent".equals(value.unit()) || value.target().compareTo(BigDecimal.valueOf(100)) <= 0);
+  }
+
   ImportPage listImports(String token, String cursor) {
     ImportPage page = restClient.get().uri(uri -> {
       var request = uri.path("/v1/objective-imports").queryParam("pageSize", 25);
@@ -133,7 +164,7 @@ class ObjectivesClient {
     return validUuid(receipt.receiptId());
   }
 
-  private static boolean validUuid(String value) {
+  static boolean validUuid(String value) {
     if (value == null) return false;
     try {
       return java.util.UUID.fromString(value).toString().equals(value);
@@ -228,6 +259,19 @@ class ObjectivesClient {
   record ImportReceipt(@JsonProperty("receipt_id") String receiptId, String status,
       @JsonProperty("read_resource") String readResource,
       @JsonProperty("runtime_verification") String runtimeVerification) {}
+
+  record ImportSample(@JsonProperty("connection_id") String connectionId,
+      @JsonProperty("connection_revision") Long connectionRevision,
+      @JsonProperty("binding_id") String bindingId, @JsonProperty("binding_revision") Long bindingRevision,
+      @JsonProperty("target_workload_id") String targetWorkloadId,
+      @JsonProperty("source_system") String sourceSystem,
+      @JsonProperty("external_objective_id") String externalObjectiveId,
+      @JsonProperty("source_version") String sourceVersion, @JsonProperty("payload_digest") String payloadDigest,
+      String verification, ImportDefinition definition) {}
+
+  record ImportDefinition(String metric, BigDecimal target, String unit, String window,
+      @JsonProperty("measurement_ref") String measurementRef, String comparison,
+      @JsonProperty("measurement_kind") String measurementKind, BigDecimal percentile) {}
 
   record ImportSummary(@JsonProperty("receipt_id") String receiptId, String status,
       @JsonProperty("target_workload_id") String targetWorkloadId,

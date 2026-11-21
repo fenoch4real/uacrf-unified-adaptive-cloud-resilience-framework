@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pending request sample inspection | UACRF</title></head>
+<body><main>
+  <h1>Pending request sample inspection</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a th:href="@{/objectives/import/receipt(id=${receiptId})}">Back to this request</a></p>
+  <p>Fictional sample only: not verified provider data or trusted provenance.
+    Inspection does not approve a mapping or process, propose or activate an objective.
+    The request remains pending.</p>
+  <p role="alert" th:if="${sourceError != null}" th:text="${sourceError}"></p>
+  <section th:if="${source != null}">
+    <h2>Source details</h2>
+    <dl>
+      <dt>Verification</dt><dd th:text="${source.verification}"></dd>
+      <dt>Connection</dt><dd th:text="${source.connectionId}"></dd>
+      <dt>Connection revision</dt><dd th:text="${source.connectionRevision}"></dd>
+      <dt>Binding</dt><dd th:text="${source.bindingId}"></dd>
+      <dt>Binding revision</dt><dd th:text="${source.bindingRevision}"></dd>
+      <dt>Workload</dt><dd th:text="${source.targetWorkloadId}"></dd>
+      <dt>Source system</dt><dd th:text="${source.sourceSystem}"></dd>
+      <dt>External objective</dt><dd th:text="${source.externalObjectiveId}"></dd>
+      <dt>Source version</dt><dd th:text="${source.sourceVersion}"></dd>
+      <dt>Source payload SHA-256</dt><dd th:text="${source.payloadDigest}"></dd>
+    </dl>
+    <h2>Fictional definition</h2>
+    <dl>
+      <dt>Metric</dt><dd th:text="${source.definition.metric}"></dd>
+      <dt>Target</dt><dd th:text="${source.definition.target}"></dd>
+      <dt>Unit</dt><dd th:text="${source.definition.unit}"></dd>
+      <dt>Window</dt><dd th:text="${source.definition.window}"></dd>
+      <dt>Measurement reference</dt><dd th:text="${source.definition.measurementRef}"></dd>
+      <dt>Comparison</dt><dd th:text="${source.definition.comparison}"></dd>
+      <dt>Measurement kind</dt><dd th:text="${source.definition.measurementKind}"></dd>
+      <dt>Percentile</dt><dd th:text="${source.definition.percentile == null ? 'Not applicable' : source.definition.percentile}"></dd>
+    </dl>
+  </section>
+</main></body></html>

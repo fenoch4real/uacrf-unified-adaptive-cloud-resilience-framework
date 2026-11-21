@@ -985,6 +985,16 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Read current request status' }).click();
     await expect(sample.locator('main')).toContainText('PENDING');
     const savedReceiptId = new URL(importReceiptUrl, sample.url()).searchParams.get('id');
+    const [inspectionResponse] = await Promise.all([
+      sample.waitForResponse((response) =>
+        new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
+      sample.getByRole('link', { name: "Inspect this request's fictional sample source" }).click(),
+    ]);
+    expect(inspectionResponse.status()).toBe(503);
+    await expect(sample.locator('main')).toContainText('Pending sample inspection failed (HTTP 503)');
+    await expect(sample.locator('main')).toContainText('The request remains pending.');
+    await sample.getByRole('link', { name: 'Back to this request' }).click();
+    await expect(sample.locator('main')).toContainText('PENDING');
     await sample.getByRole('link', { name: 'Request or find an import' }).click();
     await sample.getByLabel('Sample connection ID (required)').fill('browser-objective-source');
     await sample.getByLabel('Bound workload ID (required)').fill('browser-objective-workload');

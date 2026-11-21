@@ -340,6 +340,47 @@ class WebApplicationTests {
   }
 
   @Test
+  void pendingReceiptSampleUsesObjectiveReadAndShowsUnverifiedEscapedDefinition() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    var definition = new ObjectivesClient.ImportDefinition("<script>bad</script>",
+        new java.math.BigDecimal("720"), "seconds", "stable-30m", "sample:check",
+        "AT_MOST", "RECOVERY_TIME", null);
+    when(objectives.inspectImportSample("objective-reader", id)).thenReturn(new ObjectivesClient.ImportSample(
+        "sample", 1L, "binding", 1L, "workload", "sample:monitoring",
+        "sample:checkout-recovery", "sample-v1", "a".repeat(64), "SYNTHETIC_UNVERIFIED", definition));
+    mockMvc.perform(get("/objectives/import/receipt/sample-source").param("id", id)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString("SYNTHETIC_UNVERIFIED")))
+        .andExpect(content().string(containsString("&lt;script&gt;bad&lt;/script&gt;")))
+        .andExpect(content().string(containsString("The request remains pending.")));
+    verify(objectives).inspectImportSample("objective-reader", id);
+    verifyNoInteractions(connections);
+  }
+
+  @Test
+  void pendingReceiptSampleShowsDenialAndRejectsInvalidId() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    when(objectives.inspectImportSample("objective-reader", id))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/objectives/import/receipt/sample-source").param("id", id)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("HTTP 403")));
+    mockMvc.perform(get("/objectives/import/receipt/sample-source").param("id", "invalid")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest()).andExpect(content().string(containsString("valid import receipt ID")));
+    verify(objectives).inspectImportSample("objective-reader", id);
+    verifyNoInteractions(connections);
+  }
+
+  @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
         List.of("connections.connection.read"), "tenant-test", "environment-test"))

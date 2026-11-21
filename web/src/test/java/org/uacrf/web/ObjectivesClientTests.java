@@ -98,6 +98,36 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void readsOnlyWellFormedSyntheticInspectionForPendingReceipt() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String body = """
+        {"connection_id":"sample","connection_revision":1,"binding_id":"binding",
+         "binding_revision":1,"target_workload_id":"workload","source_system":"sample:monitoring",
+         "external_objective_id":"sample:checkout-recovery","source_version":"sample-v1",
+         "payload_digest":"%s","verification":"SYNTHETIC_UNVERIFIED",
+         "definition":{"metric":"recovery.time","target":720,"unit":"seconds","window":"stable-30m",
+         "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME","percentile":null}}
+        """.formatted("a".repeat(64));
+    for (String response : List.of(body, body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"),
+        body.replace("\"measurement_kind\":\"RECOVERY_TIME\"", "\"measurement_kind\":null"),
+        body.replace("\"connection_revision\":1", "\"connection_revision\":0"),
+        body.replace("\"payload_digest\":\"" + "a".repeat(64) + "\"", "\"payload_digest\":\"bad\""))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-source"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (response.equals(body)) {
+        assertThat(client.inspectImportSample("reader", id).definition().target()).isEqualByComparingTo("720");
+      } else {
+        assertThatThrownBy(() -> client.inspectImportSample("reader", id)).isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void readsPendingImportPagesAndRejectsInvalidItems() {
     String id = "12345678-1234-4234-8234-123456789012";
     for (String status : List.of("PENDING", "SUCCEEDED")) {
