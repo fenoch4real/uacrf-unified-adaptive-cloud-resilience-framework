@@ -41,7 +41,8 @@ final class ObjectivesRequests {
       @Size(max = 500) String sourceRef,
       @Size(max = 200) String sourceDefinitionId,
       @Size(max = 200) String sourceRevision,
-      Instant sourceVerifiedAt) {}
+      Instant sourceVerifiedAt,
+      ObjectiveImportDefinition normalizedDefinition) {}
 
   record ImportPreviewRequest(
       @NotBlank @Size(max = 200) String connectionId,

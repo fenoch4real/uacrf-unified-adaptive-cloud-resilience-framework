@@ -59,6 +59,13 @@ class ObjectivesController {
         : ResponseEntity.ok().body(admission.receipt());
   }
 
+  @GetMapping("/v1/objectives/{id}/normalized-definition")
+  ResponseEntity<ObjectivesService.LocalObjectiveSemantics> getLocalObjectiveSemantics(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.getLocalObjectiveSemantics(DelegationPrincipal.from(jwt), id));
+  }
+
   @GetMapping("/v1/objective-imports/{id}")
   ResponseEntity<PendingImportReceipt> getImportPreview(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {

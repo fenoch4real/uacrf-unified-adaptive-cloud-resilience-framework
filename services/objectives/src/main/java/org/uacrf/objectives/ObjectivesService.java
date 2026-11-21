@@ -84,6 +84,11 @@ class ObjectivesService {
     material.put("unit", request.unit());
     material.put("window_seconds", request.windowSeconds());
     material.put("origin", request.origin().name());
+    ObjectiveImportFingerprint.Value semantics = validateLocalSemantics(request);
+    if (semantics != null) {
+      material.put("normalized_fingerprint_version", semantics.version());
+      material.put("normalized_fingerprint", semantics.digest());
+    }
     String digest = sha256(serialize(material));
     int inserted = jdbc.update(
         "INSERT INTO " + SCHEMA + "local_objective_creation "
@@ -125,20 +130,12 @@ class ObjectivesService {
       throw new ObjectivesException(
           HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "A local objective cannot carry import provenance.");
     }
+    ObjectiveImportFingerprint.Value semantics = validateLocalSemantics(request);
     workloadAuthority.check(
         jwt, request.workloadId(), ObjectiveWorkloadAuthorityClient.PROPOSAL_PURPOSE);
-    String canonical =
-        String.join(
-            "|",
-            request.workloadId(),
-            request.metric(),
-            request.comparator().name(),
-            request.target().stripTrailingZeros().toPlainString(),
-            request.unit(),
-            Integer.toString(request.windowSeconds()),
-            request.origin().name(),
-            String.valueOf(request.sourceDefinitionId()),
-            String.valueOf(request.sourceRevision()));
+    String contentDigest = objectiveContentDigest(request.workloadId(), request.metric(), request.comparator().name(),
+        request.target(), request.unit(), request.windowSeconds(), request.origin().name(),
+        request.sourceDefinitionId(), request.sourceRevision(), semantics);
     jdbc.update(
         "INSERT INTO " + SCHEMA + "objective (tenant_id, environment_id, id, workload_id, title, metric, "
             + "comparator, target, unit, window_seconds, origin, source_ref, source_definition_id, "
@@ -159,10 +156,60 @@ class ObjectivesService {
         request.sourceDefinitionId(),
         request.sourceRevision(),
         request.sourceVerifiedAt() == null ? null : Timestamp.from(request.sourceVerifiedAt()),
-        sha256(canonical),
+        contentDigest,
         actor.principalId());
+    if (semantics != null) {
+      jdbc.update("INSERT INTO " + SCHEMA + "local_objective_semantics "
+          + "(tenant_id, environment_id, objective_id, objective_content_digest, fingerprint_version, "
+          + "normalized_fingerprint, normalized_definition) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          actor.tenantId(), actor.environmentId(), request.id(), contentDigest, semantics.version(),
+          semantics.digest(), ObjectiveImportFingerprint.canonical(request.normalizedDefinition()));
+    }
     appendOutbox(actor, request.id(), 1, "objectives.objective.proposed", Map.of("state", "DRAFT"));
     return find(actor, request.id());
+  }
+
+  private static ObjectiveImportFingerprint.Value validateLocalSemantics(ProposeObjective request) {
+    ObjectiveImportDefinition definition = request.normalizedDefinition();
+    if (definition == null) return null;
+    BigDecimal target = request.target().stripTrailingZeros();
+    if (target.scale() > 6 || target.abs().compareTo(new BigDecimal("1000000000000000000")) >= 0) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "The target must fit numeric(24,6) without rounding.");
+    }
+    if (request.origin() != Origin.LOCAL || !localSemanticsMatch(definition, request.metric(),
+        request.comparator().name(), request.target(), request.unit(), request.windowSeconds())) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "Normalized local semantics must match the objective's metric, target, unit, comparator and ISO duration.");
+    }
+    try {
+      String canonical = ObjectiveImportFingerprint.canonical(definition);
+      if (canonical.getBytes(StandardCharsets.UTF_8).length > 16384) {
+        throw new IllegalArgumentException("The normalized definition is too large.");
+      }
+      return ObjectiveImportFingerprint.fingerprint(definition);
+    } catch (IllegalArgumentException error) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "The normalized local definition cannot be fingerprinted.");
+    }
+  }
+
+  private static boolean localSemanticsMatch(ObjectiveImportDefinition definition, String metric, String comparator,
+      BigDecimal target, String unit, int windowSeconds) {
+    return metric.equals(definition.metric()) && unit.equals(definition.unit())
+        && target.compareTo(definition.target()) == 0
+        && java.time.Duration.ofSeconds(windowSeconds).toString().equals(definition.window())
+        && (("LTE".equals(comparator) && definition.comparison() == ObjectiveImportDefinition.Comparison.AT_MOST)
+            || ("GTE".equals(comparator) && definition.comparison() == ObjectiveImportDefinition.Comparison.AT_LEAST));
+  }
+
+  private static String objectiveContentDigest(String workloadId, String metric, String comparator,
+      BigDecimal target, String unit, int windowSeconds, String origin, String sourceDefinitionId,
+      String sourceRevision, ObjectiveImportFingerprint.Value semantics) {
+    String canonical = String.join("|", workloadId, metric, comparator, target.stripTrailingZeros().toPlainString(),
+        unit, Integer.toString(windowSeconds), origin, String.valueOf(sourceDefinitionId), String.valueOf(sourceRevision));
+    if (semantics != null) canonical += "|NORMALIZED_DEFINITION_V1|" + semantics.version() + "|" + semantics.digest();
+    return sha256(canonical);
   }
 
   @Transactional
@@ -1273,6 +1320,45 @@ class ObjectivesService {
     requireGlobalScope(actor);
     return find(actor, id);
   }
+
+  @Transactional(readOnly = true)
+  LocalObjectiveSemantics getLocalObjectiveSemantics(DelegationPrincipal actor, String id) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    Objective objective = find(actor, id);
+    List<LocalObjectiveSemantics> rows = jdbc.query("SELECT objective_content_digest, fingerprint_version, "
+        + "normalized_fingerprint, normalized_definition FROM " + SCHEMA
+        + "local_objective_semantics WHERE tenant_id = ? AND environment_id = ? AND objective_id = ?",
+        (rs, row) -> {
+          String stored = rs.getString("normalized_definition");
+          ObjectiveImportDefinition definition;
+          ObjectiveImportFingerprint.Value fingerprint;
+          try {
+            definition = ObjectiveImportSampleParser.parse(stored);
+            fingerprint = ObjectiveImportFingerprint.fingerprint(definition);
+          } catch (IllegalArgumentException error) {
+            throw new IllegalStateException("The retained local objective semantics are invalid.", error);
+          }
+          String expected = objectiveContentDigest(objective.workloadId(), objective.metric(), objective.comparator(),
+              objective.target(), objective.unit(), objective.windowSeconds(), objective.origin(),
+              objective.sourceDefinitionId(), objective.sourceRevision(), fingerprint);
+          if (!"LOCAL".equals(objective.origin()) || !ObjectiveImportFingerprint.canonical(definition).equals(stored)
+              || !fingerprint.version().equals(rs.getString("fingerprint_version"))
+              || !fingerprint.digest().equals(rs.getString("normalized_fingerprint").trim())
+              || !objective.contentDigest().equals(rs.getString("objective_content_digest").trim())
+              || !objective.contentDigest().equals(expected)
+              || !localSemanticsMatch(definition, objective.metric(), objective.comparator(), objective.target(),
+                  objective.unit(), objective.windowSeconds())) {
+            throw new IllegalStateException("The retained local objective semantics do not match the objective.");
+          }
+          return new LocalObjectiveSemantics(id, objective.revision(), objective.contentDigest(), definition, fingerprint);
+        }, actor.tenantId(), actor.environmentId(), id);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
+  }
+
+  record LocalObjectiveSemantics(String objectiveId, long objectiveRevision, String objectiveContentDigest,
+      ObjectiveImportDefinition normalizedDefinition, ObjectiveImportFingerprint.Value normalizedFingerprint) {}
 
   @Transactional(readOnly = true)
   DecisionHistory decisionHistory(DelegationPrincipal actor, String id) {

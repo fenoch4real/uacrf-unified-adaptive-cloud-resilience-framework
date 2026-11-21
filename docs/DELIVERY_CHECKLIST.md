@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**181 completed / 840 total** · 659 open
+**182 completed / 841 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 91 | 253 |
+| Milestone items | 92 | 254 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -365,6 +365,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-027c Expose a read-only synthetic candidate versus explicitly selected local-objective field comparison in S05, bound to the captured workload and scoped read authority. Disclose incomparable semantics and never claim a complete three-way decision or modify either record. Evidence: R-0339–R-0340.
   - [x] M2-027d Forward the partial synthetic/local field comparison through EDGE01 with the original authorization and owner response. Evidence: R-0344.
   - [x] M2-027e Connect the partial comparison to UX01 with explicit objective selection and unverified/incomplete limitations; verify browser success and denial. Evidence: R-0348–R-0351.
+  - [x] M2-027f Allow new local objectives to retain optional complete normalized measurement semantics bound to their content digest and immutable creation, preserving legacy requests and retries; expose scoped readback in S05. Evidence: R-0354–R-0356.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1486,6 +1487,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0349 | 2026-11-21 | M2-027e | Ran the opt-in browser suite with the initial comparison layout. | All 11 tests passed, including comparison and restricted-user denial; changed the display to a semantic list afterward and will rerun. |
 | R-0350 | 2026-11-21 | M2-027e | Re-ran focused UX01 tests and the opt-in browser suite after the accessible list change. | All 189 web tests and 11 browser tests passed; the TLS proxy uses HTTP owner hops and is not end-to-end TLS evidence. |
 | R-0351 | 2026-11-21 | M2-027e | Ran the default-disabled browser suite and updated contracts, design notes and private technical approach Appendix AB to revision 229. | All 11 browser tests passed; verified DOCX archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
+| R-0352 | 2026-11-21 | M2-027e | Committed and pushed the partial comparison browser flow as `3127dcf`. | Complete three-way comparison remains open. |
+| R-0353 | 2026-11-21 | M2-027f | Started optional normalized semantics for new local objectives. | Existing objective records lack measurement reference, kind and percentile; do not infer or backfill them. |
+| R-0354 | 2026-11-21 | M2-027f | Ran the first local-semantics PostgreSQL integration test. | Failed because the legacy fixture was sent to the idempotent endpoint without a key; corrected the test to use the ordinary creation route. |
+| R-0355 | 2026-11-21 | M2-027f | Re-ran the focused integration test and ran the full S05 regression: 48 tests passed. | Review identified that ordinary creation could round a typed target before readback; added a rejection and regression case before closing the item. |
+| R-0356 | 2026-11-21 | M2-027f | Re-ran `./mvnw -q -pl services/objectives -am test` after the rounding guard: all 48 S05 tests passed. | Scoped reads, retry conflicts, lifecycle binding, malformed semantics, immutability and legacy behavior are covered; comparison integration and authoritative baseline remain open. |
+| R-0357 | 2026-11-21 | M2-027f | Attempted the private approach document update using `python`. | The command was unavailable; retry with the installed `python3` interpreter. |
+| R-0358 | 2026-11-21 | M2-027f | Updated private technical approach Appendix AB to revision 230 with `python3`. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; the document remains private. |
 
 ## Implementation evidence
 

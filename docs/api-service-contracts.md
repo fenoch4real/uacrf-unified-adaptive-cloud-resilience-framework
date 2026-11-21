@@ -355,6 +355,18 @@ the unkeyed route.
   state, while changed content returns 409. The ledger, objective and outbox
   commit together. This does not change the original non-idempotent proposal
   route or establish approval, activation or compliance.
+- **Local normalized semantics:** Either local creation route may accept an
+  optional `normalized_definition` containing the eight normalized objective
+  fields. Its metric, unit, exact target, comparator and ISO-8601 window must
+  agree with the objective; the target must fit `numeric(24,6)` without
+  rounding. S05 binds the versioned fingerprint to the objective content
+  digest and the idempotent request, and retains the canonical definition
+  immutably in the creation transaction. `GET /v1/objectives/{id}/normalized-definition`
+  requires global `objectives.objective.read`, is tenant/environment scoped,
+  validates the retained data and digest, and returns `no-store`; objectives
+  without retained semantics return 404. Existing objectives are not backfilled.
+  The partial comparison does not yet consume these semantics, and this
+  S05-only read is not yet exposed through EDGE01 or UX01.
 - **Retry-safe objective submission:** `POST /v1/objectives/{id}:idempotent-submit`
   requires a global `objectives.objective.write` delegation, `Idempotency-Key`,
   expected revision and expected content digest. S05 checks the current draft

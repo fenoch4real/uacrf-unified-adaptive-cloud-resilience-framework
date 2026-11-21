@@ -82,6 +82,75 @@ class ObjectivesApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void retainsOptionalLocalSemanticsBoundToObjectiveAndIdempotency() throws Exception {
+    String tenant = "t-local-semantics";
+    String writer = bearer("creator", tenant, PROPOSER);
+    String reader = bearer("reader", tenant, List.of("objectives.objective.read"));
+    String legacy = objective("legacy", "workload", "latency.p95", "LTE", "250", "ms");
+    String definition = """
+        {"metric":"latency.p95","target":250,"unit":"ms","window":"PT1H","measurement_ref":"sample:check",
+         "comparison":"AT_MOST","measurement_kind":"PERCENTILE","percentile":95}
+        """;
+    String body = objective("typed", "workload", "latency.p95", "LTE", "250", "ms")
+        .replace("\"origin\":\"LOCAL\"}", "\"origin\":\"LOCAL\",\"normalized_definition\":" + definition + "}");
+    String path = "/v1/objectives:local-idempotent-create";
+    var created = postWithIdempotency(path, writer, body, "typed-key");
+    assertEquals(201, created.statusCode(), created.body());
+    String digest = json.readTree(created.body()).path("content_digest").asText();
+    assertEquals(200, postWithIdempotency(path, writer, body, "typed-key").statusCode());
+    assertEquals(409, postWithIdempotency(path, writer, body.replace("sample:check", "sample:other"),
+        "typed-key").statusCode());
+    var legacyCreated = post("/v1/objectives", writer, legacy);
+    assertEquals(201, legacyCreated.statusCode(), legacyCreated.body());
+    assertThat(json.readTree(legacyCreated.body()).path("content_digest").asText()).isNotEqualTo(digest);
+    assertEquals(404, get("/v1/objectives/legacy/normalized-definition", reader).statusCode());
+    var read = get("/v1/objectives/typed/normalized-definition", reader);
+    assertEquals(200, read.statusCode(), read.body());
+    assertThat(read.headers().firstValue("cache-control")).hasValue("no-store");
+    var result = json.readTree(read.body());
+    assertThat(result.path("objective_id").asText()).isEqualTo("typed");
+    assertThat(result.path("objective_revision").asLong()).isEqualTo(1);
+    assertThat(result.path("objective_content_digest").asText()).isEqualTo(digest);
+    assertThat(result.path("normalized_definition").path("measurement_ref").asText()).isEqualTo("sample:check");
+    assertThat(result.path("normalized_fingerprint").path("version").asText())
+        .isEqualTo("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1");
+    assertEquals(403, get("/v1/objectives/typed/normalized-definition",
+        bearer("writer", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(403, get("/v1/objectives/typed/normalized-definition",
+        token("reader", tenant, "workload", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get("/v1/objectives/typed/normalized-definition",
+        bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
+    assertThatThrownBy(() -> jdbc.update("UPDATE uacrf_objectives.local_objective_semantics "
+        + "SET normalized_definition = '{}' WHERE tenant_id = ?", tenant))
+        .hasMessageContaining("local objective semantics are immutable");
+    assertThatThrownBy(() -> jdbc.update("DELETE FROM uacrf_objectives.local_objective_semantics "
+        + "WHERE tenant_id = ?", tenant)).hasMessageContaining("local objective semantics are immutable");
+    assertEquals(200, post("/v1/objectives/typed:submit", writer, "{\"expected_revision\":1}").statusCode());
+    var afterSubmission = get("/v1/objectives/typed/normalized-definition", reader);
+    assertEquals(200, afterSubmission.statusCode(), afterSubmission.body());
+    assertThat(json.readTree(afterSubmission.body()).path("objective_revision").asLong()).isEqualTo(2);
+    assertThat(json.readTree(afterSubmission.body()).path("objective_content_digest").asText()).isEqualTo(digest);
+
+    for (String invalid : List.of(
+        body.replace("\"window\":\"PT1H\"", "\"window\":\"stable-30m\""),
+        body.replace("\"comparison\":\"AT_MOST\"", "\"comparison\":\"AT_LEAST\""),
+        body.replace("\"measurement_kind\":\"PERCENTILE\"", "\"measurement_kind\":\"THRESHOLD\""),
+        body.replace("\"measurement_ref\":\"sample:check\"", "\"measurement_ref\":\"\""),
+        body.replace("\"metric\":\"latency.p95\",\"target\":250,\"unit\":\"ms\",\"window\"",
+            "\"metric\":\"other\",\"target\":250,\"unit\":\"ms\",\"window\""))) {
+      assertEquals(400, postWithIdempotency(path, writer, invalid.replace("\"id\":\"typed\"", "\"id\":\"invalid\""),
+          "invalid-key").statusCode());
+    }
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.local_objective_creation "
+        + "WHERE tenant_id = ? AND idempotency_key = 'invalid-key'", Integer.class, tenant));
+    String rounded = body.replace("\"id\":\"typed\"", "\"id\":\"rounded\"")
+        .replace("\"target\":250", "\"target\":250.0000001");
+    assertEquals(400, post("/v1/objectives", writer, rounded).statusCode());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.objective "
+        + "WHERE tenant_id = ? AND id = 'rounded'", Integer.class, tenant));
+  }
+
+  @Test
   void objectiveMovesThroughSeparateTransitionsWithIndependentDecision() throws Exception {
     String propose = bearer("proposer", "t-life", PROPOSER);
     String decide = bearer("decider", "t-life", DECIDER);

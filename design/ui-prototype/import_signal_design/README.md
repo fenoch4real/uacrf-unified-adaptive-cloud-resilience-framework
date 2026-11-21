@@ -143,6 +143,13 @@ not a three-way import classification, source verification or resolution.
 EDGE01 forwards the read; UX01 accepts an explicit objective ID and displays
 validated, clearly labeled field results.
 
+New local objectives may optionally retain a complete normalized definition
+whose metric, exact target, unit, comparator and ISO duration agree with the
+objective. S05 immutably binds its versioned fingerprint to the content digest
+and provides scoped readback. Legacy records are not backfilled; the partial
+comparison does not yet use this definition, and no browser or EDGE01 access to
+the new readback is provided.
+
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact
 JSON with keys in alphabetical order, including a null percentile. Strings use
