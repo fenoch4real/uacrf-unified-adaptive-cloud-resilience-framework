@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**131 completed / 790 total** · 659 open
+**132 completed / 791 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 41 | 203 |
+| Milestone items | 42 | 204 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -318,6 +318,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-024b Verify retry-safe proposal and activation with real local S01/S02 owner checks, including non-owner denial, unchanged replay and preservation of the previous active objective. Evidence: R-0090.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
+  - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
@@ -1184,6 +1185,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0097 | 2026-11-20 | M2-030a–M2-030b | `bash e2e/run-live.sh` exited 0: all 11 browser tests passed, including pending import admission, unchanged replay, changed-request conflict, separate receipt readback and ungranted-user denial. | The stack is disposable and synthetic; it does not fetch or verify a source or establish provider acceptance. |
 | R-0098 | 2026-11-20 | M2-030a–M2-030b | Updated private technical approach Appendix AB to revision 185; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; actual import processing and provider acceptance remain open. |
 | R-0099 | 2026-11-20 | M2-030a–M2-030b | Committed the pending import browser flow as `6863cc7` and pushed it to `origin/main`. | Import resolution, proposal and provider acceptance remain open. |
+| R-0100 | 2026-11-20 | M2-026a | Started implementing the design's exact target conversion rules. | This isolated foundation does not resolve a connection or process pending requests. |
+| R-0101 | 2026-11-20 | M2-026a | `./mvnw -pl services/objectives -am clean test` exited 0: 29 S05 and 8 shared-security tests passed. | Added further conversion boundary assertions after this run; targeted re-verification is pending. |
+| R-0102 | 2026-11-20 | M2-026a | Focused `ObjectiveImportTargetConversionTests` exited 0: 3 tests passed, including exact conversions, invalid bounds, unsupported mappings, incompatible windows and nonterminating results. | The helper is not wired to import processing; provenance and full normalization remain open. |
+| R-0103 | 2026-11-20 | M2-026a | Updated private technical approach Appendix AB to revision 186; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the import worker and source verification remain open. |
 
 ## Implementation evidence
 
@@ -2356,6 +2361,11 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   The clean UX01 regression passed 200 tests and the isolated browser suite
   passed 11 tests, including admission, replay, conflict and denial. No worker
   fetches or verifies a source, performs comparison or creates a proposal.
+- S05 has a tested, standalone exact-target conversion helper for the design's
+  seconds/minutes and explicitly approved fraction/percent cases. It rejects
+  unsupported mappings, incompatible windows, out-of-range values and
+  conversions requiring rounding. It is not connected to a worker and does
+  not normalize whole definitions or establish source provenance.
 - S01 registers the `objectives.*` capabilities and issues S05 delegations. EDGE01
   routes only the public operations under `/internal/objectives`.
 - S01 now restricts new `objectives.objective.review` grants to human principals

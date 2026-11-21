@@ -80,6 +80,8 @@ The new proposed extension contains nine strict schemas, eight API operations an
 
 S05 now implements only the durable admission portion of objective preview: an authorized `POST /v1/objective-imports:preview` stores an idempotent request and outbox event, and `GET /v1/objective-imports/{id}` reads its pending receipt. API Edge routes both operations. Admission does not resolve a connection, fetch or retain source content, validate a mapping, compare local definitions, or create a candidate. No worker consumes the command yet, so the status stays `PENDING` and runtime verification remains `NOT_ESTABLISHED`. The broader import/signal extension and the earlier seven-operation objective extension are not fully deployed or accepted. Both reuse the existing authorized connection and workload identities; this update does not implement a new connector registry.
 
+S05 also contains a standalone tested helper for exact seconds/minutes and explicitly approved fraction/percent target conversions. It rejects incompatible windows, unsupported mappings, invalid ranges and conversions requiring rounding. It is not connected to import processing and does not normalize complete definitions or verify provenance.
+
 The UI rehearses a fictional objective import conflict and lets the reader prepare a provider-scoped timing plan. It does not fetch external definitions, run collectors or timers, or change active objectives.
 
 ## Acceptance required before promotion
