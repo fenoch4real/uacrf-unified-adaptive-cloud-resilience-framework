@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**162 completed / 821 total** · 659 open
+**163 completed / 822 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 72 | 234 |
+| Milestone items | 73 | 235 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -343,6 +343,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026q Route the synthetic normalization rehearsal through EDGE01 without altering authorization or owner errors. Evidence: R-0246–R-0247.
   - [x] M2-026r Connect and verify the unapproved synthetic normalization rehearsal in UX01, including conversion, error and denial. Evidence: R-0246–R-0248.
   - [x] M2-026s Retain an immutable, retry-safe, explicitly unapproved synthetic mapping proposal bound to an exact capture and its versioned fingerprints; authorize, isolate and read it in S05 without enabling import processing. Evidence: R-0253–R-0255.
+  - [x] M2-026t Forward synthetic mapping proposal creation and read through EDGE01 with the original delegation, idempotency key and owner response. Evidence: R-0259.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1372,6 +1373,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0254 | 2026-11-21 | M2-026s | Ran the S05 and shared-security regression. | 46 S05 and 8 shared-security tests passed; added cross-capture key reuse and missing-key checks afterward, requiring another focused run. |
 | R-0255 | 2026-11-21 | M2-026s | Re-ran focused S05 integration after adding cross-capture and missing-key cases. | The test passed; proposals remain unapproved synthetic records and do not process imports. |
 | R-0256 | 2026-11-21 | M2-026s | Updated private technical approach Appendix AB to revision 213 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; independent approval and import processing remain open. |
+| R-0257 | 2026-11-21 | M2-026s | Committed the S05 synthetic mapping proposal slice as `787badc` and pushed it to `origin/main`. | The proposal is neither an approval nor an import candidate. |
+| R-0258 | 2026-11-21 | M2-026t | Started EDGE01 forwarding for synthetic mapping proposals. | Authority and approval remain with owner services; the edge does not interpret the record. |
+| R-0259 | 2026-11-21 | M2-026t | Ran the EDGE01 regression including proposal body, delegation, idempotency, no-store and owner status forwarding. | 38 tests passed; the proposal is still unapproved and UX01 access remains open. |
+| R-0260 | 2026-11-21 | M2-026t | Updated private technical approach Appendix AB to revision 214 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; browser access and independent approval remain open. |
 
 ## Implementation evidence
 

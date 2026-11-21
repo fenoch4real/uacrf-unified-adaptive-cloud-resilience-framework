@@ -119,6 +119,21 @@ class ObjectivesRouteController {
         authorization, id, captureId, targetUnit, allowFractionToPercent));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals")
+  ResponseEntity<String> proposeSyntheticMapping(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @PathVariable String id, @PathVariable String captureId, @RequestBody String requestBody) {
+    return forward(() -> objectives.proposeSyntheticMapping(authorization, id, captureId, idempotencyKey, requestBody));
+  }
+
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}")
+  ResponseEntity<String> getSyntheticMappingProposal(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId, @PathVariable String proposalId) {
+    return forward(() -> objectives.getSyntheticMappingProposal(authorization, id, captureId, proposalId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<String> listImportSampleCaptures(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

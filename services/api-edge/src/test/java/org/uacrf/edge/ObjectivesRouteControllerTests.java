@@ -159,6 +159,50 @@ class ObjectivesRouteControllerTests {
   }
 
   @Test
+  void forwardsSyntheticMappingProposalCreationAndReadWithoutChangingOwnerResponses() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    String path = "/v1/objective-imports/import-1/sample-captures/capture-1/mapping-proposals";
+    String body = "{\"target_unit\":\"minutes\",\"reason\":\"review\"}";
+    String response = "{\"status\":\"UNAPPROVED\"}";
+    HttpStatus[] writes = {HttpStatus.CREATED, HttpStatus.OK, HttpStatus.BAD_REQUEST,
+        HttpStatus.FORBIDDEN, HttpStatus.NOT_FOUND, HttpStatus.CONFLICT, HttpStatus.SERVICE_UNAVAILABLE};
+    HttpStatus[] reads = {HttpStatus.OK, HttpStatus.FORBIDDEN, HttpStatus.NOT_FOUND, HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus code : writes) {
+      server.expect(requestTo(URL + path)).andExpect(method(HttpMethod.POST))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", "mapping-key"))
+          .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.content().json(body))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body(response));
+    }
+    server.expect(requestTo(URL + path)).andExpect(method(HttpMethod.POST))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist("Idempotency-Key"))
+        .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    for (HttpStatus code : reads) {
+      server.expect(requestTo(URL + path + "/proposal-1")).andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body(response));
+    }
+    for (HttpStatus code : writes) {
+      mvc.perform(post("/internal/objectives" + path).header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+              .header("Idempotency-Key", "mapping-key").contentType(MediaType.APPLICATION_JSON).content(body))
+          .andExpect(status().is(code.value())).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json(response));
+    }
+    mvc.perform(post("/internal/objectives" + path).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isBadRequest()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    for (HttpStatus code : reads) {
+      mvc.perform(get("/internal/objectives" + path + "/proposal-1")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(status().is(code.value())).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json(response));
+    }
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsToTheFixedOwnerAndDoesNotRouteInternalEndpoints() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

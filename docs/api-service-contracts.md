@@ -259,7 +259,8 @@ the unkeyed route.
   `/mapping-proposals/{proposalId}` requires global objective-read delegation.
   Both responses are `no-store`. These routes do not recheck current
   membership or source state, approve a conversion, create a candidate or
-  process an import; EDGE01 and UX01 do not yet expose them.
+  process an import. EDGE01 forwards both routes without changing the owner
+  status or body; UX01 does not yet expose them.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus
