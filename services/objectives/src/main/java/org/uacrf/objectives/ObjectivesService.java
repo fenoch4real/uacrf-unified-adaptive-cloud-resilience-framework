@@ -973,7 +973,7 @@ class ObjectivesService {
 
   @Transactional(readOnly = true)
   SyntheticLocalComparison compareSyntheticCandidate(DelegationPrincipal actor, String id, String captureId,
-      String proposalId, String reviewId, String candidateId, String objectiveId) {
+      String proposalId, String reviewId, String candidateId, String objectiveId, boolean includeLocalSemantics) {
     SyntheticCandidate candidate = getSyntheticCandidate(actor, id, captureId, proposalId, reviewId, candidateId);
     RetainedSampleCapture capture = getRetainedSampleCapture(actor, id, captureId);
     Objective local = find(actor, objectiveId);
@@ -986,6 +986,22 @@ class ObjectivesService {
       default -> throw new IllegalStateException("The local objective comparator is invalid.");
     };
     boolean sameUnit = source.unit().equals(local.unit());
+    LocalObjectiveSemantics retained = includeLocalSemantics ? findLocalObjectiveSemantics(actor, local) : null;
+    ObjectiveImportDefinition localDefinition = retained == null ? null : retained.normalizedDefinition();
+    SyntheticComparisonField window = localDefinition == null
+        ? new SyntheticComparisonField("window", "NOT_COMPARABLE", source.window(),
+            Integer.toString(local.windowSeconds()))
+        : compareWindow(source.window(), localDefinition.window());
+    SyntheticComparisonField measurement = localDefinition == null
+        ? new SyntheticComparisonField("measurement_ref", "NOT_AVAILABLE", source.measurementRef(), null)
+        : comparisonField("measurement_ref", source.measurementRef(), localDefinition.measurementRef());
+    SyntheticComparisonField kind = localDefinition == null
+        ? new SyntheticComparisonField("measurement_kind", "NOT_AVAILABLE", source.measurementKind().name(), null)
+        : comparisonField("measurement_kind", source.measurementKind().name(), localDefinition.measurementKind().name());
+    SyntheticComparisonField percentile = localDefinition == null
+        ? new SyntheticComparisonField("percentile", "NOT_AVAILABLE",
+            source.percentile() == null ? null : source.percentile().toPlainString(), null)
+        : comparePercentile(source, localDefinition);
     List<SyntheticComparisonField> fields = List.of(
         comparisonField("metric", source.metric(), local.metric()),
         comparisonField("unit", source.unit(), local.unit()),
@@ -993,18 +1009,38 @@ class ObjectivesService {
         new SyntheticComparisonField("target",
             sameUnit ? (source.target().compareTo(local.target()) == 0 ? "MATCH" : "DIFFERENT") : "NOT_COMPARABLE",
             source.target().toPlainString(), local.target().toPlainString()),
-        new SyntheticComparisonField("window", "NOT_COMPARABLE", source.window(),
-            Integer.toString(local.windowSeconds())),
-        new SyntheticComparisonField("measurement_ref", "NOT_AVAILABLE", source.measurementRef(), null),
-        new SyntheticComparisonField("measurement_kind", "NOT_AVAILABLE", source.measurementKind().name(), null),
-        new SyntheticComparisonField("percentile", "NOT_AVAILABLE",
-            source.percentile() == null ? null : source.percentile().toPlainString(), null));
+        window, measurement, kind, percentile);
     return new SyntheticLocalComparison(candidate.candidateId(), local.id(), local.workloadId(), local.revision(),
         local.contentDigest(), local.state(), "PARTIAL", "SYNTHETIC_UNVERIFIED", fields);
   }
 
   private static SyntheticComparisonField comparisonField(String field, String source, String local) {
     return new SyntheticComparisonField(field, source.equals(local) ? "MATCH" : "DIFFERENT", source, local);
+  }
+
+  private static SyntheticComparisonField compareWindow(String source, String local) {
+    String result = "NOT_COMPARABLE";
+    try {
+      java.time.Duration duration = java.time.Duration.parse(source);
+      if (!duration.isNegative() && !duration.isZero()) {
+        result = duration.equals(java.time.Duration.parse(local)) ? "MATCH" : "DIFFERENT";
+      }
+    } catch (java.time.format.DateTimeParseException error) {
+      // Non-duration source windows have no established conversion.
+    }
+    return new SyntheticComparisonField("window", result, source, local);
+  }
+
+  private static SyntheticComparisonField comparePercentile(ObjectiveImportDefinition source,
+      ObjectiveImportDefinition local) {
+    BigDecimal sourceValue = source.percentile();
+    BigDecimal localValue = local.percentile();
+    String result = source.measurementKind() != local.measurementKind() ? "NOT_COMPARABLE"
+        : sourceValue == null ? (localValue == null ? "MATCH" : "DIFFERENT")
+        : localValue != null && sourceValue.compareTo(localValue) == 0 ? "MATCH" : "DIFFERENT";
+    return new SyntheticComparisonField("percentile", result,
+        sourceValue == null ? null : sourceValue.toPlainString(),
+        localValue == null ? null : localValue.toPlainString());
   }
 
   record SyntheticComparisonField(String field, String result, String syntheticValue, String localValue) {}
@@ -1326,6 +1362,12 @@ class ObjectivesService {
     requireCapability(actor, "objectives.objective.read");
     requireGlobalScope(actor);
     Objective objective = find(actor, id);
+    LocalObjectiveSemantics semantics = findLocalObjectiveSemantics(actor, objective);
+    if (semantics == null) throw notFound();
+    return semantics;
+  }
+
+  private LocalObjectiveSemantics findLocalObjectiveSemantics(DelegationPrincipal actor, Objective objective) {
     List<LocalObjectiveSemantics> rows = jdbc.query("SELECT objective_content_digest, fingerprint_version, "
         + "normalized_fingerprint, normalized_definition FROM " + SCHEMA
         + "local_objective_semantics WHERE tenant_id = ? AND environment_id = ? AND objective_id = ?",
@@ -1351,10 +1393,10 @@ class ObjectivesService {
                   objective.unit(), objective.windowSeconds())) {
             throw new IllegalStateException("The retained local objective semantics do not match the objective.");
           }
-          return new LocalObjectiveSemantics(id, objective.revision(), objective.contentDigest(), definition, fingerprint);
-        }, actor.tenantId(), actor.environmentId(), id);
-    if (rows.isEmpty()) throw notFound();
-    return rows.getFirst();
+          return new LocalObjectiveSemantics(objective.id(), objective.revision(), objective.contentDigest(),
+              definition, fingerprint);
+        }, actor.tenantId(), actor.environmentId(), objective.id());
+    return rows.isEmpty() ? null : rows.getFirst();
   }
 
   record LocalObjectiveSemantics(String objectiveId, long objectiveRevision, String objectiveContentDigest,

@@ -418,6 +418,7 @@ class ObjectivesClient {
         .uri(uri -> uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/"
             + "{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}/local-comparison")
             .queryParam("objectiveId", "{objectiveId}")
+            .queryParam("includeLocalSemantics", true)
             .build(candidate.receiptId(), candidate.captureId(), candidate.proposalId(), candidate.reviewId(),
                 candidate.candidateId(), objectiveId))
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SyntheticLocalComparison.class);
@@ -449,14 +450,18 @@ class ObjectivesClient {
         || !List.of("AT_MOST", "AT_LEAST").contains(comparison.localValue())
         || !"target".equals(target.field()) || !present(target.localValue())
         || !sameNumber(target.syntheticValue(), source.target())
-        || !"window".equals(window.field()) || !"NOT_COMPARABLE".equals(window.result())
-        || !source.window().equals(window.syntheticValue()) || !present(window.localValue())
-        || !validUnavailableField(measurement, "measurement_ref", source.measurementRef())
-        || !validUnavailableField(kind, "measurement_kind", source.measurementKind())
-        || !validUnavailableField(percentile, "percentile",
-            source.percentile() == null ? null : source.percentile().toPlainString())) return false;
+        || !"window".equals(window.field()) || !source.window().equals(window.syntheticValue())
+        || !present(window.localValue())) return false;
     try {
-      if (Integer.parseInt(window.localValue()) <= 0) return false;
+      if ("NOT_AVAILABLE".equals(measurement.result())) {
+        if (!"NOT_COMPARABLE".equals(window.result()) || Integer.parseInt(window.localValue()) <= 0
+            || !validUnavailableField(measurement, "measurement_ref", source.measurementRef())
+            || !validUnavailableField(kind, "measurement_kind", source.measurementKind())
+            || !validUnavailableField(percentile, "percentile",
+                source.percentile() == null ? null : source.percentile().toPlainString())) return false;
+      } else if (!validRetainedComparison(window, measurement, kind, percentile, source)) {
+        return false;
+      }
       BigDecimal localTarget = new BigDecimal(target.localValue());
       String expected = !unit.syntheticValue().equals(unit.localValue()) ? "NOT_COMPARABLE"
           : source.target().compareTo(localTarget) == 0 ? "MATCH" : "DIFFERENT";
@@ -464,6 +469,44 @@ class ObjectivesClient {
     } catch (NumberFormatException error) {
       return false;
     }
+  }
+
+  private static boolean validRetainedComparison(SyntheticComparisonField window, SyntheticComparisonField measurement,
+      SyntheticComparisonField kind, SyntheticComparisonField percentile, ImportDefinition source) {
+    if (!validComparedField(measurement, "measurement_ref", source.measurementRef())
+        || !validComparedField(kind, "measurement_kind", source.measurementKind())
+        || !List.of("THRESHOLD", "PERCENTILE", "RATIO", "RECOVERY_TIME", "OUTCOME").contains(kind.localValue())
+        || !"percentile".equals(percentile.field())
+        || !sameNullableNumber(percentile.syntheticValue(), source.percentile())) return false;
+    try {
+      java.time.Duration localWindow = java.time.Duration.parse(window.localValue());
+      if (localWindow.isNegative() || localWindow.isZero() || localWindow.getNano() != 0
+          || !localWindow.toString().equals(window.localValue())) return false;
+      String windowResult = "NOT_COMPARABLE";
+      try {
+        java.time.Duration sourceWindow = java.time.Duration.parse(source.window());
+        if (!sourceWindow.isNegative() && !sourceWindow.isZero()) {
+          windowResult = sourceWindow.equals(localWindow) ? "MATCH" : "DIFFERENT";
+        }
+      } catch (java.time.format.DateTimeParseException error) {
+        // Non-duration source windows have no established conversion.
+      }
+      BigDecimal localPercentile = percentile.localValue() == null ? null : new BigDecimal(percentile.localValue());
+      if ("PERCENTILE".equals(kind.localValue())
+          ? localPercentile == null || localPercentile.signum() <= 0
+              || localPercentile.compareTo(BigDecimal.valueOf(100)) > 0
+          : localPercentile != null) return false;
+      String percentileResult = !source.measurementKind().equals(kind.localValue()) ? "NOT_COMPARABLE"
+          : source.percentile() == null ? (localPercentile == null ? "MATCH" : "DIFFERENT")
+          : localPercentile != null && source.percentile().compareTo(localPercentile) == 0 ? "MATCH" : "DIFFERENT";
+      return windowResult.equals(window.result()) && percentileResult.equals(percentile.result());
+    } catch (java.time.format.DateTimeParseException | NumberFormatException error) {
+      return false;
+    }
+  }
+
+  private static boolean sameNullableNumber(String value, BigDecimal expected) {
+    return expected == null ? value == null : sameNumber(value, expected);
   }
 
   private static boolean validComparedField(SyntheticComparisonField field, String name, String source) {

@@ -202,10 +202,11 @@ class ObjectivesController {
   ResponseEntity<ObjectivesService.SyntheticLocalComparison> compareSyntheticCandidate(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
       @PathVariable String proposalId, @PathVariable String reviewId, @PathVariable String candidateId,
-      @RequestParam String objectiveId) {
+      @RequestParam String objectiveId, @RequestParam(defaultValue = "false") boolean includeLocalSemantics) {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore())
         .body(objectives.compareSyntheticCandidate(
-            DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId, candidateId, objectiveId));
+            DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId, candidateId, objectiveId,
+            includeLocalSemantics));
   }
 
   @GetMapping("/v1/objective-imports/{id}/sample-captures")

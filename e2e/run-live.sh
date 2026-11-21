@@ -253,6 +253,28 @@ VALUES
    '3b374d98d7f9dbe4578f776d21aa4ef6d99952ec93a9a01695b9a8674a67be3f',
    'DRAFT', 1, 'test-fixture');
 
+-- A synthetic typed objective; this fixture bypasses normal proposal admission.
+WITH definition AS (
+  SELECT '{"comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME","measurement_ref":"sample:independent-order-check","metric":"recovery.time","percentile":null,"target":12,"unit":"minutes","window":"PT30M"}'::text AS canonical
+), fingerprint AS (
+  SELECT canonical, encode(sha256(convert_to(canonical, 'UTF8')), 'hex') AS digest FROM definition
+), objective AS (
+  INSERT INTO uacrf_objectives.objective
+   (tenant_id, environment_id, id, workload_id, title, metric, comparator, target,
+    unit, window_seconds, origin, content_digest, state, revision, proposed_by)
+  SELECT 'local-dev', 'local', 'browser-typed-objective', 'browser-objective-workload',
+   'Synthetic typed objective', 'recovery.time', 'LTE', 12, 'minutes', 1800, 'LOCAL',
+   encode(sha256(convert_to('browser-objective-workload|recovery.time|LTE|12|minutes|1800|LOCAL|null|null|NORMALIZED_DEFINITION_V1|OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1|' || digest, 'UTF8')), 'hex'),
+   'DRAFT', 1, 'test-fixture'
+  FROM fingerprint RETURNING content_digest
+)
+INSERT INTO uacrf_objectives.local_objective_semantics
+  (tenant_id, environment_id, objective_id, objective_content_digest, fingerprint_version,
+   normalized_fingerprint, normalized_definition)
+SELECT 'local-dev', 'local', 'browser-typed-objective', objective.content_digest,
+  'OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1', fingerprint.digest, fingerprint.canonical
+FROM objective CROSS JOIN fingerprint;
+
 -- Synthetic paging rows are not decisions performed against the draft fixture.
 INSERT INTO uacrf_objectives.objective_decision
   (tenant_id, environment_id, objective_id, revision, content_digest, decision, reason, decided_by)

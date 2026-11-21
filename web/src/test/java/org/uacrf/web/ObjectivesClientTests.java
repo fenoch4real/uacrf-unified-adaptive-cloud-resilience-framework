@@ -478,7 +478,7 @@ class ObjectivesClientTests {
         "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "c".repeat(64), "SYNTHETIC_UNVERIFIED");
     String path = "http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + captureId
         + "/mapping-proposals/" + proposalId + "/reviews/" + reviewId
-        + "/synthetic-candidates/" + candidateId + "/local-comparison?objectiveId=local-1";
+        + "/synthetic-candidates/" + candidateId + "/local-comparison?objectiveId=local-1&includeLocalSemantics=true";
     String response = """
         {"candidate_id":"%s","objective_id":"local-1","workload_id":"workload","local_revision":1,
          "local_content_digest":"%s","local_state":"DRAFT","status":"PARTIAL","verification":"SYNTHETIC_UNVERIFIED",
@@ -492,7 +492,14 @@ class ObjectivesClientTests {
           {"field":"measurement_kind","result":"NOT_AVAILABLE","synthetic_value":"RECOVERY_TIME","local_value":null},
           {"field":"percentile","result":"NOT_AVAILABLE","synthetic_value":null,"local_value":null}]}
         """.formatted(candidateId, "a".repeat(64));
-    for (String body : List.of(response, response.replace("\"workload_id\":\"workload\"", "\"workload_id\":\"other\""),
+    String retained = response.replace("\"local_value\":\"1800\"", "\"local_value\":\"PT30M\"")
+        .replace("\"field\":\"measurement_ref\",\"result\":\"NOT_AVAILABLE\",\"synthetic_value\":\"sample:check\",\"local_value\":null",
+            "\"field\":\"measurement_ref\",\"result\":\"MATCH\",\"synthetic_value\":\"sample:check\",\"local_value\":\"sample:check\"")
+        .replace("\"field\":\"measurement_kind\",\"result\":\"NOT_AVAILABLE\",\"synthetic_value\":\"RECOVERY_TIME\",\"local_value\":null",
+            "\"field\":\"measurement_kind\",\"result\":\"MATCH\",\"synthetic_value\":\"RECOVERY_TIME\",\"local_value\":\"RECOVERY_TIME\"")
+        .replace("\"field\":\"percentile\",\"result\":\"NOT_AVAILABLE\"",
+            "\"field\":\"percentile\",\"result\":\"MATCH\"");
+    for (String body : List.of(response, retained, response.replace("\"workload_id\":\"workload\"", "\"workload_id\":\"other\""),
         response.replace(candidateId, reviewId), response.replace("\"status\":\"PARTIAL\"", "\"status\":\"NEW\""),
         response.replace("\"local_state\":\"DRAFT\"", "\"local_state\":null"),
         response.replace("\"synthetic_value\":\"12\"", "\"synthetic_value\":\"13\""),
@@ -500,6 +507,10 @@ class ObjectivesClientTests {
         response.replace("\"field\":\"unit\",\"result\":\"MATCH\"", "\"field\":\"unit\",\"result\":\"DIFFERENT\""),
         response.replace("\"field\":\"target\",\"result\":\"MATCH\"", "\"field\":\"target\",\"result\":\"DIFFERENT\""),
         response.replace("\"field\":\"window\",\"result\":\"NOT_COMPARABLE\"", "\"field\":\"window\",\"result\":\"MATCH\""),
+        retained.replace("\"field\":\"measurement_ref\",\"result\":\"MATCH\"", "\"field\":\"measurement_ref\",\"result\":\"DIFFERENT\""),
+        retained.replace("\"local_value\":\"PT30M\"", "\"local_value\":\"1800\""),
+        retained.replace("\"field\":\"percentile\",\"result\":\"MATCH\"", "\"field\":\"percentile\",\"result\":\"DIFFERENT\""),
+        retained.replace("\"local_value\":\"RECOVERY_TIME\"", "\"local_value\":\"PERCENTILE\""),
         response.replace("\"field\":\"percentile\"", "\"field\":\"wrong\""))) {
       RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
       MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -507,11 +518,36 @@ class ObjectivesClientTests {
           .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
           .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
       ObjectivesClient client = new ObjectivesClient(builder.build());
-      if (body.equals(response)) {
+      if (body.equals(response) || body.equals(retained)) {
         assertThat(client.compareSyntheticCandidate("reader", candidate, capture, "local-1").fields()).hasSize(8);
       } else {
         assertThatThrownBy(() -> client.compareSyntheticCandidate("reader", candidate, capture, "local-1"))
             .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+    var durationDefinition = new ObjectivesClient.ImportDefinition("recovery", new java.math.BigDecimal("12"),
+        "minutes", "PT30M", "sample:check", "AT_MOST", "RECOVERY_TIME", null);
+    var durationCandidate = new ObjectivesClient.SyntheticCandidate(candidateId, id, captureId, proposalId, reviewId,
+        "writer", "2026-11-21T00:02:00Z", "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1", "c".repeat(64),
+        durationDefinition, new ObjectivesClient.DefinitionFingerprint("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1",
+            "b".repeat(64)), "UNCOMPARED", "SYNTHETIC_UNVERIFIED");
+    String durationMatch = retained.replace("stable-30m", "PT30M")
+        .replace("\"field\":\"window\",\"result\":\"NOT_COMPARABLE\"", "\"field\":\"window\",\"result\":\"MATCH\"");
+    String durationDifferent = durationMatch.replace("\"local_value\":\"PT30M\"", "\"local_value\":\"PT1H\"")
+        .replace("\"field\":\"window\",\"result\":\"MATCH\"", "\"field\":\"window\",\"result\":\"DIFFERENT\"");
+    String incorrectDuration = durationMatch.replace("\"local_value\":\"PT30M\"", "\"local_value\":\"PT1H\"");
+    for (String body : List.of(durationMatch, durationDifferent, incorrectDuration)) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo(path)).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (body.equals(incorrectDuration)) {
+        assertThatThrownBy(() -> client.compareSyntheticCandidate("reader", durationCandidate, capture, "local-1"))
+            .isInstanceOf(IllegalStateException.class);
+      } else {
+        assertThat(client.compareSyntheticCandidate("reader", durationCandidate, capture, "local-1").fields())
+            .hasSize(8);
       }
       server.verify();
     }

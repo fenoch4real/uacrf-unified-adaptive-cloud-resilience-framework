@@ -132,9 +132,9 @@ class ObjectiveReviewAuthorityIntegrationTests {
         "importer", List.of("objectives.objective.read", "objectives.objective.write"), List.of(), List.of());
     var sourceRequest = objectives.getSampleCaptureRequest(actor, id, "capture-key");
     String payload = """
-        {"metric":"recovery.time","target":720,"unit":"seconds","window":"stable-30m",
-         "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME",
-         "percentile":null}
+        {"metric":"recovery.time","target":720,"unit":"seconds","window":"PT30M",
+         "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"PERCENTILE",
+         "percentile":95}
         """;
     var definition = ObjectiveImportSampleParser.parse(payload);
     String payloadDigest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
@@ -275,6 +275,59 @@ class ObjectiveReviewAuthorityIntegrationTests {
     assertThat(comparisonBody.path("fields").get(3).path("result").asText()).isEqualTo("MATCH");
     assertThat(comparisonBody.path("fields").get(4).path("result").asText()).isEqualTo("NOT_COMPARABLE");
     assertThat(comparisonBody.path("fields").get(5).path("result").asText()).isEqualTo("NOT_AVAILABLE");
+    String typedObjective = """
+        {"id":"typed-comparison","workload_id":"workload-1","title":"Typed","metric":"recovery.time",
+         "comparator":"LTE","target":12,"unit":"minutes","window_seconds":1800,"origin":"LOCAL",
+         "normalized_definition":{"metric":"recovery.time","target":12,"unit":"minutes","window":"PT30M",
+          "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"PERCENTILE","percentile":95.0}}
+        """;
+    assertEquals(201, postWithKey("/v1/objectives:local-idempotent-create", importer, typedObjective,
+        "typed-comparison-key").statusCode());
+    String typedPath = candidateReadPath + "/local-comparison?objectiveId=typed-comparison";
+    var oldResponse = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + typedPath))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, oldResponse.statusCode());
+    assertThat(json.readTree(oldResponse.body()).path("fields").get(5).path("result").asText())
+        .isEqualTo("NOT_AVAILABLE");
+    var typedResponse = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+        + typedPath + "&includeLocalSemantics=true")).header("Authorization", reader).GET().build(),
+        HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, typedResponse.statusCode(), typedResponse.body());
+    var typedFields = json.readTree(typedResponse.body()).path("fields");
+    assertThat(typedFields.get(4).path("result").asText()).isEqualTo("MATCH");
+    assertThat(typedFields.get(5).path("result").asText()).isEqualTo("MATCH");
+    assertThat(typedFields.get(6).path("result").asText()).isEqualTo("MATCH");
+    assertThat(typedFields.get(7).path("result").asText()).isEqualTo("MATCH");
+    String differentObjective = typedObjective.replace("typed-comparison", "different-comparison")
+        .replace("1800", "3600").replace("PT30M", "PT1H")
+        .replace("sample:check", "sample:other").replace("PERCENTILE", "RECOVERY_TIME")
+        .replace("\"percentile\":95.0", "\"percentile\":null");
+    assertEquals(201, postWithKey("/v1/objectives:local-idempotent-create", importer, differentObjective,
+        "different-comparison-key").statusCode());
+    var typedDifferent = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+        + candidateReadPath + "/local-comparison?objectiveId=different-comparison&includeLocalSemantics=true"))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, typedDifferent.statusCode(), typedDifferent.body());
+    var typedDifferentFields = json.readTree(typedDifferent.body()).path("fields");
+    assertThat(typedDifferentFields.get(4).path("result").asText()).isEqualTo("DIFFERENT");
+    assertThat(typedDifferentFields.get(5).path("result").asText()).isEqualTo("DIFFERENT");
+    assertThat(typedDifferentFields.get(6).path("result").asText()).isEqualTo("DIFFERENT");
+    assertThat(typedDifferentFields.get(7).path("result").asText()).isEqualTo("NOT_COMPARABLE");
+    String differentPercentile = typedObjective.replace("typed-comparison", "different-percentile")
+        .replace("\"percentile\":95.0", "\"percentile\":99");
+    assertEquals(201, postWithKey("/v1/objectives:local-idempotent-create", importer, differentPercentile,
+        "different-percentile-key").statusCode());
+    var percentileResponse = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+        + candidateReadPath + "/local-comparison?objectiveId=different-percentile&includeLocalSemantics=true"))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, percentileResponse.statusCode(), percentileResponse.body());
+    assertThat(json.readTree(percentileResponse.body()).path("fields").get(7).path("result").asText())
+        .isEqualTo("DIFFERENT");
+    var optedLegacy = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+        + comparisonPath + "&includeLocalSemantics=true")).header("Authorization", reader).GET().build(),
+        HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, optedLegacy.statusCode());
+    assertThat(json.readTree(optedLegacy.body())).isEqualTo(comparisonBody);
     jdbc.update("UPDATE uacrf_objectives.objective SET unit = 'seconds', comparator = 'GTE', "
         + "revision = 2, content_digest = ? "
         + "WHERE tenant_id='tenant-check' AND environment_id='env-1' AND id='comparison-objective'", "c".repeat(64));

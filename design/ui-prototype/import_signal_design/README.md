@@ -135,8 +135,12 @@ the context-bound form and idempotency key on uncertain outcomes.
 S05 can compare an explicitly selected objective in the capture's workload
 against a retained synthetic candidate without changing either record. It
 reports exact metric, unit, comparison and, when units agree, target
-differences. It explicitly marks the distinct window representations and
-missing local measurement semantics as incomparable or unavailable. The
+differences. Legacy comparisons explicitly mark distinct window
+representations and missing local measurement semantics as incomparable or
+unavailable. On opt-in, retained local semantics are also compared: measurement
+reference and kind exactly, percentiles numerically only for the same kind,
+and positive ISO durations by duration value. Other source windows remain
+incomparable. The
 current local revision and existing lifecycle digest are context, not a
 normalized-definition fingerprint. This is only a partial field comparison,
 not a three-way import classification, source verification or resolution.
@@ -146,9 +150,9 @@ validated, clearly labeled field results.
 New local objectives may optionally retain a complete normalized definition
 whose metric, exact target, unit, comparator and ISO duration agree with the
 objective. S05 immutably binds its versioned fingerprint to the content digest
-and provides scoped readback. Legacy records are not backfilled; the partial
-comparison does not yet use this definition, and no browser or EDGE01 access to
-the new readback is provided.
+and provides scoped readback. Legacy records are not backfilled. EDGE01 forwards
+the opt-in comparison and UX01 validates and displays its results; the separate
+definition readback remains S05-only.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

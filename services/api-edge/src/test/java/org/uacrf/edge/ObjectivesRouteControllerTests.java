@@ -306,12 +306,20 @@ class ObjectivesRouteControllerTests {
           .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON)
               .body("{\"status\":\"PARTIAL\"}"));
     }
+    server.expect(requestTo(URL + path + "?objectiveId=objective-1&includeLocalSemantics=true"))
+        .andExpect(method(HttpMethod.GET)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+            .body("{\"status\":\"PARTIAL\"}"));
     for (HttpStatus code : codes) {
       mvc.perform(get("/internal/objectives" + path).param("objectiveId", "objective-1")
               .header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
           .andExpect(status().is(code.value())).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
           .andExpect(content().json("{\"status\":\"PARTIAL\"}"));
     }
+    mvc.perform(get("/internal/objectives" + path).param("objectiveId", "objective-1")
+            .param("includeLocalSemantics", "true").header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+        .andExpect(content().json("{\"status\":\"PARTIAL\"}"));
     server.verify();
   }
 

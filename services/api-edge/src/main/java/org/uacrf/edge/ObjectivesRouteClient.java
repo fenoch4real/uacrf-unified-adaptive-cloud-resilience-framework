@@ -196,11 +196,12 @@ class ObjectivesRouteClient {
   }
 
   ResponseEntity<String> compareSyntheticCandidate(String authorization, String id, String captureId,
-      String proposalId, String reviewId, String candidateId, String objectiveId) {
+      String proposalId, String reviewId, String candidateId, String objectiveId, Boolean includeLocalSemantics) {
     return send(objectivesRestClient.get()
         .uri(uri -> uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/"
            + "{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}/local-comparison")
            .queryParam("objectiveId", "{objectiveId}")
+           .queryParamIfPresent("includeLocalSemantics", java.util.Optional.ofNullable(includeLocalSemantics))
            .build(id, captureId, proposalId, reviewId, candidateId, objectiveId)), authorization);
   }
 

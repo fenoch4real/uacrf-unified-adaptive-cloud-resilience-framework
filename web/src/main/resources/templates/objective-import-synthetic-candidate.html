@@ -37,7 +37,8 @@
   <section th:if="${comparison != null}">
     <h2>Partial field comparison</h2>
     <p>The local revision and lifecycle digest describe the selected snapshot, not an import fingerprint or revision guard.
-      Measurement semantics are unavailable and windows use different representations. Reopen to refresh.</p>
+      Legacy objectives may lack measurement semantics; non-duration source windows cannot be compared.
+      Reopen to refresh.</p>
     <dl>
       <dt>Objective ID</dt><dd th:text="${comparison.objectiveId}"></dd>
       <dt>Workload ID</dt><dd th:text="${comparison.workloadId}"></dd>

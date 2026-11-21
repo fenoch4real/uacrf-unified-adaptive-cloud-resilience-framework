@@ -1159,6 +1159,15 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(sample.locator('main')).toContainText('NOT_AVAILABLE');
       await expect(sample.locator('main')).toContainText('NOT_COMPARABLE');
       await expect(sample.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
+      await sample.getByLabel('Local objective ID (required)').fill('browser-typed-objective');
+      await sample.getByRole('button', { name: 'Compare fields' }).click();
+      await expect(sample.getByRole('heading', { name: 'Partial field comparison' })).toBeVisible();
+      const comparisonFields = sample.locator('main section').filter({ has: sample.getByRole('heading', { name: 'Partial field comparison' }) });
+      await expect(comparisonFields.locator('li').filter({ hasText: 'measurement_ref' })).toContainText('MATCH');
+      await expect(comparisonFields.locator('li').filter({ hasText: 'measurement_kind' })).toContainText('MATCH');
+      await expect(comparisonFields.locator('li').filter({ hasText: 'window' })).toContainText('NOT_COMPARABLE');
+      await expect(comparisonFields).not.toContainText('NOT_AVAILABLE');
+      await expect(comparisonFields).toContainText('SYNTHETIC_UNVERIFIED');
       await sample.goto(new URL(mappingReadUrl, sample.url()).toString());
       await sample.getByRole('link', { name: 'Back to this capture' }).click();
       const [proposalList] = await Promise.all([

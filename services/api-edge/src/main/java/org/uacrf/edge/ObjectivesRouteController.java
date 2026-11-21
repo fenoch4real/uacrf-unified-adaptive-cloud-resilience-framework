@@ -198,9 +198,10 @@ class ObjectivesRouteController {
   ResponseEntity<String> compareSyntheticCandidate(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
       @PathVariable String id, @PathVariable String captureId, @PathVariable String proposalId,
-      @PathVariable String reviewId, @PathVariable String candidateId, @RequestParam String objectiveId) {
+      @PathVariable String reviewId, @PathVariable String candidateId, @RequestParam String objectiveId,
+      @RequestParam(required = false) Boolean includeLocalSemantics) {
     return forward(() -> objectives.compareSyntheticCandidate(
-        authorization, id, captureId, proposalId, reviewId, candidateId, objectiveId));
+        authorization, id, captureId, proposalId, reviewId, candidateId, objectiveId, includeLocalSemantics));
   }
 
   @GetMapping("/v1/objective-imports/{id}/sample-captures")

@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**182 completed / 842 total** · 660 open
+**183 completed / 842 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 92 | 255 |
+| Milestone items | 93 | 255 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -366,7 +366,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-027d Forward the partial synthetic/local field comparison through EDGE01 with the original authorization and owner response. Evidence: R-0344.
   - [x] M2-027e Connect the partial comparison to UX01 with explicit objective selection and unverified/incomplete limitations; verify browser success and denial. Evidence: R-0348–R-0351.
   - [x] M2-027f Allow new local objectives to retain optional complete normalized measurement semantics bound to their content digest and immutable creation, preserving legacy requests and retries; expose scoped readback in S05. Evidence: R-0354–R-0356.
-  - [ ] M2-027g Compare retained local normalized semantics with synthetic candidates and validate the resulting field comparisons through EDGE01 and UX01, while preserving the legacy partial response and unverified-source limitations.
+  - [x] M2-027g Compare retained local normalized semantics with synthetic candidates and validate the resulting field comparisons through EDGE01 and UX01, while preserving the legacy partial response and unverified-source limitations. Evidence: R-0362–R-0365.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1496,6 +1496,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0357 | 2026-11-21 | M2-027f | Attempted the private approach document update using `python`. | The command was unavailable; retry with the installed `python3` interpreter. |
 | R-0358 | 2026-11-21 | M2-027f | Updated private technical approach Appendix AB to revision 230 with `python3`. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; the document remains private. |
 | R-0359 | 2026-11-21 | M2-027f | Committed and pushed the verified local-semantics slice as `957404c`; confirmed the remote main branch contains it. | Existing UX01 comparison validation expects legacy-only fields, so consuming retained semantics requires coordinated S05 and UX01 changes. |
+| R-0360 | 2026-11-21 | M2-027g | Started opt-in normalized comparison across S05, EDGE01 and UX01. | Preserve the legacy response by default, keep synthetic data unverified, and do not claim a three-way decision. |
+| R-0361 | 2026-11-21 | M2-027g | Ran focused cross-service comparison tests. | The EDGE01 test failed because a response helper was not imported; switched to the existing `withStatus` pattern and will rerun. |
+| R-0362 | 2026-11-21 | M2-027g | Re-ran focused comparison tests: 3 S05, 13 EDGE01 and 20 UX01 tests passed. | Added an isolated synthetic typed-objective fixture and browser assertions; full regressions and browser verification remain. |
+| R-0363 | 2026-11-21 | M2-027g | Ran full S05, EDGE01 and UX01 regressions: 48, 44 and 227 tests passed, respectively. | Started the opt-in isolated browser suite after checking its fixed loopback ports. |
+| R-0364 | 2026-11-21 | M2-027g | Ran the opt-in isolated browser suite: all 11 tests passed, including typed and legacy comparisons. | Typed fixture bypasses proposal admission; the disposable TLS proxy has HTTP owner hops and is not end-to-end TLS evidence. |
+| R-0365 | 2026-11-21 | M2-027g | Ran the default-disabled isolated browser suite: all 11 tests passed; the expanded UX01 duration-validation tests also passed. | Comparisons remain partial and synthetic; a trustworthy three-way baseline and resolution are not implemented. |
+| R-0366 | 2026-11-21 | M2-027g | Re-ran S05 review-authority integration tests after adding same-kind decimal percentile match and difference cases: all 3 passed. | Updated contracts, design notes and private technical approach Appendix AB to revision 231; DOCX archive integrity, unchanged other parts, 169 tables, 44 inline images and mode `0600` verified. |
 
 ## Implementation evidence
 

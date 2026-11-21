@@ -298,13 +298,19 @@ the unkeyed route.
   in the capture's workload. It returns the selected objective's current
   revision, lifecycle state and existing content digest, plus field-level
   `MATCH`, `DIFFERENT`, `NOT_COMPARABLE` or `NOT_AVAILABLE` results.
-  Target values are compared only when units match exactly. Local window
-  representation and missing measurement reference, kind and percentile are
-  not assumed equivalent. The result is `PARTIAL` and
+  Target values are compared only when units match exactly. By default, local
+  measurement semantics remain unavailable and local window seconds are not
+  assumed equivalent to the source window. With `includeLocalSemantics=true`,
+  S05 validates and compares retained local semantics when present: measurement
+  reference and kind are compared exactly; percentiles are compared numerically
+  only for the same measurement kind; positive ISO-8601 durations are compared
+  as durations and other source windows remain incomparable. Legacy objectives
+  retain the default partial response. The result is `PARTIAL` and
   `SYNTHETIC_UNVERIFIED`; it is not a three-way classification, a source
   recheck, a revision guard or a retained import decision. Neither record is
   changed. The read is `no-store`; EDGE01 forwards the objective selection,
-  authorization and owner response. UX01 accepts an explicit objective ID,
+  optional semantics flag, authorization and owner response. UX01 opts in,
+  accepts an explicit objective ID,
   checks the returned candidate, workload, fields and status, and displays the
   partial results with an explicit limitation notice.
 - **Synthetic mapping reviews:** S05
@@ -365,8 +371,7 @@ the unkeyed route.
   requires global `objectives.objective.read`, is tenant/environment scoped,
   validates the retained data and digest, and returns `no-store`; objectives
   without retained semantics return 404. Existing objectives are not backfilled.
-  The partial comparison does not yet consume these semantics, and this
-  S05-only read is not yet exposed through EDGE01 or UX01.
+  The separate S05 read is not yet exposed through EDGE01 or UX01.
 - **Retry-safe objective submission:** `POST /v1/objectives/{id}:idempotent-submit`
   requires a global `objectives.objective.write` delegation, `Idempotency-Key`,
   expected revision and expected content digest. S05 checks the current draft
