@@ -609,8 +609,11 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: `${policyId} - revision 2` })).toBeVisible();
     await expect(sample.getByText('Synthetic browser policy')).toBeVisible();
     await expect(sample.getByText('No votes recorded.')).toBeVisible();
-    await sample.goto(`/policies/detail?serviceId=${fixtureServiceId}&id=${policyId}&revision=1`);
+    await sample.getByRole('link', { name: 'Previous revision (1)' }).click();
     await expect(sample.getByRole('heading', { name: `${policyId} - revision 1` })).toBeVisible();
+    await expect(sample.getByRole('link', { name: /Previous revision/ })).toHaveCount(0);
+    await sample.getByRole('link', { name: 'Read current revision' }).click();
+    await expect(sample.getByRole('heading', { name: `${policyId} - revision 2` })).toBeVisible();
     const deniedOtherPolicy = await sample.goto('/policies?serviceId=other-service');
     expect(deniedOtherPolicy.status()).toBe(403);
     await expect(sample.getByText(policyId, { exact: false })).toHaveCount(0);
@@ -1262,6 +1265,11 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
 
       const deniedPolicies = await restricted.goto(`/policies?serviceId=${fixtureServiceId}`);
       expect(deniedPolicies.status()).toBe(403);
+      await expect(restricted.getByText(policyId, { exact: false })).toHaveCount(0);
+      const deniedCurrentPolicy = await restricted.goto(
+        `/policies/detail?serviceId=${fixtureServiceId}&id=${policyId}&revision=current`,
+      );
+      expect(deniedCurrentPolicy.status()).toBe(403);
       await expect(restricted.getByText(policyId, { exact: false })).toHaveCount(0);
       await restricted.goto(`/policies/new?serviceId=${fixtureServiceId}`);
       const restrictedForm = new URLSearchParams(policyRequest.postData());

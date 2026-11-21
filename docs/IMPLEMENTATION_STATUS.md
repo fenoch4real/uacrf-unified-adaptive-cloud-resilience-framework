@@ -74,8 +74,9 @@ its service, ID and time bindings before rendering escaped content. A displayed
 digest is an integrity check, not a signature or independent verification of
 the record. Listing is paginated, with independent page reads; concurrent
 changes can affect traversal. Review eligibility and key trust are
-point-in-time S10 results, not action authorization. The UI does not yet
-navigate to earlier revisions except by their known ID and revision URL.
+point-in-time S10 results, not action authorization. A revision page links to
+the preceding immutable revision and to a fresh read of the current revision;
+the latter is point-in-time and may change after the read.
 
 UX01 can also submit a new policy or next revision with an independently
 granted, service-scoped `authorization.policy.write` delegation. The form
@@ -113,6 +114,12 @@ changed-content conflict. Its signing key and trust set are disposable test
 fixtures, and the fixed reviewer's two service-scoped memberships are inserted
 directly rather than established through S01 grant decisions. Production key
 provisioning, production signing integration and provider acceptance remain open.
+
+The clean UX01 suite passed 179 tests, and the isolated browser suite passed
+11 tests including navigation from a current policy revision to its predecessor
+and back to a fresh current read. These reads use the existing independent
+service-scoped read delegation; they do not enable policy evaluation or action
+authorization.
 
 The repository also provides a local, dependency-free Node signer for the
 approval assertion. It takes the exact reason on standard input and uses a

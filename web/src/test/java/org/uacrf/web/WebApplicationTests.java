@@ -197,6 +197,7 @@ class WebApplicationTests {
         new PolicyClient.Material("SHA-256", "UTF-8", "<script>material</script>", "a".repeat(64)),
         new PolicyClient.Review(1, 0, 0, 0, List.of()));
     when(policies.read("policy-reader", "service-a", "policy-a", 2)).thenReturn(policy);
+    when(policies.readCurrent("policy-reader", "service-a", "policy-a")).thenReturn(policy);
     mockMvc.perform(get("/policies").param("serviceId", "service-a")
             .with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isOk()).andExpect(content().string(containsString("policy-a")))
@@ -207,8 +208,14 @@ class WebApplicationTests {
             .with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isOk()).andExpect(content().string(containsString("&lt;script&gt;material&lt;/script&gt;")))
         .andExpect(content().string(containsString("&lt;script&gt;reason&lt;/script&gt;")))
+        .andExpect(content().string(containsString("Previous revision (1)")))
+        .andExpect(content().string(containsString("Read current revision")))
         .andExpect(content().string(not(containsString("<script>material</script>"))));
-    verify(identity, times(2)).createDelegation("test-access-token", "S10", "service-a",
+    mockMvc.perform(get("/policies/detail").param("serviceId", "service-a").param("id", "policy-a")
+            .param("revision", "current").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("policy-a - revision 2")));
+    verify(policies).readCurrent("policy-reader", "service-a", "policy-a");
+    verify(identity, times(3)).createDelegation("test-access-token", "S10", "service-a",
         List.of("authorization.policy.read"), "tenant-test", "environment-test");
   }
 

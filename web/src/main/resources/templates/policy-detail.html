@@ -12,6 +12,12 @@
   <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
   <section th:if="${policy != null}">
     <h2 th:text="|${policy.id} - revision ${policy.revision}|">Policy revision</h2>
+    <nav aria-label="Policy revision navigation">
+      <a th:if="${policy.revision > 1}" th:href="@{/policies/detail(serviceId=${policy.serviceId},id=${policy.id},revision=${policy.revision - 1})}"
+        th:text="|Previous revision (${policy.revision - 1})|">Previous revision</a>
+      <a th:href="@{/policies/detail(serviceId=${policy.serviceId},id=${policy.id},revision='current')}">Read current revision</a>
+    </nav>
+    <p>Current revision is read again when selected; review and trust can change between reads.</p>
     <p><a th:href="@{/policies/new(serviceId=${policy.serviceId},id=${policy.id},expectedRevision=${policy.revision})}">Propose a revision based on this revision</a>.
       This revision may no longer be current; S10 rejects stale expected revisions.</p>
     <p><a th:href="@{/policies/reject(serviceId=${policy.serviceId},id=${policy.id},revision=${policy.revision})}">Review this revision for rejection</a> (requires separate review access).</p>

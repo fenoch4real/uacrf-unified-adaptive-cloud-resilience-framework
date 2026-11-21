@@ -67,6 +67,24 @@ class PolicyClientTests {
   }
 
   @Test
+  void readsCurrentRevisionAndRejectsMismatchedIdentity() {
+    for (String policy : List.of(DETAIL, DETAIL.replace("\"id\":\"policy-a\"", "\"id\":\"other-policy\""))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/authorization-policy-bundles/policy-a"))
+          .andRespond(withSuccess("{\"policy\":" + policy + "}", MediaType.APPLICATION_JSON));
+      PolicyClient client = new PolicyClient(builder.build());
+      if (policy.equals(DETAIL)) {
+        assertThat(client.readCurrent("token", "service-a", "policy-a").revision()).isEqualTo(2);
+      } else {
+        assertThatThrownBy(() -> client.readCurrent("token", "service-a", "policy-a"))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void rejectsOutOfScopeAndMalformedPages() {
     for (String body : List.of(
         "{\"items\":[" + SUMMARY.replace("service-a", "service-b") + "],\"coverage\":\"AUTHORIZED_VISIBLE_SCOPE_ONLY\"}",

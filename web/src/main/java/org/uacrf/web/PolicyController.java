@@ -60,11 +60,11 @@ class PolicyController {
     if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
     model.addAttribute("selectedContext", context);
     model.addAttribute("serviceId", serviceId);
-    long version;
+    Long version = null;
     try {
       if (!PolicyClient.identifier(serviceId) || !PolicyClient.identifier(id)
-          || !revision.matches("[1-9][0-9]{0,18}")) throw new NumberFormatException();
-      version = Long.parseLong(revision);
+          || (!"current".equals(revision) && !revision.matches("[1-9][0-9]{0,18}"))) throw new NumberFormatException();
+      if (!"current".equals(revision)) version = Long.parseLong(revision);
     } catch (NumberFormatException error) {
       response.setStatus(HttpStatus.BAD_REQUEST.value());
       model.addAttribute("policyError", "Invalid service ID, policy ID, or revision.");
@@ -72,7 +72,8 @@ class PolicyController {
     }
     try {
       String token = delegation(client, context, serviceId);
-      model.addAttribute("policy", policies.read(token, serviceId, id, version));
+      model.addAttribute("policy", version == null ? policies.readCurrent(token, serviceId, id)
+          : policies.read(token, serviceId, id, version));
     } catch (ResourceAccessException error) {
       response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
       model.addAttribute("policyError", "Identity or policy service is unavailable; policy was not loaded.");

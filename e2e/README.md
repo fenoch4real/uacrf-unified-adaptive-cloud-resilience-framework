@@ -44,7 +44,8 @@ handoff—there is no persisted request inbox or browser approval queue.
 The browser stack also gives the sample user separate service-scoped
 policy-read and policy-write grants and a test SYSTEM principal a policy-write
 grant. It proposes 26 synthetic drafts through S01, EDGE01 and S10, and
-verifies two-page UX01 browsing and exact current and historical reads. The
+verifies two-page UX01 browsing and navigation between historical and fresh
+current reads. The
 user submits a first and later revision through UX01, replays the original
 request after the later revision, and verifies a changed request with the same
 key conflicts. It also checks denial for another service and an ungranted

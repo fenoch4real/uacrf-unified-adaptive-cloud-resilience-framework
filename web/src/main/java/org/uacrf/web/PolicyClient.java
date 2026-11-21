@@ -59,6 +59,15 @@ class PolicyClient {
     return validate(result, serviceId, id, revision);
   }
 
+  Policy readCurrent(String token, String serviceId, String id) {
+    PolicyResult result = restClient.get().uri(ROOT + "/{id}", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(PolicyResult.class);
+    if (result == null || result.policy() == null || result.policy().revision() == null) {
+      throw new IllegalStateException("S10 returned invalid current policy details.");
+    }
+    return validate(result, serviceId, id, result.policy().revision());
+  }
+
   Policy propose(String token, String idempotencyKey, Proposal request) {
     PolicyResult result = restClient.post().uri(ROOT)
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)

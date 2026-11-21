@@ -29,7 +29,7 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Service | Method | Path | Request Type | Response Type |
 |---|---|---|---|---|
 | Browser Experience | GET | `/`, `/access`, `/contexts`, `/principals`, `/memberships`, `/journeys`, `/journeys/{id}`, `/connections`, `/connections/{id}/inventory`, `/connections/sample-import` | Query parameters | Thymeleaf HTML view or redirect |
-| Browser Experience | GET | `/policies`, `/policies/detail` | Service ID, optional cursor or exact policy ID and revision | Service-scoped policy summaries or immutable revision view |
+| Browser Experience | GET | `/policies`, `/policies/detail` | Service ID, optional cursor or policy ID and exact revision or `current` | Service-scoped policy summaries or validated point-in-time revision view |
 | Browser Experience | GET, POST | `/policies/new`, `/policies` | CSRF-protected proposal form with expected revision and retained idempotency key; separate service-scoped write delegation | Validated policy proposal receipt or explicit unconfirmed/conflict response; not an action permit |
 | Browser Experience | GET, POST | `/policies/reject`, `/policies/approve` | Exact revision read with service-scoped read delegation; CSRF-protected review using separate review delegation and retained idempotency key; approval requires an externally signed assertion | Review receipt or explicit unconfirmed/conflict response; not an action permit |
 | Browser Experience | POST | `/memberships/{membershipId}:revoke`, `/agents`, `/services/{serviceId}/agents`, `/journeys`, `/journeys/{id}/steps`, `/journeys/{journeyId}/services`, `/journeys/{journeyId}/agents/link`, `/connections/sample-import` | Form data | Thymeleaf HTML view or redirect |
