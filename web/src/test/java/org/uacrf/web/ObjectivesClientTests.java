@@ -266,8 +266,9 @@ class ObjectivesClientTests {
          "target_unit":"minutes","allow_fraction_to_percent":false,"reason":"review",
          "fingerprint_version":"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1","source_fingerprint":"%s",
          "normalized_fingerprint":"%s","status":"UNAPPROVED","verification":"SYNTHETIC_UNVERIFIED",
-         "proposed_at":"2026-11-21T00:00:00Z"}
-        """.formatted(proposal, id, capture, "a".repeat(64), "b".repeat(64));
+         "proposed_at":"2026-11-21T00:00:00Z","proposal_digest_version":"SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1",
+         "proposal_digest":"%s"}
+        """.formatted(proposal, id, capture, "a".repeat(64), "b".repeat(64), "c".repeat(64));
     for (String response : List.of(body, body.replace("UNAPPROVED", "APPROVED"),
         body.replace("\"reason\":\"review\"", "\"reason\":\"different\""),
         body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"), body.replace("2026-11-21T00:00:00Z", "invalid"),

@@ -263,6 +263,30 @@ the unkeyed route.
   status or body. UX01 can submit a proposal from a successful rehearsal and
   read a known proposal with separate read authority; on an uncertain POST it
   preserves the same form and key for retry in the same context.
+- **Synthetic mapping reviews:** S05
+  `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
+  requires global objective-read and objective-review delegation, an
+  idempotency key, an `APPROVE` or `REJECT` decision, a reason and the exact
+  expected proposal digest and version. The reviewer must differ from the
+  proposer. S05 checks the retained capture and conversion again and requires
+  the configured S01 reviewer-authority check; disabled, denied or unavailable
+  checking fails closed, including on replay. The check is not atomic with the
+  S05 database commit. One immutable review is retained per proposal; an
+  unchanged retry while the request is pending returns it. A known review can
+  be read via `GET` ending in `/reviews/{reviewId}` with global objective-read.
+  Both successful responses are `no-store`. The proposal record remains
+  `UNAPPROVED`; the separate review is `SYNTHETIC_UNVERIFIED` and applies only
+  to that historical capture, not a general mapping or provider provenance.
+  No candidate or import is processed, and EDGE01 and UX01 review routes and
+  review discovery remain open.
+
+  `SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1` hashes UTF-8 compact JSON with keys in
+  alphabetical order: `allow_fraction_to_percent`, `capture_id`,
+  `environment_id`, `fingerprint_version`, `normalized_fingerprint`,
+  `proposal_id`, `proposed_at`, `proposed_by`, `reason`, `receipt_id`,
+  `source_fingerprint`, `status`, `target_unit`, `tenant_id`, and `verification`.
+  The flag is a JSON boolean; all other values are strings. String escaping and
+  Unicode rules match `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1`.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

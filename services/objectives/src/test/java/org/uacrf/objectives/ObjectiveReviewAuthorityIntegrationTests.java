@@ -114,7 +114,135 @@ class ObjectiveReviewAuthorityIntegrationTests {
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private ObjectivesService objectives;
+  @Autowired private tools.jackson.databind.ObjectMapper json;
   private final HttpClient http = HttpClient.newHttpClient();
+
+  @Test
+  void reviewsExactSyntheticProposalWithIndependentCurrentAuthority() throws Exception {
+    MODE.set("ok");
+    String importer = token("importer", List.of("objectives.objective.read", "objectives.objective.write"));
+    var preview = postKeyed("/v1/objective-imports:preview", importer, """
+        {"connection_id":"sample-connection","external_objective_id":"sample:objective",
+         "target_workload_id":"workload-1","mapping_revision":1,"expected_local_revision":0}
+        """);
+    assertEquals(202, preview.statusCode(), preview.body());
+    String id = json.readTree(preview.body()).path("receipt_id").asText();
+    var actor = new DelegationPrincipal("importer", "tenant-check", "env-1", "*", "https://idp.example.test",
+        "importer", List.of("objectives.objective.read", "objectives.objective.write"), List.of(), List.of());
+    var sourceRequest = objectives.getSampleCaptureRequest(actor, id, "capture-key");
+    String payload = """
+        {"metric":"recovery.time","target":720,"unit":"seconds","window":"stable-30m",
+         "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME",
+         "percentile":null}
+        """;
+    var definition = ObjectiveImportSampleParser.parse(payload);
+    String payloadDigest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+        .digest(payload.getBytes(StandardCharsets.UTF_8)));
+    var inspection = new ObjectiveImportSampleSourceClient.Inspection(sourceRequest.connectionId(), 1, "binding", 2,
+        sourceRequest.targetWorkloadId(), "sample:monitoring", sourceRequest.externalObjectiveId(),
+        "sample-v1", payloadDigest, "SYNTHETIC_UNVERIFIED", definition, ObjectiveImportFingerprint.fingerprint(definition));
+    var captured = objectives.captureSample(actor, id, "capture-key", sourceRequest,
+        new ObjectiveImportSampleSourceClient.Fetched(inspection, payload));
+    String proposals = "/v1/objective-imports/" + id + "/sample-captures/" + captured.captureId()
+        + "/mapping-proposals";
+    var proposed = postKeyed(proposals, importer,
+        "{\"target_unit\":\"minutes\",\"allow_fraction_to_percent\":false,\"reason\":\"inspect conversion\"}");
+    assertEquals(201, proposed.statusCode(), proposed.body());
+    var proposal = json.readTree(proposed.body());
+    String proposalId = proposal.path("proposal_id").asText();
+    String digest = proposal.path("proposal_digest").asText();
+    assertThat(digest).matches("[a-f0-9]{64}");
+    assertThat(proposal.path("proposal_digest_version").asText()).isEqualTo("SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1");
+    String canonical = """
+        {"allow_fraction_to_percent":false,"capture_id":"%s","environment_id":"env-1","fingerprint_version":"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1","normalized_fingerprint":"%s","proposal_id":"%s","proposed_at":"%s","proposed_by":"importer","reason":"inspect conversion","receipt_id":"%s","source_fingerprint":"%s","status":"UNAPPROVED","target_unit":"minutes","tenant_id":"tenant-check","verification":"SYNTHETIC_UNVERIFIED"}\
+        """.formatted(captured.captureId(), proposal.path("normalized_fingerprint").asText(), proposalId,
+        proposal.path("proposed_at").asText(), id, proposal.path("source_fingerprint").asText());
+    String expectedDigest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+        .digest(canonical.getBytes(StandardCharsets.UTF_8)));
+    assertThat(digest).isEqualTo(expectedDigest);
+    String reviews = proposals + "/" + proposalId + "/reviews";
+    String body = """
+        {"decision":"APPROVE","reason":"independent review",
+         "expected_proposal_digest_version":"SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1","expected_proposal_digest":"%s"}
+        """.formatted(digest);
+    String reviewer = token("reviewer", List.of("objectives.objective.read", "objectives.objective.review"));
+    String self = token("importer", List.of("objectives.objective.read", "objectives.objective.review"));
+    REQUEST.set(null);
+    assertEquals(409, postKeyed(reviews, self, body).statusCode());
+    assertThat(REQUEST.get()).isNull();
+    assertEquals(409, postKeyed(reviews, reviewer, body.replace(digest, "0".repeat(64))).statusCode());
+    assertThat(REQUEST.get()).isNull();
+    assertEquals(403, postKeyed(reviews, token("reader", "objectives.objective.read"), body).statusCode());
+    var scopedReviewer = new DelegationPrincipal("reviewer", "tenant-check", "env-1", "workload-1",
+        "https://idp.example.test", "reviewer", List.of("objectives.objective.read", "objectives.objective.review"),
+        List.of(), List.of());
+    String scopedToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(scopedReviewer, "S05");
+    assertEquals(403, postKeyed(reviews, scopedToken, body).statusCode());
+    MODE.set("denied");
+    assertEquals(503, postKeyed(reviews, reviewer, body).statusCode());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_mapping_review",
+        Integer.class));
+    MODE.set("ok");
+    var created = postKeyed(reviews, reviewer, body);
+    assertEquals(201, created.statusCode(), created.body());
+    assertThat(created.headers().firstValue("cache-control")).hasValue("no-store");
+    var review = json.readTree(created.body());
+    assertThat(review.path("decision").asText()).isEqualTo("APPROVE");
+    assertThat(review.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertThat(review.path("proposal_digest").asText()).isEqualTo(digest);
+    assertThat(REQUEST.get()).contains("\"reviewer_id\":\"reviewer\"");
+    var replay = postKeyed(reviews, reviewer, body);
+    assertEquals(200, replay.statusCode(), replay.body());
+    assertThat(json.readTree(replay.body())).isEqualTo(review);
+    MODE.set("denied");
+    assertEquals(503, postKeyed(reviews, reviewer, body).statusCode());
+    MODE.set("ok");
+    assertEquals(409, postKeyed(reviews, reviewer, body.replace("independent review", "changed")).statusCode());
+    assertEquals(409, postWithKey(reviews, reviewer, body, "another-key").statusCode());
+    String readPath = reviews + "/" + review.path("review_id").asText();
+    var read = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + readPath))
+        .header("Authorization", token("reader", "objectives.objective.read")).GET().build(),
+        HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, read.statusCode());
+    assertThat(read.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(read.body())).isEqualTo(review);
+    var otherTenant = new DelegationPrincipal("reader", "other-tenant", "env-1", "*", "https://idp.example.test",
+        "reader", List.of("objectives.objective.read"), List.of(), List.of());
+    String otherToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
+        "https://uacrf.local/s01", KEY_ID).issue(otherTenant, "S05");
+    var isolated = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + readPath))
+        .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(404, isolated.statusCode());
+    assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
+        "UPDATE uacrf_objectives.synthetic_objective_mapping_review SET reason='changed' WHERE review_id=?::uuid",
+        review.path("review_id").asText()));
+    assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
+        "DELETE FROM uacrf_objectives.synthetic_objective_mapping_review WHERE review_id=?::uuid",
+        review.path("review_id").asText()));
+    var second = postWithKey(proposals, importer,
+        "{\"target_unit\":\"seconds\",\"allow_fraction_to_percent\":false,\"reason\":\"second proposal\"}",
+        "second-proposal-key");
+    assertEquals(201, second.statusCode(), second.body());
+    var secondBody = json.readTree(second.body());
+    String secondPath = proposals + "/" + secondBody.path("proposal_id").asText() + "/reviews";
+    String rejection = body.replace("APPROVE", "REJECT")
+        .replace(digest, secondBody.path("proposal_digest").asText());
+    try (var pool = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+      var attempts = java.util.stream.IntStream.range(0, 8)
+          .mapToObj(index -> pool.submit(() -> postWithKey(secondPath, reviewer, rejection, "concurrent-review")))
+          .toList();
+      var results = new java.util.ArrayList<HttpResponse<String>>();
+      for (var attempt : attempts) results.add(attempt.get());
+      assertThat(results.stream().filter(result -> result.statusCode() == 201)).hasSize(1);
+      assertThat(results.stream().filter(result -> result.statusCode() == 200)).hasSize(7);
+      assertThat(results.stream().map(result -> json.readTree(result.body()).path("review_id").asText()).distinct())
+          .hasSize(1);
+      assertThat(json.readTree(results.getFirst().body()).path("decision").asText()).isEqualTo("REJECT");
+    }
+    assertThat(proposal.path("status").asText()).isEqualTo("UNAPPROVED");
+  }
 
   @Test
   void checksCurrentReviewerBeforeActivationAndPreservesPreviousObjectiveOnFailure() throws Exception {
@@ -157,6 +285,8 @@ class ObjectiveReviewAuthorityIntegrationTests {
         true, "https://identity.example.test/token", "http://127.0.0.1:8082", "s05", "secret", false));
     assertThrows(IllegalArgumentException.class, () -> new ObjectiveReviewAuthorityClient(
         true, "https://identity.example.test/token", "https://identity.example.test", "s05", "", false));
+    var disabled = new ObjectiveReviewAuthorityClient(false, "", "", "", "", false);
+    assertThrows(ObjectivesException.class, () -> disabled.checkRequired("tenant", "environment", "reviewer"));
   }
 
   private void prepare(String id, String proposer, String reviewer) throws Exception {
@@ -181,15 +311,23 @@ class ObjectiveReviewAuthorityIntegrationTests {
   }
 
   private HttpResponse<String> postKeyed(String path, String token, String body) throws Exception {
+    return postWithKey(path, token, body, "activation-key");
+  }
+
+  private HttpResponse<String> postWithKey(String path, String token, String body, String key) throws Exception {
     return http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
         .header("Authorization", token).header("Content-Type", "application/json")
-        .header("Idempotency-Key", "activation-key")
+        .header("Idempotency-Key", key)
         .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofString());
   }
 
   private static String token(String actor, String capability) {
+    return token(actor, List.of(capability));
+  }
+
+  private static String token(String actor, List<String> capabilities) {
     DelegationPrincipal principal = new DelegationPrincipal(actor, "tenant-check", "env-1", "*",
-        "https://idp.example.test", actor, List.of(capability), List.of(), List.of());
+        "https://idp.example.test", actor, capabilities, List.of(), List.of());
     return "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
         "https://uacrf.local/s01", KEY_ID).issue(principal, "S05");
   }

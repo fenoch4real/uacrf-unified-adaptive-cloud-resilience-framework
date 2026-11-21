@@ -124,6 +124,27 @@ class ObjectivesController {
         .body(objectives.getSyntheticMappingProposal(DelegationPrincipal.from(jwt), id, captureId, proposalId));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews")
+  ResponseEntity<ObjectivesService.SyntheticMappingReview> reviewSyntheticMapping(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody SyntheticMappingReviewRequest request) {
+    var result = objectives.reviewSyntheticMapping(
+        DelegationPrincipal.from(jwt), id, captureId, proposalId, idempotencyKey, request);
+    return ResponseEntity.status(result.newlyCreated() ? HttpStatus.CREATED : HttpStatus.OK)
+        .cacheControl(CacheControl.noStore()).body(result.review());
+  }
+
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}")
+  ResponseEntity<ObjectivesService.SyntheticMappingReview> getSyntheticMappingReview(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId, @PathVariable String reviewId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.getSyntheticMappingReview(
+            DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<Page<ObjectivesService.SampleCaptureSummary>> listSampleCaptures(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id,

@@ -103,6 +103,13 @@ class ObjectiveReviewAuthorityClient {
     }
   }
 
+  void checkRequired(String tenantId, String environmentId, String reviewerId) {
+    if (!enabled) {
+      throw unavailable();
+    }
+    check(tenantId, environmentId, reviewerId);
+  }
+
   private Map<?, ?> send(HttpRequest request) throws IOException, InterruptedException {
     HttpResponse<byte[]> response = http.send(request,
         HttpResponse.BodyHandlers.limiting(HttpResponse.BodyHandlers.ofByteArray(), MAX_RESPONSE_BYTES));

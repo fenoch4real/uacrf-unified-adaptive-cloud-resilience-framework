@@ -55,6 +55,12 @@ final class ObjectivesRequests {
       boolean allowFractionToPercent,
       @NotBlank @Size(max = 1000) String reason) {}
 
+  record SyntheticMappingReviewRequest(
+      @NotNull Decision decision,
+      @NotBlank @Size(max = 1000) String reason,
+      @NotBlank @Pattern(regexp = "^SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1$") String expectedProposalDigestVersion,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String expectedProposalDigest) {}
+
   record Transition(@Min(1) long expectedRevision) {}
 
   record IdempotentSubmission(

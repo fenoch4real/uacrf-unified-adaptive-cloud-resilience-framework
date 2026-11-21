@@ -45,7 +45,7 @@ final class ObjectiveImportFingerprint {
         + ",\"window\":" + text(definition.window()) + "}";
   }
 
-  private static String text(String value) {
+  static String text(String value) {
     StringBuilder result = new StringBuilder(value.length() + 2).append('"');
     for (int i = 0; i < value.length(); i++) {
       char c = value.charAt(i);

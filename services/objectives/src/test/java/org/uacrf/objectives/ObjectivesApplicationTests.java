@@ -494,6 +494,15 @@ class ObjectivesApplicationTests {
         .isEqualTo(rehearsalBody.path("normalized_fingerprint").path("digest").asText());
     assertThat(proposedBody.path("fingerprint_version").asText()).isEqualTo("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1");
     String proposalId = proposedBody.path("proposal_id").asText();
+    String disabledReview = """
+        {"decision":"APPROVE","reason":"review",
+         "expected_proposal_digest_version":"SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1","expected_proposal_digest":"%s"}
+        """.formatted(proposedBody.path("proposal_digest").asText());
+    assertEquals(503, postWithIdempotency(proposals + "/" + proposalId + "/reviews",
+        bearer("reviewer", tenant, List.of("objectives.objective.read", "objectives.objective.review")),
+        disabledReview, "disabled-review").statusCode());
+    assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_mapping_review "
+        + "WHERE tenant_id = ?", Integer.class, tenant));
     var replayProposal = postWithIdempotency(proposals, proposer, proposalBody, "mapping-key");
     assertEquals(200, replayProposal.statusCode());
     assertThat(json.readTree(replayProposal.body())).isEqualTo(proposedBody);

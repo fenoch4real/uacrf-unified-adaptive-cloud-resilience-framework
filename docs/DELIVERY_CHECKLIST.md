@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**164 completed / 823 total** · 659 open
+**165 completed / 824 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 74 | 236 |
+| Milestone items | 75 | 237 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -345,6 +345,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026s Retain an immutable, retry-safe, explicitly unapproved synthetic mapping proposal bound to an exact capture and its versioned fingerprints; authorize, isolate and read it in S05 without enabling import processing. Evidence: R-0253–R-0255.
   - [x] M2-026t Forward synthetic mapping proposal creation and read through EDGE01 with the original delegation, idempotency key and owner response. Evidence: R-0259.
   - [x] M2-026u Connect synthetic mapping proposal submission and readback to UX01 with retry-safe context, explicit unapproved status and authorization; verify browser success and denial. Evidence: R-0263–R-0265.
+  - [x] M2-026v Record an independent S05 review decision bound to the exact synthetic mapping proposal, with current reviewer checking, idempotency and immutable audit; never treat it as provider provenance or enable import processing. Evidence: R-0269–R-0272.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1385,6 +1386,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0265 | 2026-11-21 | M2-026u | Rechecked fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the default-disabled synthetic-source boundary remains in place. |
 | R-0266 | 2026-11-21 | M2-026u | Updated private technical approach Appendix AB to revision 215 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; independent approval and import processing remain open. |
 | R-0267 | 2026-11-21 | M2-026u | Committed the synthetic mapping proposal browser flow as `e91a648` and pushed it to `origin/main`. | Approval, candidate creation and import processing remain open. |
+| R-0268 | 2026-11-21 | M2-026v | Started independent, exact-proposal synthetic mapping review in S05. | Reviewer checks must fail closed if unavailable; the result remains synthetic and cannot process an import. |
+| R-0269 | 2026-11-21 | M2-026v | Ran focused S05 reviewer-authority integration tests. | Three tests passed, including disabled-check failure, self-review denial, content binding, current-authority denial, immutable audit and retry; added concurrency and isolation cases afterward. |
+| R-0270 | 2026-11-21 | M2-026v | Re-ran focused reviewer-authority integration with concurrency, denial on replay and tenant isolation. | Three tests passed, including eight concurrent rejections producing one review. A stable versioned proposal digest was then added and requires regression. |
+| R-0271 | 2026-11-21 | M2-026v | Ran S05 and shared-security regression after adding the versioned proposal digest. | 47 S05 and 8 shared-security tests passed, including an independently calculated digest vector; authority responses were simulated, not a live S01 deployment. |
+| R-0272 | 2026-11-21 | M2-026v | Ran the focused UX01 client test against the expanded proposal response. | The test passed; edge and browser review access are not implemented. |
+| R-0273 | 2026-11-21 | M2-026v | Updated private technical approach Appendix AB to revision 216 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; the reviewer check is not atomic with the S05 commit and import processing remains open. |
+| R-0274 | 2026-11-21 | M2-026v | Re-ran focused S05 tests after adding disabled-check and scoped-reviewer denial cases. | Four tests passed; the reviewer-authority integration uses simulated S01 responses. |
 
 ## Implementation evidence
 
