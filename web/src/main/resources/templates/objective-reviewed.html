@@ -15,4 +15,6 @@
     <dt>Decided by</dt><dd th:text="${objective.decidedBy}">Reviewer</dd>
     <dt>Decision reason</dt><dd th:text="${objective.decisionReason}">Reason</dd></dl>
   <p><a href="/objectives">View objectives</a> (requires separate global read access)</p>
+  <p><a th:href="@{/objectives/history(id=${objective.id})}">View recorded decision events</a>
+    (requires separate global read access)</p>
 </main></body></html>

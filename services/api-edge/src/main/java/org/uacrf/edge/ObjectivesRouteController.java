@@ -43,6 +43,13 @@ class ObjectivesRouteController {
     return forward(() -> objectives.getObjective(authorization, id));
   }
 
+  @GetMapping("/v1/objectives/{id}/decision-history")
+  ResponseEntity<String> decisionHistory(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id) {
+    return forward(() -> objectives.decisionHistory(authorization, id));
+  }
+
   @PostMapping("/v1/objectives")
   ResponseEntity<String> propose(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

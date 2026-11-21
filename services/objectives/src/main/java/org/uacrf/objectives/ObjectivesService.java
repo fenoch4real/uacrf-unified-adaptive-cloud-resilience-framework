@@ -485,6 +485,24 @@ class ObjectivesService {
   }
 
   @Transactional(readOnly = true)
+  DecisionHistory decisionHistory(DelegationPrincipal actor, String id) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    find(actor, id);
+    List<DecisionEvent> rows = jdbc.query(
+        "SELECT aggregate_sequence, payload->>'state' AS decision_state, "
+            + "payload->>'actor_id' AS actor_id, created_at FROM " + SCHEMA + "outbox_event "
+            + "WHERE tenant_id = ? AND environment_id = ? AND aggregate_type = 'OBJECTIVE' "
+            + "AND aggregate_id = ? AND event_type = 'objectives.objective.decided' "
+            + "ORDER BY aggregate_sequence DESC, event_id DESC LIMIT 26",
+        (rs, n) -> new DecisionEvent(rs.getLong("aggregate_sequence"), rs.getString("decision_state"),
+            rs.getString("actor_id"), rs.getTimestamp("created_at").toInstant().toString()),
+        actor.tenantId(), actor.environmentId(), id);
+    boolean more = rows.size() > 25;
+    return new DecisionHistory(id, more ? rows.subList(0, 25) : rows, more);
+  }
+
+  @Transactional(readOnly = true)
   Page<Objective> list(DelegationPrincipal actor, String workloadId, int pageSize, String cursor) {
     requireCapability(actor, "objectives.objective.read");
     requireGlobalScope(actor);

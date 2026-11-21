@@ -26,6 +26,30 @@ class ObjectivesClientTests {
       """;
 
   @Test
+  void readsBoundedHistoryAndRejectsMismatchedOrIncompleteResponses() {
+    for (String body : List.of(
+        "{\"objective_id\":\"objective\",\"items\":[{\"revision\":3,\"state\":\"REJECTED\","
+            + "\"actor_id\":\"reviewer\",\"recorded_at\":\"2026-01-01T00:00:00Z\"}],\"more_recorded\":false}",
+        "{\"objective_id\":\"other\",\"items\":[],\"more_recorded\":false}",
+        "{\"objective_id\":\"objective\",\"items\":[]}")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objectives/objective/decision-history"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (body.contains("\"actor_id\"")) {
+        assertThat(client.decisionHistory("delegated", "objective").items())
+            .singleElement().satisfies(event -> assertThat(event.actorId()).isEqualTo("reviewer"));
+      } else {
+        assertThatThrownBy(() -> client.decisionHistory("delegated", "objective"))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void submissionBindsRevisionAndDigestAndRejectsMismatchedResult() {
     String digest = "a".repeat(64);
     for (boolean matching : List.of(true, false)) {

@@ -181,6 +181,18 @@ the unkeyed route.
   The digest does not cover every displayed field; the expected revision also
   binds the record. The original decide route remains available. Review is
   not activation, compliance, or an atomic cross-service authority fence.
+- **Partial objective decision history:** `GET /v1/objectives/{id}/decision-history`
+  requires global `objectives.objective.read` and an objective in the delegated
+  tenant and environment. It returns up to 25 retained decision outbox events,
+  ordered by resulting revision descending, with `more_recorded` indicating
+  additional retained events; this bounded endpoint has no older-events page.
+  Event state and actor may be absent; `recorded_at`
+  is the outbox creation timestamp. These events do not contain reasons, and
+  outbox retention is not a completeness guarantee. An empty response does not
+  prove no review occurred. No legacy history is inferred or backfilled.
+- **S08 read scope:** Knowledge metadata listing, retained retrieval content
+  and internal receipt reads require global service scope; service-scoped
+  delegations are denied. Existing classification filtering remains unchanged.
 - **Synchronous service calls:** The browser application calls the Experience API for identity operations and the API Edge for catalog operations. The Experience API forwards to S01. The API Edge routes to S01, S02, S03, S04, S05, S06, S07, or S08 without response aggregation.
 - **Versioning:** HTTP APIs use path-based `/v1` versioning; service-only routes are placed beneath `/internal`. No header- or query-based API versioning was found.
 - **Internal proof and receipt calls:** S06 verifies identity delegation, S02 owner receipts and exact catalog revisions, S04 bounded evidence summaries, and S07 case receipts. When enabled, S05 exchanges the caller's S05 JWT with S01 for an exact purpose/resource S02 delegation, requests the current workload receipt, and verifies its signature and context before proposal or activation. S02 also verifies the caller principal matches the workload's current catalog owner for these S05 purposes. The S05 receipt is point-in-time and is not an atomic fence or persisted by S05. The S07 receipt's `purpose` is the case's business purpose (for example, `incident`); the topology operation purpose is bound and authorized by the S01 delegation exchanged for that exact case ID and is not required to equal the receipt's purpose. S07 also has optional receipt clients for S04/S05/S06; S08 has an optional S07 case-receipt client. These are direct synchronous REST calls, controlled by environment-configurable base URLs.

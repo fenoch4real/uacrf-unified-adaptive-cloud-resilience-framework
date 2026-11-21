@@ -97,6 +97,24 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void scopedKnowledgeReaderCannotListMetadata() throws Exception {
+    String tenant = "t-scoped-knowledge-read";
+    stageRequestAndApprove(
+        "scope-metadata",
+        stage("scope-metadata", "v1", "metadata content")
+            .replace("\"classification\":\"INTERNAL\"", "\"classification\":\"PUBLIC\""),
+        bearer("proposer", tenant, WRITER),
+        bearer("reviewer", tenant, REVIEWER));
+    String path = "/v1/knowledge-items?item_id=scope-metadata";
+    var denied = get(path, token("reader", tenant, "workload-1", List.of("knowledge.item.read")));
+    assertEquals(403, denied.statusCode());
+    assertThat(denied.body()).doesNotContain("scope-metadata");
+    var allowed = get(path, bearer("reader", tenant, List.of("knowledge.item.read")));
+    assertEquals(200, allowed.statusCode());
+    assertThat(allowed.body()).contains("scope-metadata");
+  }
+
+  @Test
   void scopedRetrievalReaderCannotReadContentOrReceipt() throws Exception {
     String tenant = "t-scoped-retrieval-read";
     stageRequestAndApprove(

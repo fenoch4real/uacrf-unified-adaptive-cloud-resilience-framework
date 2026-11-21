@@ -51,6 +51,7 @@
         <dt>Decision reason</dt><dd th:text="${item.decisionReason != null ? item.decisionReason : 'Not recorded'}">Reason</dd>
         <dt>Activated by</dt><dd th:text="${item.activatedBy != null ? item.activatedBy : 'Not recorded'}">Activator</dd>
       </dl>
+      <p><a th:href="@{/objectives/history(id=${item.id})}">View recorded decision events</a></p>
       <p th:if="${item.state == 'DRAFT'}"><a th:href="@{/objectives/submit(id=${item.id})}">Review draft for submission</a></p>
       <p th:if="${item.state == 'SUBMITTED'}"><a th:href="@{/objectives/review(id=${item.id})}">Review submitted objective</a> (requires separate global review access)</p>
     </li>

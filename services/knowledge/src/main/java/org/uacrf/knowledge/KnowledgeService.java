@@ -163,6 +163,7 @@ class KnowledgeService {
   @Transactional(readOnly = true)
   List<ItemVersion> list(DelegationPrincipal actor, String itemId, String purpose) {
     requireCapability(actor, "knowledge.item.read");
+    requireGlobalScope(actor);
     if (purpose != null && !PURPOSE.matcher(purpose).matches()) {
       throw invalid("INVALID_REQUEST", "purpose is malformed.");
     }

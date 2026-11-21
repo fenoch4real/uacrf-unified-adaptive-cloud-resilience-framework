@@ -8,6 +8,10 @@ final class ObjectivesResponses {
 
   record Page<T>(List<T> items, String nextCursor) {}
 
+  record DecisionEvent(long revision, String state, String actorId, String recordedAt) {}
+
+  record DecisionHistory(String objectiveId, List<DecisionEvent> items, boolean moreRecorded) {}
+
   record Objective(
       String id,
       String workloadId,

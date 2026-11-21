@@ -78,6 +78,11 @@ class ObjectivesController {
     return objectives.get(DelegationPrincipal.from(jwt), id);
   }
 
+  @GetMapping("/v1/objectives/{id}/decision-history")
+  DecisionHistory decisionHistory(@AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    return objectives.decisionHistory(DelegationPrincipal.from(jwt), id);
+  }
+
   @PostMapping("/v1/objectives/{id}:submit")
   Objective submit(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) {

@@ -43,6 +43,12 @@ class ObjectivesRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> decisionHistory(String authorization, String id) {
+    return send(objectivesRestClient.get()
+        .uri(uriBuilder -> uriBuilder.path("/v1/objectives/{id}/decision-history").build(id)),
+        authorization);
+  }
+
   ResponseEntity<String> proposeObjective(String authorization, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/objectives", null, authorization, requestBody);
   }

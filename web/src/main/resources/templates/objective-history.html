@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recorded objective decisions | UACRF</title></head>
+<body><main>
+  <h1>Recorded objective decision events</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Objective ID: <strong th:text="${objectiveId}">ID</strong></p>
+  <p><a href="/objectives">Back to objectives</a></p>
+  <p>This partial view shows at most the 25 most recent retained S05 decision outbox events,
+    newest revision first. Outbox retention is not a complete audit history: older or missing events
+    may be unavailable. An empty list does not prove that no decision occurred.</p>
+  <p>Events do not record decision reasons. The current objective record may show a reason,
+    but it is not attributed here to an earlier event.</p>
+  <p role="alert" th:if="${historyError != null}" th:text="${historyError}"></p>
+  <div th:if="${history != null}">
+    <p th:if="${history.moreRecorded}">Additional retained decision events are not shown; this view has no older-events page.</p>
+    <p th:if="${#lists.isEmpty(history.items)}">No retained decision events are available.</p>
+    <ol>
+      <li th:each="event : ${history.items}">
+        <dl>
+          <dt>Resulting revision</dt><dd th:text="${event.revision}">Revision</dd>
+          <dt>Recorded state</dt><dd th:text="${event.state != null ? event.state : 'Not recorded'}">State</dd>
+          <dt>Recorded actor</dt><dd th:text="${event.actorId != null ? event.actorId : 'Not recorded'}">Actor</dd>
+          <dt>Event recorded at</dt><dd th:text="${event.recordedAt}">Time</dd>
+        </dl>
+      </li>
+    </ol>
+  </div>
+</main></body></html>

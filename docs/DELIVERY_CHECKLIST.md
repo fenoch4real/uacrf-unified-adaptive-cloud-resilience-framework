@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**115 completed / 777 total** · 662 open
+**117 completed / 778 total** · 661 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 25 | 190 |
+| Milestone items | 27 | 191 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -302,7 +302,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-022c Connect the review form and recorded decision display with separate read/review grants. Evidence: R-0025 and R-0029.
   - [x] M2-022d Verify concurrent retries, conflicts, stale revisions, independent-review denial and browser authorization. Evidence: R-0028 and R-0029; synthetic/local scope only.
   - [x] M2-022e Update contracts, status and private approach document after verification. Evidence: R-0030.
-  - [ ] M2-022f Implement and verify attributable decision-history disclosure, explicitly identifying any legacy history that cannot be reconstructed.
+  - [x] M2-022f Disclose up to 25 retained decision events through UX01, identifying missing history and unavailable reasons. Evidence: R-0054.
+  - [ ] M2-022g Provide complete, durable and navigable decision history including attributable reasons, without inventing legacy records.
 - [ ] M2-023 Connect objective activation and active-objective readback through the browser.
 - [ ] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
@@ -392,7 +393,7 @@ Evidence and limits: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-
 - [ ] M3-007 Verify approved knowledge cannot be disclosed after relevant access or source eligibility changes.
   - [x] M3-007a Require global service scope for retrieval content and receipt reads until owner-verified workload scopes exist. Evidence: R-0050.
   - [x] M3-007b Verify scoped delegations cannot read retained retrieval content or receipts, while global reads still work. Evidence: R-0050.
-  - [ ] M3-007c Require and test global scope for S08 knowledge metadata listing, which lacks an owner-verified service binding.
+  - [x] M3-007c Require and test global scope for S08 knowledge metadata listing, which lacks an owner-verified service binding. Evidence: R-0053.
 
 ### S09 advisory
 
@@ -1124,6 +1125,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0050 | 2026-11-20 | M3-007a–M3-007b | S08 application and advisory integration suites passed 25 tests, including scoped denial and global read behavior. | Current requester-authority refresh and broader source-eligibility guarantees remain open. |
 | R-0051 | 2026-11-20 | M3-007a–M3-007b | Updated private technical approach Appendix AB to revision 176; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; M3-007 remains open. |
 | R-0052 | 2026-11-20 | M3-007a–M3-007b | Committed the verified S08 retrieval-scope slice as `57f1929` and pushed it to `origin/main`. | Objective decision history remains in progress; broader S08 acceptance remains open. |
+| R-0053 | 2026-11-20 | M3-007c | S08 application and advisory integration suites passed 26 tests, including scoped metadata denial and authorized global listing. | Current requester-authority refresh and broader source-eligibility guarantees remain open. |
+| R-0054 | 2026-11-20 | M2-022f | Full S05, EDGE01 and UX01 reactor tests passed: 245 tests, zero failures, errors or skips. The bounded retained-event history exposes its incomplete scope and unavailable reasons. | No real-browser history run; complete historical decision records and older-event pagination remain open. |
+| R-0055 | 2026-11-20 | M2-022f | The focused S05, EDGE01 and UX01 decision-history tests passed before the full regression. | Retained events are not a complete audit history. |
+| R-0056 | 2026-11-20 | M2-022f | Clean selected S05, EDGE01 and UX01 regression passed 28 tests. | The history is bounded and reasons are unavailable in these events. |
+| R-0057 | 2026-11-20 | M2-022f | The focused UX01 history rendering recheck passed one test. | A real-browser history run remains open. |
+| R-0058 | 2026-11-20 | M2-022f, M3-007c | Updated private technical approach Appendix AB to revision 177; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete decision history and current requester-authority refresh remain open. |
+| R-0059 | 2026-11-20 | Delivery tracking | Verified 778 unique checkbox IDs and the displayed 117 completed / 778 total count and category totals. | Counts include parent and child items and are not release-completion percentages. |
 
 ## Implementation evidence
 
@@ -2234,6 +2242,13 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   rejection, replay, conflict, self-review denial and denied reads. The
   browser stack disables the optional S02 owner check and is not provider
   acceptance.
+- The objective list and recorded-decision page link to a bounded history of up
+  to 25 retained decision outbox events, read through EDGE01 with global
+  `objectives.objective.read`. Revision, state, actor and event time are shown
+  when retained; decision reasons are not present in the events. The page
+  discloses missing or older records and does not infer a complete history.
+  S05, EDGE01 and UX01 tests passed 245/245; no real-browser history run was
+  performed.
 - Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
   (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
   APPROVED, ACTIVE). Activation supersedes the active objective for the same
@@ -2718,9 +2733,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   approved version. Classification access derives from explicit S01
   `knowledge.classification.internal.read` and
   `knowledge.classification.restricted.read` grants; callers cannot elevate
-  their own clearance by setting `max_classification`. Metadata reads are
-  tenant/environment scoped, filtered by classification, and can filter by
-  allowed purpose.
+  their own clearance by setting `max_classification`. Metadata reads require
+  global service scope, are tenant/environment scoped, filtered by
+  classification, and can filter by allowed purpose.
 - `POST /v1/retrievals` implements exact-term tokenized search only. It
   produces deterministic, non-overlapping chunks of at most 1,000 characters,
   ranks exact query-term matches deterministically, and retains offsets,

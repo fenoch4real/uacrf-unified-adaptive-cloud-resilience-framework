@@ -67,6 +67,33 @@ class WebApplicationTests {
   }
 
   @Test
+  void objectiveDecisionHistoryDisclosesLimitsAndDoesNotInterpretMissingEvents() throws Exception {
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    when(objectives.decisionHistory("objective-reader", "objective-a"))
+        .thenReturn(new ObjectivesClient.DecisionHistory("objective-a",
+            List.of(new ObjectivesClient.DecisionEvent(3L, "REJECTED", "<reviewer>", "2026-01-01T00:00:00Z")), true))
+        .thenReturn(new ObjectivesClient.DecisionHistory("objective-a", List.of(), false))
+        .thenThrow(new ResourceAccessException("down"));
+    var request = get("/objectives/history").param("id", "objective-a")
+        .with(browserLogin()).session(sessionWithSelectedContext());
+    mockMvc.perform(request).andExpect(status().isOk())
+        .andExpect(content().string(containsString("partial view")))
+        .andExpect(content().string(containsString("Additional retained decision events are not shown")))
+        .andExpect(content().string(containsString("&lt;reviewer&gt;")))
+        .andExpect(content().string(containsString("Events do not record decision reasons")));
+    mockMvc.perform(request).andExpect(status().isOk())
+        .andExpect(content().string(containsString("No retained decision events are available")))
+        .andExpect(content().string(containsString("does not prove that no decision occurred")));
+    mockMvc.perform(request).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("history was not loaded")))
+        .andExpect(content().string(not(containsString("No retained decision events are available"))));
+    mockMvc.perform(get("/objectives/history").param("id", "objective-a").with(browserLogin()))
+        .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl("/contexts"));
+  }
+
+  @Test
   void objectiveReviewUsesSeparateReadAndReviewGrantsAndPreservesRetry() throws Exception {
     when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
         .thenReturn(new IdentityAccessClient.MeAccess("reviewer", "Reviewer", "HUMAN", null, null, List.of()));

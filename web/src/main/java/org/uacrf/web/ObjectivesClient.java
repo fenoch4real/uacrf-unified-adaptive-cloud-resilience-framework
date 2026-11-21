@@ -63,6 +63,18 @@ class ObjectivesClient {
     return result;
   }
 
+  DecisionHistory decisionHistory(String token, String id) {
+    DecisionHistory result = restClient.get().uri("/v1/objectives/{id}/decision-history", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(DecisionHistory.class);
+    if (result == null || !id.equals(result.objectiveId()) || result.items() == null
+        || result.moreRecorded() == null || result.items().size() > 25
+        || result.items().stream().anyMatch(event -> event == null || event.revision() == null
+            || event.revision() < 1 || !present(event.recordedAt()))) {
+      throw new IllegalStateException("S05 returned invalid decision history.");
+    }
+    return result;
+  }
+
   Objective submit(String token, String id, String key, long revision, String digest) {
     Objective result = restClient.post().uri("/v1/objectives/{id}:idempotent-submit", id)
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
@@ -111,6 +123,12 @@ class ObjectivesClient {
   }
 
   record ObjectivePage(List<Objective> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record DecisionEvent(Long revision, String state, @JsonProperty("actor_id") String actorId,
+      @JsonProperty("recorded_at") String recordedAt) {}
+
+  record DecisionHistory(@JsonProperty("objective_id") String objectiveId, List<DecisionEvent> items,
+      @JsonProperty("more_recorded") Boolean moreRecorded) {}
 
   record LocalObjective(String id, @JsonProperty("workload_id") String workloadId,
       String title, String metric, String comparator, BigDecimal target, String unit,

@@ -544,6 +544,49 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void decisionHistoryShowsOnlyRetainedBoundedEventsWithinAuthorizedContext() throws Exception {
+    String tenant = "t-history";
+    String creator = bearer("creator", tenant, PROPOSER);
+    String reviewer = bearer("reviewer", tenant, DECIDER);
+    String path = "/v1/objectives/history-one/decision-history";
+    assertEquals(201, post("/v1/objectives", creator,
+        objective("history-one", "w-history", "m.history", "GTE", "1", "u")).statusCode());
+    assertThat(get(path, creator).body()).contains("\"items\":[]", "\"more_recorded\":false");
+    assertEquals(200, post("/v1/objectives/history-one:submit", creator, "{\"expected_revision\":1}").statusCode());
+    assertEquals(200, post("/v1/objectives/history-one:decide", reviewer, decision("REJECT", 2)).statusCode());
+    String history = get(path, creator).body();
+    assertThat(history).contains("\"objective_id\":\"history-one\"", "\"revision\":3",
+        "\"state\":\"REJECTED\"", "\"actor_id\":\"https://uacrf.local/s01|reviewer\"", "\"recorded_at\":")
+        .doesNotContain("reviewed", "decision_reason");
+    assertEquals(403, get(path, token("reader", tenant, "w-history", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(403, get(path, bearer("writer", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(404, get(path, bearer("reader", "t-other-history", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get("/v1/objectives/missing/decision-history", creator).statusCode());
+    jdbc.update("INSERT INTO uacrf_objectives.outbox_event "
+            + "(event_id, tenant_id, environment_id, aggregate_type, aggregate_id, aggregate_sequence, "
+            + "event_type, payload, payload_digest) VALUES (?, ?, 'other-env', 'OBJECTIVE', 'history-one', 99, "
+            + "'objectives.objective.decided', '{\"actor_id\":\"other-environment\"}'::jsonb, ?)",
+        java.util.UUID.randomUUID(), tenant, "0".repeat(64));
+    assertThat(get(path, creator).body()).doesNotContain("other-environment");
+    for (int revision = 4; revision <= 28; revision++) {
+      jdbc.update("INSERT INTO uacrf_objectives.outbox_event "
+              + "(event_id, tenant_id, environment_id, aggregate_type, aggregate_id, aggregate_sequence, "
+              + "event_type, payload, payload_digest) VALUES (?, ?, 'env-1', 'OBJECTIVE', 'history-one', ?, "
+              + "'objectives.objective.decided', '{}'::jsonb, ?)",
+          java.util.UUID.randomUUID(), tenant, revision, "0".repeat(64));
+    }
+    var bounded = json.readTree(get(path, creator).body());
+    assertEquals(25, bounded.path("items").size());
+    assertEquals(28, bounded.path("items").get(0).path("revision").asInt());
+    assertEquals(4, bounded.path("items").get(24).path("revision").asInt());
+    assertThat(bounded.path("items").get(0).path("state").isNull()).isTrue();
+    assertThat(bounded.path("more_recorded").asBoolean()).isTrue();
+    jdbc.update("DELETE FROM uacrf_objectives.outbox_event WHERE tenant_id = ? "
+        + "AND event_type = 'objectives.objective.decided'", tenant);
+    assertThat(get(path, creator).body()).contains("\"items\":[]", "\"more_recorded\":false");
+  }
+
+  @Test
   void enforcesCapabilitiesScopeTenantIsolationAndPaging() throws Exception {
     String propose = bearer("proposer", "t-x", PROPOSER);
     String other = bearer("proposer", "t-y", PROPOSER);
