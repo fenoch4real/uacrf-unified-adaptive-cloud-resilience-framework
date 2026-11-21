@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**125 completed / 785 total** · 660 open
+**126 completed / 786 total** · 660 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 35 | 198 |
+| Milestone items | 36 | 199 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -306,7 +306,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [ ] M2-022g Provide complete, durable and navigable decision history including attributable reasons, without inventing legacy records.
     - [x] M2-022g1 Retain new decisions and exact reasons atomically in immutable records for both review routes, without fabricating historical entries. Evidence: R-0070–R-0072.
     - [x] M2-022g2 Expose paginated retained decision records with explicit pre-retention gaps through S05 and EDGE01. Evidence: R-0075–R-0076.
-    - [x] M2-022g3 Connect paginated decision records and gap disclosure to UX01 and verify the browser flow. Evidence: R-0080–R-0081; browser first page only.
+    - [x] M2-022g3 Connect paginated decision records and gap disclosure to UX01 and verify the browser flow. Evidence: R-0080–R-0081, R-0085.
+    - [x] M2-022g4 Verify older-page and first-page navigation in the isolated browser using clearly labeled synthetic record fixtures. Evidence: R-0085.
 - [x] M2-023 Connect objective activation and active-objective readback through the browser. Evidence: R-0062–R-0063, R-0066.
   - [x] M2-023a Implement a retry-safe, revision-bound activation command without weakening owner and review checks. Evidence: R-0062.
   - [x] M2-023b Forward activation and connect the browser form with separate read and activation delegations. Evidence: R-0062–R-0063, R-0066.
@@ -1162,6 +1163,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0080 | 2026-11-20 | M2-022g3 | Clean UX01 regression exited 0: 197 tests passed, including client validation of gap disclosure and escaped reason rendering. | Browser execution remains pending. |
 | R-0081 | 2026-11-20 | M2-022g3 | `bash e2e/run-live.sh` exited 0: all 11 Playwright tests passed, including first-page retained decision reason and historical-gap disclosure. | Browser pagination beyond the first page was not exercised; S05 pagination and the UX01 next link were tested separately. Synthetic stack disables the optional S02 owner check. |
 | R-0082 | 2026-11-20 | M2-022g3 | Updated private technical approach Appendix AB to revision 182; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete legacy history and multi-page browser verification remain open. |
+| R-0083 | 2026-11-20 | M2-022g3 | Committed retained-decision browser access as `9b6e07c` and pushed it to `origin/main`. | Complete legacy history and multi-page browser verification remain open. |
+| R-0084 | 2026-11-20 | M2-022g4 | Started browser pagination verification with synthetic decision rows directly inserted into the disposable stack. | The fixtures do not represent actual decisions; browser execution is pending. |
+| R-0085 | 2026-11-20 | M2-022g4 | `bash e2e/run-live.sh` exited 0: all 11 Playwright tests passed, including traversal from 25 synthetic records to the remaining older record and back to the first page. | The 26 paging rows are directly inserted fixtures, not decisions performed against the draft; the optional S02 owner check is disabled. |
+| R-0086 | 2026-11-20 | M2-022g4 | Updated private technical approach Appendix AB to revision 183; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete legacy decision history remains open. |
 
 ## Implementation evidence
 
@@ -2287,8 +2292,8 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   A separate paginated endpoint exposes the new records and always discloses
   possible historical gaps; S05/EDGE01 regression passed 65 tests. UX01 links
   the retained records to the separate bounded outbox-event history, with 197
-  UX01 tests and 11 isolated browser tests passing. Browser verification covers
-  the first record page, not multi-page navigation.
+  UX01 tests and 11 isolated browser tests passing. Browser pagination uses
+  26 directly inserted synthetic records, not actual objective decisions.
 - UX01 exposes objective activation through EDGE01 with separate global read and
   activation delegations. S05 atomically retains an actor/context-scoped key,
   expected objective revision and digest, activation, supersession and outbox

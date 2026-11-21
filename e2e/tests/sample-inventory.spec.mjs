@@ -948,6 +948,16 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Read current objective state' }).click();
     await expect(sample.locator('main')).toContainText('ACTIVE');
     await expect(sample.getByRole('button', { name: 'Activate objective' })).toHaveCount(0);
+    await sample.goto('/objectives/decision-records?id=browser-objective-a');
+    await expect(sample.getByRole('listitem')).toHaveCount(25);
+    await expect(sample.locator('main')).toContainText('Synthetic pagination reason 27');
+    await expect(sample.getByText('Synthetic pagination reason 2', { exact: true })).toHaveCount(0);
+    await sample.getByRole('link', { name: 'Older decision records' }).click();
+    await expect(sample.getByRole('listitem')).toHaveCount(1);
+    await expect(sample.locator('main')).toContainText('Synthetic pagination reason 2');
+    await expect(sample.getByRole('link', { name: 'Older decision records' })).toHaveCount(0);
+    await sample.getByRole('link', { name: 'First decision records page' }).click();
+    await expect(sample.getByRole('listitem')).toHaveCount(25);
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');

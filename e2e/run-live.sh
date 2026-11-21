@@ -194,6 +194,14 @@ VALUES
    'Other synthetic objective', 'sample.latency', 'LTE', 99.5, 'ms', 60, 'LOCAL',
    '3b374d98d7f9dbe4578f776d21aa4ef6d99952ec93a9a01695b9a8674a67be3f',
    'DRAFT', 1, 'test-fixture');
+
+-- Synthetic paging rows are not decisions performed against the draft fixture.
+INSERT INTO uacrf_objectives.objective_decision
+  (tenant_id, environment_id, objective_id, revision, content_digest, decision, reason, decided_by)
+SELECT 'local-dev', 'local', 'browser-objective-a', revision,
+       '9015a54afcb9ed36f0b6967989020e2ab94b84881d82ab104f56cd4aec1d92f5',
+       'REJECT', 'Synthetic pagination reason ' || revision, 'synthetic-reviewer'
+FROM generate_series(2, 27) AS revision;
 SQL
 
 # Isolated synthetic metadata; insertion bypasses the knowledge lifecycle.
