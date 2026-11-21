@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**175 completed / 837 total** · 662 open
+**177 completed / 837 total** · 660 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 85 | 250 |
+| Milestone items | 87 | 250 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -357,8 +357,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026ae Retain an immutable synthetic normalized candidate bound to an independently approved historical capture and exact proposal, with retry-safe admission, scoped readback and explicit unverified/uncompared limits. Evidence: R-0314–R-0315.
   - [x] M2-026af Forward synthetic candidate admission and scoped readback through EDGE01 with the original delegation, idempotency key and owner responses. Evidence: R-0319.
   - [ ] M2-026ag Connect synthetic candidate admission and readback to UX01 with context-bound retry and explicit unverified/uncompared limits; verify browser success and denial.
-  - [ ] M2-026ah Discover the retained synthetic candidate, if any, for a known review with scoped read authority in S05.
-  - [ ] M2-026ai Forward synthetic candidate discovery through EDGE01 with the original delegation and owner response.
+  - [x] M2-026ah Discover the retained synthetic candidate, if any, for a known review with scoped read authority in S05. Evidence: R-0323.
+  - [x] M2-026ai Forward synthetic candidate discovery through EDGE01 with the original delegation and owner response. Evidence: R-0325.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1453,6 +1453,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0319 | 2026-11-21 | M2-026af | Ran the complete EDGE01 regression for candidate forwarding. | 42 tests passed, including original delegation, idempotency key and owner statuses and bodies. |
 | R-0320 | 2026-11-21 | M2-026ah | Started zero-or-one candidate discovery for a known synthetic review. | Discovery is needed to recover an earlier candidate without a remembered candidate ID; it does not grant authority. |
 | R-0321 | 2026-11-21 | M2-026af | Updated contracts, design notes and private technical approach Appendix AB to revision 224. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
+| R-0322 | 2026-11-21 | M2-026af | Committed and pushed EDGE01 candidate admission and readback as `06beb6a`. | Candidate discovery and browser access remain open. |
+| R-0323 | 2026-11-21 | M2-026ah | Ran the complete S05 and shared-security regression for candidate discovery. | 47 S05 and 8 shared-security tests passed, including empty and populated discovery, scoped denial and cross-tenant isolation. |
+| R-0324 | 2026-11-21 | M2-026ai | Started EDGE01 candidate discovery forwarding. | S05 remains the authorization and validation owner. |
+| R-0325 | 2026-11-21 | M2-026ai | Ran the complete EDGE01 candidate discovery regression. | 43 tests passed, including original delegation and owner statuses and bodies. |
+| R-0326 | 2026-11-21 | M2-026ah, M2-026ai | Updated contracts, design notes and private technical approach Appendix AB to revision 225. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; UX01 access remains open. |
 
 ## Implementation evidence
 

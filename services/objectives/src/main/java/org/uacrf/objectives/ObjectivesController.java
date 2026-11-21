@@ -174,6 +174,14 @@ class ObjectivesController {
         .cacheControl(CacheControl.noStore()).body(result.candidate());
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates")
+  ResponseEntity<ObjectivesService.SyntheticCandidates> listSyntheticCandidates(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId, @PathVariable String reviewId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.listSyntheticCandidates(DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}")
   ResponseEntity<ObjectivesService.SyntheticCandidate> getSyntheticCandidate(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,

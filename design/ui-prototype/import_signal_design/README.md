@@ -126,8 +126,9 @@ revalidates the captured bytes and conversion; scoped reads validate the stored
 normalized fingerprint. The candidate is `UNCOMPARED` and
 `SYNTHETIC_UNVERIFIED`: it is not trusted provider provenance, a current
 membership or source check, an approved general mapping, a local comparison,
-an import resolution or an objective proposal. EDGE01 forwards admission and
-known-candidate readback; UX01 access remains open.
+an import resolution or an objective proposal. S05 discovers the zero or one
+candidate for a known review; EDGE01 forwards admission, discovery and
+known-candidate readback. UX01 access remains open.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

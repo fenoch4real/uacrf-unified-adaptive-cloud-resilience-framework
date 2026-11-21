@@ -908,6 +908,23 @@ class ObjectivesService {
       String status, String verification) {}
 
   @Transactional(readOnly = true)
+  SyntheticCandidates listSyntheticCandidates(DelegationPrincipal actor, String id, String captureId,
+      String proposalId, String reviewId) {
+    SyntheticMappingReview review = getSyntheticMappingReview(actor, id, captureId, proposalId, reviewId);
+    List<UUID> ids = jdbc.query("SELECT candidate_id FROM " + SCHEMA
+        + "synthetic_normalized_candidate WHERE tenant_id = ? AND environment_id = ? "
+        + "AND command_id = ? AND capture_id = ? AND proposal_id = ? AND review_id = ?",
+        (rs, row) -> rs.getObject("candidate_id", UUID.class), actor.tenantId(), actor.environmentId(),
+        UUID.fromString(review.receiptId()), UUID.fromString(review.captureId()), UUID.fromString(review.proposalId()),
+        UUID.fromString(review.reviewId()));
+    return new SyntheticCandidates(ids.stream()
+        .map(candidateId -> getSyntheticCandidate(actor, id, captureId, proposalId, reviewId, candidateId.toString()))
+        .toList());
+  }
+
+  record SyntheticCandidates(List<SyntheticCandidate> items) {}
+
+  @Transactional(readOnly = true)
   Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
     PendingImportReceipt receipt = getImportPreview(actor, id);
     UUID command = UUID.fromString(receipt.receiptId());

@@ -187,6 +187,14 @@ class ObjectivesRouteClient {
             .build(id, captureId, proposalId, reviewId, candidateId)), authorization);
   }
 
+  ResponseEntity<String> listSyntheticCandidates(String authorization, String id, String captureId,
+      String proposalId, String reviewId) {
+    return send(objectivesRestClient.get()
+        .uri(uri -> uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/"
+            + "{proposalId}/reviews/{reviewId}/synthetic-candidates").build(id, captureId, proposalId, reviewId)),
+        authorization);
+  }
+
   ResponseEntity<String> listImportSampleCaptures(String authorization, String id, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uri -> {
       uri.path("/v1/objective-imports/{id}/sample-captures").queryParam("pageSize", pageSize);

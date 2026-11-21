@@ -280,12 +280,14 @@ the unkeyed route.
   scoped to that capture and review. An unchanged retry while the request remains
   pending returns the same record; another key for the same review conflicts.
   `GET` ending in `/synthetic-candidates/{candidateId}` requires global
-  objective-read and validates the retained fingerprint. Successful responses
+  objective-read and validates the retained fingerprint. Collection `GET`
+  discovers zero or one candidate for a known review under the same read
+  authority; an unknown review returns 404. Successful responses
   are `no-store`. These records are `UNCOMPARED` and `SYNTHETIC_UNVERIFIED`:
   no current membership or source recheck is made, no approved general mapping
   is established, and no local comparison, import resolution, objective
-  proposal or processing occurs. EDGE01 forwards admission and known-candidate
-  readback; UX01 access remains open.
+  proposal or processing occurs. EDGE01 forwards admission, discovery and
+  known-candidate readback; UX01 access remains open.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

@@ -207,6 +207,11 @@ class ObjectiveReviewAuthorityIntegrationTests {
     String candidateBody = """
         {"expected_proposal_digest_version":"SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1","expected_proposal_digest":"%s"}
         """.formatted(digest);
+    var emptyCandidates = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidates))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, emptyCandidates.statusCode());
+    assertThat(emptyCandidates.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(emptyCandidates.body()).path("items").size()).isZero();
     assertEquals(403, postWithKey(candidates, reader, candidateBody, "candidate-key").statusCode());
     assertEquals(409, postWithKey(candidates, importer, candidateBody.replace(digest, "0".repeat(64)),
         "candidate-key").statusCode());
@@ -238,6 +243,12 @@ class ObjectiveReviewAuthorityIntegrationTests {
     assertEquals(200, candidateRead.statusCode());
     assertThat(candidateRead.headers().firstValue("cache-control")).hasValue("no-store");
     assertThat(json.readTree(candidateRead.body())).isEqualTo(candidate);
+    var discovered = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidates))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, discovered.statusCode());
+    assertThat(discovered.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(discovered.body()).path("items").size()).isEqualTo(1);
+    assertThat(json.readTree(discovered.body()).path("items").get(0)).isEqualTo(candidate);
     assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
         "UPDATE uacrf_objectives.synthetic_normalized_candidate SET status='COMPARED' WHERE candidate_id=?::uuid",
         candidate.path("candidate_id").asText()));
@@ -279,6 +290,9 @@ class ObjectiveReviewAuthorityIntegrationTests {
         HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidateReadPath))
             .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(404, isolatedCandidate.statusCode());
+    var isolatedDiscovery = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidates))
+        .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(404, isolatedDiscovery.statusCode());
     var scopedList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + reviews))
         .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(403, scopedList.statusCode());
@@ -286,6 +300,12 @@ class ObjectiveReviewAuthorityIntegrationTests {
         HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidateReadPath))
             .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(403, scopedCandidate.statusCode());
+    var scopedDiscovery = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidates))
+        .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(403, scopedDiscovery.statusCode());
+    var missingDiscovery = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + missingReview))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(404, missingDiscovery.statusCode());
     String wrongProposal = reviews.replace(proposalId, java.util.UUID.randomUUID().toString());
     var missingList = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + wrongProposal))
         .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
