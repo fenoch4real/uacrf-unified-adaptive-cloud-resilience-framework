@@ -48,8 +48,11 @@ verifies two-page UX01 browsing and exact current and historical reads. The
 user submits a first and later revision through UX01, replays the original
 request after the later revision, and verifies a changed request with the same
 key conflicts. It also checks denial for another service and an ungranted
-user. No signing trust set or approved review is exercised; these drafts do
-not authorize actions or establish provider acceptance.
+user. A separate human reviewer receives service-scoped policy-read and review
+grants, rejects the second revision, and verifies unchanged replay,
+changed-content conflict and stale-revision conflict. The proposer is denied
+self-review. No signing trust set or approved review is exercised; these
+records do not authorize actions or establish provider acceptance.
 
 The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global

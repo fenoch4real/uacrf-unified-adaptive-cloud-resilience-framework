@@ -327,6 +327,9 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       { principalId: evidencePrincipalId, capability: 'evidence.event.write' },
       { principalId, capability: 'authorization.policy.read', scope: fixtureServiceId },
       { principalId, capability: 'authorization.policy.write', scope: fixtureServiceId },
+      { principalId, capability: 'authorization.policy.review', scope: fixtureServiceId },
+      { principalId: reviewerPrincipalId, capability: 'authorization.policy.read', scope: fixtureServiceId },
+      { principalId: reviewerPrincipalId, capability: 'authorization.policy.review', scope: fixtureServiceId },
       { principalId: evidencePrincipalId, capability: 'authorization.policy.write', scope: fixtureServiceId },
     ];
     for (const { principalId: targetPrincipalId, capability, scope = '*' } of grants) {
@@ -460,7 +463,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByLabel('Allowed resource IDs').fill('sample-resource');
     await sample.getByLabel('Permitted providers').fill('AZURE');
     await sample.getByLabel('Permitted regions').fill('sample-region');
-    await sample.getByLabel('Eligible approver IDs').fill('sample-reviewer');
+    await sample.getByLabel('Eligible approver IDs').fill(reviewerPrincipalId);
     await sample.getByLabel('Maximum cost (USD)').fill('10.000001');
     await sample.getByLabel('Proposal reason').fill('Synthetic browser proposal');
     const [policyRequest] = await Promise.all([
@@ -493,7 +496,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByLabel('Allowed resource IDs').fill('sample-resource');
     await sample.getByLabel('Permitted providers').fill('AZURE');
     await sample.getByLabel('Permitted regions').fill('sample-region');
-    await sample.getByLabel('Eligible approver IDs').fill('sample-reviewer');
+    await sample.getByLabel('Eligible approver IDs').fill(reviewerPrincipalId);
     await sample.getByLabel('Maximum cost (USD)').fill('10');
     await sample.getByLabel('Proposal reason').fill('Synthetic next revision');
     await sample.getByRole('button', { name: 'Propose policy revision' }).click();
@@ -503,6 +506,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     });
     expect(oldPolicyReplay.status()).toBe(200);
     expect(await oldPolicyReplay.text()).toContain('>1</dd>');
+    await sample.goto(`/policies/reject?serviceId=${fixtureServiceId}&id=${proposedPolicyId}&revision=2`);
+    await sample.getByLabel('Reason for rejection').fill('Self review must be denied');
+    const [selfRejection] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === '/policies/reject'),
+      sample.getByRole('button', { name: 'Reject this revision' }).click(),
+    ]);
+    expect(selfRejection.status()).toBe(403);
     await sample.goto(`/policies?serviceId=${fixtureServiceId}`);
     await expect(sample.getByRole('heading', { name: 'Service policy bundles' })).toBeVisible();
     await expect(sample.getByText('governance records, not permits', { exact: false })).toBeVisible();
@@ -583,6 +594,34 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await reviewer.locator('#password').fill(reviewerPassword);
       await reviewer.locator('#kc-login').click();
       await selectLocalContext(reviewer);
+      await reviewer.goto(`/policies/reject?serviceId=${fixtureServiceId}&id=${proposedPolicyId}&revision=1`);
+      await reviewer.getByLabel('Reason for rejection').fill('Stale revision');
+      const [staleRejection] = await Promise.all([
+        reviewer.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/policies/reject'),
+        reviewer.getByRole('button', { name: 'Reject this revision' }).click(),
+      ]);
+      expect(staleRejection.status()).toBe(409);
+      await reviewer.goto(`/policies/reject?serviceId=${fixtureServiceId}&id=${proposedPolicyId}&revision=2`);
+      await expect(reviewer.getByText('Canonical policy material')).toBeVisible();
+      await reviewer.getByLabel('Reason for rejection').fill('Independent synthetic rejection');
+      const [rejection] = await Promise.all([
+        reviewer.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/policies/reject'),
+        reviewer.getByRole('button', { name: 'Reject this revision' }).click(),
+      ]);
+      expect(rejection.status()).toBe(200);
+      await expect(reviewer.getByRole('heading', { name: 'Policy rejection receipt' })).toBeVisible();
+      const replayRejection = await reviewer.request.post('/policies/reject', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: rejection.request().postData(),
+      });
+      expect(replayRejection.status()).toBe(200);
+      const changedRejection = new URLSearchParams(rejection.request().postData());
+      changedRejection.set('reason', 'Changed rejection');
+      const rejectionConflict = await reviewer.request.post('/policies/reject', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedRejection.toString(),
+      });
+      expect(rejectionConflict.status()).toBe(409);
       await reviewer.goto('/knowledge');
       await reviewer.getByLabel('Item ID', { exact: true }).fill(stagedItemId);
       await reviewer.getByRole('button', { name: 'Show metadata' }).click();

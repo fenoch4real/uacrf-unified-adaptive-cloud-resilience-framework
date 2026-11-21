@@ -22,7 +22,7 @@ estimate.
 | M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
 | M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after the aggregate-type contract change (5 tests, 0 failures, 0 errors, 0 skips). S04 sequence identity now includes aggregate type; the V8 migration classifies retained S03 events and conservatively preserves ambiguous legacy quarantines. The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain. |
 | M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | UX01 creates retry-protected S07 draft cases, incidents and learning proposals, reviews and seals drafts, runs retry-protected evaluations, and supports learning review and historical decision reads through EDGE01 with separate globally scoped, context-bound delegations. UX01 also stages retry-protected S08 candidates, browses metadata, independently reviews exact versions, withdraws approved items, creates retry-protected retrievals and browses retrieval history with explicit classification grants. Case creation and sealing do not verify references; skipped receipt verification does not qualify evidence for incident creation; learning proposals and reviews do not establish adoption. Knowledge reviews, metadata and retrievals are not current authorization. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation. |
-| M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | UX01 proposes retry-safe policy revisions and browses service-scoped summaries and exact revisions through EDGE01 with separate S10 write and read delegations. Implement connected review, policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
+| M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | UX01 proposes retry-safe policy revisions, browses service-scoped summaries and exact revisions, and submits unsigned rejections through EDGE01 with separate S10 write, read and review delegations. Implement connected signed approval, policy evaluation, action authorization, current-state fences, and read-only decision replay. The existing S10 slice is governance metadata, not operational authority. |
 | M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
 | M6 — Commercial and operational administration | Usage admission, rating, invoicing, payment reconciliation, notifications, evidence export | Not started | Implement and test the commercial and operational workflows, including duplicate/reordered events and interrupted reconciliation. |
 | M7 — Governed prediction and provider breadth | Model evaluation and learning; AWS, Azure, and Google Cloud capabilities | Not started | Implement temporal evaluation, uncertainty/calibration and shadow criteria; qualify providers individually. Existing model metadata and provider stubs do not meet this milestone. |
@@ -74,9 +74,8 @@ its service, ID and time bindings before rendering escaped content. A displayed
 digest is an integrity check, not a signature or independent verification of
 the record. Listing is paginated, with independent page reads; concurrent
 changes can affect traversal. Review eligibility and key trust are
-point-in-time S10 results, not action authorization. The UI does not yet cast
-votes or navigate to earlier revisions except by their known ID and revision
-URL.
+point-in-time S10 results, not action authorization. The UI does not yet
+navigate to earlier revisions except by their known ID and revision URL.
 
 UX01 can also submit a new policy or next revision with an independently
 granted, service-scoped `authorization.policy.write` delegation. The form
@@ -92,6 +91,18 @@ synthetic revisions, original-key replay after a later revision, changed-key
 content conflict, two-page browsing, historical readback, and denied access.
 No signing trust set, approved review, or live-provider acceptance was
 exercised in this browser stack.
+
+UX01 can submit a retry-safe unsigned rejection after displaying the exact
+revision's canonical material. S01 issues the separately granted service-scoped
+`authorization.policy.review` delegation, while S10 enforces current revision,
+expiry, reviewer eligibility and separation from the proposer. UX01 checks the
+returned revision, digest and rejection reason; its digest check is after the
+write and is not an independent commit fence. A retry of an unconfirmed result
+must preserve the form, key, user and context. Signed approval is not available
+in the UI. The clean full UX01 suite passed 175 tests, and the isolated browser
+suite passed 11 tests including independent rejection, unchanged replay,
+changed-content conflict, stale-revision conflict and self-review denial.
+This does not establish signed approval or provider acceptance.
 
 The EDGE01 policy-get route now forwards revision selectors to S10 instead of
 silently returning the latest revision. Four PostgreSQL-backed concurrency tests

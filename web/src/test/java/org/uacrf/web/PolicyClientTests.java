@@ -133,4 +133,32 @@ class PolicyClientTests {
         server.verify();
     }
   }
+
+  @Test
+  void checksRejectionReceiptAndRetainsRequestKey() {
+    String rejected = DETAIL.replace("\"decision\":\"DRAFT\"", "\"decision\":\"REJECTED\"")
+        .replace("\"rejection_count\":0,\"votes\":[]",
+            "\"rejection_count\":1,\"votes\":[{\"reviewer_id\":\"reviewer\",\"decision\":\"REJECT\","
+                + "\"reason\":\"Not suitable\",\"reviewed_at\":\"2026-01-02T00:00:00Z\",\"currently_trusted\":false}]");
+    for (String response : List.of(rejected, rejected.replace("Not suitable", "Other"))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/authorization-policy-bundles/policy-a:decide"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reviewer-token"))
+          .andExpect(header("Idempotency-Key", "same-key"))
+          .andExpect(jsonPath("$.expected_revision").value(2))
+          .andExpect(jsonPath("$.decision").value("REJECT"))
+          .andExpect(jsonPath("$.reason").value("Not suitable"))
+          .andRespond(withSuccess("{\"policy\":" + response + "}", MediaType.APPLICATION_JSON));
+      PolicyClient client = new PolicyClient(builder.build());
+      if (!response.equals(rejected)) {
+        assertThatThrownBy(() -> client.reject("reviewer-token", "same-key", "service-a", "policy-a",
+            2, DIGEST, "Not suitable")).isInstanceOf(IllegalStateException.class);
+      } else {
+        assertThat(client.reject("reviewer-token", "same-key", "service-a", "policy-a",
+            2, DIGEST, "Not suitable").decision()).isEqualTo("REJECTED");
+      }
+      server.verify();
+    }
+  }
 }

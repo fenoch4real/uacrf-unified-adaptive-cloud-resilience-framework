@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reject policy revision | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body><main>
+  <h1>Reject a policy revision</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/policies">Back to service policies</a></p>
+  <p>Rejection is terminal for this revision. S10 requires a separate service-scoped review grant,
+    an eligible reviewer other than the proposer, and the current unexpired draft revision.
+    Signed approvals are not available in this form.</p>
+  <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
+  <section th:if="${policy != null}">
+    <h2>Revision to review</h2>
+    <p><span th:text="${policy.id}">Policy</span> / revision <span th:text="${policy.revision}">1</span></p>
+    <p>Service: <span th:text="${policy.serviceId}">Service</span>; digest:
+      <span th:text="${policy.digest}">Digest</span>; state: <span th:text="${policy.decision}">DRAFT</span></p>
+    <h3>Canonical policy material</h3>
+    <pre th:text="${policy.material.canonicalText}">Material</pre>
+  </section>
+  <form th:if="${rejectionForm != null}" method="post" th:action="@{/policies/reject}" th:object="${rejectionForm}">
+    <input type="hidden" th:field="*{serviceId}"><input type="hidden" th:field="*{id}">
+    <input type="hidden" th:field="*{revision}"><input type="hidden" th:field="*{digest}">
+    <input type="hidden" th:field="*{idempotencyKey}"><input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}"><input type="hidden" th:field="*{principalName}">
+    <p>Policy <strong th:text="*{id}">Policy</strong>, revision <strong th:text="*{revision}">1</strong>,
+      service <strong th:text="*{serviceId}">Service</strong>, digest <strong th:text="*{digest}">Digest</strong>.</p>
+    <p>If the outcome is unconfirmed, retry this same form unchanged as the same user in the same context.
+      Changed details require a new form.</p>
+    <div role="alert" th:if="${#fields.hasAnyErrors()}">
+      <h2>Check the rejection details</h2>
+      <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}">Validation error</li></ul>
+    </div>
+    <p><label for="reason">Reason for rejection</label>
+      <textarea id="reason" th:field="*{reason}" maxlength="2000" required
+        th:attr="aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},aria-describedby=${#fields.hasErrors('reason') ? 'reason-error' : null}"></textarea>
+      <span id="reason-error" th:errors="*{reason}"></span></p>
+    <button type="submit">Reject this revision</button>
+  </form>
+</main></body></html>

@@ -91,6 +91,23 @@ class PolicyClient {
     return policy;
   }
 
+  Policy reject(String token, String idempotencyKey, String serviceId, String id,
+      long revision, String digest, String reason) {
+    PolicyResult result = restClient.post().uri(ROOT + "/{id}:decide", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", idempotencyKey)
+        .body(new Decision(revision, "REJECT", reason, null))
+        .retrieve().body(PolicyResult.class);
+    Policy policy = validate(result, serviceId, id, revision);
+    if (!digest.equals(policy.digest()) || !"REJECTED".equals(policy.decision())
+        || policy.currentEligible() || policy.review().rejectionCount() != 1
+        || policy.review().votes().stream().noneMatch(v -> "REJECT".equals(v.decision())
+            && reason.equals(v.reason()))) {
+      throw new IllegalStateException("S10 returned a rejection that does not match the request.");
+    }
+    return policy;
+  }
+
   private static Policy validate(PolicyResult result, String serviceId, String id, long revision) {
     Policy policy = result == null ? null : result.policy();
     if (policy == null || !valid(policy.summary(), serviceId) || !id.equals(policy.id())
@@ -189,6 +206,8 @@ class PolicyClient {
       @JsonProperty("expected_revision") long expectedRevision,
       @JsonProperty("expires_at") Instant expiresAt, Definition definition, String reason,
       @JsonProperty("effective_from") Instant effectiveFrom) {}
+  record Decision(@JsonProperty("expected_revision") long expectedRevision, String decision,
+      String reason, @JsonProperty("signed_assertion") String signedAssertion) {}
   record Policy(String id, Long revision, @JsonProperty("service_id") String serviceId,
       @JsonProperty("expires_at") Instant expiresAt, String digest,
       @JsonProperty("proposed_by") String proposedBy, @JsonProperty("proposal_reason") String proposalReason,
