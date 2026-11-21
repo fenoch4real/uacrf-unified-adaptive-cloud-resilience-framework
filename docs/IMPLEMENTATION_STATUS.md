@@ -12,6 +12,9 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Milestone and capability tracker
 
+For individual work items, acceptance cases, and the per-run execution log,
+see the [granular delivery checklist](DELIVERY_CHECKLIST.md).
+
 **Status snapshot: 2026-11-20.** This roll-up summarizes the evidence and gaps
 recorded in the detailed sections below; it is not a percentage-complete
 estimate.
