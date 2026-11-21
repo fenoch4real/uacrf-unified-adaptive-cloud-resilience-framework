@@ -1183,6 +1183,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0096 | 2026-11-20 | M2-030b | Checked the runner's fixed loopback ports; no listeners were reported. Started the isolated browser suite. | Awaiting result; its disposable Compose project is scoped to the runner. |
 | R-0097 | 2026-11-20 | M2-030a–M2-030b | `bash e2e/run-live.sh` exited 0: all 11 browser tests passed, including pending import admission, unchanged replay, changed-request conflict, separate receipt readback and ungranted-user denial. | The stack is disposable and synthetic; it does not fetch or verify a source or establish provider acceptance. |
 | R-0098 | 2026-11-20 | M2-030a–M2-030b | Updated private technical approach Appendix AB to revision 185; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; actual import processing and provider acceptance remain open. |
+| R-0099 | 2026-11-20 | M2-030a–M2-030b | Committed the pending import browser flow as `6863cc7` and pushed it to `origin/main`. | Import resolution, proposal and provider acceptance remain open. |
 
 ## Implementation evidence
 
