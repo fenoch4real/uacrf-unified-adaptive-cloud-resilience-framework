@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**132 completed / 791 total** · 659 open
+**133 completed / 792 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 42 | 204 |
+| Milestone items | 43 | 205 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -320,6 +320,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
+  - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1189,6 +1190,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0101 | 2026-11-20 | M2-026a | `./mvnw -pl services/objectives -am clean test` exited 0: 29 S05 and 8 shared-security tests passed. | Added further conversion boundary assertions after this run; targeted re-verification is pending. |
 | R-0102 | 2026-11-20 | M2-026a | Focused `ObjectiveImportTargetConversionTests` exited 0: 3 tests passed, including exact conversions, invalid bounds, unsupported mappings, incompatible windows and nonterminating results. | The helper is not wired to import processing; provenance and full normalization remain open. |
 | R-0103 | 2026-11-20 | M2-026a | Updated private technical approach Appendix AB to revision 186; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the import worker and source verification remain open. |
+| R-0104 | 2026-11-20 | M2-026a | Committed the standalone conversion foundation as `5f40ccc` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0105 | 2026-11-20 | M2-027a | Started implementing the design's conservative three-way import classification. | This isolated foundation does not fetch or compare persisted definitions. |
+| R-0106 | 2026-11-20 | M2-027a | `./mvnw -pl services/objectives -am clean test` exited 0: 32 S05 and 8 shared-security tests passed, including three-way comparison, invalid scope, explicit withdrawal and malformed digests. | The helper is not wired to import processing; it cannot establish source scope or verify withdrawal. |
+| R-0107 | 2026-11-20 | M2-027a | Updated private technical approach Appendix AB to revision 187; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the import worker and source verification remain open. |
 
 ## Implementation evidence
 
@@ -2366,6 +2371,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   unsupported mappings, incompatible windows, out-of-range values and
   conversions requiring rounding. It is not connected to a worker and does
   not normalize whole definitions or establish source provenance.
+- A separately tested three-way digest classifier preserves conflicts and
+  treats incomplete or invalid scope as invalid even for a claimed withdrawal.
+  It does not retrieve definitions, establish completeness or verify removal.
 - S01 registers the `objectives.*` capabilities and issues S05 delegations. EDGE01
   routes only the public operations under `/internal/objectives`.
 - S01 now restricts new `objectives.objective.review` grants to human principals

@@ -82,6 +82,8 @@ S05 now implements only the durable admission portion of objective preview: an a
 
 S05 also contains a standalone tested helper for exact seconds/minutes and explicitly approved fraction/percent target conversions. It rejects incompatible windows, unsupported mappings, invalid ranges and conversions requiring rounding. It is not connected to import processing and does not normalize complete definitions or verify provenance.
 
+A standalone three-way digest classifier implements the finite comparison examples, preserving conflicts and treating incomplete or invalid scope as invalid even when withdrawal is claimed. It does not establish source completeness, verify withdrawal or read persisted definitions.
+
 The UI rehearses a fictional objective import conflict and lets the reader prepare a provider-scoped timing plan. It does not fetch external definitions, run collectors or timers, or change active objectives.
 
 ## Acceptance required before promotion
