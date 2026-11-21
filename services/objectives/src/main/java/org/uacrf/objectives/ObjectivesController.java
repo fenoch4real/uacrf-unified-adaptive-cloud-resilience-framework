@@ -105,6 +105,25 @@ class ObjectivesController {
             DelegationPrincipal.from(jwt), id, captureId, targetUnit, allowFractionToPercent));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals")
+  ResponseEntity<ObjectivesService.SyntheticMappingProposal> proposeSyntheticMapping(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody SyntheticMappingProposalRequest request) {
+    var result = objectives.proposeSyntheticMapping(
+        DelegationPrincipal.from(jwt), id, captureId, idempotencyKey, request);
+    return ResponseEntity.status(result.newlyCreated() ? HttpStatus.CREATED : HttpStatus.OK)
+        .cacheControl(CacheControl.noStore()).body(result.proposal());
+  }
+
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}")
+  ResponseEntity<ObjectivesService.SyntheticMappingProposal> getSyntheticMappingProposal(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.getSyntheticMappingProposal(DelegationPrincipal.from(jwt), id, captureId, proposalId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<Page<ObjectivesService.SampleCaptureSummary>> listSampleCaptures(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id,

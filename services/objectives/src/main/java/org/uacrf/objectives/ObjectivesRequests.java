@@ -50,6 +50,11 @@ final class ObjectivesRequests {
       @Min(1) long mappingRevision,
       @Min(0) long expectedLocalRevision) {}
 
+  record SyntheticMappingProposalRequest(
+      @NotBlank @Size(max = 80) String targetUnit,
+      boolean allowFractionToPercent,
+      @NotBlank @Size(max = 1000) String reason) {}
+
   record Transition(@Min(1) long expectedRevision) {}
 
   record IdempotentSubmission(

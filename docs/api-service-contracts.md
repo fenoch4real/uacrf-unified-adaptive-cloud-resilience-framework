@@ -246,6 +246,20 @@ the unkeyed route.
   the original delegation; UX01 provides a read-only form and displays the
   original and hypothetical definitions. The result is not persisted, does
   not verify the current source, approve a mapping or create an import candidate.
+- **Synthetic mapping proposals:** S05
+  `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals`
+  requires global objective-read and objective-write delegation, an
+  `Idempotency-Key`, a target unit and a reason. The optional
+  fraction-to-percent flag defaults to false.
+  It validates the retained capture and exact conversion, then retains an
+  immutable `UNAPPROVED`, `SYNTHETIC_UNVERIFIED` proposal with the actor,
+  capture identity and versioned source and normalized fingerprints. An
+  unchanged retry while the request is pending returns the same record; key
+  reuse with different valid input conflicts. The scoped `GET` ending in
+  `/mapping-proposals/{proposalId}` requires global objective-read delegation.
+  Both responses are `no-store`. These routes do not recheck current
+  membership or source state, approve a conversion, create a candidate or
+  process an import; EDGE01 and UX01 do not yet expose them.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

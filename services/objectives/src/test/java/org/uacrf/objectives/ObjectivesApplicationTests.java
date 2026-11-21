@@ -475,6 +475,66 @@ class ObjectivesApplicationTests {
         bearer("writer-only", tenant, List.of("objectives.objective.write"))).statusCode());
     assertEquals(404, get(rehearsalPath + "?targetUnit=minutes",
         bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
+    String proposals = historyPath + "/mapping-proposals";
+    String proposalBody = """
+        {"target_unit":"minutes","allow_fraction_to_percent":false,"reason":"Review this conversion"}
+        """;
+    String proposer = bearer("importer", tenant, PROPOSER);
+    var proposed = postWithIdempotency(proposals, proposer, proposalBody, "mapping-key");
+    assertEquals(201, proposed.statusCode());
+    assertThat(proposed.headers().firstValue("cache-control")).hasValue("no-store");
+    var proposedBody = json.readTree(proposed.body());
+    assertThat(proposedBody.path("status").asText()).isEqualTo("UNAPPROVED");
+    assertThat(proposedBody.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertThat(proposedBody.path("proposed_by").asText()).isEqualTo("https://uacrf.local/s01|importer");
+    assertThat(proposedBody.path("reason").asText()).isEqualTo("Review this conversion");
+    assertThat(proposedBody.path("target_unit").asText()).isEqualTo("minutes");
+    assertThat(proposedBody.path("source_fingerprint").asText()).isEqualTo(inspection.definitionFingerprint().digest());
+    assertThat(proposedBody.path("normalized_fingerprint").asText())
+        .isEqualTo(rehearsalBody.path("normalized_fingerprint").path("digest").asText());
+    assertThat(proposedBody.path("fingerprint_version").asText()).isEqualTo("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1");
+    String proposalId = proposedBody.path("proposal_id").asText();
+    var replayProposal = postWithIdempotency(proposals, proposer, proposalBody, "mapping-key");
+    assertEquals(200, replayProposal.statusCode());
+    assertThat(json.readTree(replayProposal.body())).isEqualTo(proposedBody);
+    assertEquals(409, postWithIdempotency(proposals, proposer,
+        proposalBody.replace("Review this conversion", "Different reason"), "mapping-key").statusCode());
+    assertEquals(400, postWithIdempotency(proposals, proposer,
+        proposalBody.replace("minutes", "invalid"), "invalid-mapping").statusCode());
+    assertEquals(400, postWithIdempotency(proposals, proposer,
+        proposalBody.replace("Review this conversion", " "), "empty-reason").statusCode());
+    assertEquals(400, post(proposals, proposer, proposalBody).statusCode());
+    assertEquals(403, postWithIdempotency(proposals, reader, proposalBody, "read-only").statusCode());
+    assertEquals(403, postWithIdempotency(proposals,
+        bearer("writer-only", tenant, List.of("objectives.objective.write")), proposalBody, "write-only").statusCode());
+    assertEquals(403, postWithIdempotency(proposals,
+        token("scoped", tenant, "w1", PROPOSER), proposalBody, "scoped").statusCode());
+    String proposalPath = proposals + "/" + proposalId;
+    var proposalRead = get(proposalPath, reader);
+    assertEquals(200, proposalRead.statusCode());
+    assertThat(proposalRead.headers().firstValue("cache-control")).hasValue("no-store");
+    assertThat(json.readTree(proposalRead.body())).isEqualTo(proposedBody);
+    assertEquals(404, get(proposalPath, bearer("reader", "other-tenant",
+        List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(proposalPath, tokenForEnvironment("reader", tenant, "other-environment", "*",
+        List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(proposals + "/" + java.util.UUID.randomUUID(), reader).statusCode());
+    assertThatThrownBy(() -> jdbc.update("UPDATE uacrf_objectives.synthetic_objective_mapping_proposal "
+        + "SET reason = 'changed' WHERE proposal_id = ?::uuid", proposalId))
+        .hasMessageContaining("proposals are immutable");
+    assertThatThrownBy(() -> jdbc.update("DELETE FROM uacrf_objectives.synthetic_objective_mapping_proposal "
+        + "WHERE proposal_id = ?::uuid", proposalId)).hasMessageContaining("proposals are immutable");
+    var proposalRequest = new ObjectivesRequests.SyntheticMappingProposalRequest("minutes", false, "Concurrent review");
+    try (var pool = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+      var attempts = java.util.stream.IntStream.range(0, 8)
+          .mapToObj(index -> pool.submit(() -> objectives.proposeSyntheticMapping(
+              actor, id, created.captureId(), "concurrent-mapping", proposalRequest)))
+          .toList();
+      var results = new java.util.ArrayList<ObjectivesService.SyntheticMappingAdmission>();
+      for (var attempt : attempts) results.add(attempt.get());
+      assertThat(results.stream().filter(ObjectivesService.SyntheticMappingAdmission::newlyCreated)).hasSize(1);
+      assertThat(results.stream().map(result -> result.proposal().proposalId()).distinct()).hasSize(1);
+    }
     var row = jdbc.queryForMap("SELECT payload, payload_digest, definition_fingerprint_version, "
         + "definition_fingerprint, verification, request_digest FROM "
         + "uacrf_objectives.synthetic_objective_source_capture WHERE capture_id = ?::uuid", created.captureId());
@@ -528,6 +588,13 @@ class ObjectivesApplicationTests {
       assertThat(results.stream().filter(ObjectivesService.SampleCapture::newlyCreated)).hasSize(1);
       assertThat(results.stream().map(ObjectivesService.SampleCapture::captureId).distinct()).hasSize(1);
     }
+    String secondCapture = objectives.captureSample(actor, id, "concurrent-key", request, fetched).captureId();
+    String otherProposals = "/v1/objective-imports/" + id + "/sample-captures/" + secondCapture
+        + "/mapping-proposals";
+    assertEquals(409, postWithIdempotency(otherProposals, proposer, proposalBody, "mapping-key").statusCode());
+    assertEquals(404, get(otherProposals + "/" + proposalId, reader).statusCode());
+    assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_mapping_proposal "
+        + "WHERE tenant_id = ?", Integer.class, tenant));
     assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_source_capture "
         + "WHERE tenant_id = ?", Integer.class, tenant));
     String listing = "/v1/objective-imports/" + id + "/sample-captures";

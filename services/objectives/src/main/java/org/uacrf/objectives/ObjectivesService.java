@@ -486,6 +486,100 @@ class ObjectivesService {
       ObjectiveImportFingerprint.Value sourceFingerprint, ObjectiveImportDefinition normalizedDefinition,
       ObjectiveImportFingerprint.Value normalizedFingerprint, String verification, String status) {}
 
+  @Transactional
+  SyntheticMappingAdmission proposeSyntheticMapping(DelegationPrincipal actor, String id, String captureId,
+      String idempotencyKey, SyntheticMappingProposalRequest request) {
+    requireCapability(actor, "objectives.objective.write");
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(idempotencyKey);
+    UUID command;
+    try {
+      command = UUID.fromString(id);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<UUID> locked = jdbc.query(
+        "SELECT command_id FROM " + SCHEMA
+            + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+            + "AND command_id = ? AND status = 'PENDING' FOR UPDATE",
+        (rs, row) -> rs.getObject("command_id", UUID.class),
+        actor.tenantId(), actor.environmentId(), command);
+    if (locked.isEmpty()) throw notFound();
+    SampleNormalizationRehearsal rehearsal = rehearseSampleNormalization(
+        actor, id, captureId, request.targetUnit(), request.allowFractionToPercent());
+    Map<String, Object> input = new TreeMap<>();
+    input.put("capture_id", rehearsal.captureId());
+    input.put("receipt_id", rehearsal.receiptId());
+    input.put("target_unit", request.targetUnit());
+    input.put("allow_fraction_to_percent", request.allowFractionToPercent());
+    input.put("reason", request.reason());
+    String requestDigest = sha256(serialize(input));
+    UUID proposalId = UUID.randomUUID();
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA + "synthetic_objective_mapping_proposal "
+            + "(proposal_id, tenant_id, environment_id, command_id, capture_id, proposed_by, idempotency_key, "
+            + "request_digest, target_unit, allow_fraction_to_percent, reason, fingerprint_version, "
+            + "source_fingerprint, normalized_fingerprint, status, verification) "
+            + "VALUES (?, ?, ?, ?, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNAPPROVED', 'SYNTHETIC_UNVERIFIED') "
+            + "ON CONFLICT (tenant_id, environment_id, proposed_by, idempotency_key) DO NOTHING",
+        proposalId, actor.tenantId(), actor.environmentId(), command, rehearsal.captureId(), actor.principalId(),
+        idempotencyKey, requestDigest, request.targetUnit(), request.allowFractionToPercent(), request.reason(),
+        rehearsal.sourceFingerprint().version(), rehearsal.sourceFingerprint().digest(),
+        rehearsal.normalizedFingerprint().digest());
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList(
+          "SELECT proposal_id, request_digest FROM " + SCHEMA
+              + "synthetic_objective_mapping_proposal WHERE tenant_id = ? AND environment_id = ? "
+              + "AND proposed_by = ? AND idempotency_key = ?",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey);
+      if (rows.isEmpty()) throw new IllegalStateException("The synthetic mapping proposal disappeared.");
+      Map<String, Object> existing = rows.getFirst();
+      if (!requestDigest.equals(existing.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key belongs to a different mapping proposal.");
+      }
+      proposalId = (UUID) existing.get("proposal_id");
+    }
+    return new SyntheticMappingAdmission(
+        getSyntheticMappingProposal(actor, id, captureId, proposalId.toString()), inserted == 1);
+  }
+
+  @Transactional(readOnly = true)
+  SyntheticMappingProposal getSyntheticMappingProposal(
+      DelegationPrincipal actor, String id, String captureId, String proposalId) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    UUID command;
+    UUID capture;
+    UUID proposal;
+    try {
+      command = UUID.fromString(id);
+      capture = UUID.fromString(captureId);
+      proposal = UUID.fromString(proposalId);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<SyntheticMappingProposal> rows = jdbc.query(
+        "SELECT proposal_id, command_id, capture_id, proposed_by, target_unit, allow_fraction_to_percent, "
+            + "reason, fingerprint_version, source_fingerprint, normalized_fingerprint, status, verification, "
+            + "proposed_at FROM " + SCHEMA + "synthetic_objective_mapping_proposal "
+            + "WHERE tenant_id = ? AND environment_id = ? AND command_id = ? AND capture_id = ? AND proposal_id = ?",
+        (rs, row) -> new SyntheticMappingProposal(rs.getString("proposal_id"), rs.getString("command_id"),
+            rs.getString("capture_id"), rs.getString("proposed_by"), rs.getString("target_unit"),
+            rs.getBoolean("allow_fraction_to_percent"), rs.getString("reason"), rs.getString("fingerprint_version"),
+            rs.getString("source_fingerprint").trim(), rs.getString("normalized_fingerprint").trim(),
+            rs.getString("status"), rs.getString("verification"), rs.getTimestamp("proposed_at").toInstant().toString()),
+        actor.tenantId(), actor.environmentId(), command, capture, proposal);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
+  }
+
+  record SyntheticMappingAdmission(SyntheticMappingProposal proposal, boolean newlyCreated) {}
+
+  record SyntheticMappingProposal(String proposalId, String receiptId, String captureId, String proposedBy,
+      String targetUnit, boolean allowFractionToPercent, String reason, String fingerprintVersion,
+      String sourceFingerprint, String normalizedFingerprint, String status, String verification, String proposedAt) {}
+
   @Transactional(readOnly = true)
   Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
     PendingImportReceipt receipt = getImportPreview(actor, id);

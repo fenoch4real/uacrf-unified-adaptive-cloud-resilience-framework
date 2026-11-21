@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**161 completed / 820 total** · 659 open
+**162 completed / 821 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 71 | 233 |
+| Milestone items | 72 | 234 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -342,6 +342,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026p Provide a read-only synthetic normalization rehearsal from a known retained capture, with exact conversion and versioned fingerprints; never treat it as an approved mapping or import candidate. Evidence: R-0241–R-0242.
   - [x] M2-026q Route the synthetic normalization rehearsal through EDGE01 without altering authorization or owner errors. Evidence: R-0246–R-0247.
   - [x] M2-026r Connect and verify the unapproved synthetic normalization rehearsal in UX01, including conversion, error and denial. Evidence: R-0246–R-0248.
+  - [x] M2-026s Retain an immutable, retry-safe, explicitly unapproved synthetic mapping proposal bound to an exact capture and its versioned fingerprints; authorize, isolate and read it in S05 without enabling import processing. Evidence: R-0253–R-0255.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1365,6 +1366,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0248 | 2026-11-21 | M2-026q–M2-026r | Checked the runner's fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the default-disabled source boundary remains in place. |
 | R-0249 | 2026-11-21 | M2-026q–M2-026r | Updated private technical approach Appendix AB to revision 212 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; approved mapping and import processing remain open. |
 | R-0250 | 2026-11-21 | M2-026q–M2-026r | Committed the edge and browser normalization rehearsal as `7a2920d` and pushed it to `origin/main`. | This read-only rehearsal does not produce an approved mapping or import candidate. |
+| R-0251 | 2026-11-21 | M2-026s | Started durable synthetic mapping proposals bound to a retained capture. | Proposals are unapproved and cannot authorize normalization or produce candidates. |
+| R-0252 | 2026-11-21 | M2-026s | Ran the focused S05 integration test. | It failed because the new test expected an unqualified actor; the verified delegation supplies an issuer-qualified principal. Corrected the assertion; rerun required. |
+| R-0253 | 2026-11-21 | M2-026s | Re-ran the focused S05 integration test with the issuer-qualified actor assertion. | The test passed, including authorization, context isolation, immutable retention, replay, conflict and eight concurrent submissions. Full regression remains open. |
+| R-0254 | 2026-11-21 | M2-026s | Ran the S05 and shared-security regression. | 46 S05 and 8 shared-security tests passed; added cross-capture key reuse and missing-key checks afterward, requiring another focused run. |
+| R-0255 | 2026-11-21 | M2-026s | Re-ran focused S05 integration after adding cross-capture and missing-key cases. | The test passed; proposals remain unapproved synthetic records and do not process imports. |
+| R-0256 | 2026-11-21 | M2-026s | Updated private technical approach Appendix AB to revision 213 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; independent approval and import processing remain open. |
 
 ## Implementation evidence
 
