@@ -553,6 +553,7 @@ class KnowledgeService {
   @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
   Retrieval getRetrieval(DelegationPrincipal actor, String retrievalId) {
     requireCapability(actor, "knowledge.retrieval.read");
+    requireGlobalScope(actor);
     return loadRetrieval(actor, retrievalId, true);
   }
 
@@ -584,6 +585,7 @@ class KnowledgeService {
   @Transactional(readOnly = true, isolation = Isolation.READ_COMMITTED)
   RetrievalReceipt receipt(DelegationPrincipal actor, String retrievalId, ReceiptRequest request) {
     requireCapability(actor, "knowledge.retrieval.read");
+    requireGlobalScope(actor);
     StoredRetrieval retrieval = loadStoredRetrieval(actor, retrievalId);
     requireClassification(actor, retrieval.maxClassification());
     List<StoredResult> storedResults = getStoredResults(actor, retrievalId);

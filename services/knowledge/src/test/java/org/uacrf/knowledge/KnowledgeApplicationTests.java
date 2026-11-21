@@ -97,6 +97,38 @@ class KnowledgeApplicationTests {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
+  void scopedRetrievalReaderCannotReadContentOrReceipt() throws Exception {
+    String tenant = "t-scoped-retrieval-read";
+    stageRequestAndApprove(
+        "scope-source",
+        stage("scope-source", "v1", "scope protected guidance")
+            .replace("\"classification\":\"INTERNAL\"", "\"classification\":\"PUBLIC\""),
+        bearer("proposer", tenant, WRITER),
+        bearer("reviewer", tenant, REVIEWER));
+    JsonNode retained =
+        run(bearer("search", tenant, RETRIEVER), "incident", "protected", "PUBLIC", null);
+    String id = retained.get("retrieval_id").asText();
+    assertThat(retained.toString()).contains("scope protected guidance");
+    String scoped = token("reader", tenant, "workload-1", READER);
+    String global = bearer("reader", tenant, READER);
+
+    var denied = get("/v1/retrievals/" + id, scoped);
+    assertEquals(403, denied.statusCode());
+    assertThat(denied.body()).doesNotContain("scope protected guidance");
+    var allowed = get("/v1/retrievals/" + id, global);
+    assertEquals(200, allowed.statusCode());
+    assertThat(allowed.body()).contains("scope protected guidance");
+    String receipt = "{\"case_id\":\"case-1\",\"purpose\":\"incident\","
+        + "\"classification\":\"PUBLIC\",\"manifest_digest\":\""
+        + retained.get("manifest_digest").asText() + "\"}";
+    String path = "/internal/v1/retrievals/" + id + ":receipt";
+    assertEquals(403, post(path, scoped, receipt).statusCode());
+    var globalReceipt = post(path, global, receipt);
+    assertEquals(409, globalReceipt.statusCode());
+    assertThat(globalReceipt.body()).contains("MANIFEST_MISMATCH");
+  }
+
+  @Test
   void retrievalHistoryIsPagedTenantScopedAndClassificationFiltered() throws Exception {
     String tenant = "t-retrieval-history";
     String runner = bearer("searcher", tenant, RETRIEVER);

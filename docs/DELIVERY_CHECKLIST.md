@@ -285,6 +285,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-022c Connect the review form and recorded decision display with separate read/review grants. Evidence: R-0025 and R-0029.
   - [x] M2-022d Verify concurrent retries, conflicts, stale revisions, independent-review denial and browser authorization. Evidence: R-0028 and R-0029; synthetic/local scope only.
   - [x] M2-022e Update contracts, status and private approach document after verification. Evidence: R-0030.
+  - [ ] M2-022f Implement and verify attributable decision-history disclosure, explicitly identifying any legacy history that cannot be reconstructed.
 - [ ] M2-023 Connect objective activation and active-objective readback through the browser.
 - [ ] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
@@ -372,6 +373,8 @@ Evidence and limits: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-
 
 - [ ] M3-006 Complete knowledge staging, independent approval, retrieval and withdrawal as a connected workflow with current disclosure checks.
 - [ ] M3-007 Verify approved knowledge cannot be disclosed after relevant access or source eligibility changes.
+  - [x] M3-007a Require global service scope for retrieval content and receipt reads until owner-verified workload scopes exist. Evidence: R-0050.
+  - [x] M3-007b Verify scoped delegations cannot read retained retrieval content or receipts, while global reads still work. Evidence: R-0050.
 
 ### S09 advisory
 
@@ -1098,6 +1101,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0045 | 2026-11-20 | Delivery tracking | The first post-edit grouping check failed because its section-boundary pattern treated nested headings as milestone boundaries. | Corrected the validation and reran it in R-0046; no checklist data was changed by the check. |
 | R-0046 | 2026-11-20 | Delivery tracking | The second grouping check failed because its scan started inside the current heading and misidentified it as the next heading. | The validation was corrected to start after the heading; the document itself was unchanged. |
 | R-0047 | 2026-11-20 | Delivery tracking | Verified all 773 checkbox IDs, states and descriptions are unchanged; all 90 historical items are grouped by milestone or service; all 428 source allocations, local links, anchors and 42 earlier log rows are retained. `git diff --check` passes. | This verifies document preservation, not implementation or acceptance. |
+| R-0048 | 2026-11-20 | M2-022f, M3-007a–M3-007b | Started parallel objective-history implementation and a separate S08 retrieval-scope disclosure check. | Both are in progress; synthetic provider data does not satisfy live-provider acceptance. |
+| R-0049 | 2026-11-20 | M3-007a–M3-007b | Clean focused S08 reactor passed 3 tests, including scoped retrieval denial and existing classification/history checks. | Broader S08 regression and final tightened assertions remain to be verified. |
+| R-0050 | 2026-11-20 | M3-007a–M3-007b | S08 application and advisory integration suites passed 25 tests, including scoped denial and global read behavior. | Current requester-authority refresh and broader source-eligibility guarantees remain open. |
+| R-0051 | 2026-11-20 | M3-007a–M3-007b | Updated private technical approach Appendix AB to revision 176; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; M3-007 remains open. |
 
 ## Implementation evidence
 
@@ -2705,7 +2712,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   `GET /v1/retrievals/{id}` rechecks the retained source and excerpt digests
   and only returns excerpt text while its source version remains APPROVED,
   unwithdrawn, before its review deadline, and purpose/classification eligible
-  for the current reader. Expired reviews are also excluded from new searches
+  for the current reader. This read and the internal retrieval receipt now
+  require global service scope; a narrower service-scoped delegation is denied
+  because retrievals do not establish owner-verified service scope. Expired reviews are also excluded from new searches
   and cause S09 eligibility receipts to fail closed.
   Withdrawal blocks new
   retrievals immediately and conceals prior excerpts while retaining
