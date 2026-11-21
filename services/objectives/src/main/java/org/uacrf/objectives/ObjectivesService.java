@@ -422,6 +422,43 @@ class ObjectivesService {
 
   record SampleCapture(String captureId, String receiptId, String capturedAt, boolean newlyCreated) {}
 
+  @Transactional(readOnly = true)
+  RetainedSampleCapture getRetainedSampleCapture(DelegationPrincipal actor, String id, String captureId) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    UUID command;
+    UUID capture;
+    try {
+      command = UUID.fromString(id);
+      capture = UUID.fromString(captureId);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<RetainedSampleCapture> rows = jdbc.query(
+        "SELECT capture_id, command_id, captured_at, actor_id, request_digest, connection_id, "
+            + "connection_revision, binding_id, binding_revision, target_workload_id, source_system, "
+            + "external_objective_id, source_version, payload, payload_digest, "
+            + "definition_fingerprint_version, definition_fingerprint, verification FROM " + SCHEMA
+            + "synthetic_objective_source_capture WHERE tenant_id = ? AND environment_id = ? "
+            + "AND command_id = ? AND capture_id = ?",
+        (rs, n) -> new RetainedSampleCapture(rs.getString("capture_id"), rs.getString("command_id"),
+            rs.getTimestamp("captured_at").toInstant().toString(), rs.getString("actor_id"),
+            rs.getString("request_digest").trim(), rs.getString("connection_id"),
+            rs.getLong("connection_revision"), rs.getString("binding_id"), rs.getLong("binding_revision"),
+            rs.getString("target_workload_id"), rs.getString("source_system"), rs.getString("external_objective_id"),
+            rs.getString("source_version"), rs.getString("payload"), rs.getString("payload_digest").trim(),
+            rs.getString("definition_fingerprint_version"), rs.getString("definition_fingerprint").trim(),
+            rs.getString("verification")),
+        actor.tenantId(), actor.environmentId(), command, capture);
+    if (rows.isEmpty()) throw notFound();
+    return rows.getFirst();
+  }
+
+  record RetainedSampleCapture(String captureId, String receiptId, String capturedAt, String actorId,
+      String requestDigest, String connectionId, long connectionRevision, String bindingId, long bindingRevision,
+      String targetWorkloadId, String sourceSystem, String externalObjectiveId, String sourceVersion, String payload,
+      String payloadDigest, String definitionFingerprintVersion, String definitionFingerprint, String verification) {}
+
   @Transactional
   Objective submit(DelegationPrincipal actor, String id, Transition request) {
     requireCapability(actor, "objectives.objective.write");

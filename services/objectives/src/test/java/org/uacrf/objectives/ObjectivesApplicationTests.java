@@ -420,6 +420,31 @@ class ObjectivesApplicationTests {
     assertThat(replay.newlyCreated()).isFalse();
     assertThat(replay.captureId()).isEqualTo(created.captureId());
     assertThat(replay.capturedAt()).isEqualTo(created.capturedAt());
+    String historyPath = "/v1/objective-imports/" + id + "/sample-captures/" + created.captureId();
+    String reader = bearer("reader", tenant, List.of("objectives.objective.read"));
+    var captureRead = get(historyPath, reader);
+    assertEquals(200, captureRead.statusCode());
+    assertThat(captureRead.headers().firstValue("cache-control")).hasValue("no-store");
+    var readBody = json.readTree(captureRead.body());
+    assertThat(readBody.path("payload").asText()).isEqualTo(payload);
+    assertThat(readBody.path("receipt_id").asText()).isEqualTo(id);
+    assertThat(readBody.path("capture_id").asText()).isEqualTo(created.captureId());
+    assertThat(readBody.path("actor_id").asText()).isEqualTo("importer");
+    assertThat(readBody.path("request_digest").asText()).isEqualTo(request.requestDigest());
+    assertThat(readBody.path("payload_digest").asText()).isEqualTo(digest);
+    assertThat(readBody.path("connection_revision").asLong()).isEqualTo(1);
+    assertThat(readBody.path("binding_revision").asLong()).isEqualTo(2);
+    assertThat(readBody.path("definition_fingerprint").asText()).isEqualTo(inspection.definitionFingerprint().digest());
+    assertThat(readBody.path("definition_fingerprint_version").asText()).isEqualTo("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1");
+    assertThat(readBody.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertEquals(403, get(historyPath, bearer("writer-only", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(403, get(historyPath, token("scoped", tenant, "w1", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(historyPath, bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(historyPath, tokenForEnvironment("reader", tenant, "other-environment", "*",
+        List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get("/v1/objective-imports/" + java.util.UUID.randomUUID() + "/sample-captures/"
+        + created.captureId(), reader).statusCode());
+    assertEquals(404, get("/v1/objective-imports/" + id + "/sample-captures/not-a-uuid", reader).statusCode());
     var row = jdbc.queryForMap("SELECT payload, payload_digest, definition_fingerprint_version, "
         + "definition_fingerprint, verification, request_digest FROM "
         + "uacrf_objectives.synthetic_objective_source_capture WHERE capture_id = ?::uuid", created.captureId());
@@ -441,6 +466,8 @@ class ObjectivesApplicationTests {
         bearer("importer", tenant, PROPOSER),
         importPreview("sample:checkout-recovery", "w1", 2, 0), "second-preview");
     String otherId = extractString(other.body(), "receipt_id");
+    assertEquals(404, get("/v1/objective-imports/" + otherId + "/sample-captures/" + created.captureId(),
+        reader).statusCode());
     var otherRequest = objectives.getSampleCaptureRequest(actor, otherId, "capture-key");
     assertThatThrownBy(() -> objectives.captureSample(actor, otherId, "capture-key", otherRequest, fetched))
         .isInstanceOfSatisfying(ObjectivesException.class,

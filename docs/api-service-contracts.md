@@ -212,8 +212,13 @@ the unkeyed route.
   differ, and requests a separate global read/write delegation. Its
   context-bound retry form preserves the idempotency key after an uncertain
   outcome. The browser receipt is historical and unverified; it does not
-  display the captured payload or fingerprint. There is no public
-  capture-history read yet.
+  display the captured payload or fingerprint. S05
+  `GET /v1/objective-imports/{id}/sample-captures/{captureId}` returns the
+  retained exact payload and capture metadata with `no-store`, requiring a
+  global objective-read delegation and matching tenant, environment, request
+  and capture IDs. It reads a historical observation without refetching or
+  reauthorizing the source; it does not establish trusted provenance.
+  Capture listing, EDGE01 forwarding and browser history remain open.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

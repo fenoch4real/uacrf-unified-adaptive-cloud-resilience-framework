@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**151 completed / 810 total** · 659 open
+**152 completed / 811 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 61 | 223 |
+| Milestone items | 62 | 224 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -331,7 +331,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026e Expose a versioned fingerprint of the inspected fictional source definition in its original units through S05, EDGE01 and UX01; verify exact values, invalid input and browser readback without implying mapping approval or persistence. Evidence: R-0182–R-0185.
   - [x] M2-026f Retain immutable, retry-safe fictional source captures for pending requests in S05, including exact source payload and versioned definition fingerprint; verify authorization, isolation and transactional integrity without treating captures as trusted provenance. Evidence: R-0189–R-0193.
   - [x] M2-026g Forward the explicit synthetic source-capture operation through EDGE01, preserving the original delegation, idempotency key, owner response and no-store behavior. Evidence: R-0199.
-  - [x] M2-026h Connect fictional source capture to UX01 with explicit refetch disclosure, separate read/write authority, context-bound retry and verified browser success and denial.
+  - [x] M2-026h Connect fictional source capture to UX01 with explicit refetch disclosure, separate read/write authority, context-bound retry and verified browser success and denial. Evidence: R-0204–R-0206.
+  - [x] M2-026i Read a specific retained fictional capture from S05 by request and capture ID, scoped to tenant/environment and global objective-read authority, without source reauthorization or trusted-provenance claims. Evidence: R-0210–R-0211.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1312,6 +1313,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0205 | 2026-11-21 | M2-026h | Ran the isolated enabled browser suite through UX01, EDGE01, S05, S01 and S03. | 11 tests passed, including capture, same-key replay, denial and pending readback; test TLS ends at the disposable proxy. |
 | R-0206 | 2026-11-21 | M2-026h | Ran the isolated default-disabled browser regression. | 11 tests passed; source inspection remains disabled by default. |
 | R-0207 | 2026-11-21 | M2-026h | Updated the private technical approach Appendix AB to revision 204 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; history, approved mapping and import processing remain open. |
+| R-0208 | 2026-11-21 | M2-026h | Committed the verified capture UI as `20e04fc` and pushed it to `origin/main`. | Complete import processing and capture-history navigation remain open. |
+| R-0209 | 2026-11-21 | M2-026i | Started an authorized, request-scoped read for a specific immutable synthetic capture. | Listing and browser navigation remain separate work. |
+| R-0210 | 2026-11-21 | M2-026i | Ran the focused S05 capture retention and read test. | One test passed, including no-store, exact payload, fingerprints and tenant/environment/scope denial; broader regression remains open. |
+| R-0211 | 2026-11-21 | M2-026i | Ran S05 and shared-security regression with retained-capture read and isolation checks. | 46 S05 and 8 shared-security tests passed; edge forwarding, capture listing and browser history remain open. |
+| R-0212 | 2026-11-21 | M2-026i | Updated private technical approach Appendix AB to revision 205 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; the read is historical and does not establish trusted provenance. |
 
 ## Implementation evidence
 

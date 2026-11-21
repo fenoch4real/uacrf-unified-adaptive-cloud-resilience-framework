@@ -89,6 +89,13 @@ class ObjectivesController {
 
   record SampleCaptureReceipt(String captureId, String receiptId, String capturedAt, String verification) {}
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}")
+  ResponseEntity<ObjectivesService.RetainedSampleCapture> getSampleCapture(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.getRetainedSampleCapture(DelegationPrincipal.from(jwt), id, captureId));
+  }
+
   @GetMapping("/v1/objective-imports")
   Page<PendingImportSummary> listImportPreviews(
       @AuthenticationPrincipal Jwt jwt,
