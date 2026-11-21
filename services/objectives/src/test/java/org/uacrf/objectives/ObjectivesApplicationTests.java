@@ -524,6 +524,17 @@ class ObjectivesApplicationTests {
     var empty = get("/v1/objective-imports/" + otherId + "/sample-captures", reader);
     assertEquals(200, empty.statusCode());
     assertThat(json.readTree(empty.body()).path("items").isEmpty()).isTrue();
+    assertEquals(400, get("/v1/objective-imports/" + otherId + "/sample-captures?cursor="
+        + firstBody.path("next_cursor").asText(), reader).statusCode());
+    String legacyCursor = java.util.Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(created.captureId().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    assertEquals(400, get(listing + "?cursor=" + legacyCursor, reader).statusCode());
+    String encoded = firstBody.path("next_cursor").asText();
+    String decoded = new String(java.util.Base64.getUrlDecoder().decode(encoded), java.nio.charset.StandardCharsets.UTF_8);
+    String malformedCursor = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
+        (decoded.substring(0, decoded.lastIndexOf(':') + 1) + "not-a-uuid")
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    assertEquals(400, get(listing + "?cursor=" + malformedCursor, reader).statusCode());
     assertThat(get("/v1/objective-imports/" + id, bearer("importer", tenant, PROPOSER)).body())
         .contains("PENDING");
   }

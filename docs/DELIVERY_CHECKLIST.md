@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**157 completed / 816 total** · 659 open
+**158 completed / 817 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 67 | 229 |
+| Milestone items | 68 | 230 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -338,6 +338,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026l List bounded, request-scoped retained synthetic captures in S05 with pagination, read authorization and context isolation. Evidence: R-0225–R-0226.
   - [x] M2-026m Forward the retained synthetic capture list through EDGE01 with original authorization and no-store. Evidence: R-0229.
   - [x] M2-026n Connect paginated retained capture listing to UX01 and verify browser navigation and authorization. Evidence: R-0230–R-0232.
+  - [x] M2-026o Bind capture-list cursors to their tenant, environment and import request; reject use across scopes without treating a cursor as authority. Evidence: R-0236–R-0237.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1344,6 +1345,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0231 | 2026-11-21 | M2-026n | Ran the enabled isolated browser suite with 26 fictional captures. | 11 tests passed, including first/next page navigation, retained-capture details and restricted-user denial; test TLS terminates at the disposable proxy. |
 | R-0232 | 2026-11-21 | M2-026n | Ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic source client remains disabled by default. |
 | R-0233 | 2026-11-21 | M2-026m–M2-026n | Updated private technical approach Appendix AB to revision 209 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; broader import history and processing remain open. |
+| R-0234 | 2026-11-21 | M2-026m–M2-026n | Committed the capture-history browser flow as `1a5f2d6` and pushed it to `origin/main`. | Import processing and provider provenance remain open. |
+| R-0235 | 2026-11-21 | M2-026o | Started binding capture-list cursors to the request context, as specified by the proposed import contract. | Query authorization is independent of cursor contents; mismatched cursors must not silently skip records. |
+| R-0236 | 2026-11-21 | M2-026o | Ran the focused S05 capture-list test with the new context-bound cursor. | Same-request pagination and cross-request, legacy and malformed-cursor rejection passed; connected browser verification remains open. |
+| R-0237 | 2026-11-21 | M2-026o | Ran the enabled isolated browser suite with context-bound cursors and 26 fictional captures. | 11 tests passed, including first/next navigation and denial; legacy cursors require restarting from the first page. |
+| R-0238 | 2026-11-21 | M2-026o | Updated private technical approach Appendix AB to revision 210 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; cursor binding does not grant authorization or provide a snapshot. |
 
 ## Implementation evidence
 

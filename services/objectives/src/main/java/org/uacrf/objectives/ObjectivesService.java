@@ -454,7 +454,23 @@ class ObjectivesService {
   Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
     PendingImportReceipt receipt = getImportPreview(actor, id);
     UUID command = UUID.fromString(receipt.receiptId());
-    UUID after = decodeUuidCursor(cursor);
+    String scope = sha256(serialize(new TreeMap<>(Map.of("tenant_id", actor.tenantId(),
+        "environment_id", actor.environmentId(), "receipt_id", command.toString()))));
+    String decoded = decodeCursor(cursor);
+    UUID after = null;
+    if (!decoded.isEmpty()) {
+      String prefix = "SC1:" + scope + ":";
+      if (!decoded.startsWith(prefix)) {
+        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor does not match this request.");
+      }
+      String position = decoded.substring(prefix.length());
+      try {
+        after = UUID.fromString(position);
+        if (!after.toString().equals(position)) throw new IllegalArgumentException();
+      } catch (IllegalArgumentException error) {
+        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");
+      }
+    }
     List<SampleCaptureSummary> rows = jdbc.query(
         "SELECT capture_id, captured_at, verification FROM " + SCHEMA
             + "synthetic_objective_source_capture WHERE tenant_id = ? AND environment_id = ? "
@@ -465,7 +481,7 @@ class ObjectivesService {
     boolean more = rows.size() > pageSize;
     List<SampleCaptureSummary> items = more ? rows.subList(0, pageSize) : rows;
     String next = more ? Base64.getUrlEncoder().withoutPadding().encodeToString(
-        items.getLast().captureId().getBytes(StandardCharsets.UTF_8)) : null;
+        ("SC1:" + scope + ":" + items.getLast().captureId()).getBytes(StandardCharsets.UTF_8)) : null;
     return new Page<>(items, next);
   }
 
