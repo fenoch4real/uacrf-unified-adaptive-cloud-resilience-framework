@@ -134,6 +134,13 @@ access and inspection. The default run checks the disabled inspection error;
 the opt-in TLS run reads the bound fictional source through UX01, EDGE01, S05,
 S01 and S03 and confirms the receipt remains pending. Neither run verifies a
 provider or produces a comparison or imported proposal.
+The opt-in run also discovers and reviews a synthetic mapping proposal, checks
+self-review denial, and replays and reads an independent decision through UX01,
+EDGE01, S05 and a real S01 reviewer-authority check. Its S05 service principal
+and check grant are inserted directly into the disposable identity database,
+bypassing admission. The disposable TLS proxy forwards to Keycloak and S01 over
+HTTP on the isolated network; this is not end-to-end TLS evidence. The decision
+does not establish trusted provenance or process an import.
 The user can also enter a saved receipt ID on the import page to reopen it;
 the browser test checks this lookup and denial without read authority. It is
 not a completed-import history. The suite also admits 25 more synthetic

@@ -31,8 +31,12 @@ class SampleTlsProxy {
       String path = exchange.getRequestURI().getRawPath();
       String base;
       if ("POST".equals(exchange.getRequestMethod())
-          && "/internal/v1/delegations:exchange".equals(path)) {
+          && ("/internal/v1/delegations:exchange".equals(path)
+              || "/internal/v1/objective-review-authority:check".equals(path))) {
         base = "http://identity:8082";
+      } else if ("POST".equals(exchange.getRequestMethod())
+          && "/realms/uacrf/protocol/openid-connect/token".equals(path)) {
+        base = "http://keycloak:8080";
       } else if ("GET".equals(exchange.getRequestMethod())
           && path.matches("/v1/connections/[A-Za-z0-9_.:%-]+/sample-objective-definition")) {
         base = "http://connections:8085";

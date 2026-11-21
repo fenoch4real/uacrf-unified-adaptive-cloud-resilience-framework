@@ -282,7 +282,10 @@ the unkeyed route.
   to that historical capture, not a general mapping or provider provenance.
   EDGE01 forwards review admission, discovery and known-review read with the
   original delegation and idempotency key where applicable, preserving owner
-  responses. No candidate or import is processed; UX01 review access remains open.
+  responses. UX01 displays the proposal, discovers an existing decision, and
+  submits an independent decision using separate read and review delegations.
+  It binds submission to the displayed digest and retains the same key and
+  fields for retry in the same context. No candidate or import is processed.
 
   `SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1` hashes UTF-8 compact JSON with keys in
   alphabetical order: `allow_fraction_to_percent`, `capture_id`,

@@ -546,7 +546,8 @@ class WebApplicationTests {
     String proposal = "12345678-1234-4234-8234-123456789015";
     var record = new ObjectivesClient.SyntheticMappingProposal(proposal, id, capture, "actor", "minutes", false,
         "<review>", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), "b".repeat(64),
-        "UNAPPROVED", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z");
+        "UNAPPROVED", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z",
+        "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1", "c".repeat(64));
     when(identity.createDelegation("test-access-token", "S05", null,
         List.of("objectives.objective.read", "objectives.objective.write"), "tenant-test", "environment-test"))
         .thenReturn(new IdentityAccessClient.Delegation("writer", "Bearer", 30));
@@ -587,6 +588,71 @@ class WebApplicationTests {
     mockMvc.perform(syntheticMappingForm()).andExpect(status().isForbidden())
         .andExpect(content().string(containsString("HTTP 403")));
     verifyNoInteractions(objectives);
+  }
+
+  @Test
+  void syntheticReviewDiscoverySubmissionRetryAndContextAreBound() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposalId = "12345678-1234-4234-8234-123456789015";
+    String key = "12345678-1234-4234-8234-123456789016";
+    String version = "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1";
+    String digest = "c".repeat(64);
+    String path = "/objectives/import/receipt/synthetic-mapping-review";
+    var proposal = new ObjectivesClient.SyntheticMappingProposal(proposalId, id, capture, "actor", "minutes", false,
+        "<proposal>", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), "b".repeat(64),
+        "UNAPPROVED", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z", version, digest);
+    var review = new ObjectivesClient.SyntheticMappingReview("12345678-1234-4234-8234-123456789017",
+        id, capture, proposalId, "reviewer", version, digest, "APPROVE", "<review>",
+        "SYNTHETIC_UNVERIFIED", "2026-11-21T00:01:00Z");
+    when(identity.createDelegation("test-access-token", "S05", null, List.of("objectives.objective.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read", "objectives.objective.review"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reviewer", "Bearer", 30));
+    when(objectives.syntheticMappingProposal("reader", id, capture, proposalId)).thenReturn(proposal);
+    when(objectives.syntheticMappingReviews("reader", proposal))
+        .thenReturn(new ObjectivesClient.SyntheticMappingReviews(List.of()))
+        .thenReturn(new ObjectivesClient.SyntheticMappingReviews(List.of(review)));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString("Record synthetic decision")))
+        .andExpect(content().string(containsString("&lt;proposal&gt;")));
+    var reviewRequest = new ObjectivesClient.SyntheticMappingReviewRequest("APPROVE", "<review>", version, digest);
+    when(objectives.reviewSyntheticMapping("reviewer", proposal, key, reviewRequest))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(review);
+    var postForm = post(path).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("receiptId", id).param("captureId", capture).param("proposalId", proposalId)
+        .param("proposalDigestVersion", version).param("proposalDigest", digest)
+        .param("decision", "APPROVE").param("reason", "<review>").param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+    mockMvc.perform(postForm).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Retry this review")))
+        .andExpect(content().string(containsString("&lt;review&gt;")))
+        .andExpect(content().string(containsString(key)));
+    mockMvc.perform(postForm).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Retained synthetic decision")))
+        .andExpect(content().string(containsString("&lt;review&gt;")));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Retained synthetic decision")));
+    verify(objectives, org.mockito.Mockito.times(2)).reviewSyntheticMapping("reviewer", proposal, key, reviewRequest);
+    mockMvc.perform(post(path).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(post(path).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("tenantId", "different").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject")).andExpect(status().isConflict());
+    mockMvc.perform(post(path).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("receiptId", id).param("captureId", capture).param("proposalId", proposalId)
+        .param("proposalDigestVersion", version).param("proposalDigest", "d".repeat(64))
+        .param("decision", "APPROVE").param("reason", "<review>").param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject")).andExpect(status().isConflict())
+        .andExpect(content().string(containsString("differs from the reviewed content")));
+    verify(objectives, org.mockito.Mockito.times(2)).reviewSyntheticMapping("reviewer", proposal, key, reviewRequest);
   }
 
   @Test

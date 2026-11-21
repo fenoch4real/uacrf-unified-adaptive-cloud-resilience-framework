@@ -15,6 +15,11 @@ services:
       UACRF_OBJECTIVES_SAMPLE_SOURCE_ENABLED: "true"
       UACRF_OBJECTIVES_SAMPLE_SOURCE_IDENTITY_BASE_URL: https://sample-test-proxy:8443
       UACRF_OBJECTIVES_SAMPLE_SOURCE_CONNECTIONS_BASE_URL: https://sample-test-proxy:8443
+      UACRF_OBJECTIVES_REVIEWER_CHECK_ENABLED: "true"
+      UACRF_OBJECTIVES_REVIEWER_CHECK_TOKEN_URL: https://sample-test-proxy:8443/realms/uacrf/protocol/openid-connect/token
+      UACRF_OBJECTIVES_REVIEWER_CHECK_IDENTITY_BASE_URL: https://sample-test-proxy:8443
+      UACRF_OBJECTIVES_REVIEWER_CHECK_CLIENT_ID: uacrf-s05-objective-reviewer
+      UACRF_OBJECTIVES_REVIEWER_CHECK_CLIENT_SECRET: ${KEYCLOAK_S05_OBJECTIVE_REVIEWER_CLIENT_SECRET:?}
       JAVA_TOOL_OPTIONS: "-Djavax.net.ssl.trustStore=/fixture/trust.p12 -Djavax.net.ssl.trustStorePassword=isolated-test-only"
     volumes:
       - ${UACRF_E2E_TLS_DIR:?}/trust.p12:/fixture/trust.p12:ro

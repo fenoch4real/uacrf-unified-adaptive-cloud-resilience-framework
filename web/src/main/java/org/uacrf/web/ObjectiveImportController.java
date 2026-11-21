@@ -389,6 +389,101 @@ class ObjectiveImportController {
     return "objective-import-synthetic-mapping";
   }
 
+  @GetMapping("/objectives/import/receipt/synthetic-mapping-review")
+  String syntheticMappingReview(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id,
+      @RequestParam String captureId, @RequestParam String proposalId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!ObjectivesClient.validUuid(id) || !ObjectivesClient.validUuid(captureId)
+        || !ObjectivesClient.validUuid(proposalId)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("reviewError", "Provide valid request, capture and proposal IDs.");
+      return "objective-import-synthetic-review";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      var proposal = objectives.syntheticMappingProposal(token, id, captureId, proposalId);
+      var reviews = objectives.syntheticMappingReviews(token, proposal);
+      model.addAttribute("mappingProposal", proposal);
+      if (reviews.items().isEmpty()) {
+        model.addAttribute("reviewForm", new SyntheticReviewForm(id, captureId, proposalId,
+            proposal.proposalDigestVersion(), proposal.proposalDigest(), "", "", UUID.randomUUID().toString(),
+            context.tenantId(), context.environmentId(), client.getPrincipalName()));
+      } else {
+        model.addAttribute("mappingReview", reviews.items().getFirst());
+      }
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("reviewError", "Identity or objectives service is unavailable; the review was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("reviewError", "Review access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("reviewError", "Identity or objectives service returned an invalid review.");
+    }
+    return "objective-import-synthetic-review";
+  }
+
+  @PostMapping("/objectives/import/receipt/synthetic-mapping-review")
+  String reviewSyntheticMapping(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @Valid @ModelAttribute("reviewForm") SyntheticReviewForm form, BindingResult errors, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!context.tenantId().equals(form.tenantId()) || !context.environmentId().equals(form.environmentId())
+        || !client.getPrincipalName().equals(form.principalName())) {
+      response.setStatus(HttpStatus.CONFLICT.value());
+      model.addAttribute("reviewError", "The signed-in user or context changed; reopen the review.");
+      return "objective-import-synthetic-review";
+    }
+    if (errors.hasErrors() || !ObjectivesClient.validUuid(form.receiptId())
+        || !ObjectivesClient.validUuid(form.captureId()) || !ObjectivesClient.validUuid(form.proposalId())) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("reviewError", "The review form is invalid; reopen the proposal and review it again.");
+      return "objective-import-synthetic-review";
+    }
+    model.addAttribute("retryAllowed", true);
+    try {
+      String access = client.getAccessToken().getTokenValue();
+      String readToken = identity.createDelegation(access, "S05", null, List.of("objectives.objective.read"),
+          context.tenantId(), context.environmentId()).accessToken();
+      var proposal = objectives.syntheticMappingProposal(
+          readToken, form.receiptId(), form.captureId(), form.proposalId());
+      if (!proposal.proposalDigestVersion().equals(form.proposalDigestVersion())
+          || !proposal.proposalDigest().equals(form.proposalDigest())) {
+        response.setStatus(HttpStatus.CONFLICT.value());
+        model.addAttribute("retryAllowed", false);
+        model.addAttribute("reviewError", "The proposal differs from the reviewed content; reopen the review.");
+        return "objective-import-synthetic-review";
+      }
+      String reviewToken = identity.createDelegation(access, "S05", null,
+          List.of("objectives.objective.read", "objectives.objective.review"),
+          context.tenantId(), context.environmentId()).accessToken();
+      var request = new ObjectivesClient.SyntheticMappingReviewRequest(
+          form.decision(), form.reason(), form.proposalDigestVersion(), form.proposalDigest());
+      model.addAttribute("mappingProposal", proposal);
+      model.addAttribute("mappingReview", objectives.reviewSyntheticMapping(
+          reviewToken, proposal, form.idempotencyKey(), request));
+      model.addAttribute("retryAllowed", false);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("reviewError", "The review outcome is unconfirmed. Retry this same form in the same context.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("reviewError", "Review failed or is unconfirmed (HTTP " + error.getStatusCode().value()
+          + "). Retry only this same form in the same context.");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("reviewError", "The response was invalid; the outcome is unconfirmed. Retry this same form.");
+    }
+    return "objective-import-synthetic-review";
+  }
+
   @GetMapping("/objectives/import/requests")
   String requests(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,
@@ -426,6 +521,14 @@ class ObjectiveImportController {
 
   record SyntheticMappingForm(@NotBlank String receiptId, @NotBlank String captureId,
       @NotBlank @Size(max=80) String targetUnit, @NotNull Boolean allowFractionToPercent,
+      @NotBlank @Size(max=1000) String reason,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
+      @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
+
+  record SyntheticReviewForm(@NotBlank String receiptId, @NotBlank String captureId, @NotBlank String proposalId,
+      @NotBlank @Pattern(regexp="^SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1$") String proposalDigestVersion,
+      @NotBlank @Pattern(regexp="^[a-f0-9]{64}$") String proposalDigest,
+      @NotBlank @Pattern(regexp="^(APPROVE|REJECT)$") String decision,
       @NotBlank @Size(max=1000) String reason,
       @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
       @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}

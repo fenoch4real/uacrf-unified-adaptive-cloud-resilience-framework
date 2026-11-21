@@ -27,6 +27,7 @@
       <dt>Verification</dt><dd th:text="${mappingProposal.verification}"></dd>
     </dl>
     <p><a th:href="@{/objectives/import/receipt/synthetic-mapping(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId},proposalId=${mappingProposal.proposalId})}">Read this retained proposal</a></p>
+    <p><a th:href="@{/objectives/import/receipt/synthetic-mapping-review(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId},proposalId=${mappingProposal.proposalId})}">Review this fictional proposal</a></p>
     <p><a th:href="@{/objectives/import/receipt/sample-capture(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId})}">Back to this capture</a></p>
   </section>
   <form th:if="${retryAllowed}" method="post" th:action="@{/objectives/import/receipt/synthetic-mapping}"

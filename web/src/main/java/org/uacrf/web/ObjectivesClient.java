@@ -280,9 +280,55 @@ class ObjectivesClient {
         || !"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(value.fingerprintVersion())
         || !digest(value.sourceFingerprint()) || !digest(value.normalizedFingerprint())
         || !"UNAPPROVED".equals(value.status()) || !"SYNTHETIC_UNVERIFIED".equals(value.verification())
-        || !present(value.proposedAt())) return false;
+        || !present(value.proposedAt())
+        || !"SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1".equals(value.proposalDigestVersion())
+        || !digest(value.proposalDigest())) return false;
     try {
       java.time.Instant.parse(value.proposedAt());
+      return true;
+    } catch (java.time.format.DateTimeParseException error) {
+      return false;
+    }
+  }
+
+  SyntheticMappingReviews syntheticMappingReviews(String token, SyntheticMappingProposal proposal) {
+    SyntheticMappingReviews result = restClient.get()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews",
+            proposal.receiptId(), proposal.captureId(), proposal.proposalId())
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SyntheticMappingReviews.class);
+    if (result == null || result.items() == null || result.items().size() > 1
+        || result.items().stream().anyMatch(review -> !validSyntheticReview(review, proposal))) {
+      throw new IllegalStateException("S05 returned invalid synthetic mapping reviews.");
+    }
+    return result;
+  }
+
+  SyntheticMappingReview reviewSyntheticMapping(String token, SyntheticMappingProposal proposal,
+      String key, SyntheticMappingReviewRequest request) {
+    if (!validUuid(key)) throw new IllegalStateException("Invalid synthetic review idempotency key.");
+    SyntheticMappingReview result = restClient.post()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews",
+            proposal.receiptId(), proposal.captureId(), proposal.proposalId())
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(request).retrieve().body(SyntheticMappingReview.class);
+    if (!validSyntheticReview(result, proposal) || !request.decision().equals(result.decision())
+        || !request.reason().equals(result.reason())) {
+      throw new IllegalStateException("S05 returned an invalid synthetic mapping review.");
+    }
+    return result;
+  }
+
+  private static boolean validSyntheticReview(SyntheticMappingReview value, SyntheticMappingProposal proposal) {
+    if (value == null || !validUuid(value.reviewId()) || !proposal.receiptId().equals(value.receiptId())
+        || !proposal.captureId().equals(value.captureId()) || !proposal.proposalId().equals(value.proposalId())
+        || !proposal.proposalDigestVersion().equals(value.proposalDigestVersion())
+        || !proposal.proposalDigest().equals(value.proposalDigest())
+        || !present(value.decision()) || !List.of("APPROVE", "REJECT").contains(value.decision())
+        || !present(value.reviewerId())
+        || !present(value.reason()) || value.reason().length() > 1000
+        || !"SYNTHETIC_UNVERIFIED".equals(value.verification()) || !present(value.reviewedAt())) return false;
+    try {
+      java.time.Instant.parse(value.reviewedAt());
       return true;
     } catch (java.time.format.DateTimeParseException error) {
       return false;
@@ -474,7 +520,22 @@ class ObjectivesClient {
       @JsonProperty("fingerprint_version") String fingerprintVersion,
       @JsonProperty("source_fingerprint") String sourceFingerprint,
       @JsonProperty("normalized_fingerprint") String normalizedFingerprint,
-      String status, String verification, @JsonProperty("proposed_at") String proposedAt) {}
+      String status, String verification, @JsonProperty("proposed_at") String proposedAt,
+      @JsonProperty("proposal_digest_version") String proposalDigestVersion,
+      @JsonProperty("proposal_digest") String proposalDigest) {}
+
+  record SyntheticMappingReviewRequest(String decision, String reason,
+      @JsonProperty("expected_proposal_digest_version") String expectedProposalDigestVersion,
+      @JsonProperty("expected_proposal_digest") String expectedProposalDigest) {}
+
+  record SyntheticMappingReview(@JsonProperty("review_id") String reviewId,
+      @JsonProperty("receipt_id") String receiptId, @JsonProperty("capture_id") String captureId,
+      @JsonProperty("proposal_id") String proposalId, @JsonProperty("reviewer_id") String reviewerId,
+      @JsonProperty("proposal_digest_version") String proposalDigestVersion,
+      @JsonProperty("proposal_digest") String proposalDigest, String decision, String reason,
+      String verification, @JsonProperty("reviewed_at") String reviewedAt) {}
+
+  record SyntheticMappingReviews(List<SyntheticMappingReview> items) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**168 completed / 827 total** · 659 open
+**170 completed / 829 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 78 | 240 |
+| Milestone items | 80 | 242 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -349,6 +349,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026w Forward synthetic mapping review admission and known-review read through EDGE01, preserving delegation, idempotency, owner responses and no-store. Evidence: R-0277.
   - [x] M2-026x Discover the zero or one retained synthetic review for a known proposal in S05 with read authorization and context isolation. Evidence: R-0281–R-0282.
   - [x] M2-026y Forward synthetic mapping review discovery through EDGE01 with the original delegation and owner response. Evidence: R-0286.
+  - [x] M2-026z Connect synthetic review discovery and independent decision submission to UX01 with exact proposal binding, context-bound retry and explicit synthetic limitations. Evidence: R-0291–R-0292, R-0295.
+  - [x] M2-026aa Verify the synthetic review browser flow through real service boundaries, including authorized review and denial; document test-fixture and transport limitations. Evidence: R-0293–R-0294.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1410,6 +1412,14 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0286 | 2026-11-21 | M2-026y | Ran the EDGE01 regression including synthetic review discovery forwarding. | 40 tests passed; simulated owner responses cover delegation, status, body and no-store. |
 | R-0287 | 2026-11-21 | M2-026y | Updated private technical approach Appendix AB to revision 219 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Browser access, live S01 evidence and import processing remain open. |
 | R-0288 | 2026-11-21 | M2-026y | Committed synthetic review discovery edge forwarding as `2e03810` and pushed it to `origin/main`. | Browser review access and live S01 integration evidence remain open. |
+| R-0289 | 2026-11-21 | M2-026z | Started UX01 synthetic review discovery and submission. | Preserve exact digest, independent owner checks and unchanged retry semantics; synthetic decisions never process imports. |
+| R-0290 | 2026-11-21 | M2-026z | Ran focused UX01 synthetic review and client tests. | The client tests passed; the controller test failed because an existing static import resolved `header()` to the wrong matcher. Qualified the MVC matcher and re-run is required. |
+| R-0291 | 2026-11-21 | M2-026z | Re-ran focused UX01 client and controller tests after correcting the matcher. | 19 tests passed; real browser and service integration evidence remain open. |
+| R-0292 | 2026-11-21 | M2-026z | Ran UX01 objective client and browser-controller regression after adding changed-content and malformed-response cases. | 183 tests passed; real browser validation still required. |
+| R-0293 | 2026-11-21 | M2-026aa | Checked fixed ports and ran the enabled isolated browser suite with synthetic review discovery, self-review denial, independent approval, replay and readback. | 11 tests passed through UX01, EDGE01, S05 and a real S01 current-reviewer check. A directly seeded test system principal/grant bypassed S01 admission; TLS terminates at the disposable proxy, whose upstream hops use HTTP. |
+| R-0294 | 2026-11-21 | M2-026aa | Rechecked fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic-source and reviewer-check features remain disabled by default. |
+| R-0295 | 2026-11-21 | M2-026z | Re-ran the focused UX01 review test after expanding the exact-proposal details displayed for review. | One test passed; the browser suite ran before that display-only expansion. |
+| R-0296 | 2026-11-21 | M2-026z | Updated private technical approach Appendix AB to revision 220 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Private document is not committed; synthetic review is not trusted provenance or import processing. |
 
 ## Implementation evidence
 

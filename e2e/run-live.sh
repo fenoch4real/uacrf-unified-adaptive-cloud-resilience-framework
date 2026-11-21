@@ -100,6 +100,7 @@ s03_client_secret="$(openssl rand -hex 24)"
 s03_collection_client_secret="$(openssl rand -hex 24)"
 s07_client_secret="$(openssl rand -hex 24)"
 s08_client_secret="$(openssl rand -hex 24)"
+s05_review_client_secret="$(openssl rand -hex 24)"
 admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString())')"
 
 {
@@ -143,6 +144,7 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'KEYCLOAK_S03_COLLECTION_CLIENT_SECRET=%s\n' "$s03_collection_client_secret"
   printf 'KEYCLOAK_S07_EVALUATOR_CLIENT_SECRET=%s\n' "$s07_client_secret"
   printf 'KEYCLOAK_S08_RETRIEVER_CLIENT_SECRET=%s\n' "$s08_client_secret"
+  printf 'KEYCLOAK_S05_OBJECTIVE_REVIEWER_CLIENT_SECRET=%s\n' "$s05_review_client_secret"
   printf 'IDENTITY_BOOTSTRAP_ADMIN_EXPIRES_AT=%s\n' "$admin_expires_at"
   printf 'UACRF_DELEGATION_PRIVATE_KEY_BASE64=%s\n' "$(base64 < "$private_key" | tr -d '\n')"
   printf 'UACRF_DELEGATION_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$public_key" | tr -d '\n')"
@@ -204,6 +206,22 @@ VALUES
   ('00000000-0000-4000-8000-000000000102', 'local-dev', 'local', 'local-approver',
    'authorization.policy.review', 'browser-signed-policy-service', now() + interval '1 hour', 1);
 SQL
+
+if [[ "$sample_inspection" == 1 ]]; then
+  # Test-only service identity and grant; this bypasses the normal S01 admission workflow.
+  "${compose[@]}" exec -T identity-db psql -v ON_ERROR_STOP=1 \
+    -U uacrf_identity_admin -d uacrf_identity <<'SQL'
+INSERT INTO uacrf_identity.principal
+  (id, issuer_uri, subject, display_name, kind, enabled, token_valid_after, revision)
+VALUES ('e2e-s05-review-checker', 'http://localhost:8180/realms/uacrf',
+        '00000000-0000-4000-8000-0000000000d4', 'Isolated S05 reviewer checker',
+        'SYSTEM', true, now() - interval '1 minute', 1);
+INSERT INTO uacrf_identity.membership
+  (id, tenant_id, environment_id, principal_id, capability, service_scope, expires_at, revision)
+VALUES ('00000000-0000-4000-8000-000000000103', 'local-dev', 'local', 'e2e-s05-review-checker',
+        'objectives.review-authority.check', '*', now() + interval '1 hour', 1);
+SQL
+fi
 
 # Isolated synthetic source binding; insertion bypasses the connection registration workflow.
 "${compose[@]}" exec -T connections-db psql -v ON_ERROR_STOP=1 \

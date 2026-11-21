@@ -272,7 +272,8 @@ class ObjectivesClientTests {
     for (String response : List.of(body, body.replace("UNAPPROVED", "APPROVED"),
         body.replace("\"reason\":\"review\"", "\"reason\":\"different\""),
         body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"), body.replace("2026-11-21T00:00:00Z", "invalid"),
-        body.replace("\"allow_fraction_to_percent\":false,", ""))) {
+        body.replace("\"allow_fraction_to_percent\":false,", ""),
+        body.replace("\"proposal_digest\":\"" + "c".repeat(64) + "\"", "\"proposal_digest\":\"bad\""))) {
       RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
       MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
       server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
@@ -298,6 +299,66 @@ class ObjectivesClientTests {
     assertThat(new ObjectivesClient(builder.build()).syntheticMappingProposal("reader", id, capture, proposal).status())
         .isEqualTo("UNAPPROVED");
     server.verify();
+  }
+
+  @Test
+  void validatesSyntheticReviewDiscoveryAndAdmission() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposalId = "12345678-1234-4234-8234-123456789015";
+    String reviewId = "12345678-1234-4234-8234-123456789016";
+    String key = "12345678-1234-4234-8234-123456789017";
+    String version = "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1";
+    String digest = "c".repeat(64);
+    var proposal = new ObjectivesClient.SyntheticMappingProposal(proposalId, id, capture, "actor", "minutes", false,
+        "reason", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), "b".repeat(64), "UNAPPROVED",
+        "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z", version, digest);
+    String path = "http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
+        + "/mapping-proposals/" + proposalId + "/reviews";
+    String review = """
+        {"review_id":"%s","receipt_id":"%s","capture_id":"%s","proposal_id":"%s",
+         "reviewer_id":"reviewer","proposal_digest_version":"%s","proposal_digest":"%s",
+         "decision":"APPROVE","reason":"reviewed","verification":"SYNTHETIC_UNVERIFIED",
+         "reviewed_at":"2026-11-21T00:00:00Z"}
+        """.formatted(reviewId, id, capture, proposalId, version, digest);
+    for (String body : List.of("{\"items\":[]}", "{\"items\":[" + review + "]}",
+        "{\"items\":[" + review.replace(digest, "d".repeat(64)) + "]}",
+        "{\"items\":[" + review + "," + review + "]}", "{}")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo(path)).andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (body.equals("{\"items\":[]}") || body.equals("{\"items\":[" + review + "]}")) {
+        assertThat(client.syntheticMappingReviews("reader", proposal).items())
+            .hasSize(body.equals("{\"items\":[]}") ? 0 : 1);
+      } else {
+        assertThatThrownBy(() -> client.syntheticMappingReviews("reader", proposal))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+    var request = new ObjectivesClient.SyntheticMappingReviewRequest("APPROVE", "reviewed", version, digest);
+    for (String body : List.of(review, review.replace("\"decision\":\"APPROVE\"", "\"decision\":\"REJECT\""),
+        review.replace("\"reason\":\"reviewed\"", "\"reason\":\"different\""),
+        review.replace(digest, "d".repeat(64)))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo(path)).andExpect(method(HttpMethod.POST))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reviewer")).andExpect(header("Idempotency-Key", key))
+          .andExpect(jsonPath("$.expected_proposal_digest").value(digest))
+          .andExpect(jsonPath("$.decision").value("APPROVE"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (body.equals(review)) {
+        assertThat(client.reviewSyntheticMapping("reviewer", proposal, key, request).reviewId()).isEqualTo(reviewId);
+      } else {
+        assertThatThrownBy(() -> client.reviewSyntheticMapping("reviewer", proposal, key, request))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
   }
 
   @Test

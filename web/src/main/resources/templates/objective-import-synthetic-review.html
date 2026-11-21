@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fictional mapping review | UACRF</title></head>
+<body><main>
+  <h1>Fictional mapping review</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This review concerns only the historical, unverified fictional capture. It does not verify a provider,
+    approve a general mapping, create a candidate, or process an import. The proposer cannot review it.</p>
+  <p role="alert" th:if="${reviewError != null}" th:text="${reviewError}"></p>
+  <section th:if="${mappingProposal != null}">
+    <h2>Exact proposal</h2>
+    <dl>
+      <dt>Proposal ID</dt><dd th:text="${mappingProposal.proposalId}"></dd>
+      <dt>Import request</dt><dd th:text="${mappingProposal.receiptId}"></dd>
+      <dt>Capture</dt><dd th:text="${mappingProposal.captureId}"></dd>
+      <dt>Proposer</dt><dd th:text="${mappingProposal.proposedBy}"></dd>
+      <dt>Proposed at</dt><dd th:text="${mappingProposal.proposedAt}"></dd>
+      <dt>Target unit</dt><dd th:text="${mappingProposal.targetUnit}"></dd>
+      <dt>Fraction-to-percent requested</dt><dd th:text="${mappingProposal.allowFractionToPercent}"></dd>
+      <dt>Reason</dt><dd th:text="${mappingProposal.reason}"></dd>
+      <dt>Proposal digest version</dt><dd th:text="${mappingProposal.proposalDigestVersion}"></dd>
+      <dt>Proposal digest</dt><dd th:text="${mappingProposal.proposalDigest}"></dd>
+      <dt>Fingerprint version</dt><dd th:text="${mappingProposal.fingerprintVersion}"></dd>
+      <dt>Source fingerprint</dt><dd th:text="${mappingProposal.sourceFingerprint}"></dd>
+      <dt>Hypothetical fingerprint</dt><dd th:text="${mappingProposal.normalizedFingerprint}"></dd>
+      <dt>Status</dt><dd th:text="${mappingProposal.status}"></dd>
+      <dt>Verification</dt><dd th:text="${mappingProposal.verification}"></dd>
+    </dl>
+    <p><a th:href="@{/objectives/import/receipt/synthetic-mapping(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId},proposalId=${mappingProposal.proposalId})}">Back to proposal</a></p>
+  </section>
+  <section th:if="${mappingReview != null}">
+    <h2>Retained synthetic decision</h2>
+    <dl>
+      <dt>Review ID</dt><dd th:text="${mappingReview.reviewId}"></dd>
+      <dt>Decision</dt><dd th:text="${mappingReview.decision}"></dd>
+      <dt>Reviewer</dt><dd th:text="${mappingReview.reviewerId}"></dd>
+      <dt>Reason</dt><dd th:text="${mappingReview.reason}"></dd>
+      <dt>Reviewed at</dt><dd th:text="${mappingReview.reviewedAt}"></dd>
+      <dt>Verification</dt><dd th:text="${mappingReview.verification}"></dd>
+    </dl>
+  </section>
+  <form th:if="${reviewForm != null and retryAllowed != true and mappingProposal != null and mappingReview == null}"
+        method="post" th:action="@{/objectives/import/receipt/synthetic-mapping-review}" th:object="${reviewForm}">
+    <input type="hidden" th:field="*{receiptId}"><input type="hidden" th:field="*{captureId}">
+    <input type="hidden" th:field="*{proposalId}"><input type="hidden" th:field="*{proposalDigestVersion}">
+    <input type="hidden" th:field="*{proposalDigest}"><input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}"><input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <fieldset><legend>Decision (required)</legend>
+      <input type="radio" id="approve" name="decision" value="APPROVE" required><label for="approve">Approve this synthetic proposal</label>
+      <input type="radio" id="reject" name="decision" value="REJECT"><label for="reject">Reject this synthetic proposal</label>
+    </fieldset>
+    <label for="review-reason">Reason for review (required)</label>
+    <textarea id="review-reason" th:field="*{reason}" required maxlength="1000"></textarea>
+    <button type="submit">Record synthetic decision</button>
+  </form>
+  <form th:if="${retryAllowed}" method="post"
+        th:action="@{/objectives/import/receipt/synthetic-mapping-review}" th:object="${reviewForm}">
+    <input type="hidden" th:field="*{receiptId}"><input type="hidden" th:field="*{captureId}">
+    <input type="hidden" th:field="*{proposalId}"><input type="hidden" th:field="*{proposalDigestVersion}">
+    <input type="hidden" th:field="*{proposalDigest}"><input type="hidden" th:field="*{decision}">
+    <input type="hidden" th:field="*{reason}"><input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}"><input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <button type="submit">Retry this review</button>
+  </form>
+  <p><a href="/objectives/import">Return to import requests</a></p>
+</main></body></html>

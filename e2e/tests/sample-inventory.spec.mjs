@@ -1072,6 +1072,46 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       mappingReadUrl = await sample.getByRole('link', { name: 'Read this retained proposal' }).getAttribute('href');
       await sample.getByRole('link', { name: 'Read this retained proposal' }).click();
       await expect(sample.locator('main')).toContainText('Review the fictional conversion');
+      const reviewUrl = await sample.getByRole('link', { name: 'Review this fictional proposal' }).getAttribute('href');
+      await sample.getByRole('link', { name: 'Review this fictional proposal' }).click();
+      await sample.getByLabel('Approve this synthetic proposal').check();
+      await sample.getByLabel('Reason for review (required)').fill('Self review must be rejected');
+      const [selfReview] = await Promise.all([
+        sample.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-mapping-review'),
+        sample.getByRole('button', { name: 'Record synthetic decision' }).click(),
+      ]);
+      expect(selfReview.status()).toBe(409);
+      const syntheticReviewerContext = await browser.newContext();
+      try {
+        const reviewer = await syntheticReviewerContext.newPage();
+        await reviewer.goto('/contexts');
+        await reviewer.locator('#username').fill(reviewerUsername);
+        await reviewer.locator('#password').fill(reviewerPassword);
+        await reviewer.locator('#kc-login').click();
+        await selectLocalContext(reviewer);
+        await reviewer.goto(new URL(reviewUrl, sample.url()).toString());
+        await expect(reviewer.locator('main')).toContainText('SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1');
+        await reviewer.getByLabel('Approve this synthetic proposal').check();
+        await reviewer.getByLabel('Reason for review (required)').fill('Independent fictional mapping review');
+        const [reviewResponse] = await Promise.all([
+          reviewer.waitForResponse((response) => response.request().method() === 'POST'
+            && new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-mapping-review'),
+          reviewer.getByRole('button', { name: 'Record synthetic decision' }).click(),
+        ]);
+        expect(reviewResponse.status()).toBe(200);
+        await expect(reviewer.locator('main')).toContainText('Independent fictional mapping review');
+        await expect(reviewer.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
+        expect((await reviewer.request.post('/objectives/import/receipt/synthetic-mapping-review', {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: reviewResponse.request().postData(),
+        })).status()).toBe(200);
+        await reviewer.goto(new URL(reviewUrl, sample.url()).toString());
+        await expect(reviewer.getByRole('heading', { name: 'Retained synthetic decision' })).toBeVisible();
+        await expect(reviewer.getByRole('button', { name: 'Record synthetic decision' })).toHaveCount(0);
+      } finally {
+        await syntheticReviewerContext.close();
+      }
+      await sample.goto(new URL(mappingReadUrl, sample.url()).toString());
       await sample.getByRole('link', { name: 'Back to this capture' }).click();
       await sample.getByLabel('Target unit (required)').fill('unsupported');
       const [invalidRehearsal] = await Promise.all([
