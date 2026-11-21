@@ -12,6 +12,21 @@ The [UACRF architecture overview and diagrams](architecture-overview.md)
 shows the current services, agents, cloud-provider integrations, and target
 infrastructure; dotted connections identify planned or unaccepted paths.
 
+## Checklist count
+
+**115 completed / 777 total** · 662 open
+
+| Category | Completed | Total |
+| --- | ---: | ---: |
+| Milestone items | 25 | 190 |
+| Historical slices | 90 | 90 |
+| Inventory reconciliation | 0 | 428 |
+| Acceptance cases | 0 | 69 |
+
+Counts include both parent tasks and their children; they are not a percentage
+of release completion. An open inventory item means it has not yet been
+reconciled, not necessarily that it is unimplemented.
+
 ## Milestone and capability tracker
 
 For individual work items, acceptance cases, and the per-run execution log,
@@ -104,6 +119,8 @@ provider acceptance.
   unverified items unchecked. Update this document's milestone tracker and
   implementation evidence, and the private technical approach document,
   when a development slice completes.
+- Recalculate the checklist count whenever checkboxes are added, removed or
+  checked; include parent and child items and retain the category breakdown.
 - Record synthetic/local boundaries and untested external integrations
   explicitly. A test failure, skipped acceptance, inaccessible dependency or
   unknown outcome is not a pass. Never place credentials or private keys here.
@@ -375,6 +392,7 @@ Evidence and limits: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-
 - [ ] M3-007 Verify approved knowledge cannot be disclosed after relevant access or source eligibility changes.
   - [x] M3-007a Require global service scope for retrieval content and receipt reads until owner-verified workload scopes exist. Evidence: R-0050.
   - [x] M3-007b Verify scoped delegations cannot read retained retrieval content or receipts, while global reads still work. Evidence: R-0050.
+  - [ ] M3-007c Require and test global scope for S08 knowledge metadata listing, which lacks an owner-verified service binding.
 
 ### S09 advisory
 
@@ -1105,6 +1123,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0049 | 2026-11-20 | M3-007a–M3-007b | Clean focused S08 reactor passed 3 tests, including scoped retrieval denial and existing classification/history checks. | Broader S08 regression and final tightened assertions remain to be verified. |
 | R-0050 | 2026-11-20 | M3-007a–M3-007b | S08 application and advisory integration suites passed 25 tests, including scoped denial and global read behavior. | Current requester-authority refresh and broader source-eligibility guarantees remain open. |
 | R-0051 | 2026-11-20 | M3-007a–M3-007b | Updated private technical approach Appendix AB to revision 176; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; M3-007 remains open. |
+| R-0052 | 2026-11-20 | M3-007a–M3-007b | Committed the verified S08 retrieval-scope slice as `57f1929` and pushed it to `origin/main`. | Objective decision history remains in progress; broader S08 acceptance remains open. |
 
 ## Implementation evidence
 
