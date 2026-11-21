@@ -1364,6 +1364,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0247 | 2026-11-21 | M2-026q–M2-026r | Ran the enabled isolated synthetic-inspection browser suite. | 11 tests passed, including 720 seconds to 12 minutes, unsupported conversion and restricted-user denial; proxy-to-owner hops use HTTP, not end-to-end TLS. |
 | R-0248 | 2026-11-21 | M2-026q–M2-026r | Checked the runner's fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the default-disabled source boundary remains in place. |
 | R-0249 | 2026-11-21 | M2-026q–M2-026r | Updated private technical approach Appendix AB to revision 212 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; approved mapping and import processing remain open. |
+| R-0250 | 2026-11-21 | M2-026q–M2-026r | Committed the edge and browser normalization rehearsal as `7a2920d` and pushed it to `origin/main`. | This read-only rehearsal does not produce an approved mapping or import candidate. |
 
 ## Implementation evidence
 
