@@ -924,6 +924,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: 'Recorded objective decision events' })).toBeVisible();
     await expect(sample.locator('main')).toContainText('APPROVED');
     await expect(sample.locator('main')).toContainText('not a complete audit history');
+    await sample.getByRole('link', { name: 'Read retained decision records with reasons' }).click();
+    await expect(sample.getByRole('heading', { name: 'Retained objective decisions' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('Independent synthetic approval.');
+    await expect(sample.locator('main')).toContainText('Earlier decisions may be missing');
     await sample.goto(`/objectives/activate?id=${newObjectiveId}`);
     await expect(sample.getByRole('heading', { name: 'Objective activation and current state' })).toBeVisible();
     const [activationRequest] = await Promise.all([

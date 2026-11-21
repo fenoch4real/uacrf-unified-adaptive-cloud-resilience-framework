@@ -148,6 +148,27 @@ class WebApplicationTests {
   }
 
   @Test
+  void retainedObjectiveDecisionsShowReasonsPagingAndHistoricalLimits() throws Exception {
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    when(objectives.decisionRecords("objective-reader", "objective-a", null))
+        .thenReturn(new ObjectivesClient.DecisionRecordPage("objective-a",
+            List.of(new ObjectivesClient.DecisionRecord(3L, "a".repeat(64), "APPROVE",
+                "<reason>", "reviewer", "2026-01-01T00:00:00Z")), "NA", true))
+        .thenThrow(new ResourceAccessException("down"));
+    var request = get("/objectives/decision-records").param("id", "objective-a")
+        .with(browserLogin()).session(sessionWithSelectedContext());
+    mockMvc.perform(request).andExpect(status().isOk())
+        .andExpect(content().string(containsString("&lt;reason&gt;")))
+        .andExpect(content().string(containsString("Earlier decisions may be missing")))
+        .andExpect(content().string(containsString("Older decision records")));
+    mockMvc.perform(request).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("decision records were not loaded")))
+        .andExpect(content().string(not(containsString("No retained decision records are available"))));
+  }
+
+  @Test
   void objectiveReviewUsesSeparateReadAndReviewGrantsAndPreservesRetry() throws Exception {
     when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
         .thenReturn(new IdentityAccessClient.MeAccess("reviewer", "Reviewer", "HUMAN", null, null, List.of()));

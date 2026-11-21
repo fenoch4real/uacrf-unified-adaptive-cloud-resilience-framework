@@ -50,6 +50,30 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void readsDecisionRecordsAndRejectsMissingGapDisclosure() {
+    for (boolean disclose : List.of(true, false)) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      String body = "{\"objective_id\":\"objective\",\"items\":[{\"revision\":3,"
+          + "\"content_digest\":\"" + "a".repeat(64) + "\",\"decision\":\"APPROVE\","
+          + "\"reason\":\"reviewed\",\"decided_by\":\"reviewer\",\"decided_at\":\"2026-01-01T00:00:00Z\"}],"
+          + "\"next_cursor\":null,\"history_may_be_incomplete\":" + disclose + "}";
+      server.expect(requestTo("http://edge.test/v1/objectives/objective/decision-records?pageSize=25&cursor=NA"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (disclose) {
+        assertThat(client.decisionRecords("delegated", "objective", "NA").items())
+            .singleElement().satisfies(record -> assertThat(record.reason()).isEqualTo("reviewed"));
+      } else {
+        assertThatThrownBy(() -> client.decisionRecords("delegated", "objective", "NA"))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void activationBindsRequestAndRejectsMismatchedReceipt() {
     String digest = "a".repeat(64);
     for (String actor : List.of("activator", "other")) {

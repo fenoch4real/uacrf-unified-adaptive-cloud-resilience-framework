@@ -75,6 +75,23 @@ class ObjectivesClient {
     return result;
   }
 
+  DecisionRecordPage decisionRecords(String token, String id, String cursor) {
+    DecisionRecordPage result = restClient.get().uri(uri -> {
+      var request = uri.path("/v1/objectives/{id}/decision-records").queryParam("pageSize", 25);
+      if (cursor != null && !cursor.isBlank()) request.queryParam("cursor", cursor);
+      return request.build(id);
+    }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(DecisionRecordPage.class);
+    if (result == null || !id.equals(result.objectiveId()) || result.items() == null
+        || !Boolean.TRUE.equals(result.historyMayBeIncomplete()) || result.items().size() > 25
+        || (result.nextCursor() != null && result.nextCursor().isBlank())
+        || result.items().stream().anyMatch(item -> item == null || item.revision() == null
+            || item.revision() < 2 || !present(item.contentDigest()) || !present(item.decision())
+            || !present(item.reason()) || !present(item.decidedBy()) || !present(item.decidedAt()))) {
+      throw new IllegalStateException("S05 returned invalid decision records.");
+    }
+    return result;
+  }
+
   Objective submit(String token, String id, String key, long revision, String digest) {
     Objective result = restClient.post().uri("/v1/objectives/{id}:idempotent-submit", id)
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
@@ -143,6 +160,14 @@ class ObjectivesClient {
 
   record DecisionHistory(@JsonProperty("objective_id") String objectiveId, List<DecisionEvent> items,
       @JsonProperty("more_recorded") Boolean moreRecorded) {}
+
+  record DecisionRecord(Long revision, @JsonProperty("content_digest") String contentDigest,
+      String decision, String reason, @JsonProperty("decided_by") String decidedBy,
+      @JsonProperty("decided_at") String decidedAt) {}
+
+  record DecisionRecordPage(@JsonProperty("objective_id") String objectiveId, List<DecisionRecord> items,
+      @JsonProperty("next_cursor") String nextCursor,
+      @JsonProperty("history_may_be_incomplete") Boolean historyMayBeIncomplete) {}
 
   record LocalObjective(String id, @JsonProperty("workload_id") String workloadId,
       String title, String metric, String comparator, BigDecimal target, String unit,

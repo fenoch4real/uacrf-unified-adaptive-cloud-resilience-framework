@@ -8,6 +8,7 @@
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p>Objective ID: <strong th:text="${objectiveId}">ID</strong></p>
   <p><a href="/objectives">Back to objectives</a></p>
+  <p><a th:href="@{/objectives/decision-records(id=${objectiveId})}">Read retained decision records with reasons</a></p>
   <p>This partial view shows at most the 25 most recent retained S05 decision outbox events,
     newest revision first. Outbox retention is not a complete audit history: older or missing events
     may be unavailable. An empty list does not prove that no decision occurred.</p>

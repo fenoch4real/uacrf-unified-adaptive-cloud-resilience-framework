@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retained objective decisions | UACRF</title></head>
+<body><main>
+  <h1>Retained objective decisions</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>Objective ID: <strong th:text="${objectiveId}">ID</strong></p>
+  <p><a th:href="@{/objectives/history(id=${objectiveId})}">Back to decision events</a></p>
+  <p>These records include decisions retained since this feature was introduced.
+    Earlier decisions may be missing; an empty list does not prove that no decision occurred.
+    Restart from the first page to see newly recorded decisions.</p>
+  <p role="alert" th:if="${recordsError != null}" th:text="${recordsError}"></p>
+  <div th:if="${records != null}">
+    <p th:if="${#lists.isEmpty(records.items)}">No retained decision records are available on this page.</p>
+    <ol>
+      <li th:each="record : ${records.items}">
+        <dl>
+          <dt>Resulting revision</dt><dd th:text="${record.revision}">Revision</dd>
+          <dt>Decision</dt><dd th:text="${record.decision}">Decision</dd>
+          <dt>Reason</dt><dd th:text="${record.reason}">Reason</dd>
+          <dt>Reviewer</dt><dd th:text="${record.decidedBy}">Reviewer</dd>
+          <dt>Recorded at</dt><dd th:text="${record.decidedAt}">Time</dd>
+          <dt>Content digest</dt><dd th:text="${record.contentDigest}">Digest</dd>
+        </dl>
+      </li>
+    </ol>
+    <nav aria-label="Decision record pages">
+      <a th:if="${records.nextCursor != null}"
+         th:href="@{/objectives/decision-records(id=${objectiveId},cursor=${records.nextCursor})}">Older decision records</a>
+      <a th:href="@{/objectives/decision-records(id=${objectiveId})}">First decision records page</a>
+    </nav>
+  </div>
+</main></body></html>

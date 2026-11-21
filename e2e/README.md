@@ -108,6 +108,9 @@ decision-event history and its incomplete-history disclosure, activates the
 approved objective, replays the same activation, checks a changed-digest
 conflict, and reads back the current active state. Stale-revision and
 activation-denial cases are covered by service tests, not this browser flow.
+The browser also reads the first page of separately retained decisions,
+including the exact approval reason and a warning that earlier decisions may
+be missing; it does not exercise navigation across multiple record pages.
 S05's optional S02 owner check is not enabled in this browser stack; this does
 not establish workload ownership, measured compliance or provider acceptance.
 
