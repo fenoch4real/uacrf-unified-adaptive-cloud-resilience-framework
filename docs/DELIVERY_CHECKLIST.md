@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**139 completed / 798 total** · 659 open
+**140 completed / 799 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 49 | 211 |
+| Milestone items | 50 | 212 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -320,7 +320,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-025a Read an explicitly synthetic objective definition through a matching active sample connection and binding, without asserting source verification. Evidence: R-0124–R-0125.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
-  - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. No source parsing, approved mapping, canonical digest or provenance retention is implemented.
+  - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
+  - [x] M2-026c Parse the bounded fictional source format strictly and preserve decimal precision. Evidence: R-0138–R-0139. This standalone parser does not run an import worker or establish provenance.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
@@ -1230,6 +1231,9 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0135 | 2026-11-20 | M2-026b | Expanded invalid-percentile and empty-field assertions; focused `ObjectiveImportDefinitionTests` passed 2/2. | Canonical definition digest and end-to-end normalization remain open. |
 | R-0136 | 2026-11-20 | M2-026b | Updated private technical approach Appendix AB to revision 192; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the definition helper does not establish trusted provenance. |
 | R-0137 | 2026-11-20 | M2-026b | Committed the typed definition conversion as `f690c44` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0138 | 2026-11-20 | M2-026c | Focused `ObjectiveImportSampleParserTests` passed 2/2, using the actual bundled fictional payload and rejecting ambiguous or invalid inputs. | No worker consumes the parser; precision and payload size are bounded. |
+| R-0139 | 2026-11-20 | M2-026c | `./mvnw -pl services/objectives -am clean test` passed 37 S05 and 8 shared-security tests. | Source verification, approved mapping, canonical digest, provenance retention and import processing remain open. |
+| R-0140 | 2026-11-20 | M2-026c | Updated private technical approach Appendix AB to revision 193; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the parser does not establish trusted provenance. |
 
 ## Implementation evidence
 

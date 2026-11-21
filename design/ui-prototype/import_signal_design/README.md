@@ -84,8 +84,10 @@ S05 also contains a standalone tested helper for exact seconds/minutes and expli
 
 An additional typed definition validates the proposed normalized fields and preserves
 metric, comparison, measurement kind, percentile, measurement reference and window
-across those exact unit conversions. It does not parse source payloads, establish an
-approved mapping, compute a canonical digest, retain provenance or process imports.
+across those exact unit conversions. A standalone strict parser accepts the bounded
+fictional sample payload format, rejects duplicate or unknown fields and preserves
+decimal precision. It is not connected to a worker and does not establish an approved
+mapping, compute a canonical digest, retain provenance or process imports.
 
 A standalone three-way digest classifier implements the finite comparison examples, preserving conflicts and treating incomplete or invalid scope as invalid even when withdrawal is claimed. It does not establish source completeness, verify withdrawal or read persisted definitions.
 
