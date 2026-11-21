@@ -57,6 +57,47 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
   @MockitoBean private PolicyClient policies;
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveCreation() {
+    return post("/objectives").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("id", "objective-a").param("workloadId", "workload-a").param("title", "Latency")
+        .param("metric", "latency.p95").param("comparator", "LTE").param("target", "99.75")
+        .param("unit", "ms").param("windowSeconds", "60")
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void objectiveCreationUsesGlobalWriteGrantAndRetainsUnconfirmedForm() throws Exception {
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-writer", "Bearer", 30));
+    when(objectives.createLocal(anyString(), anyString(), any()))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(objectiveCreation()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("outcome is unconfirmed")))
+        .andExpect(content().string(containsString("12345678-1234-4234-8234-123456789012")))
+        .andExpect(content().string(containsString("99.75")));
+    verify(identity).createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.write"), "tenant-test", "environment-test");
+    verify(objectives).createLocal(org.mockito.ArgumentMatchers.eq("objective-writer"),
+        org.mockito.ArgumentMatchers.eq("12345678-1234-4234-8234-123456789012"), any());
+  }
+
+  @Test
+  void objectiveCreationRejectsInvalidInputChangedContextAndMissingCsrf() throws Exception {
+    mockMvc.perform(objectiveCreation().with(request -> { request.setParameter("target", "0.0000001"); return request; }))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(containsString("aria-describedby=\"target-error\"")));
+    mockMvc.perform(objectiveCreation().with(request -> { request.setParameter("tenantId", "other"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(post("/objectives").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(get("/objectives/new").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Create a local objective draft")));
+    verifyNoInteractions(identity, objectives);
+  }
+
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder policyProposal() {
     return post("/policies").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
         .param("serviceId", "service-a").param("id", "policy-a").param("expectedRevision", "0")

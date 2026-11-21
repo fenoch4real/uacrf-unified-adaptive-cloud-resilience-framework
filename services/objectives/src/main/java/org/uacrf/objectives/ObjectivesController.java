@@ -33,6 +33,17 @@ class ObjectivesController {
     return objectives.propose(jwt, request);
   }
 
+  @PostMapping("/v1/objectives:local-idempotent-create")
+  ResponseEntity<Objective> createLocalIdempotent(
+      @AuthenticationPrincipal Jwt jwt,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody ProposeObjective request) {
+    ObjectiveCreation result = objectives.createLocalIdempotent(jwt, request, idempotencyKey);
+    return result.newlyCreated()
+        ? ResponseEntity.status(HttpStatus.CREATED).body(result.objective())
+        : ResponseEntity.ok(result.objective());
+  }
+
   @PostMapping("/v1/objective-imports:preview")
   ResponseEntity<CommandReceipt> previewImport(
       @AuthenticationPrincipal Jwt jwt,

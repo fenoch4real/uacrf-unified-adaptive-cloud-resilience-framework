@@ -94,6 +94,13 @@ denied. The collection runner remains disabled in this browser stack, so this
 is identity/delegation evidence only—not collection execution or provider
 acceptance.
 
+The synthetic objective flow grants separate global S05 read and write access.
+It creates a local draft through UX01, EDGE01 and S05, retries the same form,
+and checks that changed content with the same key conflicts. A separately
+admitted user without global write access is denied. S05's optional S02 owner
+check is not enabled in this browser stack; this does not establish workload
+ownership, approval, activation, measured compliance or provider acceptance.
+
 The same user receives independently approved global `assessment.case.read`,
 `assessment.case.write`, `assessment.evaluation.read`, `assessment.evaluation.run`, and
 `assessment.recommendation.read` grants. The suite creates and replays a draft

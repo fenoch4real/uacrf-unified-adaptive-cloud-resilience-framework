@@ -351,6 +351,73 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void localObjectiveCreationSerializesReplayAndReturnsCurrentState() throws Exception {
+    String path = "/v1/objectives:local-idempotent-create";
+    String propose = bearer("creator", "t-local-idempotent", PROPOSER);
+    String body = objective("local-one", "w-local-one", "latency.p95", "LTE", "250.000000", "ms");
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        .header("Authorization", propose).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "local-key")
+        .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    var first = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var second = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    HttpResponse<String> one = first.get();
+    HttpResponse<String> two = second.get();
+    assertThat(List.of(one.statusCode(), two.statusCode())).containsExactlyInAnyOrder(201, 200);
+    assertThat(one.body()).contains("\"id\":\"local-one\"").contains("\"state\":\"DRAFT\"");
+    assertThat(two.body()).contains("\"id\":\"local-one\"").contains("\"state\":\"DRAFT\"");
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.objective WHERE tenant_id = 't-local-idempotent'", Integer.class));
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.outbox_event WHERE tenant_id = 't-local-idempotent'", Integer.class));
+    HttpResponse<String> conflict = postWithIdempotency(path, propose,
+        body.replace("Objective local-one", "Changed title"), "local-key");
+    assertEquals(409, conflict.statusCode());
+    assertThat(conflict.body()).contains("IDEMPOTENCY_CONFLICT");
+    assertEquals(200, postWithIdempotency(path, propose,
+        body.replace("250.000000", "250"), "local-key").statusCode());
+    assertEquals(200, post("/v1/objectives/local-one:submit", propose, "{\"expected_revision\":1}").statusCode());
+    HttpResponse<String> later = postWithIdempotency(path, propose, body, "local-key");
+    assertEquals(200, later.statusCode());
+    assertThat(later.body()).contains("\"state\":\"SUBMITTED\"").contains("\"revision\":2");
+    assertEquals(403, postWithIdempotency(path,
+        token("creator", "t-local-idempotent", "w-local-one", PROPOSER), body, "local-key").statusCode());
+    assertEquals(201, postWithIdempotency(path,
+        bearer("creator", "t-local-other", PROPOSER), body, "local-key").statusCode());
+  }
+
+  @Test
+  void localObjectiveCreationRejectsUnrepresentableTargetsAndRollsBackOnOwnerFailure() throws Exception {
+    String path = "/v1/objectives:local-idempotent-create";
+    String propose = bearer("creator", "t-local-invalid", PROPOSER);
+    String body = objective("local-invalid", "w-idempotent-denied", "latency.p95", "LTE", "1", "ms");
+    assertEquals(400, post(path, propose, body).statusCode());
+    assertEquals(400, postWithIdempotency(path, propose,
+        body.replace("\"target\":1", "\"target\":0.0000001"), "precision-key").statusCode());
+    assertEquals(400, postWithIdempotency(path, propose,
+        body.replace("\"target\":1", "\"target\":1000000000000000000"), "range-key").statusCode());
+    assertEquals(400, postWithIdempotency(path, propose,
+        body.replace("\"origin\":\"LOCAL\"", "\"origin\":\"IMPORTED\""), "import-key").statusCode());
+    assertEquals(400, postWithIdempotency(path, propose,
+        body.replace("\"origin\":\"LOCAL\"", "\"origin\":\"LOCAL\",\"source_ref\":\"source\""), "source-key").statusCode());
+    doThrow(new ObjectivesException(HttpStatus.CONFLICT, "WORKLOAD_NOT_ELIGIBLE", "Unavailable."))
+        .when(workloadAuthority)
+        .check(any(Jwt.class), eq("w-idempotent-denied"), eq(ObjectiveWorkloadAuthorityClient.PROPOSAL_PURPOSE));
+    assertEquals(409, postWithIdempotency(path, propose, body, "rollback-key").statusCode());
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.local_objective_creation WHERE tenant_id = 't-local-invalid'",
+        Integer.class));
+    assertEquals(201, postWithIdempotency(path, propose,
+        body.replace("w-idempotent-denied", "w-idempotent-valid"), "rollback-key").statusCode());
+    assertEquals(201, postWithIdempotency(path, propose,
+        objective("maximum", "w-valid", "latency.p95", "LTE", "999999999999999999.999999", "ms"),
+        "maximum-key").statusCode());
+    assertEquals(400, postWithIdempotency(path, propose,
+        objective("outside", "w-valid", "latency.p95", "LTE", "-1000000000000000000", "ms"),
+        "outside-key").statusCode());
+  }
+
+  @Test
   void enforcesCapabilitiesScopeTenantIsolationAndPaging() throws Exception {
     String propose = bearer("proposer", "t-x", PROPOSER);
     String other = bearer("proposer", "t-y", PROPOSER);

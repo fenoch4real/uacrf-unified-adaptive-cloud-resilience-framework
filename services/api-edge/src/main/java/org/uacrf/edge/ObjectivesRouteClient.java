@@ -47,6 +47,11 @@ class ObjectivesRouteClient {
     return sendBody(HttpMethod.POST, "/v1/objectives", null, authorization, requestBody);
   }
 
+  ResponseEntity<String> createLocalIdempotent(String authorization, String idempotencyKey, String requestBody) {
+    return sendBody(HttpMethod.POST, "/v1/objectives:local-idempotent-create", null,
+        authorization, requestBody, idempotencyKey);
+  }
+
   ResponseEntity<String> previewImport(
       String authorization, String idempotencyKey, String requestBody) {
     return sendBody(

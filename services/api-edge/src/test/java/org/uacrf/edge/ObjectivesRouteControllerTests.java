@@ -45,6 +45,18 @@ class ObjectivesRouteControllerTests {
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/objectives:local-idempotent-create"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header("Idempotency-Key", "local-1"))
+        .andRespond(withStatus(HttpStatus.CREATED).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
+        .expect(requestTo(URL + "/v1/objectives:local-idempotent-create"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header("Idempotency-Key", "local-1"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/objective-imports:preview"))
         .andExpect(method(HttpMethod.POST))
         .andExpect(header("Idempotency-Key", "preview-1"))
@@ -69,6 +81,14 @@ class ObjectivesRouteControllerTests {
         .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(post("/internal/objectives/v1/objectives").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isCreated());
+    mvc.perform(post("/internal/objectives/v1/objectives:local-idempotent-create")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+            .header("Idempotency-Key", "local-1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isCreated());
+    mvc.perform(post("/internal/objectives/v1/objectives:local-idempotent-create")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+            .header("Idempotency-Key", "local-1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk());
     mvc.perform(
             post("/internal/objectives/v1/objective-imports:preview")
                 .header("Idempotency-Key", "preview-1")

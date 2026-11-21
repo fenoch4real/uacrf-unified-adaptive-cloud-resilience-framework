@@ -308,7 +308,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
-      'objectives.objective.read', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
+      'objectives.objective.read', 'objectives.objective.write', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
@@ -815,6 +815,34 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await reviewerContext.close();
     }
     await sample.goto('/objectives');
+    const newObjectiveId = `browser-ui-objective-${randomUUID()}`;
+    await sample.getByRole('link', { name: 'Create a local objective draft' }).click();
+    await sample.getByLabel('Objective ID').fill(newObjectiveId);
+    await sample.getByLabel('Workload ID').fill('browser-objective-workload');
+    await sample.getByLabel('Title').fill('Synthetic local objective');
+    await sample.getByLabel('Metric').fill('sample.latency');
+    await sample.getByLabel('Target').fill('42.123456');
+    await sample.getByLabel('Unit').fill('ms');
+    await sample.getByLabel('Window in seconds').fill('60');
+    const [objectiveRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/objectives'),
+      sample.getByRole('button', { name: 'Create local draft' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Objective receipt' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText(newObjectiveId);
+    await expect(sample.locator('main')).toContainText('DRAFT');
+    const replayObjective = await sample.request.post('/objectives', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: objectiveRequest.postData(),
+    });
+    expect(replayObjective.status()).toBe(200);
+    const changedObjectiveForm = new URLSearchParams(objectiveRequest.postData());
+    changedObjectiveForm.set('target', '43');
+    const changedObjective = await sample.request.post('/objectives', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedObjectiveForm.toString(),
+    });
+    expect(changedObjective.status()).toBe(409);
+    await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-b' }))
@@ -1181,6 +1209,21 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(restricted.getByRole('alert')).toContainText('not authorized');
       const globalObjectives = await restricted.goto('/objectives');
       expect(globalObjectives.status()).toBe(403);
+      await restricted.goto('/objectives/new');
+      await restricted.getByLabel('Objective ID').fill(`denied-objective-${randomUUID()}`);
+      await restricted.getByLabel('Workload ID').fill('browser-objective-workload');
+      await restricted.getByLabel('Title').fill('Denied synthetic objective');
+      await restricted.getByLabel('Metric').fill('sample.latency');
+      await restricted.getByLabel('Target').fill('1');
+      await restricted.getByLabel('Unit').fill('ms');
+      await restricted.getByLabel('Window in seconds').fill('60');
+      const [deniedObjective] = await Promise.all([
+        restricted.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/objectives'),
+        restricted.getByRole('button', { name: 'Create local draft' }).click(),
+      ]);
+      expect(deniedObjective.status()).toBe(403);
+      await expect(restricted.getByRole('alert')).toContainText('not authorized');
       const deniedCases = await restricted.goto('/assessment-cases');
       expect(deniedCases.status()).toBe(403);
       await expect(restricted.getByText('browser-case-a', { exact: true })).toHaveCount(0);

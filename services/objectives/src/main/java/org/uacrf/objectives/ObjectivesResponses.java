@@ -46,5 +46,7 @@ final class ObjectivesResponses {
 
   record ImportPreviewAdmission(CommandReceipt receipt, boolean newlyAccepted) {}
 
+  record ObjectiveCreation(Objective objective, boolean newlyCreated) {}
+
   record Error(String code, String message, String requestId) {}
 }

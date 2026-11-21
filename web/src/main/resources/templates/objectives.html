@@ -13,7 +13,8 @@
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/access">Back to current access</a></p>
   <p>These are recorded objective states, not measured performance or proof of compliance.
-    This view does not propose, approve, or activate objectives.</p>
+    Creation records a local draft; it does not approve or activate an objective.</p>
+  <p><a href="/objectives/new">Create a local objective draft</a> (requires separate global write access)</p>
   <search>
     <form method="get" th:action="@{/objectives}">
       <label for="workloadId">Workload ID (optional)</label>

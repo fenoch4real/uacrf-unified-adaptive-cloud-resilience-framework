@@ -50,6 +50,14 @@ class ObjectivesRouteController {
     return forward(() -> objectives.proposeObjective(authorization, requestBody));
   }
 
+  @PostMapping("/v1/objectives:local-idempotent-create")
+  ResponseEntity<String> createLocalIdempotent(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @RequestBody String requestBody) {
+    return forward(() -> objectives.createLocalIdempotent(authorization, idempotencyKey, requestBody));
+  }
+
   @PostMapping("/v1/objective-imports:preview")
   ResponseEntity<String> previewImport(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

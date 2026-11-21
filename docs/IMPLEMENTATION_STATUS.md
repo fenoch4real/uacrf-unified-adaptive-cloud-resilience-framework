@@ -1083,7 +1083,7 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
 
 - `services/objectives` (port 8087, audience S05, schema/database `uacrf_objectives`) owns
   workload objective revisions and mandatory organization constraints.
-- UX01 provides a read-only, paginated objective browser via EDGE01 and S01;
+- UX01 provides a paginated objective browser via EDGE01 and S01;
   its optional workload ID is a filter, not an authorization scope. Ordinary
   objective list, detail, and import-preview status reads require a global
   `objectives.objective.read` grant. A service-scoped grant is not treated as
@@ -1106,6 +1106,22 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   did not repackage service JARs and therefore cannot establish that it
   exercised the latest S05 changes. The rebuilt-service targeted verification
   is recorded in the S06 section below.
+- UX01 also creates local objective drafts through EDGE01 using a separately
+  granted global `objectives.objective.write` delegation. The creation form
+  retains its key and inputs on uncertainty and checks the signed-in user and
+  context before retry. S05 atomically retains the actor/context-scoped
+  idempotency key, objective and outbox event; exact retries return the
+  objective's current recorded state and changed content conflicts. The
+  dedicated route rejects targets that cannot fit `numeric(24,6)` without
+  rounding and rejects imported provenance. UX01 verifies returned objective
+  content against the request. This is a draft, not an import, approval,
+  activation, measurement or compliance determination. Optional S02
+  workload-owner verification is a point-in-time check, not an atomic fence.
+  The clean UX01 suite passed 182 tests and the selected S05/EDGE01 reactor
+  passed 56 tests, with no failures, errors or skips. The isolated browser
+  suite passed 11 tests, including synthetic local draft creation, unchanged
+  replay, changed-content conflict and denied write access. Its optional S02
+  owner check was disabled; this is not owner or provider acceptance.
 - Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
   (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
   APPROVED, ACTIVE). Activation supersedes the active objective for the same

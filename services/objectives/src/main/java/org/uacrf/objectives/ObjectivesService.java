@@ -54,6 +54,58 @@ class ObjectivesService {
     DelegationPrincipal actor = DelegationPrincipal.from(jwt);
     requireCapability(actor, "objectives.objective.write");
     requireGlobalScope(actor);
+    return createObjective(jwt, actor, request);
+  }
+
+  @Transactional
+  ObjectiveCreation createLocalIdempotent(Jwt jwt, ProposeObjective request, String idempotencyKey) {
+    DelegationPrincipal actor = DelegationPrincipal.from(jwt);
+    requireCapability(actor, "objectives.objective.write");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(idempotencyKey);
+    if (request.origin() != Origin.LOCAL || request.sourceRef() != null
+        || request.sourceDefinitionId() != null || request.sourceRevision() != null
+        || request.sourceVerifiedAt() != null) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "This endpoint accepts local objectives without import provenance only.");
+    }
+    BigDecimal target = request.target().stripTrailingZeros();
+    if (target.scale() > 6 || target.abs().compareTo(new BigDecimal("1000000000000000000")) >= 0) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST",
+          "The target must fit numeric(24,6) without rounding.");
+    }
+    Map<String, Object> material = new TreeMap<>();
+    material.put("id", request.id());
+    material.put("workload_id", request.workloadId());
+    material.put("title", request.title());
+    material.put("metric", request.metric());
+    material.put("comparator", request.comparator().name());
+    material.put("target", target.toPlainString());
+    material.put("unit", request.unit());
+    material.put("window_seconds", request.windowSeconds());
+    material.put("origin", request.origin().name());
+    String digest = sha256(serialize(material));
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA + "local_objective_creation "
+            + "(tenant_id, environment_id, actor_id, idempotency_key, request_digest, objective_id) "
+            + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey, digest, request.id());
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList(
+          "SELECT objective_id, request_digest FROM " + SCHEMA + "local_objective_creation "
+              + "WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey);
+      if (rows.isEmpty()) throw new IllegalStateException("The local objective creation record disappeared.");
+      Map<String, Object> row = rows.getFirst();
+      if (!digest.equals(row.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for different objective content.");
+      }
+      return new ObjectiveCreation(find(actor, row.get("objective_id").toString()), false);
+    }
+    return new ObjectiveCreation(createObjective(jwt, actor, request), true);
+  }
+
+  private Objective createObjective(Jwt jwt, DelegationPrincipal actor, ProposeObjective request) {
     boolean hasSource =
         request.sourceRef() != null
             || request.sourceDefinitionId() != null

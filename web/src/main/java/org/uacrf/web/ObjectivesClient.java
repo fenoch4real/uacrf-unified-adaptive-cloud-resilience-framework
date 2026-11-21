@@ -35,6 +35,25 @@ class ObjectivesClient {
     return page;
   }
 
+  Objective createLocal(String token, String key, LocalObjective request) {
+    Objective result = restClient.post().uri("/v1/objectives:local-idempotent-create")
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", key)
+        .body(request).retrieve().body(Objective.class);
+    if (!valid(result) || !request.id().equals(result.id())
+        || !request.workloadId().equals(result.workloadId())
+        || !request.title().equals(result.title()) || !request.metric().equals(result.metric())
+        || !request.comparator().equals(result.comparator())
+        || request.target().compareTo(result.target()) != 0
+        || !request.unit().equals(result.unit()) || !request.windowSeconds().equals(result.windowSeconds())
+        || !"LOCAL".equals(result.origin()) || result.sourceRef() != null
+        || result.sourceDefinitionId() != null || result.sourceRevision() != null
+        || result.sourceVerifiedAt() != null) {
+      throw new IllegalStateException("S05 returned an objective that does not match the request.");
+    }
+    return result;
+  }
+
   private static boolean valid(Objective item) {
     return item != null && present(item.id()) && present(item.workloadId())
         && present(item.title()) && present(item.metric()) && present(item.unit())
@@ -56,6 +75,10 @@ class ObjectivesClient {
   }
 
   record ObjectivePage(List<Objective> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record LocalObjective(String id, @JsonProperty("workload_id") String workloadId,
+      String title, String metric, String comparator, BigDecimal target, String unit,
+      @JsonProperty("window_seconds") Integer windowSeconds, String origin) {}
 
   record Objective(
       String id,

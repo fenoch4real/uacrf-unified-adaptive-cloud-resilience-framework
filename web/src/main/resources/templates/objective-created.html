@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Objective receipt | UACRF</title></head>
+<body><main>
+  <h1>Objective receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This is the retained objective's current recorded state, not measured performance or proof of compliance.</p>
+  <dl><dt>Objective ID</dt><dd th:text="${objective.id}">ID</dd>
+    <dt>Workload ID</dt><dd th:text="${objective.workloadId}">Workload</dd>
+    <dt>State</dt><dd th:text="${objective.state}">DRAFT</dd>
+    <dt>Revision</dt><dd th:text="${objective.revision}">Revision</dd>
+    <dt>Content digest</dt><dd th:text="${objective.contentDigest}">Digest</dd></dl>
+  <p><a href="/objectives">View objectives</a> (requires separate global read access)</p>
+  <p><a href="/objectives/new">Create another local draft</a></p>
+</main></body></html>

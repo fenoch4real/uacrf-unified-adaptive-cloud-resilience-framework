@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create local objective | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body><main>
+  <h1>Create a local objective draft</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/objectives">Back to objectives</a></p>
+  <p>This creates a local draft, not an imported objective, approval, activation, measurement, or compliance result.
+    Global objective-write access is required. All fields are required.</p>
+  <p>If the outcome is unconfirmed, retry this same form unchanged as the same signed-in user in the same context.
+    Changed details require a new form.</p>
+  <p role="alert" th:if="${objectiveError != null}" th:text="${objectiveError}"></p>
+  <form method="post" th:action="@{/objectives}" th:object="${objectiveForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <div role="alert" th:if="${#fields.hasAnyErrors()}">
+      <h2>Check the objective details</h2>
+      <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}">Validation error</li></ul>
+    </div>
+    <p><label for="id">Objective ID</label> <input id="id" th:field="*{id}" maxlength="200" required autocorrect="off" autocapitalize="none" spellcheck="false"
+      th:attr="aria-invalid=${#fields.hasErrors('id') ? 'true' : null},aria-describedby=${#fields.hasErrors('id') ? 'id-error' : null}">
+      <span id="id-error" th:errors="*{id}"></span></p>
+    <p><label for="workloadId">Workload ID</label> <input id="workloadId" th:field="*{workloadId}" maxlength="200" required autocorrect="off" autocapitalize="none" spellcheck="false"
+      th:attr="aria-invalid=${#fields.hasErrors('workloadId') ? 'true' : null},aria-describedby=${#fields.hasErrors('workloadId') ? 'workloadId-error' : null}">
+      <span id="workloadId-error" th:errors="*{workloadId}"></span></p>
+    <p><label for="title">Title</label> <input id="title" th:field="*{title}" maxlength="200" required
+      th:attr="aria-invalid=${#fields.hasErrors('title') ? 'true' : null},aria-describedby=${#fields.hasErrors('title') ? 'title-error' : null}">
+      <span id="title-error" th:errors="*{title}"></span></p>
+    <p><label for="metric">Metric (lowercase identifier)</label> <input id="metric" th:field="*{metric}" maxlength="100" required autocorrect="off" autocapitalize="none" spellcheck="false"
+      th:attr="aria-invalid=${#fields.hasErrors('metric') ? 'true' : null},aria-describedby=${#fields.hasErrors('metric') ? 'metric-error' : null}">
+      <span id="metric-error" th:errors="*{metric}"></span></p>
+    <p><label for="comparator">Comparator</label> <select id="comparator" th:field="*{comparator}" required
+      th:attr="aria-invalid=${#fields.hasErrors('comparator') ? 'true' : null},aria-describedby=${#fields.hasErrors('comparator') ? 'comparator-error' : null}">
+      <option value="LTE">At most (LTE)</option><option value="GTE">At least (GTE)</option></select>
+      <span id="comparator-error" th:errors="*{comparator}"></span></p>
+    <p><label for="target">Target (up to 18 integer and 6 decimal digits)</label>
+      <input id="target" type="number" step="0.000001" th:field="*{target}" required
+      th:attr="aria-invalid=${#fields.hasErrors('target') ? 'true' : null},aria-describedby=${#fields.hasErrors('target') ? 'target-error' : null}">
+      <span id="target-error" th:errors="*{target}"></span></p>
+    <p><label for="unit">Unit</label> <input id="unit" th:field="*{unit}" maxlength="30" required autocorrect="off" autocapitalize="none" spellcheck="false"
+      th:attr="aria-invalid=${#fields.hasErrors('unit') ? 'true' : null},aria-describedby=${#fields.hasErrors('unit') ? 'unit-error' : null}">
+      <span id="unit-error" th:errors="*{unit}"></span></p>
+    <p><label for="windowSeconds">Window in seconds</label> <input id="windowSeconds" type="number" min="1" max="2147483647" th:field="*{windowSeconds}" required
+      th:attr="aria-invalid=${#fields.hasErrors('windowSeconds') ? 'true' : null},aria-describedby=${#fields.hasErrors('windowSeconds') ? 'windowSeconds-error' : null}">
+      <span id="windowSeconds-error" th:errors="*{windowSeconds}"></span></p>
+    <button type="submit">Create local draft</button>
+  </form>
+</main></body></html>
