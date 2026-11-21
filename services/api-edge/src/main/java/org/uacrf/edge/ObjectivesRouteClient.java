@@ -142,6 +142,14 @@ class ObjectivesRouteClient {
     return send(request, authorization);
   }
 
+  ResponseEntity<String> listSyntheticMappingReviews(
+      String authorization, String id, String captureId, String proposalId) {
+    return send(objectivesRestClient.get()
+        .uri(uri -> uri.path(
+            "/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews")
+            .build(id, captureId, proposalId)), authorization);
+  }
+
   ResponseEntity<String> getSyntheticMappingReview(
       String authorization, String id, String captureId, String proposalId, String reviewId) {
     return send(objectivesRestClient.get()

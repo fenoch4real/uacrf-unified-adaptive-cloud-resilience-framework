@@ -280,9 +280,9 @@ the unkeyed route.
   The proposal record remains
   `UNAPPROVED`; the separate review is `SYNTHETIC_UNVERIFIED` and applies only
   to that historical capture, not a general mapping or provider provenance.
-  EDGE01 forwards review admission and known-review read with the original
-  delegation and idempotency key and preserves owner responses. No candidate
-  or import is processed; EDGE01 discovery and UX01 review access remain open.
+  EDGE01 forwards review admission, discovery and known-review read with the
+  original delegation and idempotency key where applicable, preserving owner
+  responses. No candidate or import is processed; UX01 review access remains open.
 
   `SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1` hashes UTF-8 compact JSON with keys in
   alphabetical order: `allow_fraction_to_percent`, `capture_id`,

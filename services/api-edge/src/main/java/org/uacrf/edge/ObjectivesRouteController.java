@@ -144,6 +144,13 @@ class ObjectivesRouteController {
         authorization, id, captureId, proposalId, idempotencyKey, requestBody));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews")
+  ResponseEntity<String> listSyntheticMappingReviews(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId, @PathVariable String proposalId) {
+    return forward(() -> objectives.listSyntheticMappingReviews(authorization, id, captureId, proposalId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}")
   ResponseEntity<String> getSyntheticMappingReview(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

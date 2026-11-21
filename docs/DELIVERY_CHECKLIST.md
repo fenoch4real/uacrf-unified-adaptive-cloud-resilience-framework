@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**167 completed / 826 total** · 659 open
+**168 completed / 827 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 77 | 239 |
+| Milestone items | 78 | 240 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -348,6 +348,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026v Record an independent S05 review decision bound to the exact synthetic mapping proposal, with current reviewer checking, idempotency and immutable audit; never treat it as provider provenance or enable import processing. Evidence: R-0269–R-0272.
   - [x] M2-026w Forward synthetic mapping review admission and known-review read through EDGE01, preserving delegation, idempotency, owner responses and no-store. Evidence: R-0277.
   - [x] M2-026x Discover the zero or one retained synthetic review for a known proposal in S05 with read authorization and context isolation. Evidence: R-0281–R-0282.
+  - [x] M2-026y Forward synthetic mapping review discovery through EDGE01 with the original delegation and owner response. Evidence: R-0286.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1404,6 +1405,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0281 | 2026-11-21 | M2-026x | Ran S05 and shared-security regression after adding review discovery. | 47 S05 and 8 shared-security tests passed, including empty and populated results and authorization and tenant isolation. |
 | R-0282 | 2026-11-21 | M2-026x | Re-ran focused reviewer-authority tests after adding missing-proposal and no-store checks. | Three tests passed; the S01 authority responses remain simulated. |
 | R-0283 | 2026-11-21 | M2-026x | Updated private technical approach Appendix AB to revision 218 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | EDGE01 and UX01 discovery, real S01 integration evidence and import processing remain open. |
+| R-0284 | 2026-11-21 | M2-026x | Committed S05 synthetic review discovery as `482f4c2` and pushed it to `origin/main`. | EDGE01 and UX01 discovery remain open. |
+| R-0285 | 2026-11-21 | M2-026y | Started forwarding review discovery through EDGE01. | S05 remains the authorization and review owner. |
+| R-0286 | 2026-11-21 | M2-026y | Ran the EDGE01 regression including synthetic review discovery forwarding. | 40 tests passed; simulated owner responses cover delegation, status, body and no-store. |
+| R-0287 | 2026-11-21 | M2-026y | Updated private technical approach Appendix AB to revision 219 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Browser access, live S01 evidence and import processing remain open. |
 
 ## Implementation evidence
 
