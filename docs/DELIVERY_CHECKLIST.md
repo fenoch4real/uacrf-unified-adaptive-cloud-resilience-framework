@@ -1384,6 +1384,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0264 | 2026-11-21 | M2-026u | Checked fixed ports and ran the enabled isolated synthetic-inspection browser suite. | 11 tests passed, including proposal creation, replay, readback and restricted-user denial; proxy-to-owner hops use HTTP, not end-to-end TLS. |
 | R-0265 | 2026-11-21 | M2-026u | Rechecked fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the default-disabled synthetic-source boundary remains in place. |
 | R-0266 | 2026-11-21 | M2-026u | Updated private technical approach Appendix AB to revision 215 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; independent approval and import processing remain open. |
+| R-0267 | 2026-11-21 | M2-026u | Committed the synthetic mapping proposal browser flow as `e91a648` and pushed it to `origin/main`. | Approval, candidate creation and import processing remain open. |
 
 ## Implementation evidence
 
