@@ -110,6 +110,15 @@ class ObjectivesRouteController {
     return forward(() -> objectives.getImportSampleCapture(authorization, id, captureId));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/normalization-rehearsal")
+  ResponseEntity<String> rehearseImportNormalization(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId, @RequestParam String targetUnit,
+      @RequestParam(defaultValue = "false") boolean allowFractionToPercent) {
+    return forward(() -> objectives.rehearseImportNormalization(
+        authorization, id, captureId, targetUnit, allowFractionToPercent));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<String> listImportSampleCaptures(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

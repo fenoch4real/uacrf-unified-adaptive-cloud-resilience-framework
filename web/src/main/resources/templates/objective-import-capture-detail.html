@@ -33,6 +33,17 @@
     </dl>
     <h2 id="payload-title">Exact retained fictional payload</h2>
     <pre role="region" aria-labelledby="payload-title" tabindex="0"><code th:text="${capture.payload}"></code></pre>
+    <h2>Rehearse a conversion</h2>
+    <p>This is an unapproved, read-only calculation; it does not create a candidate or verify the source.</p>
+    <form method="get" th:action="@{/objectives/import/receipt/normalization-rehearsal}">
+      <input type="hidden" name="id" th:value="${capture.receiptId}">
+      <input type="hidden" name="captureId" th:value="${capture.captureId}">
+      <label for="targetUnit">Target unit (required)</label>
+      <input id="targetUnit" name="targetUnit" required maxlength="80">
+      <p><input id="allowFractionToPercent" name="allowFractionToPercent" type="checkbox" value="true">
+        <label for="allowFractionToPercent">Allow fraction-to-percent for this rehearsal only</label></p>
+      <button type="submit">Rehearse conversion</button>
+    </form>
     <p><a th:href="@{/objectives/import/receipt(id=${capture.receiptId})}">Back to this request</a></p>
   </section>
   <p><a href="/objectives/import">Return to import requests</a></p>

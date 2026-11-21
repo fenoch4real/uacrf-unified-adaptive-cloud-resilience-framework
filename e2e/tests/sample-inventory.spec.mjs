@@ -988,6 +988,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     let captureRequest;
     let captureReadUrl;
     let captureListUrl;
+    let rehearsalUrl;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -1039,6 +1040,27 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(sample.locator('pre code')).toContainText('"target":720');
       await expect(sample.locator('main'))
         .toContainText('0615af06050a1ebe47c53362ebd790c68e0abd5ed9749b01605a3b006a9b7e1d');
+      await sample.getByLabel('Target unit (required)').fill('minutes');
+      const [rehearsal] = await Promise.all([
+        sample.waitForResponse((response) =>
+          new URL(response.url()).pathname === '/objectives/import/receipt/normalization-rehearsal'),
+        sample.getByRole('button', { name: 'Rehearse conversion' }).click(),
+      ]);
+      expect(rehearsal.status()).toBe(200);
+      rehearsalUrl = sample.url();
+      await expect(sample.locator('main')).toContainText('UNAPPROVED_REHEARSAL');
+      await expect(sample.locator('main')).toContainText('720 seconds');
+      await expect(sample.locator('main')).toContainText('12 minutes');
+      await sample.getByRole('link', { name: 'Back to this capture' }).click();
+      await sample.getByLabel('Target unit (required)').fill('unsupported');
+      const [invalidRehearsal] = await Promise.all([
+        sample.waitForResponse((response) =>
+          new URL(response.url()).pathname === '/objectives/import/receipt/normalization-rehearsal'),
+        sample.getByRole('button', { name: 'Rehearse conversion' }).click(),
+      ]);
+      expect(invalidRehearsal.status()).toBe(400);
+      await expect(sample.getByRole('alert')).toContainText('HTTP 400');
+      await sample.getByRole('link', { name: 'Back to this capture' }).click();
     } else {
       expect(inspectionResponse.status()).toBe(503);
       await expect(sample.locator('main')).toContainText('Pending sample inspection failed (HTTP 503)');
@@ -1470,6 +1492,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       if (captureListUrl) {
         expect((await restricted.goto(captureListUrl)).status()).toBe(403);
         await expect(restricted.locator('main li')).toHaveCount(0);
+      }
+      if (rehearsalUrl) {
+        expect((await restricted.goto(rehearsalUrl)).status()).toBe(403);
+        await expect(restricted.locator('main')).not.toContainText('12 minutes');
       }
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');

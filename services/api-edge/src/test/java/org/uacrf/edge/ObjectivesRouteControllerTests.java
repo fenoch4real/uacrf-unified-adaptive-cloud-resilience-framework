@@ -133,6 +133,32 @@ class ObjectivesRouteControllerTests {
   }
 
   @Test
+  void forwardsNormalizationRehearsalAndOwnerResponses() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    HttpStatus[] statuses = {HttpStatus.OK, HttpStatus.BAD_REQUEST, HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND, HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus code : statuses) {
+      server.expect(requestTo(URL + "/v1/objective-imports/import-1/sample-captures/capture-1/"
+              + "normalization-rehearsal?targetUnit=minutes&allowFractionToPercent=false"))
+          .andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body("{\"status\":\"UNAPPROVED_REHEARSAL\"}"));
+    }
+    for (HttpStatus code : statuses) {
+      mvc.perform(get("/internal/objectives/v1/objective-imports/import-1/sample-captures/capture-1/"
+              + "normalization-rehearsal").param("targetUnit", "minutes")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(status().is(code.value()))
+          .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json("{\"status\":\"UNAPPROVED_REHEARSAL\"}"));
+    }
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsToTheFixedOwnerAndDoesNotRouteInternalEndpoints() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

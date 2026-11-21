@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fictional normalization rehearsal | UACRF</title></head>
+<body><main>
+  <h1>Fictional normalization rehearsal</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This historical synthetic source is unverified. The conversion is unapproved and read-only;
+    no mapping, candidate or objective is created, and the source is not reverified.</p>
+  <p><a th:href="@{/objectives/import/receipt/sample-capture(id=${receiptId},captureId=${captureId})}">Back to this capture</a></p>
+  <p role="alert" th:if="${rehearsalError != null}" th:text="${rehearsalError}"></p>
+  <section th:if="${rehearsal != null}">
+    <h2>Hypothetical conversion</h2>
+    <dl>
+      <dt>Status</dt><dd th:text="${rehearsal.status}"></dd>
+      <dt>Verification</dt><dd th:text="${rehearsal.verification}"></dd>
+      <dt>Source target</dt><dd><span th:text="${rehearsal.sourceDefinition.target}"></span>
+        <span th:text="${rehearsal.sourceDefinition.unit}"></span></dd>
+      <dt>Hypothetical target</dt><dd><span th:text="${rehearsal.normalizedDefinition.target}"></span>
+        <span th:text="${rehearsal.normalizedDefinition.unit}"></span></dd>
+      <dt>Metric</dt><dd th:text="${rehearsal.normalizedDefinition.metric}"></dd>
+      <dt>Window</dt><dd th:text="${rehearsal.normalizedDefinition.window}"></dd>
+      <dt>Measurement reference</dt><dd th:text="${rehearsal.normalizedDefinition.measurementRef}"></dd>
+      <dt>Comparison</dt><dd th:text="${rehearsal.normalizedDefinition.comparison}"></dd>
+      <dt>Measurement kind</dt><dd th:text="${rehearsal.normalizedDefinition.measurementKind}"></dd>
+      <dt>Percentile</dt><dd th:text="${rehearsal.normalizedDefinition.percentile == null ? 'Not applicable' : rehearsal.normalizedDefinition.percentile}"></dd>
+      <dt>Source fingerprint version</dt><dd th:text="${rehearsal.sourceFingerprint.version}"></dd>
+      <dt>Source fingerprint</dt><dd th:text="${rehearsal.sourceFingerprint.digest}"></dd>
+      <dt>Hypothetical fingerprint version</dt><dd th:text="${rehearsal.normalizedFingerprint.version}"></dd>
+      <dt>Hypothetical fingerprint</dt><dd th:text="${rehearsal.normalizedFingerprint.digest}"></dd>
+    </dl>
+  </section>
+</main></body></html>

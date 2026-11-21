@@ -242,9 +242,10 @@ the unkeyed route.
   Unsupported or rounding-requiring conversions return an error. The `no-store`
   result includes original and normalized definitions with versioned
   fingerprints and is labeled `UNAPPROVED_REHEARSAL` and
-  `SYNTHETIC_UNVERIFIED`. It is not persisted, does not verify the current
-  source, approve a mapping or create an import candidate, and is not yet
-  routed through EDGE01 or UX01.
+  `SYNTHETIC_UNVERIFIED`. EDGE01 forwards the query and owner response with
+  the original delegation; UX01 provides a read-only form and displays the
+  original and hypothetical definitions. The result is not persisted, does
+  not verify the current source, approve a mapping or create an import candidate.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

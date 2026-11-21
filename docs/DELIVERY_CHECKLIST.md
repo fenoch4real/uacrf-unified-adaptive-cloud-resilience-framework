@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**159 completed / 818 total** · 659 open
+**161 completed / 820 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 69 | 231 |
+| Milestone items | 71 | 233 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -340,6 +340,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026n Connect paginated retained capture listing to UX01 and verify browser navigation and authorization. Evidence: R-0230–R-0232.
   - [x] M2-026o Bind capture-list cursors to their tenant, environment and import request; reject use across scopes without treating a cursor as authority. Evidence: R-0236–R-0237.
   - [x] M2-026p Provide a read-only synthetic normalization rehearsal from a known retained capture, with exact conversion and versioned fingerprints; never treat it as an approved mapping or import candidate. Evidence: R-0241–R-0242.
+  - [x] M2-026q Route the synthetic normalization rehearsal through EDGE01 without altering authorization or owner errors. Evidence: R-0246–R-0247.
+  - [x] M2-026r Connect and verify the unapproved synthetic normalization rehearsal in UX01, including conversion, error and denial. Evidence: R-0246–R-0248.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1356,6 +1358,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0241 | 2026-11-21 | M2-026p | Ran the focused owner-service rehearsal test. | Exact 720 seconds to 12 minutes, supported fingerprint version, no-store and authorization checks passed; additional semantic and full regression checks remain open. |
 | R-0242 | 2026-11-21 | M2-026p | Ran S05 and shared-security regression after adding semantic preservation and scoped-denial checks. | 46 S05 and 8 shared-security tests passed; the rehearsal does not persist or approve a mapping. |
 | R-0243 | 2026-11-21 | M2-026p | Updated private technical approach Appendix AB to revision 211 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; edge and browser access and approved mapping remain open. |
+| R-0244 | 2026-11-21 | M2-026p | Committed the S05 normalization rehearsal as `7382af6` and pushed it to `origin/main`. | It is explicitly unapproved and does not create an import candidate. |
+| R-0245 | 2026-11-21 | M2-026q–M2-026r | Started edge and browser access to the unapproved normalization rehearsal. | The feature must not imply a mapping decision or source verification. |
+| R-0246 | 2026-11-21 | M2-026q–M2-026r | Ran the edge regression and focused UX01 tests for rehearsal forwarding, response validation, denial and no-store. | 37 EDGE01 and 178 UX01 tests passed; connected browser verification remains open. |
+| R-0247 | 2026-11-21 | M2-026q–M2-026r | Ran the enabled isolated synthetic-inspection browser suite. | 11 tests passed, including 720 seconds to 12 minutes, unsupported conversion and restricted-user denial; proxy-to-owner hops use HTTP, not end-to-end TLS. |
+| R-0248 | 2026-11-21 | M2-026q–M2-026r | Checked the runner's fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the default-disabled source boundary remains in place. |
+| R-0249 | 2026-11-21 | M2-026q–M2-026r | Updated private technical approach Appendix AB to revision 212 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; approved mapping and import processing remain open. |
 
 ## Implementation evidence
 

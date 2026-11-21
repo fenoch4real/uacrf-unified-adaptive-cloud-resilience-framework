@@ -89,13 +89,14 @@ fictional sample payload format, rejects duplicate or unknown fields and preserv
 decimal precision. The parser is not connected to a worker and does not establish an
 approved mapping, retain provenance or process imports.
 
-An S05-only, read-only rehearsal applies those exact conversions to a known
+An S05 read-only rehearsal applies those exact conversions to a known
 retained fictional capture, checks the stored payload and definition
 fingerprints and returns original and hypothetical normalized definitions with
 versioned fingerprints. It preserves the measurement window and labels the
 result `UNAPPROVED_REHEARSAL` and `SYNTHETIC_UNVERIFIED`. It does not persist a
-candidate, approve the selected conversion or reverify the source. It is not
-yet exposed through the edge or browser.
+candidate, approve the selected conversion or reverify the source. EDGE01
+forwards it and UX01 exposes the labeled hypothetical result through a
+read-only form.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

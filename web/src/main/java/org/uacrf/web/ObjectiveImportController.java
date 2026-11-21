@@ -280,6 +280,40 @@ class ObjectiveImportController {
     return "objective-import-captures";
   }
 
+  @GetMapping("/objectives/import/receipt/normalization-rehearsal")
+  String normalizationRehearsal(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id, @RequestParam String captureId,
+      @RequestParam String targetUnit, @RequestParam(defaultValue = "false") boolean allowFractionToPercent,
+      Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("receiptId", id);
+    model.addAttribute("captureId", captureId);
+    if (!ObjectivesClient.validUuid(id) || !ObjectivesClient.validUuid(captureId)
+        || targetUnit.isBlank() || targetUnit.length() > 80) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("rehearsalError", "Provide valid capture identifiers and a target unit.");
+      return "objective-import-normalization-rehearsal";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("rehearsal", objectives.rehearseImportNormalization(
+          token, id, captureId, targetUnit, allowFractionToPercent));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("rehearsalError", "Identity or objectives service is unavailable; rehearsal was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("rehearsalError", "Normalization rehearsal failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("rehearsalError", "Identity or objectives service returned an invalid rehearsal.");
+    }
+    return "objective-import-normalization-rehearsal";
+  }
+
   @GetMapping("/objectives/import/requests")
   String requests(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,

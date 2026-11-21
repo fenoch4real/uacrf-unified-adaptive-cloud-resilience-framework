@@ -215,6 +215,36 @@ class ObjectivesClient {
     return page;
   }
 
+  NormalizationRehearsal rehearseImportNormalization(
+      String token, String id, String captureId, String targetUnit, boolean allowFractionToPercent) {
+    if (!validUuid(id) || !validUuid(captureId) || !present(targetUnit) || targetUnit.length() > 80) {
+      throw new IllegalStateException("Invalid rehearsal parameters.");
+    }
+    NormalizationRehearsal result = restClient.get().uri(uri -> uri
+        .path("/v1/objective-imports/{id}/sample-captures/{captureId}/normalization-rehearsal")
+        .queryParam("targetUnit", targetUnit).queryParam("allowFractionToPercent", allowFractionToPercent)
+        .build(id, captureId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(NormalizationRehearsal.class);
+    if (result == null || !id.equals(result.receiptId()) || !captureId.equals(result.captureId())
+        || !"SYNTHETIC_UNVERIFIED".equals(result.verification()) || !"UNAPPROVED_REHEARSAL".equals(result.status())
+        || !valid(result.sourceDefinition()) || !valid(result.normalizedDefinition())
+        || !validFingerprint(result.sourceFingerprint()) || !validFingerprint(result.normalizedFingerprint())
+        || !targetUnit.equals(result.normalizedDefinition().unit())
+        || !result.sourceDefinition().metric().equals(result.normalizedDefinition().metric())
+        || !result.sourceDefinition().window().equals(result.normalizedDefinition().window())
+        || !result.sourceDefinition().measurementRef().equals(result.normalizedDefinition().measurementRef())
+        || !result.sourceDefinition().comparison().equals(result.normalizedDefinition().comparison())
+        || !result.sourceDefinition().measurementKind().equals(result.normalizedDefinition().measurementKind())
+        || !java.util.Objects.equals(result.sourceDefinition().percentile(), result.normalizedDefinition().percentile())) {
+      throw new IllegalStateException("S05 returned an invalid normalization rehearsal.");
+    }
+    return result;
+  }
+
+  private static boolean validFingerprint(DefinitionFingerprint value) {
+    return value != null && "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(value.version()) && digest(value.digest());
+  }
+
   private static boolean valid(ImportDefinition value) {
     return value != null && present(value.metric()) && present(value.unit()) && present(value.window())
         && present(value.measurementRef()) && value.target() != null && value.target().signum() >= 0
@@ -377,6 +407,14 @@ class ObjectivesClient {
       @JsonProperty("captured_at") String capturedAt, String verification) {}
 
   record SampleCapturePage(List<SampleCaptureSummary> items, @JsonProperty("next_cursor") String nextCursor) {}
+
+  record NormalizationRehearsal(@JsonProperty("capture_id") String captureId,
+      @JsonProperty("receipt_id") String receiptId,
+      @JsonProperty("source_definition") ImportDefinition sourceDefinition,
+      @JsonProperty("source_fingerprint") DefinitionFingerprint sourceFingerprint,
+      @JsonProperty("normalized_definition") ImportDefinition normalizedDefinition,
+      @JsonProperty("normalized_fingerprint") DefinitionFingerprint normalizedFingerprint,
+      String verification, String status) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

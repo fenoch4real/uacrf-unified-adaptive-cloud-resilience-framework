@@ -221,6 +221,41 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void validatesSyntheticNormalizationRehearsal() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String definition = """
+        {"metric":"recovery.time","target":720,"unit":"seconds","window":"stable-30m",
+         "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME","percentile":null}
+        """;
+    String normalized = definition.replace("720", "12").replace("seconds", "minutes");
+    String fingerprint = "{\"version\":\"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1\",\"digest\":\"" + "a".repeat(64) + "\"}";
+    String body = "{\"capture_id\":\"" + capture + "\",\"receipt_id\":\"" + id
+        + "\",\"source_definition\":" + definition + ",\"source_fingerprint\":" + fingerprint
+        + ",\"normalized_definition\":" + normalized + ",\"normalized_fingerprint\":" + fingerprint
+        + ",\"verification\":\"SYNTHETIC_UNVERIFIED\",\"status\":\"UNAPPROVED_REHEARSAL\"}";
+    for (String response : List.of(body, body.replace(id, capture), body.replace("UNAPPROVED_REHEARSAL", "APPROVED"),
+        body.replace("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "UNKNOWN"),
+        body.replace(normalized, normalized.replace("stable-30m", "different")))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
+              + "/normalization-rehearsal?targetUnit=minutes&allowFractionToPercent=false"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (response.equals(body)) {
+        assertThat(client.rehearseImportNormalization("reader", id, capture, "minutes", false)
+            .normalizedDefinition().target()).isEqualByComparingTo("12");
+      } else {
+        assertThatThrownBy(() -> client.rehearseImportNormalization("reader", id, capture, "minutes", false))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void readsPendingImportPagesAndRejectsInvalidItems() {
     String id = "12345678-1234-4234-8234-123456789012";
     for (String status : List.of("PENDING", "SUCCEEDED")) {

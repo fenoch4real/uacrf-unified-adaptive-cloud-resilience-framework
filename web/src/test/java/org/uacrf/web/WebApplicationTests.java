@@ -497,6 +497,37 @@ class WebApplicationTests {
   }
 
   @Test
+  void syntheticNormalizationRehearsalShowsUnapprovedResultAndErrors() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String captureId = "12345678-1234-4234-8234-123456789014";
+    var source = new ObjectivesClient.ImportDefinition("recovery.time", new java.math.BigDecimal("720"), "seconds",
+        "stable-30m", "sample:check", "AT_MOST", "RECOVERY_TIME", null);
+    var normalized = new ObjectivesClient.ImportDefinition("recovery.time", new java.math.BigDecimal("12"), "minutes",
+        "stable-30m", "sample:check", "AT_MOST", "RECOVERY_TIME", null);
+    var fingerprint = new ObjectivesClient.DefinitionFingerprint("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(objectives.rehearseImportNormalization("reader", id, captureId, "minutes", false))
+        .thenReturn(new ObjectivesClient.NormalizationRehearsal(captureId, id, source, fingerprint,
+            normalized, fingerprint, "SYNTHETIC_UNVERIFIED", "UNAPPROVED_REHEARSAL"));
+    mockMvc.perform(get("/objectives/import/receipt/normalization-rehearsal")
+        .param("id", id).param("captureId", captureId).param("targetUnit", "minutes")
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString("UNAPPROVED_REHEARSAL")))
+        .andExpect(content().string(containsString("no mapping, candidate or objective is created")))
+        .andExpect(content().string(containsString("minutes")));
+    when(objectives.rehearseImportNormalization("reader", id, captureId, "minutes", false))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/objectives/import/receipt/normalization-rehearsal")
+        .param("id", id).param("captureId", captureId).param("targetUnit", "minutes")
+        .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("HTTP 403")));
+  }
+
+  @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
         List.of("connections.connection.read"), "tenant-test", "environment-test"))

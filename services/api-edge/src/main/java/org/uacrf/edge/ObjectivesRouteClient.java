@@ -104,6 +104,14 @@ class ObjectivesRouteClient {
             .build(id, captureId)), authorization);
   }
 
+  ResponseEntity<String> rehearseImportNormalization(
+      String authorization, String id, String captureId, String targetUnit, boolean allowFractionToPercent) {
+    return send(objectivesRestClient.get().uri(uri -> uri
+        .path("/v1/objective-imports/{id}/sample-captures/{captureId}/normalization-rehearsal")
+        .queryParam("targetUnit", targetUnit).queryParam("allowFractionToPercent", allowFractionToPercent)
+        .build(id, captureId)), authorization);
+  }
+
   ResponseEntity<String> listImportSampleCaptures(String authorization, String id, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uri -> {
       uri.path("/v1/objective-imports/{id}/sample-captures").queryParam("pageSize", pageSize);
