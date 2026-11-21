@@ -57,6 +57,54 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
   @MockitoBean private PolicyClient policies;
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder policyProposal() {
+    return post("/policies").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("serviceId", "service-a").param("id", "policy-a").param("expectedRevision", "0")
+        .param("effectiveFrom", "2026-01-01T00:00:00Z").param("expiresAt", "2031-01-01T00:00:00Z")
+        .param("actions", "READ").param("actors", "actor").param("resources", "resource")
+        .param("providers", "AZURE").param("regions", "eastus").param("requiredApprovers", "1")
+        .param("approvers", "reviewer").param("maximumCost", "10.000001").param("reason", "reason")
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void policyProposalUsesIndependentWriteGrantAndPreservesKeyOnUncertainty() throws Exception {
+    when(identity.createDelegation("test-access-token", "S10", "service-a",
+        List.of("authorization.policy.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("policy-writer", "Bearer", 30));
+    when(policies.propose(anyString(), anyString(), any()))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(policyProposal()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("proposal is unconfirmed")))
+        .andExpect(content().string(containsString("12345678-1234-4234-8234-123456789012")))
+        .andExpect(content().string(containsString("10.000001")));
+    verify(identity).createDelegation("test-access-token", "S10", "service-a",
+        List.of("authorization.policy.write"), "tenant-test", "environment-test");
+    verify(policies).propose(org.mockito.ArgumentMatchers.eq("policy-writer"),
+        org.mockito.ArgumentMatchers.eq("12345678-1234-4234-8234-123456789012"), any());
+  }
+
+  @Test
+  void policyProposalRejectsInvalidInputsChangedContextAndMissingCsrf() throws Exception {
+    mockMvc.perform(policyProposal().with(request -> { request.setParameter("resources", "*"); return request; }))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(containsString("aria-describedby=\"resources-error\"")))
+        .andExpect(content().string(containsString("&#39;*&#39; is not permitted")));
+    mockMvc.perform(policyProposal().with(request -> { request.setParameter("tenantId", "different"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(policyProposal().with(request -> { request.setParameter("principalName", "another-user"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(get("/policies/new").param("serviceId", "service-a").param("id", "policy-a")
+            .param("expectedRevision", "2").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("value=\"policy-a\"")))
+        .andExpect(content().string(containsString("value=\"2\"")));
+    mockMvc.perform(post("/policies").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(identity, policies);
+  }
+
   @Test
   void policyBrowsingUsesExactServiceGrantAndEscapesMetadata() throws Exception {
     Instant time = Instant.parse("2026-01-01T00:00:00Z");

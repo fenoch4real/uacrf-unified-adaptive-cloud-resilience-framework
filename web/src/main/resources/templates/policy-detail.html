@@ -12,6 +12,8 @@
   <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
   <section th:if="${policy != null}">
     <h2 th:text="|${policy.id} - revision ${policy.revision}|">Policy revision</h2>
+    <p><a th:href="@{/policies/new(serviceId=${policy.serviceId},id=${policy.id},expectedRevision=${policy.revision})}">Propose a revision based on this revision</a>.
+      This revision may no longer be current; S10 rejects stale expected revisions.</p>
     <dl>
       <dt>Service</dt><dd th:text="${policy.serviceId}">Service</dd>
       <dt>Review state</dt><dd th:text="${policy.decision}">State</dd>

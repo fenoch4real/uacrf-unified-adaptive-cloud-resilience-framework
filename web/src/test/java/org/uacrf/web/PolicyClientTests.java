@@ -3,6 +3,7 @@ package org.uacrf.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -10,6 +11,8 @@ import java.util.List;
 import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
+import java.math.BigDecimal;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -96,6 +99,38 @@ class PolicyClientTests {
       assertThatThrownBy(() -> new PolicyClient(builder.build()).read("token", "service-a", "policy-a", 2))
           .isInstanceOf(IllegalStateException.class);
       server.verify();
+    }
+  }
+
+  @Test
+  void submitsKeyedProposalAndChecksReturnedDefinition() {
+      String material = """
+          {"definition":{"allowed_action_kinds":["READ"],"allowed_actor_ids":["actor"],"allowed_resource_ids":["resource"],"eligible_approver_ids":["reviewer"],"maximum_cost_usd":10,"permitted_providers":["AZURE"],"permitted_regions":["region"],"required_approver_count":1},"effective_from":"2026-01-01T00:00:00Z","expires_at":"2031-01-01T00:00:00Z","id":"policy-a","service_id":"service-a"}""";
+      var definition = new PolicyClient.Definition(List.of("READ"), List.of("actor"), List.of("resource"),
+          List.of("AZURE"), List.of("region"), 1, List.of("reviewer"), new BigDecimal("10.00"));
+      var request = new PolicyClient.Proposal("policy-a", "service-a", 1,
+          Instant.parse("2031-01-01T00:00:00Z"), definition, "reason", Instant.parse("2026-01-01T00:00:00Z"));
+      for (boolean changed : List.of(false, true)) {
+        String returnedMaterial = changed ? material.replace("resource", "other-resource") : material;
+        String policy = DETAIL.replace(jsonString(MATERIAL), jsonString(returnedMaterial))
+            .replace(DIGEST, digest(returnedMaterial));
+        RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("http://edge.test/v1/authorization-policy-bundles"))
+            .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+            .andExpect(header("Idempotency-Key", "same-key"))
+            .andExpect(jsonPath("$.service_id").value("service-a"))
+            .andExpect(jsonPath("$.expected_revision").value(1))
+            .andExpect(jsonPath("$.definition.allowed_action_kinds[0]").value("READ"))
+            .andRespond(withSuccess("{\"policy\":" + policy + "}", MediaType.APPLICATION_JSON));
+        PolicyClient client = new PolicyClient(builder.build());
+        if (changed) {
+          assertThatThrownBy(() -> client.propose("delegated", "same-key", request))
+              .isInstanceOf(IllegalStateException.class);
+        } else {
+          assertThat(client.propose("delegated", "same-key", request).revision()).isEqualTo(2);
+        }
+        server.verify();
     }
   }
 }

@@ -8,6 +8,7 @@
   <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/access">Back to current access</a></p>
+  <p><a th:href="@{/policies/new(serviceId=${serviceId})}">Propose a policy revision</a></p>
   <p>These are governance records, not permits or authorization to perform actions.
     Current eligibility is a point-in-time policy review result, not an execution decision.
     Pages are independent reads and may change between requests.</p>

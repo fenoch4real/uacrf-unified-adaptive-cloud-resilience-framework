@@ -326,6 +326,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       { principalId: collectorPrincipalId, capability: 'connections.observation.write' },
       { principalId: evidencePrincipalId, capability: 'evidence.event.write' },
       { principalId, capability: 'authorization.policy.read', scope: fixtureServiceId },
+      { principalId, capability: 'authorization.policy.write', scope: fixtureServiceId },
       { principalId: evidencePrincipalId, capability: 'authorization.policy.write', scope: fixtureServiceId },
     ];
     for (const { principalId: targetPrincipalId, capability, scope = '*' } of grants) {
@@ -449,6 +450,59 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('heading', { name: 'Unified Adaptive Cloud Resilience Framework' }))
       .toBeVisible();
     await selectLocalContext(sample);
+    const proposedPolicyId = `browser-ui-policy-${randomUUID()}`;
+    await sample.goto(`/policies/new?serviceId=${fixtureServiceId}`);
+    await sample.getByLabel('Policy ID').fill(proposedPolicyId);
+    await sample.getByLabel('Effective from (UTC)').fill('2026-01-01T00:00:00Z');
+    await sample.getByLabel('Expires at (UTC)').fill('2035-01-01T00:00:00Z');
+    await sample.getByLabel('Allowed action kinds').fill('READ');
+    await sample.getByLabel('Allowed actor IDs').fill('sample-actor');
+    await sample.getByLabel('Allowed resource IDs').fill('sample-resource');
+    await sample.getByLabel('Permitted providers').fill('AZURE');
+    await sample.getByLabel('Permitted regions').fill('sample-region');
+    await sample.getByLabel('Eligible approver IDs').fill('sample-reviewer');
+    await sample.getByLabel('Maximum cost (USD)').fill('10.000001');
+    await sample.getByLabel('Proposal reason').fill('Synthetic browser proposal');
+    const [policyRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/policies'),
+      sample.getByRole('button', { name: 'Propose policy revision' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Policy proposal receipt' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText(proposedPolicyId);
+    await expect(sample.locator('main')).toContainText('DRAFT');
+    const replayPolicy = await sample.request.post('/policies', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: policyRequest.postData(),
+    });
+    expect(replayPolicy.status()).toBe(200);
+    const changedPolicyForm = new URLSearchParams(policyRequest.postData());
+    changedPolicyForm.set('reason', 'Changed synthetic proposal');
+    const changedPolicy = await sample.request.post('/policies', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedPolicyForm.toString(),
+    });
+    expect(changedPolicy.status()).toBe(409);
+    await sample.getByRole('link', { name: 'Read this revision' }).click();
+    await expect(sample.getByRole('heading', { name: `${proposedPolicyId} - revision 1` })).toBeVisible();
+    await sample.getByRole('link', { name: 'Propose a revision based on this revision' }).click();
+    await expect(sample.getByLabel('Policy ID')).toHaveValue(proposedPolicyId);
+    await expect(sample.getByLabel('Expected current revision')).toHaveValue('1');
+    await sample.getByLabel('Effective from (UTC)').fill('2026-01-01T00:00:00Z');
+    await sample.getByLabel('Expires at (UTC)').fill('2035-01-01T00:00:00Z');
+    await sample.getByLabel('Allowed action kinds').fill('READ');
+    await sample.getByLabel('Allowed actor IDs').fill('sample-actor');
+    await sample.getByLabel('Allowed resource IDs').fill('sample-resource');
+    await sample.getByLabel('Permitted providers').fill('AZURE');
+    await sample.getByLabel('Permitted regions').fill('sample-region');
+    await sample.getByLabel('Eligible approver IDs').fill('sample-reviewer');
+    await sample.getByLabel('Maximum cost (USD)').fill('10');
+    await sample.getByLabel('Proposal reason').fill('Synthetic next revision');
+    await sample.getByRole('button', { name: 'Propose policy revision' }).click();
+    await expect(sample.locator('dt').filter({ hasText: 'Revision' }).locator('+ dd')).toHaveText('2');
+    const oldPolicyReplay = await sample.request.post('/policies', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: policyRequest.postData(),
+    });
+    expect(oldPolicyReplay.status()).toBe(200);
+    expect(await oldPolicyReplay.text()).toContain('>1</dd>');
     await sample.goto(`/policies?serviceId=${fixtureServiceId}`);
     await expect(sample.getByRole('heading', { name: 'Service policy bundles' })).toBeVisible();
     await expect(sample.getByText('governance records, not permits', { exact: false })).toBeVisible();
@@ -1084,6 +1138,17 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedPolicies = await restricted.goto(`/policies?serviceId=${fixtureServiceId}`);
       expect(deniedPolicies.status()).toBe(403);
       await expect(restricted.getByText(policyId, { exact: false })).toHaveCount(0);
+      await restricted.goto(`/policies/new?serviceId=${fixtureServiceId}`);
+      const restrictedForm = new URLSearchParams(policyRequest.postData());
+      restrictedForm.set('_csrf', await restricted.locator('input[name="_csrf"]').inputValue());
+      restrictedForm.set('principalName', await restricted.locator('input[name="principalName"]').inputValue());
+      restrictedForm.set('id', `denied-policy-${randomUUID()}`);
+      restrictedForm.set('idempotencyKey', randomUUID());
+      const deniedPolicyWrite = await restricted.request.post('/policies', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: restrictedForm.toString(),
+      });
+      expect(deniedPolicyWrite.status()).toBe(403);
+      expect(await deniedPolicyWrite.text()).toContain('Policy proposal was not authorized');
 
       const globalEvidence = await restricted.goto('/evidence');
       expect(globalEvidence.status()).toBe(403);

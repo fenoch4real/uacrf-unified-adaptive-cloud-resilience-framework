@@ -1,6 +1,7 @@
 package org.uacrf.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -55,6 +56,42 @@ class PolicyClient {
     PolicyResult result = restClient.get().uri(uri -> uri.path(ROOT + "/{id}")
         .queryParam("revision", revision).build(id))
         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(PolicyResult.class);
+    return validate(result, serviceId, id, revision);
+  }
+
+  Policy propose(String token, String idempotencyKey, Proposal request) {
+    PolicyResult result = restClient.post().uri(ROOT)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", idempotencyKey)
+        .body(request).retrieve().body(PolicyResult.class);
+    Policy policy = validate(result, request.serviceId(), request.id(), request.expectedRevision() + 1);
+    try {
+      JsonNode material = MATERIAL_MAPPER.reader().with(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
+          .readTree(policy.material().canonicalText());
+      JsonNode definition = material.path("definition");
+      JsonNode expected = MATERIAL_MAPPER.valueToTree(request.definition());
+      if (!policy.expiresAt().equals(request.expiresAt())
+          || !policy.effectiveFrom().equals(request.effectiveFrom())
+          || !policy.proposalReason().equals(request.reason())
+          || !definition.isObject()
+          || !definition.path("allowed_action_kinds").equals(expected.path("allowed_action_kinds"))
+          || !definition.path("allowed_actor_ids").equals(expected.path("allowed_actor_ids"))
+          || !definition.path("allowed_resource_ids").equals(expected.path("allowed_resource_ids"))
+          || !definition.path("permitted_providers").equals(expected.path("permitted_providers"))
+          || !definition.path("permitted_regions").equals(expected.path("permitted_regions"))
+          || !definition.path("required_approver_count").equals(expected.path("required_approver_count"))
+          || !definition.path("eligible_approver_ids").equals(expected.path("eligible_approver_ids"))
+          || !definition.path("maximum_cost_usd").isNumber()
+          || definition.path("maximum_cost_usd").decimalValue().compareTo(request.definition().maximumCostUsd()) != 0) {
+        throw new IllegalStateException("S10 returned a proposal that does not match the request.");
+      }
+    } catch (JacksonException error) {
+      throw new IllegalStateException("S10 returned invalid proposal material.", error);
+    }
+    return policy;
+  }
+
+  private static Policy validate(PolicyResult result, String serviceId, String id, long revision) {
     Policy policy = result == null ? null : result.policy();
     if (policy == null || !valid(policy.summary(), serviceId) || !id.equals(policy.id())
         || policy.revision() == null || revision != policy.revision()
@@ -140,6 +177,18 @@ class PolicyClient {
       @JsonProperty("valid_approval_count") Integer validApprovalCount,
       @JsonProperty("rejection_count") Integer rejectionCount, List<Vote> votes) {}
   record PolicyResult(Policy policy) {}
+  record Definition(@JsonProperty("allowed_action_kinds") List<String> allowedActionKinds,
+      @JsonProperty("allowed_actor_ids") List<String> allowedActorIds,
+      @JsonProperty("allowed_resource_ids") List<String> allowedResourceIds,
+      @JsonProperty("permitted_providers") List<String> permittedProviders,
+      @JsonProperty("permitted_regions") List<String> permittedRegions,
+      @JsonProperty("required_approver_count") Integer requiredApproverCount,
+      @JsonProperty("eligible_approver_ids") List<String> eligibleApproverIds,
+      @JsonProperty("maximum_cost_usd") BigDecimal maximumCostUsd) {}
+  record Proposal(String id, @JsonProperty("service_id") String serviceId,
+      @JsonProperty("expected_revision") long expectedRevision,
+      @JsonProperty("expires_at") Instant expiresAt, Definition definition, String reason,
+      @JsonProperty("effective_from") Instant effectiveFrom) {}
   record Policy(String id, Long revision, @JsonProperty("service_id") String serviceId,
       @JsonProperty("expires_at") Instant expiresAt, String digest,
       @JsonProperty("proposed_by") String proposedBy, @JsonProperty("proposal_reason") String proposalReason,

@@ -41,12 +41,15 @@ The approver's direct membership submission and the administrator's direct
 decision submission are both denied. This is a manual trusted-channel
 handoff—there is no persisted request inbox or browser approval queue.
 
-The browser stack also gives the sample user a service-scoped policy-read
-grant and a separate test SYSTEM principal a policy-write grant. It proposes
-26 synthetic drafts through S01, EDGE01 and S10, creates a second revision,
-and verifies two-page UX01 browsing, exact current and historical reads, and
-denials for another service and an ungranted user. No signing trust set or
-approved review is exercised; these drafts do not authorize actions.
+The browser stack also gives the sample user separate service-scoped
+policy-read and policy-write grants and a test SYSTEM principal a policy-write
+grant. It proposes 26 synthetic drafts through S01, EDGE01 and S10, and
+verifies two-page UX01 browsing and exact current and historical reads. The
+user submits a first and later revision through UX01, replays the original
+request after the later revision, and verifies a changed request with the same
+key conflicts. It also checks denial for another service and an ungranted
+user. No signing trust set or approved review is exercised; these drafts do
+not authorize actions or establish provider acceptance.
 
 The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global

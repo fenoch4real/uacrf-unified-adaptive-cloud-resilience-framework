@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Propose policy revision | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body><main>
+  <h1>Propose a policy revision</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/policies">Back to service policies</a></p>
+  <p>A proposal is governance metadata, not an approval, action permit, or authorization.
+    All fields are required. Enter times in UTC using ISO-8601, for example 2030-01-01T00:00:00Z.</p>
+  <p>If the outcome is unconfirmed, retry this same form unchanged as the same signed-in user in the same context. Changed details require a new form.</p>
+  <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
+  <form method="post" th:action="@{/policies}" th:object="${policyForm}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <div role="alert" th:if="${#fields.hasAnyErrors()}">
+      <h2>Check the proposal details</h2>
+      <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}">Validation error</li></ul>
+    </div>
+    <fieldset><legend>Revision</legend>
+      <p><label for="serviceId">Service ID</label> <input id="serviceId" th:field="*{serviceId}" maxlength="200" required
+        th:attr="aria-invalid=${#fields.hasErrors('serviceId') ? 'true' : null},aria-describedby=${#fields.hasErrors('serviceId') ? 'serviceId-error' : null}">
+        <span id="serviceId-error" th:errors="*{serviceId}"></span></p>
+      <p><label for="id">Policy ID</label> <input id="id" th:field="*{id}" maxlength="200" required
+        th:attr="aria-invalid=${#fields.hasErrors('id') ? 'true' : null},aria-describedby=${#fields.hasErrors('id') ? 'id-error' : null}">
+        <span id="id-error" th:errors="*{id}"></span></p>
+      <p><label for="expectedRevision">Expected current revision (0 for a new policy)</label>
+        <input id="expectedRevision" type="number" min="0" th:field="*{expectedRevision}" required
+        th:attr="aria-invalid=${#fields.hasErrors('expectedRevision') ? 'true' : null},aria-describedby=${#fields.hasErrors('expectedRevision') ? 'expectedRevision-error' : null}">
+        <span id="expectedRevision-error" th:errors="*{expectedRevision}"></span></p>
+      <p><label for="effectiveFrom">Effective from (UTC)</label> <input id="effectiveFrom" th:field="*{effectiveFrom}" maxlength="50" required
+        th:attr="aria-invalid=${#fields.hasErrors('effectiveFrom') ? 'true' : null},aria-describedby=${#fields.hasErrors('effectiveFrom') ? 'effectiveFrom-error' : null}">
+        <span id="effectiveFrom-error" th:errors="*{effectiveFrom}"></span></p>
+      <p><label for="expiresAt">Expires at (UTC)</label> <input id="expiresAt" th:field="*{expiresAt}" maxlength="50" required
+        th:attr="aria-invalid=${#fields.hasErrors('expiresAt') ? 'true' : null},aria-describedby=${#fields.hasErrors('expiresAt') ? 'expiresAt-error' : null}">
+        <span id="expiresAt-error" th:errors="*{expiresAt}"></span></p>
+    </fieldset>
+    <fieldset><legend>Policy definition</legend>
+      <p>Enter one unique value per line. Global wildcard * is not permitted for resources or regions.</p>
+      <p><label for="actions">Allowed action kinds</label> <textarea id="actions" th:field="*{actions}" maxlength="20100" required
+        th:attr="aria-invalid=${#fields.hasErrors('actions') ? 'true' : null},aria-describedby=${#fields.hasErrors('actions') ? 'actions-error' : null}"></textarea>
+        <span id="actions-error" th:errors="*{actions}"></span></p>
+      <p><label for="actors">Allowed actor IDs</label> <textarea id="actors" th:field="*{actors}" maxlength="20100" required
+        th:attr="aria-invalid=${#fields.hasErrors('actors') ? 'true' : null},aria-describedby=${#fields.hasErrors('actors') ? 'actors-error' : null}"></textarea>
+        <span id="actors-error" th:errors="*{actors}"></span></p>
+      <p><label for="resources">Allowed resource IDs</label> <textarea id="resources" th:field="*{resources}" maxlength="20100" required
+        th:attr="aria-invalid=${#fields.hasErrors('resources') ? 'true' : null},aria-describedby=${#fields.hasErrors('resources') ? 'resources-error' : null}"></textarea>
+        <span id="resources-error" th:errors="*{resources}"></span></p>
+      <p><label for="providers">Permitted providers (AWS, AZURE, GCP, AGENT_RUNTIME)</label>
+        <textarea id="providers" th:field="*{providers}" maxlength="20100" required
+        th:attr="aria-invalid=${#fields.hasErrors('providers') ? 'true' : null},aria-describedby=${#fields.hasErrors('providers') ? 'providers-error' : null}"></textarea>
+        <span id="providers-error" th:errors="*{providers}"></span></p>
+      <p><label for="regions">Permitted regions</label> <textarea id="regions" th:field="*{regions}" maxlength="20100" required
+        th:attr="aria-invalid=${#fields.hasErrors('regions') ? 'true' : null},aria-describedby=${#fields.hasErrors('regions') ? 'regions-error' : null}"></textarea>
+        <span id="regions-error" th:errors="*{regions}"></span></p>
+      <p><label for="requiredApprovers">Required approver count (0 to 10)</label>
+        <input id="requiredApprovers" type="number" min="0" max="10" th:field="*{requiredApprovers}" required
+        th:attr="aria-invalid=${#fields.hasErrors('requiredApprovers') ? 'true' : null},aria-describedby=${#fields.hasErrors('requiredApprovers') ? 'requiredApprovers-error' : null}">
+        <span id="requiredApprovers-error" th:errors="*{requiredApprovers}"></span></p>
+      <p>S10 requires at least one approval even when the configured count is zero.</p>
+      <p><label for="approvers">Eligible approver IDs</label> <textarea id="approvers" th:field="*{approvers}" maxlength="20100" required
+        th:attr="aria-invalid=${#fields.hasErrors('approvers') ? 'true' : null},aria-describedby=${#fields.hasErrors('approvers') ? 'approvers-error' : null}"></textarea>
+        <span id="approvers-error" th:errors="*{approvers}"></span></p>
+      <p><label for="maximumCost">Maximum cost (USD)</label>
+        <input id="maximumCost" type="number" min="0" max="1000000000" step="0.000001" th:field="*{maximumCost}" required
+        th:attr="aria-invalid=${#fields.hasErrors('maximumCost') ? 'true' : null},aria-describedby=${#fields.hasErrors('maximumCost') ? 'maximumCost-error' : null}">
+        <span id="maximumCost-error" th:errors="*{maximumCost}"></span></p>
+    </fieldset>
+    <p><label for="reason">Proposal reason</label> <textarea id="reason" th:field="*{reason}" maxlength="2000" required
+      th:attr="aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},aria-describedby=${#fields.hasErrors('reason') ? 'reason-error' : null}"></textarea>
+      <span id="reason-error" th:errors="*{reason}"></span></p>
+    <button type="submit">Propose policy revision</button>
+  </form>
+</main></body></html>
