@@ -247,6 +247,51 @@ class ObjectivesRouteControllerTests {
   }
 
   @Test
+  void forwardsSyntheticCandidateAdmissionAndReadWithoutChangingOwnerResponses() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    String path = "/v1/objective-imports/import-1/sample-captures/capture-1/mapping-proposals/"
+        + "proposal-1/reviews/review-1/synthetic-candidates";
+    String body = "{\"expected_proposal_digest\":\"abc\"}";
+    String response = "{\"status\":\"UNCOMPARED\",\"verification\":\"SYNTHETIC_UNVERIFIED\"}";
+    HttpStatus[] writes = {HttpStatus.CREATED, HttpStatus.OK, HttpStatus.BAD_REQUEST, HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND, HttpStatus.CONFLICT, HttpStatus.SERVICE_UNAVAILABLE};
+    HttpStatus[] reads = {HttpStatus.OK, HttpStatus.FORBIDDEN, HttpStatus.NOT_FOUND, HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus code : writes) {
+      server.expect(requestTo(URL + path)).andExpect(method(HttpMethod.POST))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+          .andExpect(header("Idempotency-Key", "candidate-key"))
+          .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.content().json(body))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body(response));
+    }
+    server.expect(requestTo(URL + path)).andExpect(method(HttpMethod.POST))
+        .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist("Idempotency-Key"))
+        .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    for (HttpStatus code : reads) {
+      server.expect(requestTo(URL + path + "/candidate-1")).andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body(response));
+    }
+    for (HttpStatus code : writes) {
+      mvc.perform(post("/internal/objectives" + path).header(HttpHeaders.AUTHORIZATION, "Bearer writer")
+              .header("Idempotency-Key", "candidate-key").contentType(MediaType.APPLICATION_JSON).content(body))
+          .andExpect(status().is(code.value())).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json(response));
+    }
+    mvc.perform(post("/internal/objectives" + path).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isBadRequest()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    for (HttpStatus code : reads) {
+      mvc.perform(get("/internal/objectives" + path + "/candidate-1")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andExpect(status().is(code.value())).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json(response));
+    }
+    server.verify();
+  }
+
+  @Test
   void forwardsSyntheticProposalListingAndPagination() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

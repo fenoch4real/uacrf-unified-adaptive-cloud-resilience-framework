@@ -284,7 +284,8 @@ the unkeyed route.
   are `no-store`. These records are `UNCOMPARED` and `SYNTHETIC_UNVERIFIED`:
   no current membership or source recheck is made, no approved general mapping
   is established, and no local comparison, import resolution, objective
-  proposal or processing occurs. EDGE01 and UX01 access remain open.
+  proposal or processing occurs. EDGE01 forwards admission and known-candidate
+  readback; UX01 access remains open.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an
