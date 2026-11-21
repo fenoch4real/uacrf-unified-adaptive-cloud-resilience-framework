@@ -116,6 +116,15 @@ class ObjectivesController {
         .cacheControl(CacheControl.noStore()).body(result.proposal());
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals")
+  ResponseEntity<Page<ObjectivesService.SyntheticMappingProposalSummary>> listSyntheticMappingProposals(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @RequestParam(defaultValue = "25") int pageSize, @RequestParam(required = false) String cursor) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.listSyntheticMappingProposals(DelegationPrincipal.from(jwt), id, captureId,
+            ObjectivesService.validatePageSize(pageSize), cursor));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}")
   ResponseEntity<ObjectivesService.SyntheticMappingProposal> getSyntheticMappingProposal(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,

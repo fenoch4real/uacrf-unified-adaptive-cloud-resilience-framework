@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**170 completed / 829 total** · 659 open
+**171 completed / 830 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 80 | 242 |
+| Milestone items | 81 | 243 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -351,6 +351,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026y Forward synthetic mapping review discovery through EDGE01 with the original delegation and owner response. Evidence: R-0286.
   - [x] M2-026z Connect synthetic review discovery and independent decision submission to UX01 with exact proposal binding, context-bound retry and explicit synthetic limitations. Evidence: R-0291–R-0292, R-0295.
   - [x] M2-026aa Verify the synthetic review browser flow through real service boundaries, including authorized review and denial; document test-fixture and transport limitations. Evidence: R-0293–R-0294.
+  - [x] M2-026ab List retained synthetic mapping proposals for a known capture in S05 with bounded, context-bound pagination and read authorization. Evidence: R-0299.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1420,6 +1421,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0294 | 2026-11-21 | M2-026aa | Rechecked fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic-source and reviewer-check features remain disabled by default. |
 | R-0295 | 2026-11-21 | M2-026z | Re-ran the focused UX01 review test after expanding the exact-proposal details displayed for review. | One test passed; the browser suite ran before that display-only expansion. |
 | R-0296 | 2026-11-21 | M2-026z | Updated private technical approach Appendix AB to revision 220 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Private document is not committed; synthetic review is not trusted provenance or import processing. |
+| R-0297 | 2026-11-21 | M2-026z | Committed the synthetic mapping review browser workflow as `ce0f21e` and pushed it to `origin/main`. | Import comparison, candidate creation and processing remain open. |
+| R-0298 | 2026-11-21 | M2-026ab | Started S05 discovery of synthetic mapping proposals for a retained capture. | Cursors must be scoped to tenant, environment, request and capture; proposals remain unapproved. |
+| R-0299 | 2026-11-21 | M2-026ab | Ran the S05 and shared-security regression for proposal discovery. | 47 S05 and 8 shared-security tests passed, including pagination, cross-capture cursor rejection, authorization and tenant/environment isolation. EDGE01 and UX01 proposal listing remain open. |
+| R-0300 | 2026-11-21 | M2-026ab | Updated discovery documentation. | The first patch applied the tracker and contract updates but missed the design README context; the remaining hunk was applied separately. |
+| R-0301 | 2026-11-21 | M2-026ab | Updated private technical approach Appendix AB to revision 221 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Edge and browser proposal listing remain open. |
+| R-0302 | 2026-11-21 | M2-026ab | Re-ran the focused S05 capture test after explicitly asserting the empty-list response status. | One test passed. |
 
 ## Implementation evidence
 

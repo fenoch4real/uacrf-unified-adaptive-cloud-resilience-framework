@@ -263,6 +263,12 @@ the unkeyed route.
   status or body. UX01 can submit a proposal from a successful rehearsal and
   read a known proposal with separate read authority; on an uncertain POST it
   preserves the same form and key for retry in the same context.
+  S05 `GET` on the `mapping-proposals` collection lists bounded summaries for
+  a known capture with global objective-read authority. Pages are ordered by
+  proposal UUID, not time; cursors are bound to tenant, environment, request
+  and capture and do not confer authority. Concurrent inserts may require a
+  restart from the first page. Successful responses are `no-store`; EDGE01
+  forwarding and UX01 listing remain open.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

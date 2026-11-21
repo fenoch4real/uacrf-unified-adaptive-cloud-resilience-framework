@@ -106,8 +106,10 @@ authorized context. It relies on the incoming delegation rather than a fresh
 membership check, does not reverify the source or approve a mapping, and does
 not create a candidate or process an import. EDGE01 forwards proposal creation
 and read, and UX01 exposes submission from the rehearsal and known-proposal
-readback. S05 can retain one independent approval or rejection of the exact
-synthetic proposal after a fail-closed current-reviewer check. The immutable
+readback. S05 can list bounded proposal summaries for a known capture, with
+context-bound cursors; edge and browser listing remain open. S05 can retain one
+independent approval or rejection of the exact synthetic proposal after a
+fail-closed current-reviewer check. The immutable
 proposal remains marked `UNAPPROVED`; the separate decision is limited to the
 historical fictional capture and is not trusted source provenance. The reviewer
 check is not atomic with the S05 commit. EDGE01 forwards review admission and

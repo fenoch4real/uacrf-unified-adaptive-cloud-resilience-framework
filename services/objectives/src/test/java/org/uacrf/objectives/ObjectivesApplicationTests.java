@@ -602,6 +602,32 @@ class ObjectivesApplicationTests {
         + "/mapping-proposals";
     assertEquals(409, postWithIdempotency(otherProposals, proposer, proposalBody, "mapping-key").statusCode());
     assertEquals(404, get(otherProposals + "/" + proposalId, reader).statusCode());
+    var proposalFirst = get(proposals + "?pageSize=1", reader);
+    assertEquals(200, proposalFirst.statusCode());
+    assertThat(proposalFirst.headers().firstValue("cache-control")).hasValue("no-store");
+    var proposalFirstBody = json.readTree(proposalFirst.body());
+    assertThat(proposalFirstBody.path("items")).hasSize(1);
+    assertThat(proposalFirstBody.path("items").get(0).path("status").asText()).isEqualTo("UNAPPROVED");
+    assertThat(proposalFirstBody.path("items").get(0).path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    String proposalCursor = proposalFirstBody.path("next_cursor").asText();
+    var proposalSecond = get(proposals + "?pageSize=1&cursor=" + proposalCursor, reader);
+    assertEquals(200, proposalSecond.statusCode());
+    var proposalSecondBody = json.readTree(proposalSecond.body());
+    assertThat(proposalSecondBody.path("items")).hasSize(1);
+    assertThat(proposalSecondBody.path("items").get(0).path("proposal_id").asText())
+        .isNotEqualTo(proposalFirstBody.path("items").get(0).path("proposal_id").asText());
+    assertThat(proposalSecondBody.path("next_cursor").isNull()).isTrue();
+    assertEquals(400, get(otherProposals + "?cursor=" + proposalCursor, reader).statusCode());
+    assertEquals(400, get(proposals + "?cursor=invalid", reader).statusCode());
+    assertEquals(400, get(proposals + "?pageSize=101", reader).statusCode());
+    assertEquals(403, get(proposals, bearer("writer-only", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(403, get(proposals, token("scoped", tenant, "w1", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(proposals, bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(proposals, tokenForEnvironment("reader", tenant, "other-environment", "*",
+        List.of("objectives.objective.read"))).statusCode());
+    var emptyProposals = get(otherProposals, reader);
+    assertEquals(200, emptyProposals.statusCode());
+    assertThat(json.readTree(emptyProposals.body()).path("items")).isEmpty();
     assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_mapping_proposal "
         + "WHERE tenant_id = ?", Integer.class, tenant));
     assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_source_capture "

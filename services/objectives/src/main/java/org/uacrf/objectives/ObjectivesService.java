@@ -545,6 +545,48 @@ class ObjectivesService {
   }
 
   @Transactional(readOnly = true)
+  Page<SyntheticMappingProposalSummary> listSyntheticMappingProposals(
+      DelegationPrincipal actor, String id, String captureId, int pageSize, String cursor) {
+    RetainedSampleCapture capture = getRetainedSampleCapture(actor, id, captureId);
+    UUID command = UUID.fromString(capture.receiptId());
+    UUID captureUuid = UUID.fromString(capture.captureId());
+    String scope = sha256(serialize(new TreeMap<>(Map.of("tenant_id", actor.tenantId(),
+        "environment_id", actor.environmentId(), "receipt_id", command.toString(), "capture_id", captureUuid.toString()))));
+    String decoded = decodeCursor(cursor);
+    UUID after = null;
+    if (!decoded.isEmpty()) {
+      String prefix = "SM1:" + scope + ":";
+      if (!decoded.startsWith(prefix)) {
+        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor does not match this capture.");
+      }
+      String position = decoded.substring(prefix.length());
+      try {
+        after = UUID.fromString(position);
+        if (!after.toString().equals(position)) throw new IllegalArgumentException();
+      } catch (IllegalArgumentException error) {
+        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");
+      }
+    }
+    List<SyntheticMappingProposalSummary> rows = jdbc.query(
+        "SELECT proposal_id, proposed_at, proposed_by, target_unit, status, verification FROM " + SCHEMA
+            + "synthetic_objective_mapping_proposal WHERE tenant_id = ? AND environment_id = ? "
+            + "AND command_id = ? AND capture_id = ? AND (?::uuid IS NULL OR proposal_id > ?::uuid) "
+            + "ORDER BY proposal_id LIMIT ?",
+        (rs, row) -> new SyntheticMappingProposalSummary(rs.getString("proposal_id"),
+            rs.getTimestamp("proposed_at").toInstant().toString(), rs.getString("proposed_by"),
+            rs.getString("target_unit"), rs.getString("status"), rs.getString("verification")),
+        actor.tenantId(), actor.environmentId(), command, captureUuid, after, after, pageSize + 1);
+    boolean more = rows.size() > pageSize;
+    List<SyntheticMappingProposalSummary> items = more ? rows.subList(0, pageSize) : rows;
+    String next = more ? Base64.getUrlEncoder().withoutPadding().encodeToString(
+        ("SM1:" + scope + ":" + items.getLast().proposalId()).getBytes(StandardCharsets.UTF_8)) : null;
+    return new Page<>(items, next);
+  }
+
+  record SyntheticMappingProposalSummary(String proposalId, String proposedAt, String proposedBy,
+      String targetUnit, String status, String verification) {}
+
+  @Transactional(readOnly = true)
   SyntheticMappingProposal getSyntheticMappingProposal(
       DelegationPrincipal actor, String id, String captureId, String proposalId) {
     requireCapability(actor, "objectives.objective.read");
