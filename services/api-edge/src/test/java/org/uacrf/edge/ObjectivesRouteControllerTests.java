@@ -247,6 +247,29 @@ class ObjectivesRouteControllerTests {
   }
 
   @Test
+  void forwardsSyntheticProposalListingAndPagination() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    String path = "/v1/objective-imports/import-1/sample-captures/capture-1/mapping-proposals";
+    HttpStatus[] codes = {HttpStatus.OK, HttpStatus.BAD_REQUEST, HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND, HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus code : codes) {
+      server.expect(requestTo(URL + path + "?pageSize=2&cursor=next"))
+          .andExpect(method(HttpMethod.GET)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body("{\"items\":[]}"));
+    }
+    for (HttpStatus code : codes) {
+      mvc.perform(get("/internal/objectives" + path).param("pageSize", "2").param("cursor", "next")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andExpect(status().is(code.value())).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json("{\"items\":[]}"));
+    }
+    server.verify();
+  }
+
+  @Test
   void forwardsSyntheticReviewDiscoveryWithOwnerResponses() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

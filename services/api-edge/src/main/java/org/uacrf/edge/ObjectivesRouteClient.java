@@ -123,6 +123,16 @@ class ObjectivesRouteClient {
     return send(request, authorization);
   }
 
+  ResponseEntity<String> listSyntheticMappingProposals(
+      String authorization, String id, String captureId, int pageSize, String cursor) {
+    return send(objectivesRestClient.get().uri(uri -> {
+      uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals")
+          .queryParam("pageSize", pageSize);
+      if (cursor != null && !cursor.isBlank()) uri.queryParam("cursor", cursor);
+      return uri.build(id, captureId);
+    }), authorization);
+  }
+
   ResponseEntity<String> getSyntheticMappingProposal(
       String authorization, String id, String captureId, String proposalId) {
     return send(objectivesRestClient.get()

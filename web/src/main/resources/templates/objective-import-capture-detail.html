@@ -33,6 +33,7 @@
     </dl>
     <h2 id="payload-title">Exact retained fictional payload</h2>
     <pre role="region" aria-labelledby="payload-title" tabindex="0"><code th:text="${capture.payload}"></code></pre>
+    <p><a th:href="@{/objectives/import/receipt/synthetic-mappings(id=${capture.receiptId},captureId=${capture.captureId})}">View fictional mapping proposals</a></p>
     <h2>Rehearse a conversion</h2>
     <p>This is an unapproved, read-only calculation; it does not create a candidate or verify the source.</p>
     <form method="get" th:action="@{/objectives/import/receipt/normalization-rehearsal}">

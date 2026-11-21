@@ -268,7 +268,9 @@ the unkeyed route.
   proposal UUID, not time; cursors are bound to tenant, environment, request
   and capture and do not confer authority. Concurrent inserts may require a
   restart from the first page. Successful responses are `no-store`; EDGE01
-  forwarding and UX01 listing remain open.
+  forwards pagination, delegation and owner responses. UX01 links from the
+  retained capture to the list and provides first/next navigation with separate
+  read delegation and the same historical, synthetic limitations.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

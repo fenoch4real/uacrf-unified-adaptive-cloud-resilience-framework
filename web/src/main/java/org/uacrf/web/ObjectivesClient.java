@@ -241,6 +241,31 @@ class ObjectivesClient {
     return result;
   }
 
+  SyntheticProposalPage listSyntheticMappingProposals(String token, String id, String captureId, String cursor) {
+    if (!validUuid(id) || !validUuid(captureId)) throw new IllegalStateException("Invalid capture identifiers.");
+    SyntheticProposalPage page = restClient.get().uri(uri -> {
+      var request = uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals")
+          .queryParam("pageSize", 25);
+      if (cursor != null && !cursor.isBlank()) request.queryParam("cursor", cursor);
+      return request.build(id, captureId);
+    }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SyntheticProposalPage.class);
+    if (page == null || page.items() == null || page.items().size() > 25
+        || (page.nextCursor() != null && page.nextCursor().isBlank())
+        || page.items().stream().anyMatch(item -> item == null || !validUuid(item.proposalId())
+            || !present(item.proposedAt()) || !present(item.proposedBy()) || !present(item.targetUnit())
+            || item.targetUnit().length() > 80 || !"UNAPPROVED".equals(item.status())
+            || !"SYNTHETIC_UNVERIFIED".equals(item.verification()))
+        || page.items().stream().map(SyntheticProposalSummary::proposalId).distinct().count() != page.items().size()) {
+      throw new IllegalStateException("S05 returned an invalid synthetic proposal page.");
+    }
+    try {
+      for (SyntheticProposalSummary item : page.items()) java.time.Instant.parse(item.proposedAt());
+    } catch (java.time.format.DateTimeParseException error) {
+      throw new IllegalStateException("S05 returned an invalid synthetic proposal time.", error);
+    }
+    return page;
+  }
+
   SyntheticMappingProposal proposeSyntheticMapping(String token, String id, String captureId, String key,
       SyntheticMappingRequest request) {
     if (!validUuid(id) || !validUuid(captureId) || !validUuid(key)) {
@@ -512,6 +537,12 @@ class ObjectivesClient {
 
   record SyntheticMappingRequest(@JsonProperty("target_unit") String targetUnit,
       @JsonProperty("allow_fraction_to_percent") boolean allowFractionToPercent, String reason) {}
+
+  record SyntheticProposalSummary(@JsonProperty("proposal_id") String proposalId,
+      @JsonProperty("proposed_at") String proposedAt, @JsonProperty("proposed_by") String proposedBy,
+      @JsonProperty("target_unit") String targetUnit, String status, String verification) {}
+
+  record SyntheticProposalPage(List<SyntheticProposalSummary> items, @JsonProperty("next_cursor") String nextCursor) {}
 
   record SyntheticMappingProposal(@JsonProperty("proposal_id") String proposalId,
       @JsonProperty("receipt_id") String receiptId, @JsonProperty("capture_id") String captureId,

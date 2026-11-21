@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**171 completed / 830 total** · 659 open
+**173 completed / 832 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 81 | 243 |
+| Milestone items | 83 | 245 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -352,6 +352,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026z Connect synthetic review discovery and independent decision submission to UX01 with exact proposal binding, context-bound retry and explicit synthetic limitations. Evidence: R-0291–R-0292, R-0295.
   - [x] M2-026aa Verify the synthetic review browser flow through real service boundaries, including authorized review and denial; document test-fixture and transport limitations. Evidence: R-0293–R-0294.
   - [x] M2-026ab List retained synthetic mapping proposals for a known capture in S05 with bounded, context-bound pagination and read authorization. Evidence: R-0299.
+  - [x] M2-026ac Forward synthetic proposal listing through EDGE01 with original delegation, pagination and owner responses. Evidence: R-0305.
+  - [x] M2-026ad Connect retained synthetic proposal listing to UX01 and verify browser pagination and authorization. Evidence: R-0307–R-0309.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1427,6 +1429,15 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0300 | 2026-11-21 | M2-026ab | Updated discovery documentation. | The first patch applied the tracker and contract updates but missed the design README context; the remaining hunk was applied separately. |
 | R-0301 | 2026-11-21 | M2-026ab | Updated private technical approach Appendix AB to revision 221 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Edge and browser proposal listing remain open. |
 | R-0302 | 2026-11-21 | M2-026ab | Re-ran the focused S05 capture test after explicitly asserting the empty-list response status. | One test passed. |
+| R-0303 | 2026-11-21 | M2-026ab | Committed S05 synthetic proposal listing as `c4c8d7b` and pushed it to `origin/main`. | EDGE01 and UX01 proposal listing remain open. |
+| R-0304 | 2026-11-21 | M2-026ac | Started EDGE01 forwarding for synthetic proposal listing. | S05 remains the authorization and pagination owner. |
+| R-0305 | 2026-11-21 | M2-026ac | Ran the EDGE01 regression for paginated proposal forwarding. | 41 tests passed; the UI listing remains open. |
+| R-0306 | 2026-11-21 | M2-026ad | Started UX01 paginated proposal discovery from a retained capture. | Two initial template path lookups did not exist; the actual capture-detail and capture-list templates were inspected instead. |
+| R-0307 | 2026-11-21 | M2-026ad | Ran focused UX01 client and controller regression. | 185 tests passed; browser verification is in progress. |
+| R-0308 | 2026-11-21 | M2-026ad | Ran the enabled isolated browser suite with 26 fictional proposals, first/next navigation and restricted-user denial. | 11 tests passed. The S01 grant is seeded in a disposable identity database; the TLS proxy forwards over HTTP within the isolated network, so this is not end-to-end TLS evidence. Default-disabled regression remains in progress. |
+| R-0309 | 2026-11-21 | M2-026ad | Ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic-source feature remains disabled by default. |
+| R-0310 | 2026-11-21 | M2-026ac, M2-026ad | Updated the private technical approach Appendix AB to revision 222. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
+| R-0311 | 2026-11-21 | M2-026ad | Re-ran focused UX01 tests after adding capture-link, invalid-ID and missing-context assertions. | 2 tests passed. Checklist totals independently verified at 173 / 832. |
 
 ## Implementation evidence
 

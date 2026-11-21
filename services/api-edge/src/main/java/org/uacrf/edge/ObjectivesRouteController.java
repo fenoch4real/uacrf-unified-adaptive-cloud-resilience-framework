@@ -127,6 +127,14 @@ class ObjectivesRouteController {
     return forward(() -> objectives.proposeSyntheticMapping(authorization, id, captureId, idempotencyKey, requestBody));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals")
+  ResponseEntity<String> listSyntheticMappingProposals(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId, @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return forward(() -> objectives.listSyntheticMappingProposals(authorization, id, captureId, pageSize, cursor));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}")
   ResponseEntity<String> getSyntheticMappingProposal(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

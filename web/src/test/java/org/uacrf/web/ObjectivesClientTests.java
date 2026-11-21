@@ -221,6 +221,36 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void validatesSyntheticProposalListAndForwardsCursor() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposal = "12345678-1234-4234-8234-123456789015";
+    String item = "{\"proposal_id\":\"" + proposal + "\",\"proposed_at\":\"2026-11-21T00:00:00Z\","
+        + "\"proposed_by\":\"actor\",\"target_unit\":\"minutes\",\"status\":\"UNAPPROVED\","
+        + "\"verification\":\"SYNTHETIC_UNVERIFIED\"}";
+    String body = "{\"items\":[" + item + "],\"next_cursor\":\"next\"}";
+    for (String response : List.of(body, body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"),
+        body.replace("UNAPPROVED", "APPROVED"), body.replace("2026-11-21T00:00:00Z", "bad"),
+        body.replace(item, item + "," + item), body.replace("\"next\"", "\"\""))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
+          + "/mapping-proposals?pageSize=25&cursor=next"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (response.equals(body)) {
+        assertThat(client.listSyntheticMappingProposals("reader", id, capture, "next").items()).singleElement()
+            .satisfies(entry -> assertThat(entry.proposalId()).isEqualTo(proposal));
+      } else {
+        assertThatThrownBy(() -> client.listSyntheticMappingProposals("reader", id, capture, "next"))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void validatesSyntheticNormalizationRehearsal() {
     String id = "12345678-1234-4234-8234-123456789012";
     String capture = "12345678-1234-4234-8234-123456789014";

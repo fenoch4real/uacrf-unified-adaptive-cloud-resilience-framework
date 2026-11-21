@@ -991,6 +991,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     let rehearsalUrl;
     let mappingRequest;
     let mappingReadUrl;
+    let proposalListUrl;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -1069,6 +1070,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       });
       expect(mappingRetry.status()).toBe(200);
       expect(await mappingRetry.text()).toContain(proposalId);
+      for (let index = 0; index < 25; index++) {
+        const additionalMapping = new URLSearchParams(mappingRequest.postData());
+        additionalMapping.set('idempotencyKey', randomUUID());
+        const createdMapping = await sample.request.post('/objectives/import/receipt/synthetic-mapping', {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: additionalMapping.toString(),
+        });
+        expect(createdMapping.status()).toBe(200);
+      }
       mappingReadUrl = await sample.getByRole('link', { name: 'Read this retained proposal' }).getAttribute('href');
       await sample.getByRole('link', { name: 'Read this retained proposal' }).click();
       await expect(sample.locator('main')).toContainText('Review the fictional conversion');
@@ -1112,6 +1121,25 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
         await syntheticReviewerContext.close();
       }
       await sample.goto(new URL(mappingReadUrl, sample.url()).toString());
+      await sample.getByRole('link', { name: 'Back to this capture' }).click();
+      const [proposalList] = await Promise.all([
+        sample.waitForResponse((response) =>
+          new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-mappings'),
+        sample.getByRole('link', { name: 'View fictional mapping proposals' }).click(),
+      ]);
+      expect(proposalList.status()).toBe(200);
+      expect(proposalList.headers()['cache-control']).toContain('no-store');
+      proposalListUrl = sample.url();
+      await expect(sample.locator('main')).toContainText('not a snapshot');
+      await expect(sample.locator('main li')).toHaveCount(25);
+      const firstPageIds = await sample.locator('main li a').allTextContents();
+      await sample.getByRole('link', { name: 'More proposals' }).click();
+      await expect(sample.locator('main li')).toHaveCount(1);
+      const secondPageId = await sample.locator('main li a').textContent();
+      expect(firstPageIds).not.toContain(secondPageId);
+      expect([...firstPageIds, secondPageId]).toContain(proposalId);
+      await sample.getByRole('link', { name: 'First proposals page' }).click();
+      await expect(sample.locator('main li')).toHaveCount(25);
       await sample.getByRole('link', { name: 'Back to this capture' }).click();
       await sample.getByLabel('Target unit (required)').fill('unsupported');
       const [invalidRehearsal] = await Promise.all([
@@ -1561,6 +1589,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       if (mappingReadUrl) {
         expect((await restricted.goto(mappingReadUrl)).status()).toBe(403);
         await expect(restricted.locator('main')).not.toContainText('Review the fictional conversion');
+      }
+      if (proposalListUrl) {
+        expect((await restricted.goto(proposalListUrl)).status()).toBe(403);
+        await expect(restricted.locator('main li')).toHaveCount(0);
       }
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');

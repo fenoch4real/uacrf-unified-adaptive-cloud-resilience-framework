@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fictional mapping proposals | UACRF</title></head>
+<body><main>
+  <h1>Fictional mapping proposals</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>These unapproved proposals refer only to this unverified historical capture; they do not
+    verify a provider or process an import. Results are ordered by proposal ID, not time.
+    Pages are not a snapshot; restart from the first page to see new proposals.</p>
+  <p><a th:href="@{/objectives/import/receipt/sample-capture(id=${receiptId},captureId=${captureId})}">Back to this capture</a></p>
+  <p role="alert" th:if="${proposalsError != null}" th:text="${proposalsError}"></p>
+  <div th:if="${proposals != null}">
+    <p th:if="${#lists.isEmpty(proposals.items)}">No proposals are available on this page.</p>
+    <ul>
+      <li th:each="proposal : ${proposals.items}">
+        <a th:href="@{/objectives/import/receipt/synthetic-mapping(id=${receiptId},captureId=${captureId},proposalId=${proposal.proposalId})}"
+           th:text="${proposal.proposalId}">Proposal ID</a>
+        <span th:text="${proposal.proposedAt}">Time</span>
+        <span th:text="${proposal.proposedBy}">Proposer</span>
+        <span th:text="${proposal.targetUnit}">Unit</span>
+        <span th:text="${proposal.status}">UNAPPROVED</span>
+        <span th:text="${proposal.verification}">SYNTHETIC_UNVERIFIED</span>
+      </li>
+    </ul>
+    <nav aria-label="Proposal pages">
+      <a th:if="${proposals.nextCursor != null}"
+         th:href="@{/objectives/import/receipt/synthetic-mappings(id=${receiptId},captureId=${captureId},cursor=${proposals.nextCursor})}">More proposals</a>
+      <a th:href="@{/objectives/import/receipt/synthetic-mappings(id=${receiptId},captureId=${captureId})}">First proposals page</a>
+    </nav>
+  </div>
+</main></body></html>

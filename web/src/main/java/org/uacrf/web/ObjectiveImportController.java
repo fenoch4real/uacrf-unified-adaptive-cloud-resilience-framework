@@ -280,6 +280,37 @@ class ObjectiveImportController {
     return "objective-import-captures";
   }
 
+  @GetMapping("/objectives/import/receipt/synthetic-mappings")
+  String syntheticMappings(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id,
+      @RequestParam String captureId, @RequestParam(required = false) String cursor, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    model.addAttribute("receiptId", id);
+    model.addAttribute("captureId", captureId);
+    if (!ObjectivesClient.validUuid(id) || !ObjectivesClient.validUuid(captureId)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("proposalsError", "Provide valid import request and capture IDs.");
+      return "objective-import-synthetic-mappings";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("proposals", objectives.listSyntheticMappingProposals(token, id, captureId, cursor));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("proposalsError", "Identity or objectives service is unavailable; proposals were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("proposalsError", "Proposal listing failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("proposalsError", "Identity or objectives service returned an invalid proposal list.");
+    }
+    return "objective-import-synthetic-mappings";
+  }
+
   @GetMapping("/objectives/import/receipt/normalization-rehearsal")
   String normalizationRehearsal(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response, @RequestParam String id, @RequestParam String captureId,

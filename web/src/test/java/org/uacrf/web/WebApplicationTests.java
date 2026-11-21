@@ -456,6 +456,7 @@ class WebApplicationTests {
         .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
         .andExpect(content().string(containsString("&lt;script&gt;alert(1)&lt;/script&gt;")))
         .andExpect(content().string(not(containsString("<script>alert(1)</script>"))))
+        .andExpect(content().string(containsString("View fictional mapping proposals")))
         .andExpect(content().string(containsString("not a fresh source read")));
     mockMvc.perform(get("/objectives/import/receipt/sample-capture").param("id", "invalid").param("captureId", captureId)
         .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
@@ -494,6 +495,43 @@ class WebApplicationTests {
     mockMvc.perform(get("/objectives/import/receipt/sample-captures").param("id", id)
         .with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isForbidden()).andExpect(content().string(containsString("HTTP 403")));
+  }
+
+  @Test
+  void syntheticProposalListSupportsPaginationAndDenial() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposal = "12345678-1234-4234-8234-123456789015";
+    String path = "/objectives/import/receipt/synthetic-mappings";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(objectives.listSyntheticMappingProposals("reader", id, capture, null))
+        .thenReturn(new ObjectivesClient.SyntheticProposalPage(List.of(
+            new ObjectivesClient.SyntheticProposalSummary(proposal, "2026-11-21T00:00:00Z", "<actor>", "minutes",
+                "UNAPPROVED", "SYNTHETIC_UNVERIFIED")), "next"));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString(proposal))).andExpect(content().string(containsString("&lt;actor&gt;")))
+        .andExpect(content().string(containsString("More proposals"))).andExpect(content().string(containsString("not a snapshot")));
+    when(objectives.listSyntheticMappingProposals("reader", id, capture, "next"))
+        .thenReturn(new ObjectivesClient.SyntheticProposalPage(List.of(), null));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("cursor", "next")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("No proposals are available")));
+    when(objectives.listSyntheticMappingProposals("reader", id, capture, null))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("HTTP 403")));
+    mockMvc.perform(get(path).param("id", "invalid").param("captureId", capture)
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).with(browserLogin()))
+        .andExpect(status().is3xxRedirection())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/contexts"));
   }
 
   @Test
