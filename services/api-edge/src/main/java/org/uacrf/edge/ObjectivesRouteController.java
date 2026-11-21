@@ -98,6 +98,15 @@ class ObjectivesRouteController {
     return forward(() -> objectives.transition(authorization, id, "decide", requestBody));
   }
 
+  @PostMapping("/v1/objectives/{id}:idempotent-decide")
+  ResponseEntity<String> decideIdempotent(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String key,
+      @RequestBody String requestBody) {
+    return forward(() -> objectives.decideIdempotent(authorization, id, key, requestBody));
+  }
+
   @PostMapping("/v1/objectives/{id}:activate")
   ResponseEntity<String> activate(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

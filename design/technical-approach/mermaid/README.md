@@ -3,7 +3,7 @@
 These are zoomable Mermaid previews of two historical graph-vocabulary examples.
 They show possible typed relationships, not current runtime behavior or proof
 that a particular observation is qualified. The [data dictionary](../data-dictionary/)
-defines the endpoint roles; [implementation status](../../../docs/IMPLEMENTATION_STATUS.md)
+defines the endpoint roles; [implementation status](../../../docs/DELIVERY_CHECKLIST.md)
 records what is actually implemented.
 
 The source files remain editable separately; the sample-data tests check that

@@ -30,7 +30,7 @@ target microservices architecture, contracts and inventories, a static UI
 prototype, and a Maven multi-module system with selected service slices and
 focused database-backed tests. It is not yet a complete or production-ready
 system: no M0-M8 milestone is complete, and the distributed system has not
-passed full runtime acceptance. See [implementation status](docs/IMPLEMENTATION_STATUS.md)
+passed full runtime acceptance. See [implementation status](docs/DELIVERY_CHECKLIST.md)
 for current scope, test evidence, and open gaps.
 
 The target stack centers on Java 25 and Spring Boot, with PostgreSQL for
@@ -53,7 +53,7 @@ measured against the target services and their executed tests.
   service, infrastructure, provider, agent, and communication views.
 - [Architecture implementation roadmap](docs/implementation-roadmap.md) —
   staged implementation and migration milestones.
-- [Current implementation status](docs/IMPLEMENTATION_STATUS.md) —
+- [Current implementation status](docs/DELIVERY_CHECKLIST.md) —
   milestone progress, implemented slices, evidence, and remaining work.
 - [Cloud connection and deferred live-check setup](services/connections/README.md#deferred-live-provider-checks) —
   AWS, Azure, and Google Cloud parameters, access requirements, and validation limits.
@@ -95,5 +95,5 @@ python3 -B design/ms01/tools/check_architecture.py
 
 These checks do not establish full-system runtime acceptance. See the
 [implementation roadmap](docs/implementation-roadmap.md) for milestone
-sequencing and [implementation status](docs/IMPLEMENTATION_STATUS.md) for
+sequencing and [implementation status](docs/DELIVERY_CHECKLIST.md) for
 current evidence.

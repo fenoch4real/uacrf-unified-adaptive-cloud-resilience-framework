@@ -7,11 +7,12 @@ be treated as complete until its stated evidence exists.
 
 ## M0 - Establish the implementation baseline
 
-Preserve the current application and its migration evidence. Reconcile the
-effective API contracts and ownership, then establish the build, dependency
-policy, local environment, CI checks, threat model, and tenant and event
-compatibility policies. Select a bounded recovery action and a local test
-adapter.
+Establish the baseline for the fresh microservices implementation. Reconcile
+the inherited design allocations, effective API contracts and ownership;
+record unavailable legacy source or database evidence as unknown rather than
+assuming an existing runtime. Establish the build, dependency policy, local
+environment, CI checks, threat model, and tenant and event compatibility
+policies. Select a bounded recovery action and a local test adapter.
 
 ## M1 - Deliver the first independent service workflow
 

@@ -57,6 +57,76 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
   @MockitoBean private PolicyClient policies;
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveReview() {
+    return post("/objectives/review").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("id", "objective-a").param("expectedRevision", "2").param("contentDigest", "a".repeat(64))
+        .param("reviewerId", "reviewer").param("decision", "REJECT").param("reason", "Exact reason")
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void objectiveReviewUsesSeparateReadAndReviewGrantsAndPreservesRetry() throws Exception {
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.MeAccess("reviewer", "Reviewer", "HUMAN", null, null, List.of()));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    when(objectives.get("objective-reader", "objective-a"))
+        .thenReturn(new ObjectivesClient.Objective("objective-a", "workload-a", "Latency", "latency.p95",
+            "LTE", new java.math.BigDecimal("99.75"), "ms", 60, "LOCAL", null, null, null, null,
+            "a".repeat(64), "SUBMITTED", 2L, "creator", null, null, null));
+    mockMvc.perform(get("/objectives/review").param("id", "objective-a")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Latency")))
+        .andExpect(content().string(containsString("content digest does not cover every displayed field")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")))
+        .andExpect(content().string(containsString("Record decision")));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.review"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reviewer", "Bearer", 30));
+    when(objectives.decide("objective-reviewer", "objective-a", "12345678-1234-4234-8234-123456789012",
+        2, "a".repeat(64), "REJECT", "Exact reason", "reviewer"))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(objectiveReview()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("decision is unconfirmed")))
+        .andExpect(content().string(containsString("Exact reason")))
+        .andExpect(content().string(containsString("12345678-1234-4234-8234-123456789012")));
+  }
+
+  @Test
+  void objectiveReviewRejectsInvalidContextInputAndMissingCsrf() throws Exception {
+    mockMvc.perform(objectiveReview().with(request -> { request.setParameter("decision", "INVALID"); return request; }))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(objectiveReview().with(request -> { request.setParameter("principalName", "other"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(post("/objectives/review").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(identity, objectives);
+  }
+
+  @Test
+  void objectiveReviewConfirmsReviewerAndDisplaysRecordedReason() throws Exception {
+    when(identity.currentAccess("test-access-token", "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.MeAccess("reviewer", "Reviewer", "HUMAN", null, null, List.of()));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.review"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reviewer", "Bearer", 30));
+    when(objectives.decide("objective-reviewer", "objective-a", "12345678-1234-4234-8234-123456789012",
+        2, "a".repeat(64), "REJECT", "Exact reason", "reviewer"))
+        .thenReturn(new ObjectivesClient.Objective("objective-a", "workload-a", "Latency", "latency.p95",
+            "LTE", new java.math.BigDecimal("99.75"), "ms", 60, "LOCAL", null, null, null, null,
+            "a".repeat(64), "REJECTED", 3L, "creator", "reviewer", "Exact reason", null));
+    mockMvc.perform(objectiveReview()).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Objective review receipt")))
+        .andExpect(content().string(containsString("Exact reason")));
+    mockMvc.perform(objectiveReview().with(request -> { request.setParameter("reviewerId", "other"); return request; }))
+        .andExpect(status().isConflict());
+    verify(objectives, times(1)).decide("objective-reviewer", "objective-a",
+        "12345678-1234-4234-8234-123456789012", 2, "a".repeat(64), "REJECT", "Exact reason", "reviewer");
+  }
+
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveSubmission() {
     return post("/objectives/submit").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
         .param("id", "objective-a").param("expectedRevision", "1").param("contentDigest", "a".repeat(64))

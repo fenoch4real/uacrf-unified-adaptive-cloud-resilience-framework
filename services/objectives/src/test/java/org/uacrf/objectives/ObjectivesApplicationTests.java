@@ -408,6 +408,75 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void idempotentReviewSerializesAndReplaysAfterActivation() throws Exception {
+    String creator = bearer("creator", "t-review-replay", PROPOSER);
+    String reviewer = bearer("reviewer", "t-review-replay", DECIDER);
+    String created = post("/v1/objectives", creator,
+        objective("review-one", "w-review", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    assertEquals(200, post("/v1/objectives/review-one:submit", creator, "{\"expected_revision\":1}").statusCode());
+    String path = "/v1/objectives/review-one:idempotent-decide";
+    String body = "{\"decision\":\"APPROVE\",\"reason\":\"reviewed exactly\",\"expected_revision\":2,"
+        + "\"expected_content_digest\":\"" + digest + "\"}";
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        .header("Authorization", reviewer).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "review-key").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    var first = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var second = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, first.get().statusCode());
+    assertEquals(200, second.get().statusCode());
+    assertThat(first.get().body()).contains("\"state\":\"APPROVED\"")
+        .contains("\"decided_by\":\"https://uacrf.local/s01|reviewer\"")
+        .contains("\"decision_reason\":\"reviewed exactly\"");
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.outbox_event WHERE tenant_id = 't-review-replay' AND event_type = 'objectives.objective.decided'",
+        Integer.class));
+    assertThat(postWithIdempotency(path, reviewer, body.replace("reviewed exactly", "changed"), "review-key").body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertThat(postWithIdempotency(path, reviewer, body.replace("APPROVE", "REJECT"), "review-key").body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertThat(postWithIdempotency(path, reviewer, body.replace(digest, "a".repeat(64)), "review-key").body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertThat(postWithIdempotency(path, reviewer, body.replace(":2,", ":1,"), "review-key").body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertThat(postWithIdempotency("/v1/objectives/other:idempotent-decide", reviewer, body, "review-key").body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertEquals(200, post("/v1/objectives/review-one:activate",
+        bearer("activator", "t-review-replay", ACTIVATOR), "{\"expected_revision\":3}").statusCode());
+    assertThat(postWithIdempotency(path, reviewer, body, "review-key").body())
+        .contains("\"state\":\"ACTIVE\"").contains("\"decision_reason\":\"reviewed exactly\"");
+  }
+
+  @Test
+  void idempotentReviewRejectsInvalidRequestsAndRollsBackReservation() throws Exception {
+    String creator = bearer("creator", "t-review-invalid", PROPOSER);
+    String reviewer = bearer("reviewer", "t-review-invalid", DECIDER);
+    String created = post("/v1/objectives", creator,
+        objective("review-two", "w-review", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    assertEquals(200, post("/v1/objectives/review-two:submit", creator, "{\"expected_revision\":1}").statusCode());
+    String path = "/v1/objectives/review-two:idempotent-decide";
+    String body = "{\"decision\":\"REJECT\",\"reason\":\"not acceptable\",\"expected_revision\":2,"
+        + "\"expected_content_digest\":\"" + digest + "\"}";
+    assertEquals(400, post(path, reviewer, body).statusCode());
+    assertEquals(403, postWithIdempotency(path, token("reviewer", "t-review-invalid", "w-review", DECIDER),
+        body, "review-key").statusCode());
+    assertEquals(403, postWithIdempotency(path, creator, body, "review-key").statusCode());
+    assertThat(postWithIdempotency(path, bearer("creator", "t-review-invalid", DECIDER), body, "self-key").body())
+        .contains("REVIEWER_NOT_INDEPENDENT");
+    assertThat(postWithIdempotency(path, reviewer, body.replace(":2,", ":1,"), "review-key").body())
+        .contains("REVISION_MISMATCH");
+    assertThat(postWithIdempotency(path, reviewer, body.replace(digest, "a".repeat(64)), "review-key").body())
+        .contains("CONTENT_MISMATCH");
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.objective_review WHERE tenant_id = 't-review-invalid'",
+        Integer.class));
+    assertThat(postWithIdempotency(path, reviewer, body, "review-key").body())
+        .contains("\"state\":\"REJECTED\"").contains("\"decision_reason\":\"not acceptable\"");
+    assertThat(postWithIdempotency(path, reviewer, body, "review-key").body()).contains("\"state\":\"REJECTED\"");
+  }
+
+  @Test
   void localObjectiveCreationSerializesReplayAndReturnsCurrentState() throws Exception {
     String path = "/v1/objectives:local-idempotent-create";
     String propose = bearer("creator", "t-local-idempotent", PROPOSER);

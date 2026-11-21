@@ -172,6 +172,15 @@ the unkeyed route.
   unchanged retries return the objective's current recorded state and changed
   request content conflicts. Submission requests review; it is not approval
   or activation. The original submit route remains available.
+- **Retry-safe objective review:** `POST /v1/objectives/{id}:idempotent-decide`
+  requires global `objectives.objective.review`, `Idempotency-Key`, decision,
+  exact reason, expected revision and expected content digest. S05 checks
+  the submitted record and reviewer independence under the objective lock.
+  The actor/context-scoped key, transition and outbox event commit together;
+  unchanged retries return the current objective and changed requests conflict.
+  The digest does not cover every displayed field; the expected revision also
+  binds the record. The original decide route remains available. Review is
+  not activation, compliance, or an atomic cross-service authority fence.
 - **Synchronous service calls:** The browser application calls the Experience API for identity operations and the API Edge for catalog operations. The Experience API forwards to S01. The API Edge routes to S01, S02, S03, S04, S05, S06, S07, or S08 without response aggregation.
 - **Versioning:** HTTP APIs use path-based `/v1` versioning; service-only routes are placed beneath `/internal`. No header- or query-based API versioning was found.
 - **Internal proof and receipt calls:** S06 verifies identity delegation, S02 owner receipts and exact catalog revisions, S04 bounded evidence summaries, and S07 case receipts. When enabled, S05 exchanges the caller's S05 JWT with S01 for an exact purpose/resource S02 delegation, requests the current workload receipt, and verifies its signature and context before proposal or activation. S02 also verifies the caller principal matches the workload's current catalog owner for these S05 purposes. The S05 receipt is point-in-time and is not an atomic fence or persisted by S05. The S07 receipt's `purpose` is the case's business purpose (for example, `incident`); the topology operation purpose is bound and authorized by the S01 delegation exchanged for that exact case ID and is not required to equal the receipt's purpose. S07 also has optional receipt clients for S04/S05/S06; S08 has an optional S07 case-receipt client. These are direct synchronous REST calls, controlled by environment-configurable base URLs.

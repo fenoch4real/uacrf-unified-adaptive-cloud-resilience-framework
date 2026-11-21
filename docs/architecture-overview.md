@@ -62,7 +62,7 @@ accepted by a new service.
 ## Status
 
 The target design is not an implemented production architecture. The
-[implementation status](IMPLEMENTATION_STATUS.md) tracks delivered slices and
+[implementation status](DELIVERY_CHECKLIST.md) tracks delivered slices and
 remaining acceptance work. The service boundaries, contracts, diagrams, and
 planned acceptance tests are documented in the
 [MS01 architecture package](../design/ms01/README.md).
@@ -72,7 +72,7 @@ cloud, agent, and infrastructure ecosystem in the MS01 target. Solid arrows
 show implemented or local paths; dotted arrows show target, incomplete, or
 unaccepted paths. The diagrams summarize the main paths; the component
 inventory and [API contracts](api-service-contracts.md) provide more detail.
-The [implementation status](IMPLEMENTATION_STATUS.md) is authoritative for
+The [implementation status](DELIVERY_CHECKLIST.md) is authoritative for
 delivery and acceptance claims.
 
 ## Application Architecture
@@ -307,7 +307,7 @@ describes the publisher's other acknowledgement and retry behavior.
 ## Target and historical diagram index
 
 The following diagrams describe intended behavior, not verified deployed
-workflows. Consult the [implementation status](IMPLEMENTATION_STATUS.md) for
+workflows. Consult the [implementation status](DELIVERY_CHECKLIST.md) for
 what is currently implemented and tested.
 
 - **Activity:** [advisory request to human review](../design/ms01/diagrams/advisory_activity.svg).

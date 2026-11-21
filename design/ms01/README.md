@@ -22,7 +22,7 @@ The Word and PDF editions combine these documents. The HTML reading library incl
 
 The diagrams describe the **target** architecture; they do not establish that
 the illustrated workflows, infrastructure, permissions or services are
-implemented. Consult the [implementation status](../../docs/IMPLEMENTATION_STATUS.md)
+implemented. Consult the [implementation status](../../docs/DELIVERY_CHECKLIST.md)
 for current evidence. The class view is a conceptual ownership model, not a
 Java class inventory or a cross-service database schema.
 

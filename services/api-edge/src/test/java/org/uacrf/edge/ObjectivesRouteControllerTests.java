@@ -68,6 +68,12 @@ class ObjectivesRouteControllerTests {
         .andExpect(header("Idempotency-Key", "submission-1"))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/objectives/o-1:idempotent-decide"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header("Idempotency-Key", "review-1"))
+        .andRespond(withStatus(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/objective-imports/import-1"))
         .andExpect(method(HttpMethod.GET))
         .andRespond(withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -105,6 +111,10 @@ class ObjectivesRouteControllerTests {
             .header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
             .header("Idempotency-Key", "submission-1").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
+    mvc.perform(post("/internal/objectives/v1/objectives/o-1:idempotent-decide")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+            .header("Idempotency-Key", "review-1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isConflict());
     mvc.perform(get("/internal/objectives/v1/objective-imports/import-1"))
         .andExpect(status().isAccepted());
     mvc.perform(post("/internal/objectives/v1/objectives/o-1:decide").contentType(MediaType.APPLICATION_JSON).content("{}"))

@@ -308,7 +308,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       ...[
       'owner.eligible', 'identity.owner.select', 'connections.connection.read',
       'connections.connection.write', 'connections.observation.write', 'evidence.event.read',
-      'objectives.objective.read', 'objectives.objective.write', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
+      'objectives.objective.read', 'objectives.objective.write', 'objectives.objective.review', 'assessment.case.read', 'assessment.case.write', 'assessment.evaluation.read',
       'assessment.evaluation.run', 'assessment.incident.write',
       'assessment.recommendation.read', 'assessment.incident.read', 'assessment.learning.read', 'assessment.learning.write',
       'assessment.learning.review',
@@ -320,6 +320,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       { principalId: transfereePrincipalId, capability: 'owner.eligible' },
       { principalId: reviewerPrincipalId, capability: 'knowledge.item.read' },
       { principalId: reviewerPrincipalId, capability: 'knowledge.item.review' },
+      { principalId: reviewerPrincipalId, capability: 'objectives.objective.read' },
+      { principalId: reviewerPrincipalId, capability: 'objectives.objective.review' },
       { principalId: transfereePrincipalId, capability: 'evidence.event.read', scope: fixtureServiceId },
       { principalId: transfereePrincipalId, capability: 'objectives.objective.read', scope: 'browser-objective-workload' },
       { principalId: runtimePrincipalId, capability: 'runtime.principal.use' },
@@ -862,6 +864,61 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedSubmission.toString(),
     });
     expect(conflictSubmission.status()).toBe(409);
+    await sample.goto(`/objectives/review?id=${newObjectiveId}`);
+    await sample.getByLabel('Approve', { exact: true }).check();
+    await sample.getByLabel('Reason (required)').fill('Self review must fail.');
+    const [selfObjectiveReview] = await Promise.all([
+      sample.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === '/objectives/review'),
+      sample.getByRole('button', { name: 'Record decision' }).click(),
+    ]);
+    expect(selfObjectiveReview.status()).toBe(409);
+    const rejectedObjectiveId = `browser-ui-objective-${randomUUID()}`;
+    const secondObjective = new URLSearchParams(objectiveRequest.postData());
+    secondObjective.set('id', rejectedObjectiveId);
+    secondObjective.set('idempotencyKey', randomUUID());
+    expect((await sample.request.post('/objectives', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: secondObjective.toString(),
+    })).status()).toBe(200);
+    await sample.goto(`/objectives/submit?id=${rejectedObjectiveId}`);
+    await sample.getByRole('button', { name: 'Submit objective for review' }).click();
+    await expect(sample.getByRole('heading', { name: 'Objective submission receipt' })).toBeVisible();
+    const objectiveReviewerContext = await browser.newContext();
+    try {
+      const reviewer = await objectiveReviewerContext.newPage();
+      await reviewer.goto('/contexts');
+      await reviewer.locator('#username').fill(reviewerUsername);
+      await reviewer.locator('#password').fill(reviewerPassword);
+      await reviewer.locator('#kc-login').click();
+      await selectLocalContext(reviewer);
+      await reviewer.goto(`/objectives/review?id=${newObjectiveId}`);
+      await expect(reviewer.locator('main')).toContainText('Synthetic local objective');
+      await reviewer.getByLabel('Approve', { exact: true }).check();
+      await reviewer.getByLabel('Reason (required)').fill('Independent synthetic approval.');
+      const [reviewRequest] = await Promise.all([
+        reviewer.waitForRequest((request) => request.method() === 'POST'
+          && new URL(request.url()).pathname === '/objectives/review'),
+        reviewer.getByRole('button', { name: 'Record decision' }).click(),
+      ]);
+      await expect(reviewer.getByRole('heading', { name: 'Objective review receipt' })).toBeVisible();
+      await expect(reviewer.locator('main')).toContainText('APPROVED');
+      expect((await reviewer.request.post('/objectives/review', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: reviewRequest.postData(),
+      })).status()).toBe(200);
+      const changedReview = new URLSearchParams(reviewRequest.postData());
+      changedReview.set('reason', 'Different reason');
+      expect((await reviewer.request.post('/objectives/review', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedReview.toString(),
+      })).status()).toBe(409);
+      await reviewer.goto(`/objectives/review?id=${rejectedObjectiveId}`);
+      await reviewer.getByLabel('Reject', { exact: true }).check();
+      await reviewer.getByLabel('Reason (required)').fill('Independent synthetic rejection.');
+      await reviewer.getByRole('button', { name: 'Record decision' }).click();
+      await expect(reviewer.getByRole('heading', { name: 'Objective review receipt' })).toBeVisible();
+      await expect(reviewer.locator('main')).toContainText('REJECTED');
+    } finally {
+      await objectiveReviewerContext.close();
+    }
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -1231,6 +1288,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       expect(globalObjectives.status()).toBe(403);
       const deniedSubmissionRead = await restricted.goto(`/objectives/submit?id=${newObjectiveId}`);
       expect(deniedSubmissionRead.status()).toBe(403);
+      const deniedReviewRead = await restricted.goto(`/objectives/review?id=${newObjectiveId}`);
+      expect(deniedReviewRead.status()).toBe(403);
       await restricted.goto('/objectives/new');
       const restrictedSubmission = new URLSearchParams(submissionRequest.postData());
       for (const field of ['_csrf', 'principalName', 'tenantId', 'environmentId']) {

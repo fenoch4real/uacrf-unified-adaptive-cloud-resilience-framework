@@ -98,6 +98,14 @@ class ObjectivesController {
     return objectives.decide(DelegationPrincipal.from(jwt), id, request);
   }
 
+  @PostMapping("/v1/objectives/{id}:idempotent-decide")
+  Objective decideIdempotent(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String key,
+      @Valid @RequestBody IdempotentReview request) {
+    return objectives.decideIdempotent(DelegationPrincipal.from(jwt), id, request, key);
+  }
+
   @PostMapping("/v1/objectives/{id}:activate")
   Objective activate(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody Transition request) {

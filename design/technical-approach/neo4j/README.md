@@ -1,4 +1,4 @@
-> Historical graph-fragment reference. This folder records its original alignment-revision-5 scope. For current design decisions, see the [MS01 microservices architecture](../../ms01/README.md) and [implementation status](../../../docs/IMPLEMENTATION_STATUS.md). The revision-22 Technical Approach is maintained privately under `private-docs/`, when available.
+> Historical graph-fragment reference. This folder records its original alignment-revision-5 scope. For current design decisions, see the [MS01 microservices architecture](../../ms01/README.md) and [implementation status](../../../docs/DELIVERY_CHECKLIST.md). The revision-22 Technical Approach is maintained privately under `private-docs/`, when available.
 
 # Neo4j integration boundary
 

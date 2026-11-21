@@ -99,10 +99,12 @@ It creates a local draft through UX01, EDGE01 and S05, retries the same form,
 and checks that changed content with the same key conflicts. It then reads the
 draft with a separate read delegation, submits its reviewed revision and digest
 with write authority, retries the same submission, and checks changed-content
-conflict. A separately admitted user without global read/write access is
-denied. S05's optional S02 owner
-check is not enabled in this browser stack; this does not establish workload
-ownership, approval, activation, measured compliance or provider acceptance.
+conflict. A separately admitted reviewer with independently granted global
+read/review access approves one submitted objective and rejects another.
+The suite checks unchanged review replay, changed-reason conflict, self-review
+denial, and denied reads for a user without global access. S05's optional S02
+owner check is not enabled in this browser stack; this does not establish
+workload ownership, activation, measured compliance or provider acceptance.
 
 The same user receives independently approved global `assessment.case.read`,
 `assessment.case.write`, `assessment.evaluation.read`, `assessment.evaluation.run`, and

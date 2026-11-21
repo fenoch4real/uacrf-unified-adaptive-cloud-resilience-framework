@@ -1,4 +1,4 @@
-> Historical diagram reference. This set records its original alignment-revision-5 scope. For current design and implementation status, see the [MS01 architecture](../../ms01/README.md), [architecture overview and diagrams](../../../docs/architecture-overview.md), and [implementation status](../../../docs/IMPLEMENTATION_STATUS.md). The revision-22 Technical Approach is maintained privately under `private-docs/`, when available.
+> Historical diagram reference. This set records its original alignment-revision-5 scope. For current design and implementation status, see the [MS01 architecture](../../ms01/README.md), [architecture overview and diagrams](../../../docs/architecture-overview.md), and [implementation status](../../../docs/DELIVERY_CHECKLIST.md). The revision-22 Technical Approach is maintained privately under `private-docs/`, when available.
 
 # Historical graph-schema diagram authority
 

@@ -79,6 +79,10 @@ class ObjectivesRouteClient {
     return sendBody(HttpMethod.POST, "/v1/objectives/{id}:idempotent-submit", id, authorization, body, key);
   }
 
+  ResponseEntity<String> decideIdempotent(String authorization, String id, String key, String body) {
+    return sendBody(HttpMethod.POST, "/v1/objectives/{id}:idempotent-decide", id, authorization, body, key);
+  }
+
   ResponseEntity<String> setConstraint(String authorization, String metric, String requestBody) {
     return sendBody(HttpMethod.PUT, "/v1/organization-constraints/{id}", metric, authorization, requestBody);
   }

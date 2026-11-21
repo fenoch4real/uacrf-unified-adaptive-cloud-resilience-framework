@@ -74,6 +74,22 @@ class ObjectivesClient {
     return result;
   }
 
+  Objective decide(String token, String id, String key, long revision, String digest,
+      String decision, String reason, String reviewerId) {
+    Objective result = restClient.post().uri("/v1/objectives/{id}:idempotent-decide", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(new Review(decision, reason, revision, digest)).retrieve().body(Objective.class);
+    boolean matchingState = result != null && result.state() != null && ("APPROVE".equals(decision)
+        ? List.of("APPROVED", "ACTIVE", "SUPERSEDED").contains(result.state())
+        : "REJECTED".equals(result.state()));
+    if (!valid(result) || !id.equals(result.id()) || !digest.equals(result.contentDigest())
+        || result.revision() <= revision || !matchingState
+        || !reviewerId.equals(result.decidedBy()) || !reason.equals(result.decisionReason())) {
+      throw new IllegalStateException("S05 returned an invalid review result.");
+    }
+    return result;
+  }
+
   private static boolean valid(Objective item) {
     return item != null && present(item.id()) && present(item.workloadId())
         && present(item.title()) && present(item.metric()) && present(item.unit())
@@ -101,6 +117,9 @@ class ObjectivesClient {
       @JsonProperty("window_seconds") Integer windowSeconds, String origin) {}
 
   record Submission(@JsonProperty("expected_revision") long expectedRevision,
+      @JsonProperty("expected_content_digest") String expectedContentDigest) {}
+
+  record Review(String decision, String reason, @JsonProperty("expected_revision") long expectedRevision,
       @JsonProperty("expected_content_digest") String expectedContentDigest) {}
 
   record Objective(

@@ -51,6 +51,35 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void reviewBindsExactDecisionAndRejectsMismatchedReceipt() {
+    String digest = "a".repeat(64);
+    for (boolean matching : List.of(true, false)) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objectives/objective:idempotent-decide"))
+          .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", "key"))
+          .andExpect(jsonPath("$.decision").value("REJECT"))
+          .andExpect(jsonPath("$.reason").value("Exact reason"))
+          .andExpect(jsonPath("$.expected_revision").value(2))
+          .andExpect(jsonPath("$.expected_content_digest").value(digest))
+          .andRespond(withSuccess(RECORD.replace("\"state\":\"DRAFT\",\"revision\":1,\"proposed_by\":\"proposer\"",
+              "\"state\":\"REJECTED\",\"revision\":3,\"proposed_by\":\"proposer\","
+                  + "\"decided_by\":\"reviewer\",\"decision_reason\":\""
+                  + (matching ? "Exact reason" : "different") + "\""), MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (matching) {
+        assertThat(client.decide("delegated", "objective", "key", 2, digest,
+            "REJECT", "Exact reason", "reviewer").state()).isEqualTo("REJECTED");
+      } else {
+        assertThatThrownBy(() -> client.decide("delegated", "objective", "key", 2, digest,
+            "REJECT", "Exact reason", "reviewer")).isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void createsLocalDraftAndRejectsMismatchedReceipt() {
     var request = new ObjectivesClient.LocalObjective("objective", "workload-a", "Latency", "latency",
         "LTE", new BigDecimal("99.75"), "ms", 60, "LOCAL");

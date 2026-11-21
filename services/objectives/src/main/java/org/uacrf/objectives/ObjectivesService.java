@@ -313,19 +313,61 @@ class ObjectivesService {
   Objective decide(DelegationPrincipal actor, String id, DecideObjective request) {
     requireCapability(actor, "objectives.objective.review");
     requireGlobalScope(actor);
+    return decideObjective(actor, id, request.decision(), request.reason(), request.expectedRevision(), null);
+  }
+
+  @Transactional
+  Objective decideIdempotent(
+      DelegationPrincipal actor, String id, IdempotentReview request, String idempotencyKey) {
+    requireCapability(actor, "objectives.objective.review");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(idempotencyKey);
+    Map<String, Object> material = new TreeMap<>();
+    material.put("id", id);
+    material.put("expected_revision", request.expectedRevision());
+    material.put("expected_content_digest", request.expectedContentDigest());
+    material.put("decision", request.decision().name());
+    material.put("reason", request.reason());
+    String digest = sha256(serialize(material));
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA + "objective_review "
+            + "(tenant_id, environment_id, actor_id, idempotency_key, request_digest, objective_id) "
+            + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey, digest, id);
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList(
+          "SELECT objective_id, request_digest FROM " + SCHEMA + "objective_review "
+              + "WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey);
+      if (rows.isEmpty()) throw new IllegalStateException("The objective review record disappeared.");
+      Map<String, Object> row = rows.getFirst();
+      if (!digest.equals(row.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for a different review.");
+      }
+      return find(actor, row.get("objective_id").toString());
+    }
+    return decideObjective(actor, id, request.decision(), request.reason(), request.expectedRevision(),
+        request.expectedContentDigest());
+  }
+
+  private Objective decideObjective(DelegationPrincipal actor, String id, Decision decision, String reason,
+      long expectedRevision, String expectedContentDigest) {
     Map<String, Object> row = lock(actor, id);
     if (actor.principalId().equals(row.get("proposed_by"))) {
       throw conflict("REVIEWER_NOT_INDEPENDENT", "The proposer cannot decide their own objective.");
     }
-    requireRevision(row, request.expectedRevision());
+    requireRevision(row, expectedRevision);
     requireState(row, "SUBMITTED");
-    boolean approve = request.decision() == Decision.APPROVE;
+    if (expectedContentDigest != null && !expectedContentDigest.equals(row.get("content_digest").toString().trim())) {
+      throw conflict("CONTENT_MISMATCH", "The objective content changed since it was read.");
+    }
+    boolean approve = decision == Decision.APPROVE;
     move(
         actor,
         id,
         row,
         approve ? "APPROVED" : "REJECTED",
-        request.reason(),
+        reason,
         null,
         "objectives.objective.decided");
     return find(actor, id);

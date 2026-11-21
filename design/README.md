@@ -3,7 +3,7 @@
 This directory contains the selected MS01 architecture package, UI prototype,
 legacy runtime snapshot, and technical graph/schema inputs used during
 implementation. The implementation and acceptance status is tracked in
-[`docs/IMPLEMENTATION_STATUS.md`](../docs/IMPLEMENTATION_STATUS.md).
+[`docs/DELIVERY_CHECKLIST.md`](../docs/DELIVERY_CHECKLIST.md).
 
 The source `Patents/` directory and large PDF/Word editions were not copied.
 Patent specifications are supplementary implementation references and remain

@@ -61,6 +61,12 @@ final class ObjectivesRequests {
       @NotBlank @Size(max = 1000) String reason,
       @Min(1) long expectedRevision) {}
 
+  record IdempotentReview(
+      @NotNull Decision decision,
+      @NotBlank @Size(max = 1000) String reason,
+      @Min(1) @Max(9223372036854775806L) long expectedRevision,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String expectedContentDigest) {}
+
   record SetConstraint(
       @NotBlank @Pattern(regexp = "^[A-Za-z0-9_./%-]{1,30}$") String unit,
       @DecimalMin("-1e15") BigDecimal minTarget,
