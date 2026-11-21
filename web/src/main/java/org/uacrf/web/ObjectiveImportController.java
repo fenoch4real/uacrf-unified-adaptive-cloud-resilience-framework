@@ -28,10 +28,42 @@ import org.springframework.web.client.RestClientResponseException;
 class ObjectiveImportController {
   private final IdentityAccessClient identity;
   private final ObjectivesClient objectives;
+  private final ConnectionsClient connections;
 
-  ObjectiveImportController(IdentityAccessClient identity, ObjectivesClient objectives) {
+  ObjectiveImportController(IdentityAccessClient identity, ObjectivesClient objectives, ConnectionsClient connections) {
     this.identity = identity;
     this.objectives = objectives;
+    this.connections = connections;
+  }
+
+  @GetMapping("/objectives/import/sample-source")
+  String sampleSource(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String connectionId,
+      @RequestParam String externalObjectiveId, @RequestParam String targetWorkloadId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    if (connectionId.isBlank() || connectionId.length() > 200
+        || externalObjectiveId.isBlank() || externalObjectiveId.length() > 1000
+        || targetWorkloadId.isBlank() || targetWorkloadId.length() > 200) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("sourceError", "Provide a valid connection, sample objective and workload ID.");
+      return "objective-import-sample-source";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S03", null,
+          List.of("connections.connection.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("source", connections.sampleObjective(token, connectionId, externalObjectiveId, targetWorkloadId));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("sourceError", "Identity or connections service is unavailable; the sample was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("sourceError", "Sample source access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("sourceError", "Identity or connections service returned an invalid response.");
+    }
+    return "objective-import-sample-source";
   }
 
   @GetMapping("/objectives/import")

@@ -32,6 +32,23 @@
       Changed details require a new form.</p>
     <button type="submit">Record pending preview request</button>
   </form>
+  <h2 id="sample-source-heading">Inspect a synthetic source</h2>
+  <p>Requires separate global connection-read access and an active sample connection with a matching
+    source and workload binding. This is not a live provider definition or an import preview.</p>
+  <search>
+    <form method="get" action="/objectives/import/sample-source" aria-labelledby="sample-source-heading">
+      <p><label for="sampleConnection">Sample connection ID (required)</label>
+        <input id="sampleConnection" name="connectionId" maxlength="200" required
+               autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+      <p><label for="sampleObjective">Sample objective ID (required)</label>
+        <input id="sampleObjective" name="externalObjectiveId" maxlength="1000" required
+               value="sample:checkout-recovery" autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+      <p><label for="sampleWorkload">Bound workload ID (required)</label>
+        <input id="sampleWorkload" name="targetWorkloadId" maxlength="200" required
+               autocorrect="off" autocapitalize="none" spellcheck="false"></p>
+      <button type="submit">Inspect synthetic source</button>
+    </form>
+  </search>
   <h2 id="receipt-lookup-heading">Find a saved request</h2>
   <p><a href="/objectives/import/requests">Browse pending requests</a></p>
   <p>Enter a previously saved receipt ID. Reading requires separate global objective-read access.</p>

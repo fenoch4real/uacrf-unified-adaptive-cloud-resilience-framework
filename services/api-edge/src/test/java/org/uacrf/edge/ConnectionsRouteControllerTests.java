@@ -25,6 +25,23 @@ class ConnectionsRouteControllerTests {
   private static final String URL = "http://connections.test";
 
   @Test
+  void forwardsSyntheticSourceWithEncodedIdentifiersAndAuthorization() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ConnectionsRouteController(new ConnectionsRouteClient(builder.build()))).build();
+    server.expect(requestTo(URL + "/v1/connections/c-1/sample-objective-definition"
+            + "?externalObjectiveId=sample%3Aa%26b&targetWorkloadId=work%2Bload"))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withStatus(HttpStatus.FORBIDDEN).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    mvc.perform(get("/internal/connections/v1/connections/c-1/sample-objective-definition")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+            .param("externalObjectiveId", "sample:a&b").param("targetWorkloadId", "work+load"))
+        .andExpect(status().isForbidden()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+    server.verify();
+  }
+
+  @Test
   void forwardsMutationsAndReadsToTheFixedOwner() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

@@ -179,6 +179,20 @@ VALUES
    'authorization.policy.review', 'browser-signed-policy-service', now() + interval '1 hour', 1);
 SQL
 
+# Isolated synthetic source binding; insertion bypasses the connection registration workflow.
+"${compose[@]}" exec -T connections-db psql -v ON_ERROR_STOP=1 \
+  -U uacrf_connections_admin -d uacrf_connections <<'SQL'
+INSERT INTO uacrf_connections.connection
+  (tenant_id, environment_id, id, name, provider, read_only_identity_ref, owner_id,
+   status, status_reason, revision)
+VALUES ('local-dev', 'local', 'browser-objective-source', 'Synthetic objective source',
+        'SAMPLE_LOCAL', 'sample:fixture', 'test-fixture', 'ACTIVE', 'Synthetic fixture', 1);
+INSERT INTO uacrf_connections.source_binding
+  (tenant_id, environment_id, id, connection_id, source_ref, service_ref, revision)
+VALUES ('local-dev', 'local', 'browser-objective-binding', 'browser-objective-source',
+        'sample:checkout-recovery', 'browser-objective-workload', 1);
+SQL
+
 # Isolated, synthetic read fixtures; insertion bypasses the objective proposal workflow.
 "${compose[@]}" exec -T objectives-db psql -v ON_ERROR_STOP=1 \
   -U uacrf_objectives_admin -d uacrf_objectives <<'SQL'

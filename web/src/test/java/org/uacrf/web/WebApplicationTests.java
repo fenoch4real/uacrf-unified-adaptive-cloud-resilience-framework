@@ -340,6 +340,25 @@ class WebApplicationTests {
   }
 
   @Test
+  void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
+    when(identity.createDelegation("test-access-token", "S03", null,
+        List.of("connections.connection.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("connection-reader", "Bearer", 30));
+    when(connections.sampleObjective("connection-reader", "sample", "sample:checkout-recovery", "workload-a"))
+        .thenReturn(new ConnectionsClient.SampleObjectiveDefinition(
+            "sample", 1, "binding", 1, "workload-a", "sample:monitoring",
+            "sample:checkout-recovery", "sample-v1", "<script>bad</script>", "digest", "SYNTHETIC_UNVERIFIED"));
+    mockMvc.perform(get("/objectives/import/sample-source").with(browserLogin()).session(sessionWithSelectedContext())
+        .param("connectionId", "sample").param("externalObjectiveId", "sample:checkout-recovery")
+        .param("targetWorkloadId", "workload-a"))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("SYNTHETIC_UNVERIFIED")))
+        .andExpect(content().string(containsString("&lt;script&gt;bad&lt;/script&gt;")))
+        .andExpect(content().string(containsString("No import or proposal was created")));
+    verify(connections).sampleObjective("connection-reader", "sample", "sample:checkout-recovery", "workload-a");
+    verifyNoInteractions(objectives);
+  }
+
+  @Test
   void objectiveImportRejectsInvalidContextInputAndMissingCsrf() throws Exception {
     mockMvc.perform(objectiveImport().with(request -> { request.setParameter("mappingRevision", "0"); return request; }))
         .andExpect(status().isBadRequest());

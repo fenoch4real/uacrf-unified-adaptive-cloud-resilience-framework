@@ -960,7 +960,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.getByRole('listitem')).toHaveCount(25);
     await sample.goto('/objectives/import');
     await expect(sample.locator('main')).toContainText('No worker currently resolves the connection');
-    await sample.getByLabel('Connection ID (required)').fill('synthetic-import-connection');
+    await sample.getByLabel('Connection ID (required)', { exact: true }).fill('synthetic-import-connection');
     await sample.getByLabel('External objective ID (required)').fill('synthetic-objective-definition');
     await sample.getByLabel('Target workload ID (required)').fill('browser-objective-workload');
     await sample.getByLabel('Mapping revision (required, at least 1)').fill('1');
@@ -986,6 +986,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await expect(sample.locator('main')).toContainText('PENDING');
     const savedReceiptId = new URL(importReceiptUrl, sample.url()).searchParams.get('id');
     await sample.getByRole('link', { name: 'Request or find an import' }).click();
+    await sample.getByLabel('Sample connection ID (required)').fill('browser-objective-source');
+    await sample.getByLabel('Bound workload ID (required)').fill('browser-objective-workload');
+    await sample.getByRole('button', { name: 'Inspect synthetic source' }).click();
+    await expect(sample.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
+    await expect(sample.locator('main')).toContainText('"target":720');
+    await expect(sample.locator('main')).toContainText('No import or proposal was created');
+    await sample.getByRole('link', { name: 'Back to import requests' }).click();
     await sample.getByLabel('Receipt ID (required)').fill(savedReceiptId);
     await sample.getByRole('button', { name: 'Find request' }).click();
     await expect(sample.locator('main')).toContainText(savedReceiptId);
@@ -1390,8 +1397,13 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
         restricted.getByRole('button', { name: 'Find request' }).click(),
       ]);
       expect(deniedImportLookup.status()).toBe(403);
+      const deniedSampleSource = await restricted.goto('/objectives/import/sample-source?'
+        + new URLSearchParams({ connectionId: 'browser-objective-source',
+          externalObjectiveId: 'sample:checkout-recovery', targetWorkloadId: 'browser-objective-workload' }));
+      expect(deniedSampleSource.status()).toBe(403);
+      await expect(restricted.locator('main')).not.toContainText('"target":720');
       await restricted.goto('/objectives/import');
-      await restricted.getByLabel('Connection ID (required)').fill('synthetic-import-connection');
+      await restricted.getByLabel('Connection ID (required)', { exact: true }).fill('synthetic-import-connection');
       await restricted.getByLabel('External objective ID (required)').fill('denied-synthetic-definition');
       await restricted.getByLabel('Target workload ID (required)').fill('browser-objective-workload');
       await restricted.getByLabel('Mapping revision (required, at least 1)').fill('1');

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic objective source | UACRF</title></head>
+<body><main>
+  <h1>Synthetic objective source</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/objectives/import">Back to import requests</a></p>
+  <p>Fictional sample only; not live provider data or verified provenance. The source binding
+    does not establish workload ownership or mapping approval. No import or proposal was created.</p>
+  <p role="alert" th:if="${sourceError != null}" th:text="${sourceError}"></p>
+  <section th:if="${source != null}" aria-labelledby="source-details">
+    <h2 id="source-details">Source details</h2>
+    <dl>
+      <dt>Verification</dt><dd th:text="${source.verification}"></dd>
+      <dt>Connection</dt><dd th:text="${source.connectionId}"></dd>
+      <dt>Connection revision</dt><dd th:text="${source.connectionRevision}"></dd>
+      <dt>Binding</dt><dd th:text="${source.bindingId}"></dd>
+      <dt>Binding revision</dt><dd th:text="${source.bindingRevision}"></dd>
+      <dt>Target workload</dt><dd th:text="${source.targetWorkloadId}"></dd>
+      <dt>Source system</dt><dd th:text="${source.sourceSystem}"></dd>
+      <dt>External objective</dt><dd th:text="${source.externalObjectiveId}"></dd>
+      <dt>Source version</dt><dd th:text="${source.sourceVersion}"></dd>
+      <dt>Payload SHA-256</dt><dd th:text="${source.payloadDigest}"></dd>
+    </dl>
+    <h2>Fictional source payload</h2>
+    <pre th:text="${source.payload}"></pre>
+  </section>
+</main></body></html>

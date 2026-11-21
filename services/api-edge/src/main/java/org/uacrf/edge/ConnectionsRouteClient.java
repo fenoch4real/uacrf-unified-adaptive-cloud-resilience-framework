@@ -34,6 +34,14 @@ class ConnectionsRouteClient {
     return get("/v1/connections/{id}", authorization, uri -> {}, id);
   }
 
+  ResponseEntity<String> sampleObjective(
+      String authorization, String id, String externalObjectiveId, String targetWorkloadId) {
+    return get("/v1/connections/{id}/sample-objective-definition", authorization,
+        uri -> uri.queryParam("externalObjectiveId", "{external}")
+            .queryParam("targetWorkloadId", "{workload}"),
+        id, externalObjectiveId, targetWorkloadId);
+  }
+
   ResponseEntity<String> registerConnection(
       String authorization, String idempotencyKey, String requestBody) {
     return post("/v1/connections", authorization, idempotencyKey, requestBody);

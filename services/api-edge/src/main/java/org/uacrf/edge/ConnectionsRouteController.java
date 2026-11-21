@@ -40,6 +40,14 @@ class ConnectionsRouteController {
     return forward(() -> connections.getConnection(authorization, id));
   }
 
+  @GetMapping("/v1/connections/{id}/sample-objective-definition")
+  ResponseEntity<String> sampleObjective(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @RequestParam String externalObjectiveId,
+      @RequestParam String targetWorkloadId) {
+    return forward(() -> connections.sampleObjective(authorization, id, externalObjectiveId, targetWorkloadId));
+  }
+
   @PostMapping("/v1/connections")
   ResponseEntity<String> register(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

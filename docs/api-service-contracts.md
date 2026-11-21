@@ -163,8 +163,10 @@ the unkeyed route.
   The response includes fixture payload bytes as a string, their SHA-256
   digest, connection/binding revisions, and `verification` set to
   `SYNTHETIC_UNVERIFIED`. It does not establish workload ownership or mapping
-  approval, contact a provider, or verify a live source. It is not yet consumed
-  by S05 or routed by EDGE01.
+  approval, contact a provider, or verify a live source. EDGE01 forwards this
+  read without changing its authorization or no-store response; UX01 separately
+  requests S03 read authority, checks response identity and digest, and labels
+  it fictional. It is not consumed by S05 and does not process a pending import.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

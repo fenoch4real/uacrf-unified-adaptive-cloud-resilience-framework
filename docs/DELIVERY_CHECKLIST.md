@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**137 completed / 796 total** · 659 open
+**138 completed / 797 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 47 | 209 |
+| Milestone items | 48 | 210 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -330,6 +330,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-030c Recover a known pending receipt from the import page with separate read authorization. Evidence: R-0110–R-0112.
   - [x] M2-030d Add context-scoped, bounded pending-request listing through S05 and EDGE01. Evidence: R-0116, R-0120.
   - [x] M2-030e Connect and verify pending-request listing in the browser without implying source processing. Evidence: R-0117–R-0119.
+  - [x] M2-030f Inspect a bound synthetic objective source through EDGE01 and UX01 with separate S03 read authority; verify browser success and denial. Evidence: R-0129–R-0131.
 - [ ] M2-031 Publish and consume objective outbox events with idempotent downstream handling.
 
 ### S06 graph and S14 reporting
@@ -1217,6 +1218,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0124 | 2026-11-20 | M2-025a | Focused `ConnectionsApplicationTests#readsOnlyBoundSyntheticObjectiveDefinitionsWithoutClaimingVerification` exited 0. | Added an explicit active non-sample-provider rejection assertion afterward; clean S03 re-verification remains pending. |
 | R-0125 | 2026-11-20 | M2-025a | `./mvnw -pl services/connections -am clean test` exited 0: 71 S03 and 8 shared-security tests passed, including synthetic payload digest, matching binding, context isolation, global-read enforcement and rejection of an active non-sample connection. | This fixture read is unverified synthetic data; it does not prove ownership, mapping approval, provider acceptance or import processing. |
 | R-0126 | 2026-11-20 | M2-025a | Updated private technical approach Appendix AB to revision 190; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; S05 consumption and source verification remain open. |
+| R-0127 | 2026-11-20 | M2-025a | Committed the synthetic source reader as `9f1dee2` and pushed it to `origin/main`. | This is not a trusted live connector or an S05 import worker. |
+| R-0128 | 2026-11-20 | M2-030f | Started forwarding the synthetic source read through EDGE01 and UX01. Focused edge and web tests passed 3 and 163 tests respectively. | This is a separate read, not processing a pending import. |
+| R-0129 | 2026-11-20 | M2-030f | `./mvnw -pl services/api-edge,web -am clean test` passed 32 EDGE01 and 204 UX01 tests. | Browser verification still required. |
+| R-0130 | 2026-11-20 | M2-030f | Fixed ports were free; `bash e2e/run-live.sh` failed with 10 passed and 1 failed because an existing connection-label locator became ambiguous after the new form was added. | Changed both existing locators to exact matching; retry required. |
+| R-0131 | 2026-11-20 | M2-030f | After rechecking free ports, `bash e2e/run-live.sh` passed all 11 tests, including synthetic source inspection and denial without S03 read authority. | The directly inserted test binding bypasses registration; this does not establish ownership, mapping approval, provider acceptance or import processing. |
+| R-0132 | 2026-11-20 | M2-030f | The private-document update command using `python` failed because that executable is unavailable; retrying with `python3` updated Appendix AB to revision 191. Archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; S05 consumption remains open. |
 
 ## Implementation evidence
 

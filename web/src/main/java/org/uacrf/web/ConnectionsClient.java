@@ -2,6 +2,10 @@ package org.uacrf.web;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -46,6 +50,38 @@ class ConnectionsClient {
       throw new IllegalStateException("S03 returned an incomplete connection.");
     }
     return connection;
+  }
+
+  SampleObjectiveDefinition sampleObjective(
+      String token, String id, String externalObjectiveId, String targetWorkloadId) {
+    SampleObjectiveDefinition definition = restClient.get()
+        .uri(uri -> uri.path("/v1/connections/{id}/sample-objective-definition")
+            .queryParam("externalObjectiveId", "{external}")
+            .queryParam("targetWorkloadId", "{workload}")
+            .build(id, externalObjectiveId, targetWorkloadId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .retrieve().body(SampleObjectiveDefinition.class);
+    if (definition == null || !id.equals(definition.connectionId())
+        || !externalObjectiveId.equals(definition.externalObjectiveId())
+        || !targetWorkloadId.equals(definition.targetWorkloadId())
+        || definition.connectionRevision() < 1 || definition.bindingRevision() < 1
+        || !present(definition.bindingId()) || !present(definition.sourceSystem())
+        || !present(definition.sourceVersion()) || !present(definition.payload())
+        || definition.payload().length() > 16_384
+        || !"SYNTHETIC_UNVERIFIED".equals(definition.verification())
+        || !sha256(definition.payload()).equals(definition.payloadDigest())) {
+      throw new IllegalStateException("S03 returned an invalid synthetic objective definition.");
+    }
+    return definition;
+  }
+
+  private static String sha256(String value) {
+    try {
+      return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+          .digest(value.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException error) {
+      throw new IllegalStateException("SHA-256 is unavailable.", error);
+    }
   }
 
   InventoryPage listInventory(String token, String id, String cursor, String sourceClass) {
@@ -187,6 +223,17 @@ class ConnectionsClient {
       String result, @JsonProperty("runtime_effect") String runtimeEffect) {}
 
   record IngestResult(String id, String status, String reason, long sequence) {}
+
+  record SampleObjectiveDefinition(
+      @JsonProperty("connection_id") String connectionId,
+      @JsonProperty("connection_revision") long connectionRevision,
+      @JsonProperty("binding_id") String bindingId,
+      @JsonProperty("binding_revision") long bindingRevision,
+      @JsonProperty("target_workload_id") String targetWorkloadId,
+      @JsonProperty("source_system") String sourceSystem,
+      @JsonProperty("external_objective_id") String externalObjectiveId,
+      @JsonProperty("source_version") String sourceVersion, String payload,
+      @JsonProperty("payload_digest") String payloadDigest, String verification) {}
 
   record CollectionStatus(
       String id,

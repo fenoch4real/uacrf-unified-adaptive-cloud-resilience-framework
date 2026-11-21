@@ -19,6 +19,31 @@ import org.springframework.web.client.RestClient;
 
 class ConnectionsClientTests {
   @Test
+  void verifiesBoundSyntheticSourceAndDigest() {
+    String response = """
+        {"connection_id":"c-1","connection_revision":1,"binding_id":"b-1","binding_revision":1,
+        "target_workload_id":"work+load","source_system":"sample:monitoring",
+        "external_objective_id":"sample:a&b","source_version":"sample-v1","payload":"{}",
+        "payload_digest":"44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        "verification":"SYNTHETIC_UNVERIFIED"}
+        """;
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    String path = "http://edge.test/v1/connections/c-1/sample-objective-definition"
+        + "?externalObjectiveId=sample%3Aa%26b&targetWorkloadId=work%2Bload";
+    server.expect(requestTo(path)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+    server.expect(requestTo(path))
+        .andRespond(withSuccess(response.replace("44136fa3", "aaaaaaaa"), MediaType.APPLICATION_JSON));
+    ConnectionsClient client = new ConnectionsClient(builder.build());
+    assertThat(client.sampleObjective("delegated", "c-1", "sample:a&b", "work+load").verification())
+        .isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertThatThrownBy(() -> client.sampleObjective("delegated", "c-1", "sample:a&b", "work+load"))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
+
+  @Test
   void readsConnectionAndInventoryThroughEdgeWithPaginationAndProvenance() {
     RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test/internal/connections");
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

@@ -124,6 +124,12 @@ not a completed-import history. The suite also admits 25 more synthetic
 pending requests and browses both pages of 26 requests, returning to the first
 page and checking denial without read access. Listing is ordered by receipt ID,
 not time; new requests may require restarting pagination.
+Separately, the browser inspects a fictional objective payload through S03,
+EDGE01 and UX01 using a global connection-read delegation; an ungranted user
+is denied. The matching sample connection and binding are inserted directly
+into the disposable database, bypassing registration. The payload is
+`SYNTHETIC_UNVERIFIED`; neither this read nor the binding proves ownership,
+mapping approval or import processing.
 S05's optional S02 owner check is not enabled in this browser stack; this does
 not establish workload ownership, measured compliance or provider acceptance.
 
