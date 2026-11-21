@@ -194,6 +194,15 @@ class ObjectivesRouteController {
         authorization, id, captureId, proposalId, reviewId, candidateId));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}/local-comparison")
+  ResponseEntity<String> compareSyntheticCandidate(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId, @PathVariable String proposalId,
+      @PathVariable String reviewId, @PathVariable String candidateId, @RequestParam String objectiveId) {
+    return forward(() -> objectives.compareSyntheticCandidate(
+        authorization, id, captureId, proposalId, reviewId, candidateId, objectiveId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<String> listImportSampleCaptures(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

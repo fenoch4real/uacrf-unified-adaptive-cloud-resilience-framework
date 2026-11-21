@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**179 completed / 838 total** · 659 open
+**180 completed / 840 total** · 660 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 89 | 251 |
+| Milestone items | 90 | 253 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -363,6 +363,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
   - [x] M2-027c Expose a read-only synthetic candidate versus explicitly selected local-objective field comparison in S05, bound to the captured workload and scoped read authority. Disclose incomparable semantics and never claim a complete three-way decision or modify either record. Evidence: R-0339–R-0340.
+  - [x] M2-027d Forward the partial synthetic/local field comparison through EDGE01 with the original authorization and owner response. Evidence: R-0344.
+  - [ ] M2-027e Connect the partial comparison to UX01 with explicit objective selection and unverified/incomplete limitations; verify browser success and denial.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1474,6 +1476,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0339 | 2026-11-21 | M2-027c | Ran the focused S05 PostgreSQL integration test for partial comparison. | All 3 tests passed, including scoped denial and workload mismatch; expanded field-change and immutability coverage afterward. |
 | R-0340 | 2026-11-21 | M2-027c | Ran the full S05 regression after expanding comparison coverage. | All 47 S05 tests passed, including differing values, unequal units, missing semantics, tenant isolation and unchanged candidate readback; EDGE01 and browser access remain open. |
 | R-0341 | 2026-11-21 | M2-027c | Updated contracts, design notes and private technical approach Appendix AB to revision 227. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; no three-way classification is claimed. |
+| R-0342 | 2026-11-21 | M2-027c | Committed and pushed S05 partial field comparison as `e31c867`. | Full comparison and decision remain open. |
+| R-0343 | 2026-11-21 | M2-027d, M2-027e | Started connecting the partial comparison through EDGE01 and UX01. | Preserve explicit selection, authorization and incomplete-comparison disclosure. |
+| R-0344 | 2026-11-21 | M2-027d | Ran the complete EDGE01 regression. | All 44 tests passed, including authorization forwarding, selected objective ID, owner errors and no-store behavior. |
+| R-0345 | 2026-11-21 | M2-027d | Updated tracking and contract documentation. | The combined patch partially failed on an incorrect design-note context; reapplied the remaining edit with the correct context. |
+| R-0346 | 2026-11-21 | M2-027d | Updated private technical approach Appendix AB to revision 228. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
 
 ## Implementation evidence
 

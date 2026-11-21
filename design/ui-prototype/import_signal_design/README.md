@@ -139,8 +139,8 @@ differences. It explicitly marks the distinct window representations and
 missing local measurement semantics as incomparable or unavailable. The
 current local revision and existing lifecycle digest are context, not a
 normalized-definition fingerprint. This is only a partial field comparison,
-not a three-way import classification, source verification or resolution;
-EDGE01 and browser access remain open.
+not a three-way import classification, source verification or resolution.
+EDGE01 forwards the read; browser access remains open.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

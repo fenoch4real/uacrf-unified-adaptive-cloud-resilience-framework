@@ -195,6 +195,15 @@ class ObjectivesRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> compareSyntheticCandidate(String authorization, String id, String captureId,
+      String proposalId, String reviewId, String candidateId, String objectiveId) {
+    return send(objectivesRestClient.get()
+        .uri(uri -> uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/"
+           + "{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}/local-comparison")
+           .queryParam("objectiveId", "{objectiveId}")
+           .build(id, captureId, proposalId, reviewId, candidateId, objectiveId)), authorization);
+  }
+
   ResponseEntity<String> listImportSampleCaptures(String authorization, String id, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uri -> {
       uri.path("/v1/objective-imports/{id}/sample-captures").queryParam("pageSize", pageSize);
