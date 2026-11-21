@@ -1409,6 +1409,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0285 | 2026-11-21 | M2-026y | Started forwarding review discovery through EDGE01. | S05 remains the authorization and review owner. |
 | R-0286 | 2026-11-21 | M2-026y | Ran the EDGE01 regression including synthetic review discovery forwarding. | 40 tests passed; simulated owner responses cover delegation, status, body and no-store. |
 | R-0287 | 2026-11-21 | M2-026y | Updated private technical approach Appendix AB to revision 219 and verified heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | Browser access, live S01 evidence and import processing remain open. |
+| R-0288 | 2026-11-21 | M2-026y | Committed synthetic review discovery edge forwarding as `2e03810` and pushed it to `origin/main`. | Browser review access and live S01 integration evidence remain open. |
 
 ## Implementation evidence
 
