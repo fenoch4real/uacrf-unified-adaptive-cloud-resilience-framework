@@ -1,5 +1,23 @@
 # M2 Focused Runtime Validation Report
 
+## 2026-11-20: retry-safe objective workload-owner process journey
+
+After packaging S01, S02, S05, S06 and S07 and their dependencies with
+`./mvnw --batch-mode --no-transfer-progress -pl services/identity,services/estate-catalog,services/assessment,services/objectives,services/topology -am -DskipTests package`,
+the following test exited 0 with one passing test and no failures or skips:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -pl integration-tests/m2-live -am \
+  -Dtest=M2ObjectiveWorkloadOwnerLiveTests -Dsurefire.failIfNoSpecifiedTests=false test
+```
+
+The test enables S05's S02 workload-owner check and uses real local S01, S02
+and S05 processes with isolated databases. It exercises retry-safe proposal and
+activation, unchanged replays, and non-owner denial while preserving the prior
+active objective. Identities are test-signed and memberships are seeded; this
+is not production identity or provider acceptance. The owner check is
+point-in-time, not an atomic cross-service fence.
+
 ## 2026-11-20: evidence-backed topology process journey
 
 The local API-only test starts real S01, S02, S04, S05, S06 and S07 processes

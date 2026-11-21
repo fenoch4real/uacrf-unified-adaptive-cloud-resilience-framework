@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**126 completed / 786 total** · 660 open
+**129 completed / 788 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 36 | 199 |
+| Milestone items | 39 | 201 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -313,7 +313,9 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-023b Forward activation and connect the browser form with separate read and activation delegations. Evidence: R-0062–R-0063, R-0066.
   - [x] M2-023c Verify activation, retries, stale state, denial and readback; document remaining limits. Evidence: R-0062–R-0063, R-0066.
   - [x] M2-023d Exercise activation and current-state readback in the isolated browser stack using synthetic data. Evidence: R-0066.
-- [ ] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled.
+- [x] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled. Evidence: R-0089–R-0090; local process scope only.
+  - [x] M2-024a Rebuild S01, S02, S05, S06 and S07 process-test artifacts. Evidence: R-0089.
+  - [x] M2-024b Verify retry-safe proposal and activation with real local S01/S02 owner checks, including non-owner denial, unchanged replay and preservation of the previous active objective. Evidence: R-0090.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
@@ -1167,6 +1169,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0084 | 2026-11-20 | M2-022g4 | Started browser pagination verification with synthetic decision rows directly inserted into the disposable stack. | The fixtures do not represent actual decisions; browser execution is pending. |
 | R-0085 | 2026-11-20 | M2-022g4 | `bash e2e/run-live.sh` exited 0: all 11 Playwright tests passed, including traversal from 25 synthetic records to the remaining older record and back to the first page. | The 26 paging rows are directly inserted fixtures, not decisions performed against the draft; the optional S02 owner check is disabled. |
 | R-0086 | 2026-11-20 | M2-022g4 | Updated private technical approach Appendix AB to revision 183; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete legacy decision history remains open. |
+| R-0087 | 2026-11-20 | M2-022g4 | Committed browser pagination verification as `ca6ba7e` and pushed it to `origin/main`. | Complete legacy history remains open. |
+| R-0088 | 2026-11-20 | M2-024 | Started extending the existing real-service owner-check journey to cover the retry-safe proposal and activation routes. | Service artifacts must be rebuilt before the process test; synthetic identity does not establish production identity acceptance. |
+| R-0089 | 2026-11-20 | M2-024a | Packaged S01, S02, S05, S06 and S07 and dependencies with `-DskipTests`; Maven exited 0. | The real-service owner-check test has not yet run against these artifacts. |
+| R-0090 | 2026-11-20 | M2-024b | Rebuilt-service `M2ObjectiveWorkloadOwnerLiveTests` exited 0: 1 test passed against real local S01, S02 and S05 processes, including retry-safe owner proposal and activation, unchanged replays and non-owner denial preserving the existing active objective. | Test-signed identities and seeded memberships are not production identity acceptance; checks remain point-in-time, not atomic cross-service fences. |
+| R-0091 | 2026-11-20 | M2-024 | Updated private technical approach Appendix AB to revision 184; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; production identity and provider acceptance remain open. |
 
 ## Implementation evidence
 
@@ -2393,8 +2400,10 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   and S05 HTTP services: the exact catalog owner can propose and activate,
   while an otherwise authorized non-owner is denied before proposal
   persistence and activation without superseding the current objective. The
-  suite passed four live journeys with no failures, errors or skips. This is
-  local integration evidence, not deployed or provider acceptance. The signed
+  suite passed four live journeys with no failures, errors or skips. A
+  rebuilt-service targeted rerun also verified retry-safe proposal and activation
+  replays and non-owner denial across these services. This is local integration
+  evidence, not deployed or provider acceptance. The signed
   receipt is point-in-time, is not persisted by S05, and is not an atomic
   fence: an ownership or workload change after S02 responds can race the later
   S05 commit.

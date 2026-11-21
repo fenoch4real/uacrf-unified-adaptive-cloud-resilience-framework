@@ -39,11 +39,11 @@ class M2ObjectiveWorkloadOwnerLiveTests {
           environment.request(
               environment.objectivesUrl(),
               "POST",
-              "/v1/objectives",
+              "/v1/objectives:local-idempotent-create",
               environment.objectiveToken(
                   nonOwnerId, nonOwnerSubject, LiveM2TestSupport.OBJECTIVE_PROPOSER),
               objectiveBody(rejectedProposalId, workloadId),
-              null);
+              "non-owner-create");
       assertEquals(403, rejectedProposal.statusCode(), rejectedProposal.body());
       assertEquals(
           "WORKLOAD_AUTHORITY_DENIED",
@@ -65,11 +65,16 @@ class M2ObjectiveWorkloadOwnerLiveTests {
           environment.request(
               environment.objectivesUrl(),
               "POST",
-              "/v1/objectives",
+              "/v1/objectives:local-idempotent-create",
               ownerProposerToken,
               objectiveBody(nextObjectiveId, workloadId),
-              null);
+              "owner-create");
       assertEquals(201, proposed.statusCode(), proposed.body());
+      String digest = (String) LiveM2TestSupport.readJson(proposed.body()).get("content_digest");
+      LiveM2TestSupport.Response replayedProposal = environment.request(
+          environment.objectivesUrl(), "POST", "/v1/objectives:local-idempotent-create",
+          ownerProposerToken, objectiveBody(nextObjectiveId, workloadId), "owner-create");
+      assertEquals(200, replayedProposal.statusCode(), replayedProposal.body());
       assertEquals(
           200,
           environment.request(
@@ -96,15 +101,17 @@ class M2ObjectiveWorkloadOwnerLiveTests {
               null);
       assertEquals(200, decided.statusCode(), decided.body());
 
+      String activationBody = LiveM2TestSupport.json(
+          Map.of("expected_revision", 3, "expected_content_digest", digest));
       LiveM2TestSupport.Response rejectedActivation =
           environment.request(
               environment.objectivesUrl(),
               "POST",
-              "/v1/objectives/" + nextObjectiveId + ":activate",
+              "/v1/objectives/" + nextObjectiveId + ":idempotent-activate",
               environment.objectiveToken(
                   nonOwnerId, nonOwnerSubject, LiveM2TestSupport.OBJECTIVE_ACTIVATOR),
-              LiveM2TestSupport.json(Map.of("expected_revision", 3)),
-              null);
+              activationBody,
+              "non-owner-activation");
       assertEquals(403, rejectedActivation.statusCode(), rejectedActivation.body());
       assertEquals(
           "WORKLOAD_AUTHORITY_DENIED",
@@ -116,12 +123,18 @@ class M2ObjectiveWorkloadOwnerLiveTests {
           environment.request(
               environment.objectivesUrl(),
               "POST",
-              "/v1/objectives/" + nextObjectiveId + ":activate",
+              "/v1/objectives/" + nextObjectiveId + ":idempotent-activate",
               environment.objectiveToken(
                   ownerId, ownerSubject, LiveM2TestSupport.OBJECTIVE_ACTIVATOR),
-              LiveM2TestSupport.json(Map.of("expected_revision", 3)),
-              null);
+              activationBody,
+              "owner-activation");
       assertEquals(200, activated.statusCode(), activated.body());
+      LiveM2TestSupport.Response replayedActivation = environment.request(
+          environment.objectivesUrl(), "POST", "/v1/objectives/" + nextObjectiveId + ":idempotent-activate",
+          environment.objectiveToken(ownerId, ownerSubject, LiveM2TestSupport.OBJECTIVE_ACTIVATOR),
+          activationBody, "owner-activation");
+      assertEquals(200, replayedActivation.statusCode(), replayedActivation.body());
+      assertEquals("ACTIVE", LiveM2TestSupport.readJson(replayedActivation.body()).get("state"));
       assertEquals("SUPERSEDED", environment.objective(originalObjectiveId).get("state"));
       assertEquals("ACTIVE", environment.objective(nextObjectiveId).get("state"));
       environment.verifyStubHealth();
