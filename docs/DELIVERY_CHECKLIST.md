@@ -1017,6 +1017,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0039 | 2026-11-20 | Delivery tracking | Removed the obsolete implementation-status compatibility file at the user's request; workspace references already point to this combined tracker. | External references to the deleted file must be updated. |
 | R-0040 | 2026-11-20 | M0-020, HIST-045–HIST-090 | Backfilled 46 additional narrowly scoped historical slices from the retained implementation evidence. | Further historical reconciliation and release acceptance remain open. |
 | R-0041 | 2026-11-20 | Delivery tracking | Verified the old file is absent, tracked workspace references are absent, all local tracker links and anchors resolve, 773 checklist IDs are unique, all 428 inventory allocations remain represented, and `git diff --check` passes. | Inventory entries remain reconciliation tasks, not acceptance results. |
+| R-0042 | 2026-11-20 | Delivery tracking | Committed the consolidated tracking updates and obsolete-file removal as `0847fdd` and pushed them to `origin/main`. | Historical reconciliation and application implementation remain open. |
 
 ## Implementation evidence
 
