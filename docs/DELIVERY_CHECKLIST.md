@@ -1275,6 +1275,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0172 | 2026-11-20 | M2-025e | Checked the isolated browser runner's fixed ports; no listeners were reported. Started `bash e2e/run-live.sh`. | Awaiting the browser result; the default-disabled path does not prove enabled inspection. |
 | R-0173 | 2026-11-20 | M2-025e | `bash e2e/run-live.sh` passed 11/11 browser tests, including the pending receipt link, explicit disabled-service error and pending readback. | This stack leaves the S05 source client disabled; enabled browser success remains open under M2-025f. |
 | R-0174 | 2026-11-20 | M2-025e | Updated private technical approach Appendix AB to revision 199; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; enabled browser success and import processing remain open. |
+| R-0175 | 2026-11-20 | M2-025e | Committed the pending receipt interface as `b7323ef` and pushed it to `origin/main`. | Enabled browser-to-owner inspection remains open under M2-025f. |
 
 ## Implementation evidence
 
