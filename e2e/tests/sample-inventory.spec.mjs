@@ -607,6 +607,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Next policies' }).click();
     await sample.getByRole('link', { name: `${policyId} - revision 2` }).click();
     await expect(sample.getByRole('heading', { name: `${policyId} - revision 2` })).toBeVisible();
+    await expect(sample.getByRole('navigation', { name: 'Policy revisions' })).toBeVisible();
     await expect(sample.getByText('Synthetic browser policy')).toBeVisible();
     await expect(sample.getByText('No votes recorded.')).toBeVisible();
     await sample.getByRole('link', { name: 'Previous revision (1)' }).click();

@@ -12,7 +12,7 @@
   <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
   <section th:if="${policy != null}">
     <h2 th:text="|${policy.id} - revision ${policy.revision}|">Policy revision</h2>
-    <nav aria-label="Policy revision navigation">
+    <nav aria-label="Policy revisions">
       <a th:if="${policy.revision > 1}" th:href="@{/policies/detail(serviceId=${policy.serviceId},id=${policy.id},revision=${policy.revision - 1})}"
         th:text="|Previous revision (${policy.revision - 1})|">Previous revision</a>
       <a th:href="@{/policies/detail(serviceId=${policy.serviceId},id=${policy.id},revision='current')}">Read current revision</a>
