@@ -352,6 +352,7 @@ services:
       DECISION_GOVERNANCE_DB_PASSWORD: ${DECISION_GOVERNANCE_DB_PASSWORD:?}
       UACRF_DELEGATION_PUBLIC_KEY_BASE64: ${UACRF_DELEGATION_PUBLIC_KEY_BASE64:?}
       UACRF_DELEGATION_KEY_ID: uacrf-e2e-key
+      UACRF_POLICY_TRUST_SET_JSON: ${UACRF_POLICY_TRUST_SET_JSON:?}
     depends_on:
       decision-governance-db:
         condition: service_healthy

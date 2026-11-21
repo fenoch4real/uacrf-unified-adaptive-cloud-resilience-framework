@@ -51,8 +51,12 @@ key conflicts. It also checks denial for another service and an ungranted
 user. A separate human reviewer receives service-scoped policy-read and review
 grants, rejects the second revision, and verifies unchanged replay,
 changed-content conflict and stale-revision conflict. The proposer is denied
-self-review. No signing trust set or approved review is exercised; these
-records do not authorize actions or establish provider acceptance.
+self-review. A separate signed-approval scenario uses a disposable RSA key
+and a test-only trust set scoped to the fixed local approver and service.
+Its read and review memberships are inserted directly, bypassing S01 grant
+decisions. It verifies invalid signature denial, approval, unchanged replay
+and changed-content conflict. These records do not authorize actions or
+establish production trust provisioning or provider acceptance.
 
 The synthetic inventory test separately admits a human principal and uses the
 same approval and membership workflow to grant owner eligibility, global

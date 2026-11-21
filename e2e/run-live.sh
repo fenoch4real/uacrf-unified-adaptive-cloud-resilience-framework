@@ -11,6 +11,8 @@ public_key="$key_dir/delegation-public.der"
 s02_pem_key="$key_dir/s02-owner-receipt.pem"
 s02_private_key="$key_dir/s02-owner-receipt-private.der"
 s02_public_key="$key_dir/s02-owner-receipt-public.der"
+policy_pem_key="$key_dir/policy-review.pem"
+policy_public_key="$key_dir/policy-review-public.der"
 env_file="$runtime_dir/compose.env"
 project_name="uacrf-e2e-$(openssl rand -hex 5)"
 compose_started=0
@@ -28,7 +30,7 @@ cleanup() {
   fi
   rm -f \
     "$env_file" "$pem_key" "$private_key" "$public_key" \
-    "$s02_pem_key" "$s02_private_key" "$s02_public_key"
+    "$s02_pem_key" "$s02_private_key" "$s02_public_key" "$policy_pem_key" "$policy_public_key"
   if ! rmdir "$key_dir" "$runtime_dir"; then
     printf 'Failed to remove temporary E2E credential files in %s.\n' "$runtime_dir" >&2
     result=1
@@ -48,6 +50,8 @@ openssl pkey -in "$pem_key" -pubout -outform DER -out "$public_key"
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$s02_pem_key"
 openssl pkcs8 -topk8 -nocrypt -in "$s02_pem_key" -outform DER -out "$s02_private_key"
 openssl pkey -in "$s02_pem_key" -pubout -outform DER -out "$s02_public_key"
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$policy_pem_key"
+openssl pkey -in "$policy_pem_key" -pubout -outform DER -out "$policy_public_key"
 rm -f "$pem_key" "$s02_pem_key"
 
 identity_admin_password="$(openssl rand -hex 24)"
@@ -122,6 +126,7 @@ admin_expires_at="$(node -e 'console.log(new Date(Date.now() + 365 * 24 * 60 * 6
   printf 'UACRF_DELEGATION_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$public_key" | tr -d '\n')"
   printf 'UACRF_S02_OWNER_RECEIPT_PRIVATE_KEY_BASE64=%s\n' "$(base64 < "$s02_private_key" | tr -d '\n')"
   printf 'UACRF_S02_OWNER_RECEIPT_PUBLIC_KEY_BASE64=%s\n' "$(base64 < "$s02_public_key" | tr -d '\n')"
+  printf 'UACRF_POLICY_TRUST_SET_JSON={"revision":1,"keys":[{"kid":"e2e-review-key","algorithm":"RS256","public_key_base64":"%s","tenant_id":"local-dev","environment_id":"local","service_id":"browser-signed-policy-service","reviewer_id":"local-approver"}]}\n' "$(base64 < "$policy_public_key" | tr -d '\n')"
 } > "$env_file"
 
 compose=(docker compose --env-file "$env_file" -p "$project_name" -f "$compose_file")
@@ -161,6 +166,18 @@ wait_for_url decision-governance 'http://localhost:8091/actuator/health'
 wait_for_url api-edge 'http://localhost:8080/actuator/health'
 wait_for_url experience-api 'http://localhost:8081/actuator/health'
 wait_for_url web 'http://localhost:8084/actuator/health'
+
+# Isolated signed-review fixture; grants are inserted only for this test and bypass S01 grant decisions.
+"${compose[@]}" exec -T identity-db psql -v ON_ERROR_STOP=1 \
+  -U uacrf_identity_admin -d uacrf_identity <<'SQL'
+INSERT INTO uacrf_identity.membership
+  (id, tenant_id, environment_id, principal_id, capability, service_scope, expires_at, revision)
+VALUES
+  ('00000000-0000-4000-8000-000000000101', 'local-dev', 'local', 'local-approver',
+   'authorization.policy.read', 'browser-signed-policy-service', now() + interval '1 hour', 1),
+  ('00000000-0000-4000-8000-000000000102', 'local-dev', 'local', 'local-approver',
+   'authorization.policy.review', 'browser-signed-policy-service', now() + interval '1 hour', 1);
+SQL
 
 # Isolated, synthetic read fixtures; insertion bypasses the objective proposal workflow.
 "${compose[@]}" exec -T objectives-db psql -v ON_ERROR_STOP=1 \
@@ -266,4 +283,5 @@ KEYCLOAK_S03_PUBLISHER_CLIENT_SECRET="$s03_client_secret" \
 KEYCLOAK_S03_COLLECTION_CLIENT_SECRET="$s03_collection_client_secret" \
 UACRF_E2E_ADMIN_PASSWORD="$e2e_admin_password" \
 UACRF_E2E_APPROVER_PASSWORD="$e2e_approver_password" \
+UACRF_E2E_POLICY_REVIEW_KEY="$policy_pem_key" \
   npm test

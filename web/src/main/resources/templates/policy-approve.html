@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approve policy revision | UACRF</title>
+  <link rel="stylesheet" th:href="@{/css/inventory.css}" href="/css/inventory.css"></head>
+<body><main>
+  <h1>Approve a policy revision</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/policies">Back to service policies</a></p>
+  <p>An approval requires an externally signed RS256 compact JWS and a separately provisioned
+    reviewer trust key. Do not enter a private key here. S10 verifies the signature, exact claims,
+    reviewer eligibility, separation from the proposer, expiry and current revision.</p>
+  <p>Approval is governance metadata, not an action permit. Further approvals may be required.</p>
+  <p role="alert" th:if="${policyError != null}" th:text="${policyError}"></p>
+  <section th:if="${policy != null}">
+    <h2>Revision to review</h2>
+    <p>State: <span th:text="${policy.decision}">DRAFT</span></p>
+    <h3>Canonical policy material</h3>
+    <pre th:text="${policy.material.canonicalText}">Material</pre>
+  </section>
+  <form th:if="${approvalForm != null}" method="post" th:action="@{/policies/approve}" th:object="${approvalForm}">
+    <input type="hidden" th:field="*{serviceId}"><input type="hidden" th:field="*{id}">
+    <input type="hidden" th:field="*{revision}"><input type="hidden" th:field="*{digest}">
+    <input type="hidden" th:field="*{reviewerId}"><input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}"><input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <h2>Required signed claims</h2>
+    <p>The assertion header must contain only <code>alg=RS256</code>, <code>typ=uacrf.policy-review+jws</code>
+      and the trusted <code>kid</code>. The payload must be RFC 8785 canonical JSON with exactly these claims
+      and the same reason entered below:</p>
+    <dl><dt>tenant_id</dt><dd th:text="*{tenantId}">Tenant ID</dd>
+      <dt>environment_id</dt><dd th:text="*{environmentId}">Environment ID</dd>
+      <dt>policy_id</dt><dd th:text="*{id}">Policy ID</dd>
+      <dt>policy_revision</dt><dd th:text="*{revision}">Revision</dd>
+      <dt>service_id</dt><dd th:text="*{serviceId}">Service ID</dd>
+      <dt>policy_digest</dt><dd th:text="*{digest}">Digest</dd>
+      <dt>reviewer_id</dt><dd th:text="*{reviewerId}">Reviewer</dd>
+      <dt>decision</dt><dd>APPROVE</dd><dt>reason</dt><dd>The exact reason below</dd></dl>
+    <p>If the outcome is unconfirmed, retry this same form unchanged as the same user in the same context.
+      Changed details require a new form and assertion.</p>
+    <div role="alert" th:if="${#fields.hasAnyErrors()}">
+      <h2>Check the approval details</h2>
+      <ul><li th:each="error : ${#fields.allErrors()}" th:text="${error}">Validation error</li></ul>
+    </div>
+    <p><label for="reason">Reason for approval</label>
+      <textarea id="reason" th:field="*{reason}" maxlength="2000" required
+        th:attr="aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},aria-describedby=${#fields.hasErrors('reason') ? 'reason-error' : null}"></textarea>
+      <span id="reason-error" th:errors="*{reason}"></span></p>
+    <p><label for="assertion">Externally signed compact JWS</label>
+      <textarea id="assertion" th:field="*{assertion}" maxlength="16000" required spellcheck="false"
+        th:attr="aria-invalid=${#fields.hasErrors('assertion') ? 'true' : null},aria-describedby=${#fields.hasErrors('assertion') ? 'assertion-error' : null}"></textarea>
+      <span id="assertion-error" th:errors="*{assertion}"></span></p>
+    <button type="submit">Submit signed approval</button>
+  </form>
+</main></body></html>

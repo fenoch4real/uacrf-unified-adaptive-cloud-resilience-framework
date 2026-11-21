@@ -161,4 +161,32 @@ class PolicyClientTests {
       server.verify();
     }
   }
+
+  @Test
+  void checksApprovalVoteAgainstSubmittedAssertionIncludingOnLaterState() {
+    String assertion = "header.payload.signature";
+    String vote = "{\"reviewer_id\":\"reviewer\",\"decision\":\"APPROVE\",\"reason\":\"Looks right\","
+        + "\"reviewed_at\":\"2026-01-02T00:00:00Z\",\"currently_trusted\":false,\"assertion_digest\":\""
+        + digest(assertion) + "\"}";
+    String approved = DETAIL.replace("\"approval_count\":0", "\"approval_count\":1")
+        .replace("\"votes\":[]", "\"votes\":[" + vote + "]");
+    for (String response : List.of(approved, approved.replace(digest(assertion), "a".repeat(64)))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/authorization-policy-bundles/policy-a:decide"))
+          .andExpect(header("Idempotency-Key", "same-key"))
+          .andExpect(jsonPath("$.decision").value("APPROVE"))
+          .andExpect(jsonPath("$.signed_assertion").value(assertion))
+          .andRespond(withSuccess("{\"policy\":" + response + "}", MediaType.APPLICATION_JSON));
+      PolicyClient client = new PolicyClient(builder.build());
+      if (response.equals(approved)) {
+        assertThat(client.approve("token", "same-key", "service-a", "policy-a",
+            2, DIGEST, "Looks right", assertion).decision()).isEqualTo("DRAFT");
+      } else {
+        assertThatThrownBy(() -> client.approve("token", "same-key", "service-a", "policy-a",
+            2, DIGEST, "Looks right", assertion)).isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
 }

@@ -144,6 +144,42 @@ class WebApplicationTests {
     verifyNoInteractions(identity, policies);
   }
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder policyApproval() {
+    return post("/policies/approve").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("serviceId", "service-a").param("id", "policy-a").param("revision", "2")
+        .param("digest", "a".repeat(64)).param("reviewerId", "reviewer")
+        .param("reason", "Looks right").param("assertion", "header.payload.signature")
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void policyApprovalPreservesSignedRequestOnUncertainty() throws Exception {
+    when(identity.createDelegation("test-access-token", "S10", "service-a",
+        List.of("authorization.policy.review"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("policy-reviewer", "Bearer", 30));
+    when(policies.approve("policy-reviewer", "12345678-1234-4234-8234-123456789012",
+        "service-a", "policy-a", 2, "a".repeat(64), "Looks right", "header.payload.signature"))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(policyApproval()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("approval is unconfirmed")))
+        .andExpect(content().string(containsString("header.payload.signature")))
+        .andExpect(content().string(containsString("12345678-1234-4234-8234-123456789012")));
+  }
+
+  @Test
+  void policyApprovalRejectsInvalidAssertionsChangedUserAndMissingCsrf() throws Exception {
+    mockMvc.perform(policyApproval().with(request -> { request.setParameter("assertion", "not-a-jws"); return request; }))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(containsString("aria-describedby=\"assertion-error\"")));
+    mockMvc.perform(policyApproval().with(request -> { request.setParameter("principalName", "different"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(post("/policies/approve").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(identity, policies);
+  }
+
   @Test
   void policyBrowsingUsesExactServiceGrantAndEscapesMetadata() throws Exception {
     Instant time = Instant.parse("2026-01-01T00:00:00Z");

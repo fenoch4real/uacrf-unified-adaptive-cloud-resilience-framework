@@ -1,4 +1,5 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, sign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { expectCurrentAccess, selectLocalContext, signIn } from './helpers/auth.mjs';
 
@@ -331,6 +332,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       { principalId: reviewerPrincipalId, capability: 'authorization.policy.read', scope: fixtureServiceId },
       { principalId: reviewerPrincipalId, capability: 'authorization.policy.review', scope: fixtureServiceId },
       { principalId: evidencePrincipalId, capability: 'authorization.policy.write', scope: fixtureServiceId },
+      { principalId: evidencePrincipalId, capability: 'authorization.policy.write', scope: 'browser-signed-policy-service' },
     ];
     for (const { principalId: targetPrincipalId, capability, scope = '*' } of grants) {
       await approver.goto('/memberships');
@@ -442,6 +444,90 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
   await proposePolicy(policyId, 0);
   await proposePolicy(policyId, 1);
   for (let i = 0; i < 25; i++) await proposePolicy(`browser-policy-page-${i}-${randomUUID()}`, 0);
+
+  const signedService = 'browser-signed-policy-service';
+  const signedPolicyId = `browser-signed-policy-${randomUUID()}`;
+  const signedDelegation = await fetch('http://localhost:8082/internal/v1/delegations', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${fixtureIdentityToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      audience: 'S10', service_id: signedService, capability_ids: ['authorization.policy.write'],
+      tenant_id: 'local-dev', environment_id: 'local',
+    }),
+  });
+  expect(signedDelegation.status).toBe(200);
+  const signedPolicyResponse = await fetch('http://localhost:8080/internal/decision-governance/v1/authorization-policy-bundles', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${(await signedDelegation.json()).access_token}`,
+      'content-type': 'application/json', 'Idempotency-Key': randomUUID() },
+    body: JSON.stringify({
+      id: signedPolicyId, service_id: signedService, expected_revision: 0,
+      expires_at: '2035-01-01T00:00:00Z', effective_from: '2026-01-01T00:00:00Z',
+      reason: 'Synthetic signed policy',
+      definition: { allowed_action_kinds: ['READ'], allowed_actor_ids: ['sample-actor'],
+        allowed_resource_ids: ['sample-resource'], permitted_providers: ['AZURE'],
+        permitted_regions: ['sample-region'], required_approver_count: 1,
+        eligible_approver_ids: ['local-approver'], maximum_cost_usd: 10 },
+    }),
+  });
+  expect(signedPolicyResponse.status).toBe(200);
+  const signedPolicy = (await signedPolicyResponse.json()).policy;
+  const signingContext = await browser.newContext();
+  try {
+    const signingReviewer = await signingContext.newPage();
+    await signIn(signingReviewer, 'local-approver');
+    await selectLocalContext(signingReviewer);
+    await signingReviewer.goto(`/policies/approve?serviceId=${signedService}&id=${signedPolicyId}&revision=1`);
+    await expect(signingReviewer.getByText('Canonical policy material')).toBeVisible();
+    const reason = 'Independent synthetic signed approval';
+    const claims = {
+      decision: 'APPROVE', environment_id: 'local', policy_digest: signedPolicy.digest,
+      policy_id: signedPolicyId, policy_revision: 1, reason, reviewer_id: 'local-approver',
+      service_id: signedService, tenant_id: 'local-dev',
+    };
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'e2e-review-key', typ: 'uacrf.policy-review+jws' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    const signingInput = `${header}.${payload}`;
+    const signature = sign('RSA-SHA256', Buffer.from(signingInput),
+      readFileSync(process.env.UACRF_E2E_POLICY_REVIEW_KEY));
+    const badSignature = Buffer.from(signature);
+    badSignature[0] ^= 1;
+    await signingReviewer.getByLabel('Reason for approval').fill(reason);
+    await signingReviewer.getByLabel('Externally signed compact JWS')
+      .fill(`${signingInput}.${badSignature.toString('base64url')}`);
+    const [invalidApproval] = await Promise.all([
+      signingReviewer.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === '/policies/approve'),
+      signingReviewer.getByRole('button', { name: 'Submit signed approval' }).click(),
+    ]);
+    expect(invalidApproval.status()).toBe(422);
+    await signingReviewer.goto(`/policies/detail?serviceId=${signedService}&id=${signedPolicyId}&revision=1`);
+    await expect(signingReviewer.getByText('No votes recorded.')).toBeVisible();
+    await signingReviewer.goto(`/policies/approve?serviceId=${signedService}&id=${signedPolicyId}&revision=1`);
+    const assertion = `${signingInput}.${signature.toString('base64url')}`;
+    await signingReviewer.getByLabel('Reason for approval').fill(reason);
+    await signingReviewer.getByLabel('Externally signed compact JWS').fill(assertion);
+    const [approval] = await Promise.all([
+      signingReviewer.waitForResponse((response) => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === '/policies/approve'),
+      signingReviewer.getByRole('button', { name: 'Submit signed approval' }).click(),
+    ]);
+    expect(approval.status()).toBe(200);
+    await expect(signingReviewer.getByRole('heading', { name: 'Policy approval receipt' })).toBeVisible();
+    await expect(signingReviewer.getByText('APPROVED', { exact: true })).toBeVisible();
+    const replayApproval = await signingReviewer.request.post('/policies/approve', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: approval.request().postData(),
+    });
+    expect(replayApproval.status()).toBe(200);
+    const changedApproval = new URLSearchParams(approval.request().postData());
+    changedApproval.set('reason', 'Changed signed approval');
+    const approvalConflict = await signingReviewer.request.post('/policies/approve', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedApproval.toString(),
+    });
+    expect(approvalConflict.status()).toBe(409);
+  } finally {
+    await signingContext.close();
+  }
 
   const sampleContext = await browser.newContext();
   try {

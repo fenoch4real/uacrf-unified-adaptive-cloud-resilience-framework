@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Policy approval receipt | UACRF</title></head>
+<body><main>
+  <h1>Policy approval receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>The approval vote was retained. The returned state is point-in-time governance metadata,
+    not an action permit; a replay may return a later state.</p>
+  <dl><dt>Service</dt><dd th:text="${policy.serviceId}">Service</dd>
+    <dt>Policy ID</dt><dd th:text="${policy.id}">Policy</dd>
+    <dt>Revision</dt><dd th:text="${policy.revision}">Revision</dd>
+    <dt>Review state</dt><dd th:text="${policy.decision}">State</dd>
+    <dt>Material digest</dt><dd th:text="${policy.digest}">Digest</dd></dl>
+  <p><a th:href="@{/policies/detail(serviceId=${policy.serviceId},id=${policy.id},revision=${policy.revision})}">Read this revision</a> (requires separate read access)</p>
+</main></body></html>

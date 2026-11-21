@@ -108,6 +108,23 @@ class PolicyClient {
     return policy;
   }
 
+  Policy approve(String token, String idempotencyKey, String serviceId, String id,
+      long revision, String digest, String reason, String assertion) {
+    PolicyResult result = restClient.post().uri(ROOT + "/{id}:decide", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", idempotencyKey)
+        .body(new Decision(revision, "APPROVE", reason, assertion))
+        .retrieve().body(PolicyResult.class);
+    Policy policy = validate(result, serviceId, id, revision);
+    String assertionDigest = sha256(assertion);
+    if (!digest.equals(policy.digest()) || policy.review().votes().stream().noneMatch(v ->
+        "APPROVE".equals(v.decision()) && reason.equals(v.reason())
+            && assertionDigest.equals(v.assertionDigest()))) {
+      throw new IllegalStateException("S10 returned an approval that does not match the request.");
+    }
+    return policy;
+  }
+
   private static Policy validate(PolicyResult result, String serviceId, String id, long revision) {
     Policy policy = result == null ? null : result.policy();
     if (policy == null || !valid(policy.summary(), serviceId) || !id.equals(policy.id())
@@ -188,7 +205,8 @@ class PolicyClient {
   record Material(String algorithm, String encoding, @JsonProperty("canonical_text") String canonicalText,
       String digest) {}
   record Vote(@JsonProperty("reviewer_id") String reviewerId, String decision, String reason,
-      @JsonProperty("reviewed_at") Instant reviewedAt, @JsonProperty("currently_trusted") Boolean currentlyTrusted) {}
+      @JsonProperty("reviewed_at") Instant reviewedAt, @JsonProperty("currently_trusted") Boolean currentlyTrusted,
+      @JsonProperty("assertion_digest") String assertionDigest) {}
   record Review(@JsonProperty("required_approval_count") Integer requiredApprovalCount,
       @JsonProperty("approval_count") Integer approvalCount,
       @JsonProperty("valid_approval_count") Integer validApprovalCount,

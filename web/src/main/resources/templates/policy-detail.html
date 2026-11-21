@@ -15,6 +15,7 @@
     <p><a th:href="@{/policies/new(serviceId=${policy.serviceId},id=${policy.id},expectedRevision=${policy.revision})}">Propose a revision based on this revision</a>.
       This revision may no longer be current; S10 rejects stale expected revisions.</p>
     <p><a th:href="@{/policies/reject(serviceId=${policy.serviceId},id=${policy.id},revision=${policy.revision})}">Review this revision for rejection</a> (requires separate review access).</p>
+    <p><a th:href="@{/policies/approve(serviceId=${policy.serviceId},id=${policy.id},revision=${policy.revision})}">Review this revision for signed approval</a> (requires separate review access and an externally signed assertion).</p>
     <dl>
       <dt>Service</dt><dd th:text="${policy.serviceId}">Service</dd>
       <dt>Review state</dt><dd th:text="${policy.decision}">State</dd>
