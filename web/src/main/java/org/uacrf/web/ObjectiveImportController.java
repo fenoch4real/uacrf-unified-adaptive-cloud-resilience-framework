@@ -221,6 +221,35 @@ class ObjectiveImportController {
     return "objective-import-capture";
   }
 
+  @GetMapping("/objectives/import/receipt/sample-capture")
+  String retainedCapture(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id,
+      @RequestParam String captureId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!ObjectivesClient.validUuid(id) || !ObjectivesClient.validUuid(captureId)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("captureError", "Provide valid import request and capture IDs.");
+      return "objective-import-capture-detail";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("capture", objectives.getImportSampleCapture(token, id, captureId));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("captureError", "Identity or objectives service is unavailable; the capture was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("captureError", "Retained capture access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("captureError", "Identity or objectives service returned an invalid capture.");
+    }
+    return "objective-import-capture-detail";
+  }
+
   @GetMapping("/objectives/import/requests")
   String requests(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,

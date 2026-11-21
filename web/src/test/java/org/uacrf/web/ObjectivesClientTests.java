@@ -160,6 +160,40 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void readsOnlyMatchingCompleteCaptureWithConsistentPayloadDigest() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String payloadDigest = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a";
+    String body = """
+        {"capture_id":"%s","receipt_id":"%s","captured_at":"2026-11-21T00:00:00Z",
+         "actor_id":"actor","request_digest":"%s","connection_id":"connection","connection_revision":1,
+         "binding_id":"binding","binding_revision":2,"target_workload_id":"workload",
+         "source_system":"sample:monitoring","external_objective_id":"sample:test","source_version":"sample-v1",
+         "payload":"{}","payload_digest":"%s","definition_fingerprint_version":"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1",
+         "definition_fingerprint":"%s","verification":"SYNTHETIC_UNVERIFIED"}
+        """.formatted(capture, id, "a".repeat(64), payloadDigest, "b".repeat(64));
+    for (String response : List.of(body, body.replace(id, capture), body.replace(capture, id),
+        body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"), body.replace("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "UNKNOWN"),
+        body.replace("\"payload\":\"{}\"", "\"payload\":\"changed\""),
+        body.replace("\"binding_revision\":2", "\"binding_revision\":0"),
+        body.replace("2026-11-21T00:00:00Z", "bad"))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture))
+          .andExpect(method(HttpMethod.GET)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (response.equals(body)) {
+        assertThat(client.getImportSampleCapture("reader", id, capture).payload()).isEqualTo("{}");
+      } else {
+        assertThatThrownBy(() -> client.getImportSampleCapture("reader", id, capture))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void readsPendingImportPagesAndRejectsInvalidItems() {
     String id = "12345678-1234-4234-8234-123456789012";
     for (String status : List.of("PENDING", "SUCCEEDED")) {

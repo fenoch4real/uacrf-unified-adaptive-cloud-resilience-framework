@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retained fictional capture | UACRF</title>
+  <style>pre { overflow: auto; }</style></head>
+<body><main>
+  <h1>Retained fictional capture</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This historical synthetic observation is unverified, not trusted provider provenance.
+    It does not approve a mapping or process an import, and is not a fresh source read.</p>
+  <p role="alert" th:if="${captureError != null}" th:text="${captureError}"></p>
+  <section th:if="${capture != null}">
+    <h2>Capture details</h2>
+    <dl>
+      <dt>Capture ID</dt><dd th:text="${capture.captureId}"></dd>
+      <dt>Import request</dt><dd th:text="${capture.receiptId}"></dd>
+      <dt>Captured at</dt><dd th:text="${capture.capturedAt}"></dd>
+      <dt>Actor</dt><dd th:text="${capture.actorId}"></dd>
+      <dt>Request digest</dt><dd th:text="${capture.requestDigest}"></dd>
+      <dt>Connection</dt><dd th:text="${capture.connectionId}"></dd>
+      <dt>Connection revision</dt><dd th:text="${capture.connectionRevision}"></dd>
+      <dt>Binding</dt><dd th:text="${capture.bindingId}"></dd>
+      <dt>Binding revision</dt><dd th:text="${capture.bindingRevision}"></dd>
+      <dt>Workload</dt><dd th:text="${capture.targetWorkloadId}"></dd>
+      <dt>Source system</dt><dd th:text="${capture.sourceSystem}"></dd>
+      <dt>External objective</dt><dd th:text="${capture.externalObjectiveId}"></dd>
+      <dt>Source version</dt><dd th:text="${capture.sourceVersion}"></dd>
+      <dt>Payload SHA-256</dt><dd th:text="${capture.payloadDigest}"></dd>
+      <dt>Definition fingerprint version</dt><dd th:text="${capture.definitionFingerprintVersion}"></dd>
+      <dt>Definition fingerprint</dt><dd th:text="${capture.definitionFingerprint}"></dd>
+      <dt>Verification</dt><dd th:text="${capture.verification}"></dd>
+    </dl>
+    <h2 id="payload-title">Exact retained fictional payload</h2>
+    <pre role="region" aria-labelledby="payload-title" tabindex="0"><code th:text="${capture.payload}"></code></pre>
+    <p><a th:href="@{/objectives/import/receipt(id=${capture.receiptId})}">Back to this request</a></p>
+  </section>
+  <p><a href="/objectives/import">Return to import requests</a></p>
+</main></body></html>

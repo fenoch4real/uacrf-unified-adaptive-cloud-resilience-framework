@@ -2,6 +2,10 @@ package org.uacrf.web;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -152,6 +156,43 @@ class ObjectivesClient {
     return receipt;
   }
 
+  RetainedSampleCapture getImportSampleCapture(String token, String id, String captureId) {
+    if (!validUuid(id) || !validUuid(captureId)) throw new IllegalStateException("Invalid capture identifiers.");
+    RetainedSampleCapture capture = restClient.get()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}", id, captureId)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(RetainedSampleCapture.class);
+    if (capture == null || !id.equals(capture.receiptId()) || !captureId.equals(capture.captureId())
+        || !present(capture.capturedAt()) || !present(capture.actorId())
+        || !digest(capture.requestDigest()) || !present(capture.connectionId())
+        || capture.connectionRevision() == null || capture.connectionRevision() < 1
+        || !present(capture.bindingId()) || capture.bindingRevision() == null || capture.bindingRevision() < 1
+        || !present(capture.targetWorkloadId()) || !present(capture.sourceSystem())
+        || !capture.sourceSystem().startsWith("sample:") || !present(capture.externalObjectiveId())
+        || !capture.externalObjectiveId().startsWith("sample:") || !present(capture.sourceVersion())
+        || !capture.sourceVersion().startsWith("sample-") || !present(capture.payload())
+        || capture.payload().getBytes(StandardCharsets.UTF_8).length > 16384
+        || !digest(capture.payloadDigest()) || !digest(capture.definitionFingerprint())
+        || !"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(capture.definitionFingerprintVersion())
+        || !"SYNTHETIC_UNVERIFIED".equals(capture.verification())) {
+      throw new IllegalStateException("S05 returned an invalid retained synthetic capture.");
+    }
+    try {
+      java.time.Instant.parse(capture.capturedAt());
+      String calculated = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+          .digest(capture.payload().getBytes(StandardCharsets.UTF_8)));
+      if (!calculated.equals(capture.payloadDigest())) {
+        throw new IllegalStateException("Retained capture payload digest does not match.");
+      }
+    } catch (java.time.format.DateTimeParseException | NoSuchAlgorithmException error) {
+      throw new IllegalStateException("Invalid retained capture timestamp or digest algorithm.", error);
+    }
+    return capture;
+  }
+
+  private static boolean digest(String value) {
+    return value != null && value.matches("[a-f0-9]{64}");
+  }
+
   private static boolean valid(ImportDefinition value) {
     return value != null && present(value.metric()) && present(value.unit()) && present(value.window())
         && present(value.measurementRef()) && value.target() != null && value.target().signum() >= 0
@@ -298,6 +339,17 @@ class ObjectivesClient {
   record SampleCaptureReceipt(@JsonProperty("capture_id") String captureId,
       @JsonProperty("receipt_id") String receiptId, @JsonProperty("captured_at") String capturedAt,
       String verification) {}
+
+  record RetainedSampleCapture(@JsonProperty("capture_id") String captureId,
+      @JsonProperty("receipt_id") String receiptId, @JsonProperty("captured_at") String capturedAt,
+      @JsonProperty("actor_id") String actorId, @JsonProperty("request_digest") String requestDigest,
+      @JsonProperty("connection_id") String connectionId, @JsonProperty("connection_revision") Long connectionRevision,
+      @JsonProperty("binding_id") String bindingId, @JsonProperty("binding_revision") Long bindingRevision,
+      @JsonProperty("target_workload_id") String targetWorkloadId, @JsonProperty("source_system") String sourceSystem,
+      @JsonProperty("external_objective_id") String externalObjectiveId, @JsonProperty("source_version") String sourceVersion,
+      String payload, @JsonProperty("payload_digest") String payloadDigest,
+      @JsonProperty("definition_fingerprint_version") String definitionFingerprintVersion,
+      @JsonProperty("definition_fingerprint") String definitionFingerprint, String verification) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

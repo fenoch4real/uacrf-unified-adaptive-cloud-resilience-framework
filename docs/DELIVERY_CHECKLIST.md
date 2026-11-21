@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**153 completed / 812 total** · 659 open
+**154 completed / 813 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 63 | 225 |
+| Milestone items | 64 | 226 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -334,6 +334,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026h Connect fictional source capture to UX01 with explicit refetch disclosure, separate read/write authority, context-bound retry and verified browser success and denial. Evidence: R-0204–R-0206.
   - [x] M2-026i Read a specific retained fictional capture from S05 by request and capture ID, scoped to tenant/environment and global objective-read authority, without source reauthorization or trusted-provenance claims. Evidence: R-0210–R-0211.
   - [x] M2-026j Forward the retained fictional capture read through EDGE01 with the original authorization and no-store response. Evidence: R-0215.
+  - [x] M2-026k Connect a known capture receipt to an escaped, clearly labeled historical payload and metadata view in UX01; verify real browser success and denial. Evidence: R-0219–R-0221.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1323,6 +1324,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0214 | 2026-11-21 | M2-026j | Started forwarding the authorized retained-capture read through EDGE01. | S05 remains the authority and retains the exact synthetic payload. |
 | R-0215 | 2026-11-21 | M2-026j | Ran EDGE01 regression including retained-capture read success, denial, missing record and owner outage. | 35 tests passed; the original delegation and owner response are forwarded with no-store. |
 | R-0216 | 2026-11-21 | M2-026j | Updated private technical approach Appendix AB to revision 206 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; browser history and capture listing remain open. |
+| R-0217 | 2026-11-21 | M2-026j | Committed the capture read edge route as `c82c893` and pushed it to `origin/main`. | Capture listing and browser navigation remain open. |
+| R-0218 | 2026-11-21 | M2-026k | Started a browser view for a known retained capture. | Historical synthetic observations are unverified and do not require a live source refetch. |
+| R-0219 | 2026-11-21 | M2-026k | Ran focused UX01 controller and client tests for historical capture reads. | 174 tests passed, including digest consistency, authorization, invalid responses and escaped payload rendering; browser validation remains open. |
+| R-0220 | 2026-11-21 | M2-026k | Ran the isolated enabled browser suite through UX01, EDGE01 and S05 for retained capture readback. | 11 tests passed, including exact payload, fingerprint, no-store, denial and pending readback; test TLS terminates at the disposable proxy. |
+| R-0221 | 2026-11-21 | M2-026k | Ran the default-disabled isolated browser suite. | 11 tests passed; the synthetic source client remains disabled by default. |
+| R-0222 | 2026-11-21 | M2-026k | Updated private technical approach Appendix AB to revision 207 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; capture listing and import processing remain open. |
 
 ## Implementation evidence
 

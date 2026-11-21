@@ -439,6 +439,34 @@ class WebApplicationTests {
   }
 
   @Test
+  void retainedSyntheticCaptureUsesReadAuthorityAndEscapesPayload() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String captureId = "12345678-1234-4234-8234-123456789014";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(objectives.getImportSampleCapture("reader", id, captureId))
+        .thenReturn(new ObjectivesClient.RetainedSampleCapture(captureId, id, "2026-11-21T00:00:00Z",
+            "actor", "a".repeat(64), "connection", 1L, "binding", 2L, "workload",
+            "sample:monitoring", "sample:test", "sample-v1", "<script>alert(1)</script>",
+            "b".repeat(64), "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "c".repeat(64), "SYNTHETIC_UNVERIFIED"));
+    mockMvc.perform(get("/objectives/import/receipt/sample-capture").param("id", id).param("captureId", captureId)
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString("&lt;script&gt;alert(1)&lt;/script&gt;")))
+        .andExpect(content().string(not(containsString("<script>alert(1)</script>"))))
+        .andExpect(content().string(containsString("not a fresh source read")));
+    mockMvc.perform(get("/objectives/import/receipt/sample-capture").param("id", "invalid").param("captureId", captureId)
+        .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
+    when(objectives.getImportSampleCapture("reader", id, captureId))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/objectives/import/receipt/sample-capture").param("id", id).param("captureId", captureId)
+        .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("HTTP 403")));
+  }
+
+  @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
         List.of("connections.connection.read"), "tenant-test", "environment-test"))

@@ -211,15 +211,16 @@ the unkeyed route.
   inspection page, explicitly warns that the source is refetched and may
   differ, and requests a separate global read/write delegation. Its
   context-bound retry form preserves the idempotency key after an uncertain
-  outcome. The browser receipt is historical and unverified; it does not
-  display the captured payload or fingerprint. S05
+  outcome. The browser receipt links to a historical, unverified capture view
+  that validates the returned identifiers and payload digest and renders the
+  exact payload as escaped text. S05
   `GET /v1/objective-imports/{id}/sample-captures/{captureId}` returns the
   retained exact payload and capture metadata with `no-store`, requiring a
   global objective-read delegation and matching tenant, environment, request
   and capture IDs. It reads a historical observation without refetching or
   reauthorizing the source; it does not establish trusted provenance. EDGE01
   forwards the original delegation and preserves the owner response with
-  `no-store`. Capture listing and browser history remain open.
+  `no-store`. Capture listing and general browser history remain open.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

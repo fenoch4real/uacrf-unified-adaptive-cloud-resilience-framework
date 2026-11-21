@@ -16,7 +16,8 @@
       <dt>Captured at</dt><dd th:text="${captureReceipt.capturedAt}"></dd>
       <dt>Verification</dt><dd th:text="${captureReceipt.verification}"></dd>
     </dl>
-    <p>The request remains pending. Capture history is not available in the browser yet.</p>
+    <p>The request remains pending. A list of captures is not available yet.</p>
+    <p><a th:href="@{/objectives/import/receipt/sample-capture(id=${captureReceipt.receiptId},captureId=${captureReceipt.captureId})}">Read this retained capture</a></p>
     <p><a th:href="@{/objectives/import/receipt(id=${captureReceipt.receiptId})}">Back to this request</a></p>
   </section>
   <form th:if="${retryAllowed}" method="post" th:action="@{/objectives/import/receipt/sample-capture}"
