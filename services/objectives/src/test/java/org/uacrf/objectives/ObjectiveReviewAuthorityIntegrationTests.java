@@ -249,6 +249,65 @@ class ObjectiveReviewAuthorityIntegrationTests {
     assertThat(discovered.headers().firstValue("cache-control")).hasValue("no-store");
     assertThat(json.readTree(discovered.body()).path("items").size()).isEqualTo(1);
     assertThat(json.readTree(discovered.body()).path("items").get(0)).isEqualTo(candidate);
+    jdbc.update("INSERT INTO uacrf_objectives.objective "
+        + "(tenant_id, environment_id, id, workload_id, title, metric, comparator, target, unit, window_seconds, "
+        + "origin, content_digest, state, revision, proposed_by) VALUES "
+        + "('tenant-check', 'env-1', ?, ?, 'Local', 'recovery.time', 'LTE', 12, ?, 1800, "
+        + "'LOCAL', ?, 'DRAFT', 1, 'actor')",
+        "comparison-objective", "workload-1", "minutes", "a".repeat(64));
+    jdbc.update("INSERT INTO uacrf_objectives.objective "
+        + "(tenant_id, environment_id, id, workload_id, title, metric, comparator, target, unit, window_seconds, "
+        + "origin, content_digest, state, revision, proposed_by) VALUES "
+        + "('tenant-check', 'env-1', ?, ?, 'Local', 'recovery.time', 'GTE', 12, ?, 1800, "
+        + "'LOCAL', ?, 'DRAFT', 1, 'actor')",
+        "other-workload-objective", "other-workload", "seconds", "b".repeat(64));
+    String comparisonPath = candidateReadPath + "/local-comparison?objectiveId=comparison-objective";
+    var comparison = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + comparisonPath))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, comparison.statusCode(), comparison.body());
+    assertThat(comparison.headers().firstValue("cache-control")).hasValue("no-store");
+    var comparisonBody = json.readTree(comparison.body());
+    assertThat(comparisonBody.path("status").asText()).isEqualTo("PARTIAL");
+    assertThat(comparisonBody.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertThat(comparisonBody.path("local_revision").asLong()).isEqualTo(1);
+    assertThat(comparisonBody.path("local_content_digest").asText()).isEqualTo("a".repeat(64));
+    assertThat(comparisonBody.path("fields").get(0).path("result").asText()).isEqualTo("MATCH");
+    assertThat(comparisonBody.path("fields").get(3).path("result").asText()).isEqualTo("MATCH");
+    assertThat(comparisonBody.path("fields").get(4).path("result").asText()).isEqualTo("NOT_COMPARABLE");
+    assertThat(comparisonBody.path("fields").get(5).path("result").asText()).isEqualTo("NOT_AVAILABLE");
+    jdbc.update("UPDATE uacrf_objectives.objective SET unit = 'seconds', comparator = 'GTE', "
+        + "revision = 2, content_digest = ? "
+        + "WHERE tenant_id='tenant-check' AND environment_id='env-1' AND id='comparison-objective'", "c".repeat(64));
+    var different = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + comparisonPath))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, different.statusCode());
+    var differentFields = json.readTree(different.body()).path("fields");
+    assertThat(differentFields.get(1).path("result").asText()).isEqualTo("DIFFERENT");
+    assertThat(differentFields.get(2).path("result").asText()).isEqualTo("DIFFERENT");
+    assertThat(differentFields.get(3).path("result").asText()).isEqualTo("NOT_COMPARABLE");
+    jdbc.update("UPDATE uacrf_objectives.objective SET unit = 'minutes', metric = 'other.metric', target = 13, "
+        + "revision = 3, content_digest = ? "
+        + "WHERE tenant_id='tenant-check' AND environment_id='env-1' AND id='comparison-objective'", "d".repeat(64));
+    var changed = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + comparisonPath))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, changed.statusCode());
+    assertThat(json.readTree(changed.body()).path("local_revision").asLong()).isEqualTo(3);
+    assertThat(json.readTree(changed.body()).path("fields").get(0).path("result").asText()).isEqualTo("DIFFERENT");
+    assertThat(json.readTree(changed.body()).path("fields").get(3).path("result").asText()).isEqualTo("DIFFERENT");
+    var afterComparison = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + candidateReadPath))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString());
+    assertThat(json.readTree(afterComparison.body())).isEqualTo(candidate);
+    assertEquals(404, http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+        + candidateReadPath + "/local-comparison?objectiveId=missing"))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString()).statusCode());
+    assertEquals(404, http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port
+        + candidateReadPath + "/local-comparison?objectiveId=other-workload-objective"))
+        .header("Authorization", reader).GET().build(), HttpResponse.BodyHandlers.ofString()).statusCode());
+    assertEquals(403, http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + comparisonPath))
+        .header("Authorization", token("writer", "objectives.objective.write")).GET().build(),
+        HttpResponse.BodyHandlers.ofString()).statusCode());
+    assertEquals(403, http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + comparisonPath))
+        .header("Authorization", scopedToken).GET().build(), HttpResponse.BodyHandlers.ofString()).statusCode());
     assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update(
         "UPDATE uacrf_objectives.synthetic_normalized_candidate SET status='COMPARED' WHERE candidate_id=?::uuid",
         candidate.path("candidate_id").asText()));
@@ -280,6 +339,8 @@ class ObjectiveReviewAuthorityIntegrationTests {
         "reader", List.of("objectives.objective.read"), List.of(), List.of());
     String otherToken = "Bearer " + new DelegationTokenIssuer(ENCODER, Clock.systemUTC(),
         "https://uacrf.local/s01", KEY_ID).issue(otherTenant, "S05");
+    assertEquals(404, http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + comparisonPath))
+        .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString()).statusCode());
     var isolated = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + readPath))
         .header("Authorization", otherToken).GET().build(), HttpResponse.BodyHandlers.ofString());
     assertEquals(404, isolated.statusCode());

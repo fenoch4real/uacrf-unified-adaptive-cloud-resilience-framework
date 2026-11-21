@@ -292,6 +292,18 @@ the unkeyed route.
   submitting with separate read/write delegation, and retains the same
   context-bound form and idempotency key on uncertain outcomes. Browser
   readback labels the candidate unverified and uncompared.
+- **Partial synthetic/local field comparison:** S05 `GET` ending in
+  `/synthetic-candidates/{candidateId}/local-comparison?objectiveId={id}`
+  requires global objective-read authority and an explicitly selected objective
+  in the capture's workload. It returns the selected objective's current
+  revision, lifecycle state and existing content digest, plus field-level
+  `MATCH`, `DIFFERENT`, `NOT_COMPARABLE` or `NOT_AVAILABLE` results.
+  Target values are compared only when units match exactly. Local window
+  representation and missing measurement reference, kind and percentile are
+  not assumed equivalent. The result is `PARTIAL` and
+  `SYNTHETIC_UNVERIFIED`; it is not a three-way classification, a source
+  recheck, a revision guard or a retained import decision. Neither record is
+  changed. The read is `no-store`; EDGE01 and UX01 access remain open.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**178 completed / 837 total** · 659 open
+**179 completed / 838 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 88 | 250 |
+| Milestone items | 89 | 251 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -362,6 +362,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
+  - [x] M2-027c Expose a read-only synthetic candidate versus explicitly selected local-objective field comparison in S05, bound to the captured workload and scoped read authority. Disclose incomparable semantics and never claim a complete three-way decision or modify either record. Evidence: R-0339–R-0340.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1469,6 +1470,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0335 | 2026-11-21 | M2-026ag | Updated contracts, UI design notes and private technical approach Appendix AB to revision 226. | Verified the DOCX archive, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; comparison and import processing remain open. |
 | R-0336 | 2026-11-21 | M2-026ag | Re-ran the focused client and controller regression after adding denial cases. | All 188 tests passed; patch whitespace and checklist counts verified. |
 | R-0337 | 2026-11-21 | M2-026ag | Committed and pushed verified UX01 candidate flow as `754cd29`. | Broader comparison, resolution and import processing remain open. |
+| R-0338 | 2026-11-21 | M2-027c | Started a scoped, read-only synthetic/local comparison. | Existing local objectives do not retain measurement reference, kind, percentile, or an import-compatible window; report these gaps rather than inventing a three-way classification. |
+| R-0339 | 2026-11-21 | M2-027c | Ran the focused S05 PostgreSQL integration test for partial comparison. | All 3 tests passed, including scoped denial and workload mismatch; expanded field-change and immutability coverage afterward. |
+| R-0340 | 2026-11-21 | M2-027c | Ran the full S05 regression after expanding comparison coverage. | All 47 S05 tests passed, including differing values, unequal units, missing semantics, tenant isolation and unchanged candidate readback; EDGE01 and browser access remain open. |
+| R-0341 | 2026-11-21 | M2-027c | Updated contracts, design notes and private technical approach Appendix AB to revision 227. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; no three-way classification is claimed. |
 
 ## Implementation evidence
 

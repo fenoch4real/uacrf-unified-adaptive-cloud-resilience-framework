@@ -132,6 +132,16 @@ known-candidate readback. UX01 links an approved review to discovery and
 admission, re-reads the proposal and review before submission, and preserves
 the context-bound form and idempotency key on uncertain outcomes.
 
+S05 can compare an explicitly selected objective in the capture's workload
+against a retained synthetic candidate without changing either record. It
+reports exact metric, unit, comparison and, when units agree, target
+differences. It explicitly marks the distinct window representations and
+missing local measurement semantics as incomparable or unavailable. The
+current local revision and existing lifecycle digest are context, not a
+normalized-definition fingerprint. This is only a partial field comparison,
+not a three-way import classification, source verification or resolution;
+EDGE01 and browser access remain open.
+
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact
 JSON with keys in alphabetical order, including a null percentile. Strings use

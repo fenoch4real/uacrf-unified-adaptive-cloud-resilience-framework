@@ -191,6 +191,16 @@ class ObjectivesController {
             DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId, candidateId));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}/local-comparison")
+  ResponseEntity<ObjectivesService.SyntheticLocalComparison> compareSyntheticCandidate(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @PathVariable String proposalId, @PathVariable String reviewId, @PathVariable String candidateId,
+      @RequestParam String objectiveId) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.compareSyntheticCandidate(
+            DelegationPrincipal.from(jwt), id, captureId, proposalId, reviewId, candidateId, objectiveId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<Page<ObjectivesService.SampleCaptureSummary>> listSampleCaptures(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id,

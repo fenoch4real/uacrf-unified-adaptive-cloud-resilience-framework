@@ -925,6 +925,48 @@ class ObjectivesService {
   record SyntheticCandidates(List<SyntheticCandidate> items) {}
 
   @Transactional(readOnly = true)
+  SyntheticLocalComparison compareSyntheticCandidate(DelegationPrincipal actor, String id, String captureId,
+      String proposalId, String reviewId, String candidateId, String objectiveId) {
+    SyntheticCandidate candidate = getSyntheticCandidate(actor, id, captureId, proposalId, reviewId, candidateId);
+    RetainedSampleCapture capture = getRetainedSampleCapture(actor, id, captureId);
+    Objective local = find(actor, objectiveId);
+    if (!capture.targetWorkloadId().equals(local.workloadId())) throw notFound();
+
+    ObjectiveImportDefinition source = candidate.normalizedDefinition();
+    String localComparison = switch (local.comparator()) {
+      case "LTE" -> "AT_MOST";
+      case "GTE" -> "AT_LEAST";
+      default -> throw new IllegalStateException("The local objective comparator is invalid.");
+    };
+    boolean sameUnit = source.unit().equals(local.unit());
+    List<SyntheticComparisonField> fields = List.of(
+        comparisonField("metric", source.metric(), local.metric()),
+        comparisonField("unit", source.unit(), local.unit()),
+        comparisonField("comparison", source.comparison().name(), localComparison),
+        new SyntheticComparisonField("target",
+            sameUnit ? (source.target().compareTo(local.target()) == 0 ? "MATCH" : "DIFFERENT") : "NOT_COMPARABLE",
+            source.target().toPlainString(), local.target().toPlainString()),
+        new SyntheticComparisonField("window", "NOT_COMPARABLE", source.window(),
+            Integer.toString(local.windowSeconds())),
+        new SyntheticComparisonField("measurement_ref", "NOT_AVAILABLE", source.measurementRef(), null),
+        new SyntheticComparisonField("measurement_kind", "NOT_AVAILABLE", source.measurementKind().name(), null),
+        new SyntheticComparisonField("percentile", "NOT_AVAILABLE",
+            source.percentile() == null ? null : source.percentile().toPlainString(), null));
+    return new SyntheticLocalComparison(candidate.candidateId(), local.id(), local.workloadId(), local.revision(),
+        local.contentDigest(), local.state(), "PARTIAL", "SYNTHETIC_UNVERIFIED", fields);
+  }
+
+  private static SyntheticComparisonField comparisonField(String field, String source, String local) {
+    return new SyntheticComparisonField(field, source.equals(local) ? "MATCH" : "DIFFERENT", source, local);
+  }
+
+  record SyntheticComparisonField(String field, String result, String syntheticValue, String localValue) {}
+
+  record SyntheticLocalComparison(String candidateId, String objectiveId, String workloadId, long localRevision,
+      String localContentDigest, String localState, String status, String verification,
+      List<SyntheticComparisonField> fields) {}
+
+  @Transactional(readOnly = true)
   Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
     PendingImportReceipt receipt = getImportPreview(actor, id);
     UUID command = UUID.fromString(receipt.receiptId());
