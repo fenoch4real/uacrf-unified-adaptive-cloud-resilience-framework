@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**142 completed / 801 total** · 659 open
+**143 completed / 802 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 52 | 214 |
+| Milestone items | 53 | 215 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -324,6 +324,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
   - [x] M2-026c Parse the bounded fictional source format strictly and preserve decimal precision. Evidence: R-0138–R-0139. This standalone parser does not run an import worker or establish provenance.
+  - [x] M2-026d Define and test an exact-decimal, versioned normalized-definition fingerprint compatible with the existing design fixture; do not imply approved mappings or provenance. Evidence: R-0157–R-0158.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
@@ -1251,6 +1252,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0153 | 2026-11-20 | M2-025c | Documented the opt-in S05 synthetic inspection contract and its limits. | The broader connector, import worker and browser resolution workflow remain open. |
 | R-0154 | 2026-11-20 | M2-025c | Updated private technical approach Appendix AB to revision 195; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; synthetic inspection is not provider acceptance. |
 | R-0155 | 2026-11-20 | M2-025c | Committed the connected fictional inspection as `e9b61ce` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0156 | 2026-11-20 | M2-026d | Started a standalone normalized-definition fingerprint; verified that the existing design fixture's digest matches sorted, compact JSON with its integral numeric target. | The fixture alone does not specify exact-decimal behavior; the new version must define it explicitly. |
+| R-0157 | 2026-11-20 | M2-026d | Focused `ObjectiveImportFingerprintTests` passed 3/3 against the existing design fixture, exact high-precision decimals, semantic changes, bounds and invalid Unicode. | String serialization was subsequently made independent of library defaults and required re-verification. |
+| R-0158 | 2026-11-20 | M2-026d | `./mvnw -pl services/objectives -am clean test` passed 44 S05 and 8 shared-security tests, including the versioned exact-decimal fingerprint and deterministic string escaping. | This standalone helper is not persisted or wired to a mapping or import worker; it is not trusted provenance. |
+| R-0159 | 2026-11-20 | M2-026d | Updated private technical approach Appendix AB to revision 196; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the fingerprint does not establish trusted provenance. |
 
 ## Implementation evidence
 

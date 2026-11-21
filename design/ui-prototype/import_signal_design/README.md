@@ -78,7 +78,7 @@ Scheduled work also needs a temporary worker claim, called a lease. If the worke
 
 The new proposed extension contains nine strict schemas, eight API operations and seven storage record families. It includes read-query sketches, two editable sequence diagrams and two graphical design views. These are separate from the baseline: 74 canonical APIs, 102 business tables, 18 applied migration files, 338 named SQL building blocks and 90 implementation flows.
 
-S05 now implements only the durable admission portion of objective preview: an authorized `POST /v1/objective-imports:preview` stores an idempotent request and outbox event, and `GET /v1/objective-imports/{id}` reads its pending receipt. API Edge routes both operations. Admission does not resolve a connection, fetch or retain source content, validate a mapping, compare local definitions, or create a candidate. No worker consumes the command yet, so the status stays `PENDING` and runtime verification remains `NOT_ESTABLISHED`. The broader import/signal extension and the earlier seven-operation objective extension are not fully deployed or accepted. Both reuse the existing authorized connection and workload identities; this update does not implement a new connector registry.
+S05 implements durable admission of objective preview: an authorized `POST /v1/objective-imports:preview` stores an idempotent request and outbox event, and `GET /v1/objective-imports/{id}` reads its pending receipt. API Edge routes both operations. A separate opt-in S05 read can inspect the bound fictional source for a pending request through S01 and S03, but it does not retain source content, validate a mapping, compare local definitions, or create a candidate. No worker consumes the command yet, so the status stays `PENDING` and source verification is not established. The broader import/signal extension and the earlier seven-operation objective extension are not fully deployed or accepted. Both reuse the existing authorized connection and workload identities; this update does not implement a new connector registry.
 
 S05 also contains a standalone tested helper for exact seconds/minutes and explicitly approved fraction/percent target conversions. It rejects incompatible windows, unsupported mappings, invalid ranges and conversions requiring rounding. It is not connected to import processing and does not normalize complete definitions or verify provenance.
 
@@ -86,8 +86,21 @@ An additional typed definition validates the proposed normalized fields and pres
 metric, comparison, measurement kind, percentile, measurement reference and window
 across those exact unit conversions. A standalone strict parser accepts the bounded
 fictional sample payload format, rejects duplicate or unknown fields and preserves
-decimal precision. It is not connected to a worker and does not establish an approved
-mapping, compute a canonical digest, retain provenance or process imports.
+decimal precision. The parser is not connected to a worker and does not establish an
+approved mapping, retain provenance or process imports.
+
+S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
+for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact
+JSON with keys in alphabetical order, including a null percentile. Strings use
+JSON escapes for quotes, backslashes and control characters, preserve valid
+Unicode without normalization, and reject unpaired surrogates. Numbers are
+exact decimal JSON numbers without exponents or redundant fractional zeros;
+zero is `0`. Precision and scale are each bounded to 100. This is a versioned
+exact-decimal format, not RFC 8785 floating-point number serialization. The
+version must accompany any stored or compared digest; differing versions must
+not be compared without an explicit migration. The existing fictional candidate
+fixture matches. This helper is not yet persisted or connected to an approved
+mapping, import processing, source verification or provenance.
 
 A standalone three-way digest classifier implements the finite comparison examples, preserving conflicts and treating incomplete or invalid scope as invalid even when withdrawal is claimed. It does not establish source completeness, verify withdrawal or read persisted definitions.
 
