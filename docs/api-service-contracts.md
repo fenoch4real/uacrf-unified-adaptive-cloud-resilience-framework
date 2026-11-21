@@ -155,6 +155,16 @@ the unkeyed route.
 
 ## Communication Patterns
 
+- **Synthetic objective source:** S03
+  `GET /v1/connections/{id}/sample-objective-definition` accepts
+  `externalObjectiveId` and `targetWorkloadId`, requires global
+  `connections.connection.read`, and resolves only an active `SAMPLE_LOCAL`
+  connection with a matching source/workload binding in the caller's context.
+  The response includes fixture payload bytes as a string, their SHA-256
+  digest, connection/binding revisions, and `verification` set to
+  `SYNTHETIC_UNVERIFIED`. It does not establish workload ownership or mapping
+  approval, contact a provider, or verify a live source. It is not yet consumed
+  by S05 or routed by EDGE01.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

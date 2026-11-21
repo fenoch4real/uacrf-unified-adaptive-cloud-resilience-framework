@@ -22,6 +22,11 @@ final class ConnectionsResponses {
 
   record Binding(String id, String connectionId, String sourceRef, String serviceRef, long revision) {}
 
+  record SampleObjectiveDefinition(
+      String connectionId, long connectionRevision, String bindingId, long bindingRevision,
+      String targetWorkloadId, String sourceSystem, String externalObjectiveId, String sourceVersion,
+      String payload, String payloadDigest, String verification) {}
+
   record CollectionStatus(
       String id,
       String connectionId,

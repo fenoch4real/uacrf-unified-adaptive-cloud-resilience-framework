@@ -48,6 +48,13 @@ class ConnectionsController {
     return connections.get(DelegationPrincipal.from(jwt), id);
   }
 
+  @GetMapping("/v1/connections/{id}/sample-objective-definition")
+  SampleObjectiveDefinition sampleObjective(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestParam String externalObjectiveId, @RequestParam String targetWorkloadId) {
+    return connections.sampleObjective(DelegationPrincipal.from(jwt), id, externalObjectiveId, targetWorkloadId);
+  }
+
   @PostMapping("/v1/connections/{id}/source-bindings")
   @ResponseStatus(HttpStatus.CREATED)
   Receipt bind(

@@ -150,6 +150,62 @@ class ConnectionsApplicationTests {
   }
 
   @Test
+  void readsOnlyBoundSyntheticObjectiveDefinitionsWithoutClaimingVerification() throws Exception {
+    String tenant = "tenant-sample-objective";
+    String environment = "env-sample-objective";
+    String writer = bearer(actor(tenant, environment, RW, List.of("owner-1")), "S03");
+    String id = "sample:checkout-recovery";
+    String path = "/v1/connections/sample-conn/sample-objective-definition"
+        + "?externalObjectiveId=sample:checkout-recovery&targetWorkloadId=workload-a";
+    assertEquals(201, post("/v1/connections", writer, "create-sample-objective",
+        connection("sample-conn", "SAMPLE_LOCAL", 0)).statusCode());
+    assertEquals(201, post("/v1/connections/sample-conn/source-bindings", writer, "bind-sample-objective",
+        "{\"id\":\"sample-binding\",\"source_ref\":\"" + id
+            + "\",\"service_ref\":\"workload-a\",\"expected_revision\":0}").statusCode());
+    Integer events = jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_connections.outbox_event WHERE tenant_id = ?", Integer.class, tenant);
+
+    HttpResponse<String> response = get(path, writer);
+    assertEquals(200, response.statusCode());
+    JsonNode definition = mapper.readTree(response.body());
+    assertThat(definition.path("verification").asString()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertThat(definition.path("source_system").asString()).isEqualTo("sample:monitoring");
+    assertThat(definition.path("external_objective_id").asString()).isEqualTo(id);
+    assertThat(definition.path("connection_revision").asLong()).isEqualTo(1);
+    assertThat(definition.path("binding_revision").asLong()).isEqualTo(1);
+    String payload = definition.path("payload").asString();
+    String digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+        .digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    assertThat(definition.path("payload_digest").asString()).isEqualTo(digest);
+    assertThat(mapper.readTree(payload).path("target").asInt()).isEqualTo(720);
+    assertEquals(events, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_connections.outbox_event WHERE tenant_id = ?", Integer.class, tenant));
+
+    assertEquals(404, get(path.replace("workload-a", "other-workload"), writer).statusCode());
+    assertEquals(404, get(path, bearer(actor(tenant, "other-env", RW, List.of()), "S03")).statusCode());
+    assertEquals(404, get(path, bearer(actor("other-tenant", environment, RW, List.of()), "S03")).statusCode());
+    assertEquals(403, get(path, bearer(actor(tenant, environment,
+        List.of("connections.connection.write"), List.of()), "S03")).statusCode());
+    DelegationPrincipal scoped = new DelegationPrincipal(
+        "https://uacrf.local/s01|scoped", tenant, environment, "workload-a",
+        "https://idp.example.test", "scoped", List.of("connections.connection.read"), List.of(), List.of());
+    assertEquals(403, get(path, bearer(scoped, "S03")).statusCode());
+    assertEquals(201, post("/v1/connections", writer, "create-cloud-objective",
+        connection("cloud-conn", "AWS", 0)).statusCode());
+    assertEquals(404, get(path.replace("sample-conn", "cloud-conn"), writer).statusCode());
+    jdbc.update("UPDATE uacrf_connections.connection SET status = 'ACTIVE' "
+        + "WHERE tenant_id = ? AND environment_id = ? AND id = 'cloud-conn'", tenant, environment);
+    jdbc.update("INSERT INTO uacrf_connections.source_binding "
+        + "(tenant_id, environment_id, id, connection_id, source_ref, service_ref, revision) "
+        + "VALUES (?, ?, 'cloud-binding', 'cloud-conn', ?, 'workload-a', 1)", tenant, environment, id);
+    assertEquals(404, get(path.replace("sample-conn", "cloud-conn"), writer).statusCode());
+    assertEquals(201, post("/v1/connections/sample-conn/source-bindings", writer, "bind-unknown-objective",
+        "{\"id\":\"unknown-binding\",\"source_ref\":\"sample:missing\","
+            + "\"service_ref\":\"workload-a\",\"expected_revision\":0}").statusCode());
+    assertEquals(404, get(path.replace(id, "sample:missing"), writer).statusCode());
+  }
+
+  @Test
   void bindsSourcesOncePerConnectionAndPagesThem() throws Exception {
     String bearer = bearer(actor("tenant-a", "env-a", RW, List.of("owner-1")), "S03");
     assertEquals(201, post("/v1/connections", bearer, "k-b", connection("conn-bind", "SAMPLE_LOCAL", 0)).statusCode());

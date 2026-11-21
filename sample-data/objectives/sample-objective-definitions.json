@@ -1,0 +1,11 @@
+{
+  "label": "SAMPLE DATA - FICTIONAL OBJECTIVE DEFINITIONS, NOT PROVIDER DATA",
+  "source_system": "sample:monitoring",
+  "definitions": [
+    {
+      "id": "sample:checkout-recovery",
+      "source_version": "sample-v1",
+      "payload": "{\"metric\":\"recovery.time\",\"target\":720,\"unit\":\"seconds\",\"window\":\"stable-30m\",\"measurement_ref\":\"sample:independent-order-check\",\"comparison\":\"AT_MOST\",\"measurement_kind\":\"RECOVERY_TIME\",\"percentile\":null}"
+    }
+  ]
+}

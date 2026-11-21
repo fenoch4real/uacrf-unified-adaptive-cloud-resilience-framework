@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**136 completed / 795 total** · 659 open
+**137 completed / 796 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 46 | 208 |
+| Milestone items | 47 | 209 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -317,6 +317,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-024a Rebuild S01, S02, S05, S06 and S07 process-test artifacts. Evidence: R-0089.
   - [x] M2-024b Verify retry-safe proposal and activation with real local S01/S02 owner checks, including non-owner denial, unchanged replay and preservation of the previous active objective. Evidence: R-0090.
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
+  - [x] M2-025a Read an explicitly synthetic objective definition through a matching active sample connection and binding, without asserting source verification. Evidence: R-0124–R-0125.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
@@ -1212,6 +1213,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0120 | 2026-11-20 | M2-030d | Focused `ObjectivesApplicationTests#pendingImportListingIsPaginatedAndContextScoped` exited 0, including tenant and environment isolation and read-scope denial. | Keyset order is receipt ID, not chronological; concurrent inserts may require restarting from the first page. |
 | R-0121 | 2026-11-20 | M2-030d–M2-030e | Updated private technical approach Appendix AB to revision 189; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; source processing and provider acceptance remain open. |
 | R-0122 | 2026-11-20 | M2-030d–M2-030e | Committed pending-request listing as `85e18a9` and pushed it to `origin/main`. | Import resolution, proposal and provider acceptance remain open. |
+| R-0123 | 2026-11-20 | M2-025a | Started an explicitly synthetic S03 objective-definition read path using a matching sample connection and binding. | This does not establish workload ownership, mapping approval, trusted source verification or worker processing. |
+| R-0124 | 2026-11-20 | M2-025a | Focused `ConnectionsApplicationTests#readsOnlyBoundSyntheticObjectiveDefinitionsWithoutClaimingVerification` exited 0. | Added an explicit active non-sample-provider rejection assertion afterward; clean S03 re-verification remains pending. |
+| R-0125 | 2026-11-20 | M2-025a | `./mvnw -pl services/connections -am clean test` exited 0: 71 S03 and 8 shared-security tests passed, including synthetic payload digest, matching binding, context isolation, global-read enforcement and rejection of an active non-sample connection. | This fixture read is unverified synthetic data; it does not prove ownership, mapping approval, provider acceptance or import processing. |
+| R-0126 | 2026-11-20 | M2-025a | Updated private technical approach Appendix AB to revision 190; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; S05 consumption and source verification remain open. |
 
 ## Implementation evidence
 
@@ -2379,6 +2384,12 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   admission only; it is not import completion or a provider/source acceptance claim.
   The focused `./mvnw -q -pl services/objectives,services/api-edge -am test`
   gate passed 36 S05 and API Edge tests with no failures, errors or skips.
+- S03 exposes a synthetic objective-definition read for an active
+  `SAMPLE_LOCAL` connection with a matching source/workload binding. It
+  requires global connection-read authority, returns a digest of the fixture
+  bytes and explicitly labels the result `SYNTHETIC_UNVERIFIED`. The lookup
+  neither establishes ownership or approved mappings nor contacts a provider;
+  no S05 worker consumes it yet.
 - UX01 now submits pending import-preview requests with a context- and
   principal-bound retry key and reads receipts with a separate read delegation.
   The clean UX01 regression passed 200 tests and the isolated browser suite

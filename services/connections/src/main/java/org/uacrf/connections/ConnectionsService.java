@@ -38,12 +38,15 @@ class ConnectionsService {
   private final JdbcTemplate jdbc;
   private final ObjectMapper objectMapper;
   private final InventoryNormalizer inventoryNormalizer;
+  private final SampleObjectiveDefinitions sampleObjectiveDefinitions;
 
   ConnectionsService(
-      JdbcTemplate jdbc, ObjectMapper objectMapper, InventoryNormalizer inventoryNormalizer) {
+      JdbcTemplate jdbc, ObjectMapper objectMapper, InventoryNormalizer inventoryNormalizer,
+      SampleObjectiveDefinitions sampleObjectiveDefinitions) {
     this.jdbc = jdbc;
     this.objectMapper = objectMapper;
     this.inventoryNormalizer = inventoryNormalizer;
+    this.sampleObjectiveDefinitions = sampleObjectiveDefinitions;
   }
 
   @Transactional
@@ -121,6 +124,36 @@ class ConnectionsService {
     requireCapability(actor, "connections.connection.read");
     return find(actor, id);
   }
+
+  @Transactional(readOnly = true)
+  SampleObjectiveDefinition sampleObjective(
+      DelegationPrincipal actor, String connectionId, String externalId, String workloadId) {
+    requireCapability(actor, "connections.connection.read");
+    requireGlobalScope(actor);
+    if (externalId == null || externalId.isBlank() || externalId.length() > 1000
+        || workloadId == null || workloadId.isBlank() || workloadId.length() > 200) {
+      throw invalid("A sample objective ID and target workload ID are required.");
+    }
+    List<SampleBinding> results = jdbc.query(
+        "SELECT c.revision AS connection_revision, b.id AS binding_id, b.revision AS binding_revision "
+            + "FROM " + SCHEMA + "connection c JOIN " + SCHEMA + "source_binding b "
+            + "ON b.tenant_id = c.tenant_id AND b.environment_id = c.environment_id AND b.connection_id = c.id "
+            + "WHERE c.tenant_id = ? AND c.environment_id = ? AND c.id = ? "
+            + "AND c.provider = 'SAMPLE_LOCAL' AND c.status = 'ACTIVE' AND b.source_ref = ? AND b.service_ref = ?",
+        (rs, row) -> new SampleBinding(rs.getLong("connection_revision"),
+            rs.getString("binding_id"), rs.getLong("binding_revision")),
+        actor.tenantId(), actor.environmentId(), connectionId, externalId, workloadId);
+    if (results.isEmpty()) {
+      throw new ConnectionsException(HttpStatus.NOT_FOUND, "NOT_FOUND", "The sample connection or binding is absent.");
+    }
+    SampleBinding binding = results.getFirst();
+    var definition = sampleObjectiveDefinitions.find(externalId);
+    return new SampleObjectiveDefinition(connectionId, binding.connectionRevision(), binding.id(),
+        binding.revision(), workloadId, sampleObjectiveDefinitions.sourceSystem(), definition.id(),
+        definition.sourceVersion(), definition.payload(), sha256(definition.payload()), "SYNTHETIC_UNVERIFIED");
+  }
+
+  private record SampleBinding(long connectionRevision, String id, long revision) {}
 
   @Transactional
   Receipt bind(DelegationPrincipal actor, String connectionId, BindSource request, String key) {

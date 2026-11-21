@@ -133,6 +133,18 @@
     </dependency>
   </dependencies>
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <resource>
+        <directory>../../sample-data/objectives</directory>
+        <targetPath>sample-data/objectives</targetPath>
+        <includes>
+          <include>sample-objective-definitions.json</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
