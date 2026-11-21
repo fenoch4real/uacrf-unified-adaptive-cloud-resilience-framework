@@ -987,6 +987,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     const savedReceiptId = new URL(importReceiptUrl, sample.url()).searchParams.get('id');
     let captureRequest;
     let captureReadUrl;
+    let captureListUrl;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -1017,6 +1018,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       });
       expect(captureRetry.status()).toBe(200);
       expect(await captureRetry.text()).toContain(captureId);
+      for (let index = 0; index < 25; index++) {
+        const additionalCapture = new URLSearchParams(captureRequest.postData());
+        additionalCapture.set('idempotencyKey', randomUUID());
+        const createdCapture = await sample.request.post('/objectives/import/receipt/sample-capture', {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: additionalCapture.toString(),
+        });
+        expect(createdCapture.status()).toBe(200);
+      }
       captureReadUrl = await sample.getByRole('link', { name: 'Read this retained capture' }).getAttribute('href');
       const [captureRead] = await Promise.all([
         sample.waitForResponse((response) => response.request().method() === 'GET'
@@ -1037,6 +1046,18 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     if (!captureReadUrl) await expect(sample.locator('main')).toContainText('The request remains pending.');
     await sample.getByRole('link', { name: 'Back to this request' }).click();
     await expect(sample.locator('main')).toContainText('PENDING');
+    if (captureReadUrl) {
+      captureListUrl = await sample.getByRole('link', { name: 'View retained fictional captures' }).getAttribute('href');
+      await sample.getByRole('link', { name: 'View retained fictional captures' }).click();
+      await expect(sample.locator('main')).toContainText('not a snapshot');
+      await expect(sample.locator('main li')).toHaveCount(25);
+      await sample.getByRole('link', { name: 'More captures' }).click();
+      await expect(sample.locator('main li')).toHaveCount(1);
+      await sample.getByRole('link', { name: 'First captures page' }).click();
+      await expect(sample.locator('main li')).toHaveCount(25);
+      await sample.getByRole('link', { name: 'Back to this request' }).click();
+      await expect(sample.locator('main')).toContainText('PENDING');
+    }
     await sample.getByRole('link', { name: 'Request or find an import' }).click();
     await sample.getByLabel('Sample connection ID (required)').fill('browser-objective-source');
     await sample.getByLabel('Bound workload ID (required)').fill('browser-objective-workload');
@@ -1445,6 +1466,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       if (captureReadUrl) {
         expect((await restricted.goto(captureReadUrl)).status()).toBe(403);
         await expect(restricted.locator('main')).not.toContainText('"target":720');
+      }
+      if (captureListUrl) {
+        expect((await restricted.goto(captureListUrl)).status()).toBe(403);
+        await expect(restricted.locator('main li')).toHaveCount(0);
       }
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');

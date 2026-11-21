@@ -193,6 +193,28 @@ class ObjectivesClient {
     return value != null && value.matches("[a-f0-9]{64}");
   }
 
+  SampleCapturePage listImportSampleCaptures(String token, String id, String cursor) {
+    if (!validUuid(id)) throw new IllegalStateException("Invalid import receipt ID.");
+    SampleCapturePage page = restClient.get().uri(uri -> {
+      var request = uri.path("/v1/objective-imports/{id}/sample-captures").queryParam("pageSize", 25);
+      if (cursor != null && !cursor.isBlank()) request.queryParam("cursor", cursor);
+      return request.build(id);
+    }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SampleCapturePage.class);
+    if (page == null || page.items() == null || page.items().size() > 25
+        || (page.nextCursor() != null && page.nextCursor().isBlank())
+        || page.items().stream().anyMatch(item -> item == null || !validUuid(item.captureId())
+            || !present(item.capturedAt()) || !"SYNTHETIC_UNVERIFIED".equals(item.verification()))
+        || page.items().stream().map(SampleCaptureSummary::captureId).distinct().count() != page.items().size()) {
+      throw new IllegalStateException("S05 returned an invalid synthetic capture page.");
+    }
+    try {
+      for (SampleCaptureSummary item : page.items()) java.time.Instant.parse(item.capturedAt());
+    } catch (java.time.format.DateTimeParseException error) {
+      throw new IllegalStateException("S05 returned an invalid synthetic capture time.", error);
+    }
+    return page;
+  }
+
   private static boolean valid(ImportDefinition value) {
     return value != null && present(value.metric()) && present(value.unit()) && present(value.window())
         && present(value.measurementRef()) && value.target() != null && value.target().signum() >= 0
@@ -350,6 +372,11 @@ class ObjectivesClient {
       String payload, @JsonProperty("payload_digest") String payloadDigest,
       @JsonProperty("definition_fingerprint_version") String definitionFingerprintVersion,
       @JsonProperty("definition_fingerprint") String definitionFingerprint, String verification) {}
+
+  record SampleCaptureSummary(@JsonProperty("capture_id") String captureId,
+      @JsonProperty("captured_at") String capturedAt, String verification) {}
+
+  record SampleCapturePage(List<SampleCaptureSummary> items, @JsonProperty("next_cursor") String nextCursor) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

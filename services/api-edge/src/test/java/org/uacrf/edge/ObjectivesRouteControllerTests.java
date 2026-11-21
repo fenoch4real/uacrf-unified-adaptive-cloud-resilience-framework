@@ -109,6 +109,30 @@ class ObjectivesRouteControllerTests {
   }
 
   @Test
+  void forwardsCaptureListPaginationAndOwnerResponses() throws Exception {
+    RestClient.Builder builder = RestClient.builder().baseUrl(URL);
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    MockMvc mvc = MockMvcBuilders.standaloneSetup(
+        new ObjectivesRouteController(new ObjectivesRouteClient(builder.build()))).build();
+    HttpStatus[] statuses = {HttpStatus.OK, HttpStatus.BAD_REQUEST, HttpStatus.FORBIDDEN,
+        HttpStatus.NOT_FOUND, HttpStatus.SERVICE_UNAVAILABLE};
+    for (HttpStatus code : statuses) {
+      server.expect(requestTo(URL + "/v1/objective-imports/import-1/sample-captures?pageSize=1&cursor=next"))
+          .andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andRespond(withStatus(code).contentType(MediaType.APPLICATION_JSON).body("{\"items\":[]}"));
+    }
+    for (HttpStatus code : statuses) {
+      mvc.perform(get("/internal/objectives/v1/objective-imports/import-1/sample-captures")
+              .param("pageSize", "1").param("cursor", "next").header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(status().is(code.value()))
+          .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+          .andExpect(content().json("{\"items\":[]}"));
+    }
+    server.verify();
+  }
+
+  @Test
   void forwardsPublicOperationsToTheFixedOwnerAndDoesNotRouteInternalEndpoints() throws Exception {
     RestClient.Builder builder = RestClient.builder().baseUrl(URL);
     MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

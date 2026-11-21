@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retained fictional captures | UACRF</title></head>
+<body><main>
+  <h1>Retained fictional captures</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>These are historical, unverified synthetic observations, not trusted provider provenance.
+    They do not approve mappings or process an import. Results are ordered by capture ID, not time.
+    Pages are not a snapshot; restart from the first page to see new captures.</p>
+  <p><a th:href="@{/objectives/import/receipt(id=${receiptId})}">Back to this request</a></p>
+  <p role="alert" th:if="${capturesError != null}" th:text="${capturesError}"></p>
+  <div th:if="${captures != null}">
+    <p th:if="${#lists.isEmpty(captures.items)}">No captures are available on this page.</p>
+    <ul>
+      <li th:each="capture : ${captures.items}">
+        <a th:href="@{/objectives/import/receipt/sample-capture(id=${receiptId},captureId=${capture.captureId})}"
+           th:text="${capture.captureId}">Capture ID</a>
+        <span th:text="${capture.capturedAt}">Time</span>
+        <span th:text="${capture.verification}">SYNTHETIC_UNVERIFIED</span>
+      </li>
+    </ul>
+    <nav aria-label="Capture pages">
+      <a th:if="${captures.nextCursor != null}"
+         th:href="@{/objectives/import/receipt/sample-captures(id=${receiptId},cursor=${captures.nextCursor})}">More captures</a>
+      <a th:href="@{/objectives/import/receipt/sample-captures(id=${receiptId})}">First captures page</a>
+    </nav>
+  </div>
+</main></body></html>

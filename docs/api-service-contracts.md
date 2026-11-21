@@ -225,7 +225,10 @@ the unkeyed route.
   capability. It returns `items` and `next_cursor`, defaults to 25 items and
   permits 1–100 per page. Pages are ordered by capture ID, not time; they are
   not a snapshot, so restart from the first page to discover new captures.
-  EDGE01 list forwarding and general browser history remain open.
+  EDGE01 forwards the list with the original delegation and `no-store`; UX01
+  links it from the request and capture receipt, discloses the ordering, and
+  links each summary to its retained capture. Broader import history remains
+  open.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

@@ -104,6 +104,14 @@ class ObjectivesRouteClient {
             .build(id, captureId)), authorization);
   }
 
+  ResponseEntity<String> listImportSampleCaptures(String authorization, String id, int pageSize, String cursor) {
+    return send(objectivesRestClient.get().uri(uri -> {
+      uri.path("/v1/objective-imports/{id}/sample-captures").queryParam("pageSize", pageSize);
+      if (cursor != null && !cursor.isBlank()) uri.queryParam("cursor", cursor);
+      return uri.build(id);
+    }), authorization);
+  }
+
   ResponseEntity<String> listImportPreviews(String authorization, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uriBuilder -> {
       uriBuilder.path("/v1/objective-imports").queryParam("pageSize", pageSize);

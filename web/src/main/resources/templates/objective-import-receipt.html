@@ -18,5 +18,7 @@
       (requires separate global read access)</p>
     <p><a th:href="@{/objectives/import/receipt/sample-source(id=${receipt.receiptId})}">Inspect this request's fictional sample source</a>
       (requires separate objective and connection read access; may be disabled)</p>
+    <p><a th:href="@{/objectives/import/receipt/sample-captures(id=${receipt.receiptId})}">View retained fictional captures</a>
+      (requires separate global objective read access)</p>
   </div>
 </main></body></html>

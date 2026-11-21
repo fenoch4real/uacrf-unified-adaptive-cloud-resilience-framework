@@ -467,6 +467,36 @@ class WebApplicationTests {
   }
 
   @Test
+  void retainedSyntheticCaptureListSupportsPaginationAndDenial() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String captureId = "12345678-1234-4234-8234-123456789014";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(objectives.listImportSampleCaptures("reader", id, null))
+        .thenReturn(new ObjectivesClient.SampleCapturePage(List.of(
+            new ObjectivesClient.SampleCaptureSummary(captureId, "2026-11-21T00:00:00Z",
+                "SYNTHETIC_UNVERIFIED")), "next"));
+    mockMvc.perform(get("/objectives/import/receipt/sample-captures").param("id", id)
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString(captureId)))
+        .andExpect(content().string(containsString("More captures")))
+        .andExpect(content().string(containsString("not a snapshot")));
+    when(objectives.listImportSampleCaptures("reader", id, "next"))
+        .thenReturn(new ObjectivesClient.SampleCapturePage(List.of(), null));
+    mockMvc.perform(get("/objectives/import/receipt/sample-captures").param("id", id).param("cursor", "next")
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("No captures are available")));
+    when(objectives.listImportSampleCaptures("reader", id, null))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get("/objectives/import/receipt/sample-captures").param("id", id)
+        .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("HTTP 403")));
+  }
+
+  @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
         List.of("connections.connection.read"), "tenant-test", "environment-test"))
