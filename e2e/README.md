@@ -52,7 +52,8 @@ user. A separate human reviewer receives service-scoped policy-read and review
 grants, rejects the second revision, and verifies unchanged replay,
 changed-content conflict and stale-revision conflict. The proposer is denied
 self-review. A separate signed-approval scenario uses a disposable RSA key
-and a test-only trust set scoped to the fixed local approver and service.
+and a test-only trust set scoped to the fixed local approver and service;
+the repository's local signing helper produces the assertion.
 Its read and review memberships are inserted directly, bypassing S01 grant
 decisions. It verifies invalid signature denial, approval, unchanged replay
 and changed-content conflict. These records do not authorize actions or

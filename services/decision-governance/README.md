@@ -61,6 +61,35 @@ the policy revision and the request `reason`. The signature covers `header.paylo
 (RS256/PKCS#1 v1.5). The contract is
 `design/ms01/contracts/source/authorization_policy_design/openapi.proposed.json`.
 
+### Local signing helper
+
+The repository includes a local Node.js 18+ helper for an operator-provisioned,
+unencrypted RSA PEM private key. It reads the exact UTF-8 approval reason from
+standard input and writes only the compact JWS to standard output. Use the
+claim values shown on the UX01 approval form, and independently verify the
+revision and material before signing:
+
+```sh
+umask 077
+printf %s 'Reviewed policy material' | node tools/sign_policy_review.mjs \
+  --key /secure/path/reviewer-private.pem --kid reviewer-key-1 \
+  --tenant tenant-1 --environment environment-1 --service service-1 \
+  --policy policy-1 --revision 1 --digest REPLACE_WITH_64_CHARACTER_SHA256 \
+  --reviewer reviewer-1 > /secure/path/policy-assertion.txt
+```
+
+Replace the digest placeholder with the actual 64-character lowercase digest.
+The reason must exactly match the form, including whitespace. The helper
+requires every option exactly once, accepts positive revisions up to
+`9007199254740991`, rejects malformed UTF-8 and weak/non-RSA keys, and on
+POSIX rejects group- or world-accessible private-key files. It does not
+verify that the key is trusted or that the reviewer is authorized; S10 does.
+The helper loads the key into the local process, cannot use encrypted PEM or
+an HSM, and is not a production key-management or signing-service solution.
+Protect the assertion as well as the key: the assertion contains no expiry
+claim and can be replayed against its bound revision. Follow local security
+policy for key storage, access controls, retention and deletion.
+
 ## Review semantics
 
 Reviewers need the human-only `authorization.policy.review` capability scoped to the policy's

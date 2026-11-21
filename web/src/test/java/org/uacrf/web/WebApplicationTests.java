@@ -172,7 +172,7 @@ class WebApplicationTests {
   void policyApprovalRejectsInvalidAssertionsChangedUserAndMissingCsrf() throws Exception {
     mockMvc.perform(policyApproval().with(request -> { request.setParameter("assertion", "not-a-jws"); return request; }))
         .andExpect(status().isBadRequest())
-        .andExpect(content().string(containsString("aria-describedby=\"assertion-error\"")));
+        .andExpect(content().string(containsString("aria-describedby=\"assertion-help assertion-error\"")));
     mockMvc.perform(policyApproval().with(request -> { request.setParameter("principalName", "different"); return request; }))
         .andExpect(status().isConflict());
     mockMvc.perform(post("/policies/approve").with(browserLogin()).session(sessionWithSelectedContext()))

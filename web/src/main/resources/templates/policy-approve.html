@@ -47,9 +47,11 @@
       <textarea id="reason" th:field="*{reason}" maxlength="2000" required
         th:attr="aria-invalid=${#fields.hasErrors('reason') ? 'true' : null},aria-describedby=${#fields.hasErrors('reason') ? 'reason-error' : null}"></textarea>
       <span id="reason-error" th:errors="*{reason}"></span></p>
+    <p id="assertion-help">A local signer is available in the repository; see the S10 README.
+      Keep private keys outside this form and protect signed assertions.</p>
     <p><label for="assertion">Externally signed compact JWS</label>
       <textarea id="assertion" th:field="*{assertion}" maxlength="16000" required spellcheck="false"
-        th:attr="aria-invalid=${#fields.hasErrors('assertion') ? 'true' : null},aria-describedby=${#fields.hasErrors('assertion') ? 'assertion-error' : null}"></textarea>
+        th:attr="aria-invalid=${#fields.hasErrors('assertion') ? 'true' : null},aria-describedby=${#fields.hasErrors('assertion') ? 'assertion-help assertion-error' : 'assertion-help'}"></textarea>
       <span id="assertion-error" th:errors="*{assertion}"></span></p>
     <button type="submit">Submit signed approval</button>
   </form>

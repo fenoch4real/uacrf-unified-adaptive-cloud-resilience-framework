@@ -1,5 +1,5 @@
-import { createHash, randomBytes, randomUUID, sign } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { expect, test } from '@playwright/test';
 import { expectCurrentAccess, selectLocalContext, signIn } from './helpers/auth.mjs';
 
@@ -479,17 +479,18 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await selectLocalContext(signingReviewer);
     await signingReviewer.goto(`/policies/approve?serviceId=${signedService}&id=${signedPolicyId}&revision=1`);
     await expect(signingReviewer.getByText('Canonical policy material')).toBeVisible();
-    const reason = 'Independent synthetic signed approval';
-    const claims = {
-      decision: 'APPROVE', environment_id: 'local', policy_digest: signedPolicy.digest,
-      policy_id: signedPolicyId, policy_revision: 1, reason, reviewer_id: 'local-approver',
-      service_id: signedService, tenant_id: 'local-dev',
-    };
-    const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'e2e-review-key', typ: 'uacrf.policy-review+jws' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
-    const signingInput = `${header}.${payload}`;
-    const signature = sign('RSA-SHA256', Buffer.from(signingInput),
-      readFileSync(process.env.UACRF_E2E_POLICY_REVIEW_KEY));
+    const reason = 'Independent synthetic signed approval café';
+    const signed = spawnSync(process.execPath, ['../tools/sign_policy_review.mjs',
+      '--key', process.env.UACRF_E2E_POLICY_REVIEW_KEY, '--kid', 'e2e-review-key',
+      '--tenant', 'local-dev', '--environment', 'local', '--service', signedService,
+      '--policy', signedPolicyId, '--revision', '1', '--digest', signedPolicy.digest,
+      '--reviewer', 'local-approver'], { input: reason, encoding: 'utf8' });
+    expect(signed.status, signed.stderr).toBe(0);
+    const assertion = signed.stdout.trim();
+    const parts = assertion.split('.');
+    expect(parts).toHaveLength(3);
+    const signingInput = `${parts[0]}.${parts[1]}`;
+    const signature = Buffer.from(parts[2], 'base64url');
     const badSignature = Buffer.from(signature);
     badSignature[0] ^= 1;
     await signingReviewer.getByLabel('Reason for approval').fill(reason);
@@ -504,7 +505,6 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await signingReviewer.goto(`/policies/detail?serviceId=${signedService}&id=${signedPolicyId}&revision=1`);
     await expect(signingReviewer.getByText('No votes recorded.')).toBeVisible();
     await signingReviewer.goto(`/policies/approve?serviceId=${signedService}&id=${signedPolicyId}&revision=1`);
-    const assertion = `${signingInput}.${signature.toString('base64url')}`;
     await signingReviewer.getByLabel('Reason for approval').fill(reason);
     await signingReviewer.getByLabel('Externally signed compact JWS').fill(assertion);
     const [approval] = await Promise.all([
