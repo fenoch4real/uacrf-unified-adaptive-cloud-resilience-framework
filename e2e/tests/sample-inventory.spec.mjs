@@ -990,6 +990,25 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('button', { name: 'Find request' }).click();
     await expect(sample.locator('main')).toContainText(savedReceiptId);
     await expect(sample.locator('main')).toContainText('PENDING');
+    for (let n = 0; n < 25; n++) {
+      const request = new URLSearchParams(importRequest.postData());
+      request.set('idempotencyKey', randomUUID());
+      request.set('externalObjectiveId', `synthetic-list-${n}`);
+      expect((await sample.request.post('/objectives/import', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: request.toString(),
+      })).status()).toBe(200);
+    }
+    await sample.getByRole('link', { name: 'Request or find an import' }).click();
+    await sample.getByRole('link', { name: 'Browse pending requests' }).click();
+    await expect(sample.getByRole('listitem')).toHaveCount(25);
+    const firstPageIds = await sample.locator('main li a').allTextContents();
+    await sample.getByRole('link', { name: 'More requests' }).click();
+    await expect(sample.getByRole('listitem')).toHaveCount(1);
+    const lastPageIds = await sample.locator('main li a').allTextContents();
+    expect(new Set([...firstPageIds, ...lastPageIds]).size).toBe(26);
+    expect([...firstPageIds, ...lastPageIds]).toContain(savedReceiptId);
+    await sample.getByRole('link', { name: 'First requests page' }).click();
+    await expect(sample.getByRole('listitem')).toHaveCount(25);
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -1362,6 +1381,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedReviewRead = await restricted.goto(`/objectives/review?id=${newObjectiveId}`);
       expect(deniedReviewRead.status()).toBe(403);
       expect((await restricted.goto(importReceiptUrl)).status()).toBe(403);
+      expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');
       await restricted.getByLabel('Receipt ID (required)').fill(savedReceiptId);
       const [deniedImportLookup] = await Promise.all([

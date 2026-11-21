@@ -231,6 +231,34 @@ class ObjectivesService {
   }
 
   @Transactional(readOnly = true)
+  Page<PendingImportSummary> listImportPreviews(DelegationPrincipal actor, int pageSize, String cursor) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    String decoded = decodeCursor(cursor);
+    UUID after = null;
+    if (!decoded.isEmpty()) {
+      try {
+        after = UUID.fromString(decoded);
+        if (!after.toString().equals(decoded)) throw new IllegalArgumentException();
+      } catch (IllegalArgumentException error) {
+        throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "cursor is malformed.");
+      }
+    }
+    List<PendingImportSummary> rows = jdbc.query(
+        "SELECT command_id, status, target_workload_id, created_at FROM " + SCHEMA
+            + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+            + "AND (?::uuid IS NULL OR command_id > ?::uuid) ORDER BY command_id LIMIT ?",
+        (rs, n) -> new PendingImportSummary(rs.getString("command_id"), rs.getString("status"),
+            rs.getString("target_workload_id"), rs.getTimestamp("created_at").toInstant().toString()),
+        actor.tenantId(), actor.environmentId(), after, after, pageSize + 1);
+    boolean more = rows.size() > pageSize;
+    List<PendingImportSummary> items = more ? rows.subList(0, pageSize) : rows;
+    String next = more ? Base64.getUrlEncoder().withoutPadding().encodeToString(
+        items.getLast().receiptId().getBytes(StandardCharsets.UTF_8)) : null;
+    return new Page<>(items, next);
+  }
+
+  @Transactional(readOnly = true)
   PendingImportReceipt getImportPreview(DelegationPrincipal actor, String id) {
     requireCapability(actor, "objectives.objective.read");
     requireGlobalScope(actor);

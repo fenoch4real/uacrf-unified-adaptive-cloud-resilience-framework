@@ -44,7 +44,7 @@ The codebase has more than 30 routes, so this inventory groups routes by service
 | Estate Catalog (S02) | GET, POST | `/internal/v1/workload-versions/{id}`, `/internal/v1/workloads/{id}:receipt`, `/internal/v1/workloads/{id}:current-receipt`, `/internal/v1/services/{id}:receipt`, `/internal/v1/services/{id}/revisions/{version}` | Delegated bearer JWT; purpose/deadline receipt request where applicable | Workload/service owner receipt or exact immutable revision snapshot; S05-purpose receipts require the delegated principal to equal the workload's current catalog owner |
 | Connections (S03) | GET, POST | `/v1/connections/**` including source bindings, observations, paginated collection outcome reports, read-only inventory projection, and quarantine | `ConnectionsRequests` records, query/path parameters, idempotency key for registration | `ConnectionsResponses` pages, records, and ingestion result; observation submission returns 202 |
 | Evidence (S04) | GET, POST | `/v1/evidence/**`, `/internal/v1/observations`, `/internal/v1/qualifications/{id}:receipt`, `:measurement`, `:topology-summary`, `/internal/v1/inbox/events` | `EvidenceRequests` records and delegated bearer JWT | Evidence, qualification/measurement/topology-summary receipts, and inbox result; intake/inbox return 202 |
-| Objectives (S05) | GET, POST, PUT | `/v1/objectives/**`, `/v1/objectives:local-idempotent-create`, `/v1/organization-constraints/{metric}`, `/v1/objective-imports:preview`, `/v1/objective-imports/{id}`, `/internal/v1/workloads/{id}/objectives:receipt` | `ObjectivesRequests` records and query/path parameters; preview admission and local idempotent creation require `Idempotency-Key` | Objective, constraint, active-objective receipt, and pending import-command receipt; preview admission is partial and remains `PENDING`; proposal and activation optionally require a current signed S02 owner receipt |
+| Objectives (S05) | GET, POST, PUT | `/v1/objectives/**`, `/v1/objectives:local-idempotent-create`, `/v1/organization-constraints/{metric}`, `/v1/objective-imports:preview`, `/v1/objective-imports`, `/v1/objective-imports/{id}`, `/internal/v1/workloads/{id}/objectives:receipt` | `ObjectivesRequests` records and query/path parameters; preview admission and local idempotent creation require `Idempotency-Key` | Objective, constraint, active-objective receipt, and pending import-command receipts; preview admission is partial and remains `PENDING`; proposal and activation optionally require a current signed S02 owner receipt |
 | Topology (S06) | GET, POST | `/v1/dependency-proposals`, `/v1/dependency-proposals:evidence-backed`, `/v1/dependency-proposals/{id}`, `/v1/dependency-proposals/{id}:review`, `/v1/graphs:accept`, `/v1/graphs/{id}/...`, `/internal/v1/graphs/{id}:receipt` | `TopologyRequests` records and query/path parameters | `TopologyResponses` proposals, graph views, impact, and receipt |
 | Topology (S06) | POST, GET | `/v1/graphs/subgraphs:select`, `/v1/graphs/differences:classify`, `/v1/commands/{id}` | `TopologyRequests.SelectSubgraph` / `ClassifyDifferences` and idempotency key; command ID path | 202 admission receipt (`PENDING`, `domain_completion=false`); status projection (`command_id`, `status`, `terminal`, `domain_completion`) and, only on `SUCCEEDED`, a bounded advisory result |
 | Assessment (S07) | GET, POST | `/v1/cases/**`, `/v1/cases:idempotent-create`, `/v1/evaluations/{id}`, `/v1/recommendations` | `AssessmentRequests` records and query/path parameters; `Idempotency-Key` required on the dedicated creation and `/v1/cases/{id}:idempotent-evaluate` routes | Case, evaluation, recommendation, and receipt records |
@@ -155,6 +155,14 @@ the unkeyed route.
 
 ## Communication Patterns
 
+- **Pending import requests:** `GET /v1/objective-imports` requires global
+  `objectives.objective.read` and returns context-scoped `items` containing
+  `receipt_id`, `status`, `target_workload_id` and `created_at`, plus
+  `next_cursor`. `pageSize` defaults to 25 and is limited to 1–100. Pages are
+  ordered by receipt UUID, not time; concurrent inserts may require a restart
+  from the first page. All requests currently remain `PENDING`: this is neither
+  source verification nor a completed-import history. EDGE01 forwards the
+  request and UX01 uses the same separate read authority.
 - **Retry-safe local objectives:** `POST /v1/objectives:local-idempotent-create`
   requires a global `objectives.objective.write` delegation and
   `Idempotency-Key`. It accepts LOCAL objectives without import provenance and

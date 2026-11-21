@@ -120,7 +120,10 @@ receipt access. No connector is resolved, no source is fetched or verified,
 and no comparison or imported proposal is produced by this flow.
 The user can also enter a saved receipt ID on the import page to reopen it;
 the browser test checks this lookup and denial without read authority. It is
-not a history listing.
+not a completed-import history. The suite also admits 25 more synthetic
+pending requests and browses both pages of 26 requests, returning to the first
+page and checking denial without read access. Listing is ordered by receipt ID,
+not time; new requests may require restarting pagination.
 S05's optional S02 owner check is not enabled in this browser stack; this does
 not establish workload ownership, measured compliance or provider acceptance.
 

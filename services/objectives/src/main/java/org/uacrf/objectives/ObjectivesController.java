@@ -63,6 +63,15 @@ class ObjectivesController {
         .body(objectives.getImportPreview(DelegationPrincipal.from(jwt), id));
   }
 
+  @GetMapping("/v1/objective-imports")
+  Page<PendingImportSummary> listImportPreviews(
+      @AuthenticationPrincipal Jwt jwt,
+      @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return objectives.listImportPreviews(
+        DelegationPrincipal.from(jwt), ObjectivesService.validatePageSize(pageSize), cursor);
+  }
+
   @GetMapping("/v1/objectives")
   Page<Objective> list(
       @AuthenticationPrincipal Jwt jwt,

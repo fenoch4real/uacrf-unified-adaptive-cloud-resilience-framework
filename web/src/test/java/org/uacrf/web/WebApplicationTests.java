@@ -326,6 +326,20 @@ class WebApplicationTests {
   }
 
   @Test
+  void objectiveImportListUsesSeparateReadDelegation() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    when(objectives.listImports("objective-reader", null)).thenReturn(new ObjectivesClient.ImportPage(
+        List.of(new ObjectivesClient.ImportSummary(id, "PENDING", "workload-a", "2026-01-01T00:00:00Z")), null));
+    mockMvc.perform(get("/objectives/import/requests").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString(id)))
+        .andExpect(content().string(containsString("No source has been fetched or verified")));
+    verify(objectives).listImports("objective-reader", null);
+  }
+
+  @Test
   void objectiveImportRejectsInvalidContextInputAndMissingCsrf() throws Exception {
     mockMvc.perform(objectiveImport().with(request -> { request.setParameter("mappingRevision", "0"); return request; }))
         .andExpect(status().isBadRequest());

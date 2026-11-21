@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pending objective import requests | UACRF</title></head>
+<body><main>
+  <h1>Pending objective import requests</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p><a href="/objectives/import">Back to import requests</a></p>
+  <p>These are recorded requests only. No source has been fetched or verified, no comparison has been
+    performed, and no proposal has been created. Results are ordered by receipt ID, not time.
+    Restart from the first page to see new requests.</p>
+  <p role="alert" th:if="${requestsError != null}" th:text="${requestsError}"></p>
+  <div th:if="${requests != null}">
+    <p th:if="${#lists.isEmpty(requests.items)}">No requests are available on this page.</p>
+    <ul>
+      <li th:each="request : ${requests.items}">
+        <a th:href="@{/objectives/import/receipt(id=${request.receiptId})}" th:text="${request.receiptId}">Receipt ID</a>
+        <span th:text="${request.targetWorkloadId}">Workload</span>
+        <span th:text="${request.status}">PENDING</span>
+        <span th:text="${request.createdAt}">Time</span>
+      </li>
+    </ul>
+    <nav aria-label="Import request pages">
+      <a th:if="${requests.nextCursor != null}"
+         th:href="@{/objectives/import/requests(cursor=${requests.nextCursor})}">More requests</a>
+      <a th:href="@{/objectives/import/requests}">First requests page</a>
+    </nav>
+  </div>
+</main></body></html>

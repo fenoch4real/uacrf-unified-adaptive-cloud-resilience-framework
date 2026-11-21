@@ -111,11 +111,32 @@ class ObjectivesClient {
     return receipt;
   }
 
+  ImportPage listImports(String token, String cursor) {
+    ImportPage page = restClient.get().uri(uri -> {
+      var request = uri.path("/v1/objective-imports").queryParam("pageSize", 25);
+      if (cursor != null && !cursor.isBlank()) request.queryParam("cursor", cursor);
+      return request.build();
+    }).header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(ImportPage.class);
+    if (page == null || page.items() == null || page.items().size() > 25
+        || (page.nextCursor() != null && page.nextCursor().isBlank())
+        || page.items().stream().anyMatch(item -> item == null || !validUuid(item.receiptId())
+            || !"PENDING".equals(item.status()) || !present(item.targetWorkloadId())
+            || !present(item.createdAt()))) {
+      throw new IllegalStateException("S05 returned an invalid import request page.");
+    }
+    return page;
+  }
+
   private static boolean validImportReceipt(ImportReceipt receipt) {
     if (receipt == null || !present(receipt.receiptId()) || !"PENDING".equals(receipt.status())
         || !("/v1/objective-imports/" + receipt.receiptId()).equals(receipt.readResource())) return false;
+    return validUuid(receipt.receiptId());
+  }
+
+  private static boolean validUuid(String value) {
+    if (value == null) return false;
     try {
-      return java.util.UUID.fromString(receipt.receiptId()).toString().equals(receipt.receiptId());
+      return java.util.UUID.fromString(value).toString().equals(value);
     } catch (IllegalArgumentException error) {
       return false;
     }
@@ -207,6 +228,12 @@ class ObjectivesClient {
   record ImportReceipt(@JsonProperty("receipt_id") String receiptId, String status,
       @JsonProperty("read_resource") String readResource,
       @JsonProperty("runtime_verification") String runtimeVerification) {}
+
+  record ImportSummary(@JsonProperty("receipt_id") String receiptId, String status,
+      @JsonProperty("target_workload_id") String targetWorkloadId,
+      @JsonProperty("created_at") String createdAt) {}
+
+  record ImportPage(List<ImportSummary> items, @JsonProperty("next_cursor") String nextCursor) {}
 
   record LocalObjective(String id, @JsonProperty("workload_id") String workloadId,
       String title, String metric, String comparator, BigDecimal target, String unit,

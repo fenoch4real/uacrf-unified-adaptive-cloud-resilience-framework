@@ -119,6 +119,29 @@ class ObjectiveImportController {
     return "objective-import-receipt";
   }
 
+  @GetMapping("/objectives/import/requests")
+  String requests(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @RequestParam(required = false) String cursor, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    model.addAttribute("selectedContext", context);
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("requests", objectives.listImports(token, cursor));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("requestsError", "Identity or objectives service is unavailable; requests were not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("requestsError", "Import request access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("requestsError", "Identity or objectives service returned an invalid response.");
+    }
+    return "objective-import-requests";
+  }
+
   record ImportForm(
       @NotBlank @Size(max=200) String connectionId,
       @NotBlank @Size(max=1000) String externalObjectiveId,

@@ -85,6 +85,14 @@ class ObjectivesRouteClient {
         authorization);
   }
 
+  ResponseEntity<String> listImportPreviews(String authorization, int pageSize, String cursor) {
+    return send(objectivesRestClient.get().uri(uriBuilder -> {
+      uriBuilder.path("/v1/objective-imports").queryParam("pageSize", pageSize);
+      if (cursor != null && !cursor.isBlank()) uriBuilder.queryParam("cursor", cursor);
+      return uriBuilder.build();
+    }), authorization);
+  }
+
   ResponseEntity<String> transition(String authorization, String id, String action, String requestBody) {
     return sendBody(HttpMethod.POST, "/v1/objectives/{id}:" + action, id, authorization, requestBody);
   }

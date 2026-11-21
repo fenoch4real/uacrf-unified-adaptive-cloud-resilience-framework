@@ -88,6 +88,14 @@ class ObjectivesRouteController {
     return forward(() -> objectives.getImportPreview(authorization, id));
   }
 
+  @GetMapping("/v1/objective-imports")
+  ResponseEntity<String> listImportPreviews(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestParam(defaultValue = "25") int pageSize,
+      @RequestParam(required = false) String cursor) {
+    return forward(() -> objectives.listImportPreviews(authorization, pageSize, cursor));
+  }
+
   @PostMapping("/v1/objectives/{id}:submit")
   ResponseEntity<String> submit(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

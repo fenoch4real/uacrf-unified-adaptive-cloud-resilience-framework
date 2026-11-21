@@ -84,6 +84,11 @@ class ObjectivesRouteControllerTests {
         .andExpect(method(HttpMethod.GET))
         .andRespond(withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/objective-imports?pageSize=5&cursor=abc"))
+        .andExpect(method(HttpMethod.GET))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/objectives/o-1:decide"))
         .andExpect(method(HttpMethod.POST))
         .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -137,6 +142,9 @@ class ObjectivesRouteControllerTests {
         .andExpect(status().isConflict());
     mvc.perform(get("/internal/objectives/v1/objective-imports/import-1"))
         .andExpect(status().isAccepted());
+    mvc.perform(get("/internal/objectives/v1/objective-imports")
+            .param("pageSize", "5").param("cursor", "abc").header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(status().isOk()).andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     mvc.perform(post("/internal/objectives/v1/objectives/o-1:decide").contentType(MediaType.APPLICATION_JSON).content("{}"))
         .andExpect(status().isOk());
     mvc.perform(get("/internal/objectives/v1/objectives/o-1/decision-history")

@@ -54,6 +54,8 @@ final class ObjectivesResponses {
 
   record PendingImportReceipt(String receiptId, String status, String readResource) {}
 
+  record PendingImportSummary(String receiptId, String status, String targetWorkloadId, String createdAt) {}
+
   record ImportPreviewAdmission(CommandReceipt receipt, boolean newlyAccepted) {}
 
   record ObjectiveCreation(Objective objective, boolean newlyCreated) {}

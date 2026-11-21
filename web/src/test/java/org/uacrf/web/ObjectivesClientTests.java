@@ -98,6 +98,28 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void readsPendingImportPagesAndRejectsInvalidItems() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    for (String status : List.of("PENDING", "SUCCEEDED")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports?pageSize=25&cursor=abc"))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess("{\"items\":[{\"receipt_id\":\"" + id + "\",\"status\":\""
+              + status + "\",\"target_workload_id\":\"workload\",\"created_at\":\"2026-01-01T00:00:00Z\"}],"
+              + "\"next_cursor\":null}", MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (status.equals("PENDING")) {
+        assertThat(client.listImports("reader", "abc").items()).singleElement()
+            .satisfies(item -> assertThat(item.receiptId()).isEqualTo(id));
+      } else {
+        assertThatThrownBy(() -> client.listImports("reader", "abc")).isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void activationBindsRequestAndRejectsMismatchedReceipt() {
     String digest = "a".repeat(64);
     for (String actor : List.of("activator", "other")) {

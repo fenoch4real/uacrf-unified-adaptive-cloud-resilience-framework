@@ -332,6 +332,42 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void pendingImportListingIsPaginatedAndContextScoped() throws Exception {
+    String writer = bearer("importer", "t-list-imports", PROPOSER);
+    String reader = bearer("reader", "t-list-imports", List.of("objectives.objective.read"));
+    String firstId = extractString(postWithIdempotency("/v1/objective-imports:preview", writer,
+        importPreview("slo-1", "w1", 1, 0), "list-1").body(), "receipt_id");
+    String secondId = extractString(postWithIdempotency("/v1/objective-imports:preview", writer,
+        importPreview("slo-2", "w2", 1, 0), "list-2").body(), "receipt_id");
+    String otherId = extractString(postWithIdempotency("/v1/objective-imports:preview",
+        bearer("importer", "t-list-other", PROPOSER),
+        importPreview("other", "other-workload", 1, 0), "list-other").body(), "receipt_id");
+
+    HttpResponse<String> first = get("/v1/objective-imports?pageSize=1", reader);
+    assertEquals(200, first.statusCode());
+    var firstPage = json.readTree(first.body());
+    String item1 = firstPage.path("items").get(0).path("receipt_id").asText();
+    String cursor = firstPage.path("next_cursor").asText();
+    assertThat(cursor).isNotBlank();
+    HttpResponse<String> second = get("/v1/objective-imports?pageSize=1&cursor=" + cursor, reader);
+    assertEquals(200, second.statusCode());
+    var secondPage = json.readTree(second.body());
+    String item2 = secondPage.path("items").get(0).path("receipt_id").asText();
+    assertThat(List.of(item1, item2)).containsExactlyInAnyOrder(firstId, secondId).doesNotContain(otherId);
+    assertThat(secondPage.path("next_cursor").isNull()).isTrue();
+    HttpResponse<String> otherEnvironment = get("/v1/objective-imports",
+        tokenForEnvironment("reader", "t-list-imports", "env-other", "*", List.of("objectives.objective.read")));
+    assertEquals(200, otherEnvironment.statusCode());
+    assertThat(json.readTree(otherEnvironment.body()).path("items").isEmpty()).isTrue();
+    assertEquals(400, get("/v1/objective-imports?cursor=not-a-cursor", reader).statusCode());
+    assertEquals(400, get("/v1/objective-imports?pageSize=101", reader).statusCode());
+    assertEquals(403, get("/v1/objective-imports",
+        token("scoped", "t-list-imports", "w1", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(403, get("/v1/objective-imports",
+        bearer("writer-only", "t-list-imports", List.of("objectives.objective.write"))).statusCode());
+  }
+
+  @Test
   void objectiveImportPreviewRejectsIdempotencyReuseAndMissingKeys() throws Exception {
     String propose = bearer("importer", "t-preview-conflict", PROPOSER);
     String body = importPreview("slo-8", "w-preview", 1, 0);
@@ -868,11 +904,16 @@ class ObjectivesApplicationTests {
   }
 
   private static String token(String user, String tenant, String scope, List<String> capabilities) {
+    return tokenForEnvironment(user, tenant, "env-1", scope, capabilities);
+  }
+
+  private static String tokenForEnvironment(
+      String user, String tenant, String environment, String scope, List<String> capabilities) {
     DelegationPrincipal principal =
         new DelegationPrincipal(
             "https://uacrf.local/s01|" + user,
             tenant,
-            "env-1",
+            environment,
             scope,
             "https://idp.example.test",
             user,

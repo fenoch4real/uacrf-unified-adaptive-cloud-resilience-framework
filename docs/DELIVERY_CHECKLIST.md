@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**134 completed / 793 total** · 659 open
+**136 completed / 795 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 44 | 206 |
+| Milestone items | 46 | 208 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -327,6 +327,8 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-030a Connect pending preview admission and receipt readback to UX01 without implying that a source was fetched. Evidence: R-0094–R-0097.
   - [x] M2-030b Verify pending preview admission, replay, conflict, authorization and receipt readback in the isolated browser. Evidence: R-0097.
   - [x] M2-030c Recover a known pending receipt from the import page with separate read authorization. Evidence: R-0110–R-0112.
+  - [x] M2-030d Add context-scoped, bounded pending-request listing through S05 and EDGE01. Evidence: R-0116, R-0120.
+  - [x] M2-030e Connect and verify pending-request listing in the browser without implying source processing. Evidence: R-0117–R-0119.
 - [ ] M2-031 Publish and consume objective outbox events with idempotent downstream handling.
 
 ### S06 graph and S14 reporting
@@ -1202,6 +1204,13 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0112 | 2026-11-20 | M2-030c | `bash e2e/run-live.sh` exited 0: 11 browser tests passed, including lookup of a saved receipt and denial without read access. | Lookup requires a known ID; it is not import history, source verification or provider acceptance. |
 | R-0113 | 2026-11-20 | M2-030c | Updated private technical approach Appendix AB to revision 188; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete import processing remains open. |
 | R-0114 | 2026-11-20 | M2-030c | Committed saved receipt lookup as `1819993` and pushed it to `origin/main`. | Import history and source processing remain open. |
+| R-0115 | 2026-11-20 | M2-030d–M2-030e | Started implementing bounded pending-request listing and browser navigation. | Listing is not a completed import or source verification. |
+| R-0116 | 2026-11-20 | M2-030d | `./mvnw -pl services/objectives,services/api-edge -am clean test` exited 0: 33 S05, 31 EDGE01 and 8 shared-security tests passed, including cursor pagination, tenant isolation and authorization. | Browser wiring and end-to-end verification remain pending. |
+| R-0117 | 2026-11-20 | M2-030e | `./mvnw -pl web -am clean test` exited 0: 202 UX01 tests passed, including request-page validation and separate read delegation. | Isolated browser pagination and denial remain to be verified. |
+| R-0118 | 2026-11-20 | M2-030e | Checked fixed loopback ports; no listeners were reported. Started the isolated browser suite for pending-request pagination. | Awaiting result. |
+| R-0119 | 2026-11-20 | M2-030e | `bash e2e/run-live.sh` exited 0: all 11 browser tests passed, including traversal of 26 synthetic requests over two pages, first-page navigation and denied access. | Synthetic requests remain pending; added an environment-isolation assertion afterward for re-verification. |
+| R-0120 | 2026-11-20 | M2-030d | Focused `ObjectivesApplicationTests#pendingImportListingIsPaginatedAndContextScoped` exited 0, including tenant and environment isolation and read-scope denial. | Keyset order is receipt ID, not chronological; concurrent inserts may require restarting from the first page. |
+| R-0121 | 2026-11-20 | M2-030d–M2-030e | Updated private technical approach Appendix AB to revision 189; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; source processing and provider acceptance remain open. |
 
 ## Implementation evidence
 
@@ -2374,8 +2383,9 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   The clean UX01 regression passed 200 tests and the isolated browser suite
   passed 11 tests, including admission, replay, conflict and denial. No worker
   fetches or verifies a source, performs comparison or creates a proposal.
-  A saved receipt ID can be looked up later using the separate read authority;
-  this does not list request history.
+  A saved receipt ID can be looked up later using separate read authority.
+  The context-scoped pending-request list also uses that read authority and
+  keyset pagination in receipt-ID order; it is not a history of completed imports.
 - S05 has a tested, standalone exact-target conversion helper for the design's
   seconds/minutes and explicitly approved fraction/percent cases. It rejects
   unsupported mappings, incompatible windows, out-of-range values and
