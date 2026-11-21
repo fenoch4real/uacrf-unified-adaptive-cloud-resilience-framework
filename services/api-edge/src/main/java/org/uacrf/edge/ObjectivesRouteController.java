@@ -103,6 +103,13 @@ class ObjectivesRouteController {
     return forward(() -> objectives.captureImportSample(authorization, id, idempotencyKey));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}")
+  ResponseEntity<String> getImportSampleCapture(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId) {
+    return forward(() -> objectives.getImportSampleCapture(authorization, id, captureId));
+  }
+
   @GetMapping("/v1/objective-imports")
   ResponseEntity<String> listImportPreviews(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

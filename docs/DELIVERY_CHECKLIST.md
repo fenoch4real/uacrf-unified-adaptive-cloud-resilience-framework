@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**152 completed / 811 total** · 659 open
+**153 completed / 812 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 62 | 224 |
+| Milestone items | 63 | 225 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -333,6 +333,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026g Forward the explicit synthetic source-capture operation through EDGE01, preserving the original delegation, idempotency key, owner response and no-store behavior. Evidence: R-0199.
   - [x] M2-026h Connect fictional source capture to UX01 with explicit refetch disclosure, separate read/write authority, context-bound retry and verified browser success and denial. Evidence: R-0204–R-0206.
   - [x] M2-026i Read a specific retained fictional capture from S05 by request and capture ID, scoped to tenant/environment and global objective-read authority, without source reauthorization or trusted-provenance claims. Evidence: R-0210–R-0211.
+  - [x] M2-026j Forward the retained fictional capture read through EDGE01 with the original authorization and no-store response. Evidence: R-0215.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1318,6 +1319,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0210 | 2026-11-21 | M2-026i | Ran the focused S05 capture retention and read test. | One test passed, including no-store, exact payload, fingerprints and tenant/environment/scope denial; broader regression remains open. |
 | R-0211 | 2026-11-21 | M2-026i | Ran S05 and shared-security regression with retained-capture read and isolation checks. | 46 S05 and 8 shared-security tests passed; edge forwarding, capture listing and browser history remain open. |
 | R-0212 | 2026-11-21 | M2-026i | Updated private technical approach Appendix AB to revision 205 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; the read is historical and does not establish trusted provenance. |
+| R-0213 | 2026-11-21 | M2-026i | Committed the S05 capture read as `8e710f2` and pushed it to `origin/main`. | EDGE01 forwarding, capture listing and browser navigation remain open. |
+| R-0214 | 2026-11-21 | M2-026j | Started forwarding the authorized retained-capture read through EDGE01. | S05 remains the authority and retains the exact synthetic payload. |
+| R-0215 | 2026-11-21 | M2-026j | Ran EDGE01 regression including retained-capture read success, denial, missing record and owner outage. | 35 tests passed; the original delegation and owner response are forwarded with no-store. |
+| R-0216 | 2026-11-21 | M2-026j | Updated private technical approach Appendix AB to revision 206 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; browser history and capture listing remain open. |
 
 ## Implementation evidence
 

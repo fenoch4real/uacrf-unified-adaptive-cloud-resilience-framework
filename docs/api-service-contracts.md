@@ -217,8 +217,9 @@ the unkeyed route.
   retained exact payload and capture metadata with `no-store`, requiring a
   global objective-read delegation and matching tenant, environment, request
   and capture IDs. It reads a historical observation without refetching or
-  reauthorizing the source; it does not establish trusted provenance.
-  Capture listing, EDGE01 forwarding and browser history remain open.
+  reauthorizing the source; it does not establish trusted provenance. EDGE01
+  forwards the original delegation and preserves the owner response with
+  `no-store`. Capture listing and browser history remain open.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus
