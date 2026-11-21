@@ -83,20 +83,25 @@ final class LiveM2TestSupport {
   private LiveM2TestSupport() {}
 
   static Environment environment() throws Exception {
-    return environment(false, false);
+    return environment(false, false, false);
   }
 
   static Environment environmentWithWorkloadOwnerChecks() throws Exception {
-    return environment(true, false);
+    return environment(true, false, false);
   }
 
   static Environment environmentWithEvidence() throws Exception {
-    return environment(false, true);
+    return environment(false, true, false);
   }
 
-  private static Environment environment(boolean enableWorkloadOwnerChecks, boolean enableEvidence)
+  static Environment environmentWithSampleSource() throws Exception {
+    return environment(false, false, true);
+  }
+
+  private static Environment environment(
+      boolean enableWorkloadOwnerChecks, boolean enableEvidence, boolean enableSampleSource)
       throws Exception {
-    Environment created = new Environment(enableWorkloadOwnerChecks, enableEvidence);
+    Environment created = new Environment(enableWorkloadOwnerChecks, enableEvidence, enableSampleSource);
     try {
       created.start();
       System.out.printf(
@@ -272,6 +277,11 @@ final class LiveM2TestSupport {
             .withDatabaseName("uacrf_objectives")
             .withUsername("objectives_test")
             .withPassword(UUID.randomUUID().toString());
+    private final PostgreSQLContainer connectionsDb =
+        new PostgreSQLContainer(POSTGRES_IMAGE)
+            .withDatabaseName("uacrf_connections")
+            .withUsername("connections_test")
+            .withPassword(UUID.randomUUID().toString());
     private final PostgreSQLContainer topologyDb =
         new PostgreSQLContainer(POSTGRES_IMAGE)
             .withDatabaseName("uacrf_topology")
@@ -293,6 +303,7 @@ final class LiveM2TestSupport {
         new java.util.concurrent.atomic.AtomicInteger();
     private final boolean enableWorkloadOwnerChecks;
     private final boolean enableEvidence;
+    private final boolean enableSampleSource;
     private HttpServer ownerStubs;
     private Process identityProcess;
     private Process catalogProcess;
@@ -300,18 +311,23 @@ final class LiveM2TestSupport {
     private Process objectivesProcess;
     private Process topologyProcess;
     private Process evidenceProcess;
+    private Process connectionsProcess;
     private int identityPort;
     private int catalogPort;
     private int assessmentPort;
     private int objectivesPort;
     private int topologyPort;
     private int evidencePort;
+    private int connectionsPort;
     private long startupMillis;
     private boolean closed;
 
-    private Environment(boolean enableWorkloadOwnerChecks, boolean enableEvidence) throws IOException {
+    private Environment(
+        boolean enableWorkloadOwnerChecks, boolean enableEvidence, boolean enableSampleSource)
+        throws IOException {
       this.enableWorkloadOwnerChecks = enableWorkloadOwnerChecks;
       this.enableEvidence = enableEvidence;
+      this.enableSampleSource = enableSampleSource;
       repoRoot =
           Path.of(System.getProperty("uacrf.repo.root", Path.of("../..").toAbsolutePath().toString()))
               .toAbsolutePath()
@@ -330,6 +346,7 @@ final class LiveM2TestSupport {
       objectivesDb.start();
       topologyDb.start();
       if (enableEvidence) evidenceDb.start();
+      if (enableSampleSource) connectionsDb.start();
       neo4j.start();
       startOwnerStubs();
 
@@ -342,6 +359,21 @@ final class LiveM2TestSupport {
               identityEnvironment());
       awaitHealth("S01", identityPort, identityProcess);
       seedTopologyMembership();
+
+      if (enableSampleSource) {
+        connectionsPort = freePort();
+        connectionsProcess = startService(
+            "services/connections/target/connections-service-1.0.0-SNAPSHOT.jar",
+            "connections", connectionsPort, Map.of(
+                "SERVER_PORT", Integer.toString(connectionsPort),
+                "CONNECTIONS_JDBC_URL", connectionsDb.getJdbcUrl(),
+                "CONNECTIONS_DB_USER", connectionsDb.getUsername(),
+                "CONNECTIONS_DB_PASSWORD", connectionsDb.getPassword(),
+                "UACRF_DELEGATION_PUBLIC_KEY_BASE64", publicKeyBase64(DELEGATION_KEYS),
+                "UACRF_DELEGATION_KEY_ID", KEY_ID,
+                "UACRF_DELEGATION_ISSUER", ISSUER));
+        awaitHealth("S03", connectionsPort, connectionsProcess);
+      }
 
       catalogPort = freePort();
       catalogProcess =
@@ -701,6 +733,25 @@ final class LiveM2TestSupport {
 
     String objectivesUrl() {
       return "http://127.0.0.1:" + objectivesPort;
+    }
+
+    String connectionsUrl() {
+      if (!enableSampleSource) throw new IllegalStateException("Live sample source is not enabled.");
+      return "http://127.0.0.1:" + connectionsPort;
+    }
+
+    void revokeCapability(String principalId, String capability) throws SQLException {
+      try (Connection connection = DriverManager.getConnection(
+              identityDb.getJdbcUrl(), identityDb.getUsername(), identityDb.getPassword());
+          PreparedStatement statement = connection.prepareStatement(
+              "UPDATE uacrf_identity.membership SET revoked_at = now() "
+                  + "WHERE tenant_id = ? AND environment_id = ? AND principal_id = ? AND capability = ?")) {
+        statement.setString(1, tenantId);
+        statement.setString(2, environmentId);
+        statement.setString(3, principalId);
+        statement.setString(4, capability);
+        if (statement.executeUpdate() != 1) throw new IllegalStateException("Expected one membership.");
+      }
     }
 
     String catalogUrl() {
@@ -1071,6 +1122,12 @@ final class LiveM2TestSupport {
       environment.put("UACRF_DELEGATION_KEY_ID", KEY_ID);
       environment.put("UACRF_DELEGATION_ISSUER", ISSUER);
       environment.put("UACRF_OBJECTIVES_REVIEWER_CHECK_ENABLED", "false");
+      if (enableSampleSource) {
+        environment.put("UACRF_OBJECTIVES_SAMPLE_SOURCE_ENABLED", "true");
+        environment.put("UACRF_OBJECTIVES_SAMPLE_SOURCE_IDENTITY_BASE_URL", identityUrl());
+        environment.put("UACRF_OBJECTIVES_SAMPLE_SOURCE_CONNECTIONS_BASE_URL", connectionsUrl());
+        environment.put("UACRF_OBJECTIVES_SAMPLE_SOURCE_ALLOW_LOOPBACK_HTTP", "true");
+      }
       if (enableWorkloadOwnerChecks) {
         environment.put("UACRF_OBJECTIVES_WORKLOAD_CHECK_ENABLED", "true");
         environment.put(
@@ -1370,6 +1427,7 @@ final class LiveM2TestSupport {
       stopProcess(topologyProcess);
       stopProcess(evidenceProcess);
       stopProcess(objectivesProcess);
+      stopProcess(connectionsProcess);
       stopProcess(assessmentProcess);
       stopProcess(catalogProcess);
       stopProcess(identityProcess);
@@ -1387,6 +1445,9 @@ final class LiveM2TestSupport {
       }
       if (objectivesDb.isRunning()) {
         objectivesDb.stop();
+      }
+      if (connectionsDb.isRunning()) {
+        connectionsDb.stop();
       }
       if (assessmentDb.isRunning()) {
         assessmentDb.stop();

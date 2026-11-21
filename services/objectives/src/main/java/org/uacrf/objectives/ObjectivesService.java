@@ -286,6 +286,68 @@ class ObjectivesService {
         "/v1/objective-imports/" + commandId);
   }
 
+  @Transactional(readOnly = true)
+  SampleSourceRequest getSampleSourceRequest(DelegationPrincipal actor, String id) {
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    UUID commandId;
+    try {
+      commandId = UUID.fromString(id);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<Map<String, Object>> rows = jdbc.queryForList(
+        "SELECT request_body ->> 'connection_id' AS connection_id, "
+            + "request_body ->> 'external_objective_id' AS external_id, "
+            + "request_body ->> 'target_workload_id' AS body_workload_id, "
+            + "request_body ->> 'mapping_revision' AS mapping_revision, "
+            + "request_body ->> 'expected_local_revision' AS expected_local_revision, "
+            + "(jsonb_typeof(request_body -> 'connection_id') = 'string' "
+            + "AND jsonb_typeof(request_body -> 'external_objective_id') = 'string' "
+            + "AND jsonb_typeof(request_body -> 'target_workload_id') = 'string' "
+            + "AND jsonb_typeof(request_body -> 'mapping_revision') = 'number' "
+            + "AND jsonb_typeof(request_body -> 'expected_local_revision') = 'number') AS valid_types, "
+            + "(SELECT count(*) FROM jsonb_object_keys(request_body)) AS field_count, "
+            + "target_workload_id, request_digest FROM " + SCHEMA
+            + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+            + "AND command_id = ? AND status = 'PENDING'",
+        actor.tenantId(), actor.environmentId(), commandId);
+    if (rows.isEmpty()) throw notFound();
+    Map<String, Object> row = rows.getFirst();
+    String connectionId = (String) row.get("connection_id");
+    String externalId = (String) row.get("external_id");
+    String workloadId = (String) row.get("target_workload_id");
+    long mappingRevision;
+    long localRevision;
+    try {
+      mappingRevision = Long.parseLong((String) row.get("mapping_revision"));
+      localRevision = Long.parseLong((String) row.get("expected_local_revision"));
+    } catch (NumberFormatException error) {
+      throw new IllegalStateException("The retained import request revisions are invalid.", error);
+    }
+    if (connectionId == null || connectionId.isBlank() || connectionId.length() > 200
+        || externalId == null || externalId.isBlank() || externalId.length() > 1000
+        || workloadId == null || workloadId.isBlank() || workloadId.length() > 200
+        || !workloadId.equals(row.get("body_workload_id"))
+        || mappingRevision < 1 || localRevision < 0
+        || !Boolean.TRUE.equals(row.get("valid_types"))
+        || ((Number) row.get("field_count")).longValue() != 5) {
+      throw new IllegalStateException("The retained import request is incomplete or inconsistent.");
+    }
+    Map<String, Object> retained = new TreeMap<>();
+    retained.put("connection_id", connectionId);
+    retained.put("external_objective_id", externalId);
+    retained.put("target_workload_id", workloadId);
+    retained.put("mapping_revision", mappingRevision);
+    retained.put("expected_local_revision", localRevision);
+    if (!sha256(serialize(retained)).equals(row.get("request_digest").toString().trim())) {
+      throw new IllegalStateException("The retained import request digest does not match.");
+    }
+    return new SampleSourceRequest(connectionId, externalId, workloadId);
+  }
+
+  record SampleSourceRequest(String connectionId, String externalObjectiveId, String targetWorkloadId) {}
+
   @Transactional
   Objective submit(DelegationPrincipal actor, String id, Transition request) {
     requireCapability(actor, "objectives.objective.write");

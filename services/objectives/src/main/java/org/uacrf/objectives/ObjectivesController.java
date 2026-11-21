@@ -5,6 +5,7 @@ import static org.uacrf.objectives.ObjectivesResponses.*;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -22,9 +23,11 @@ import org.uacrf.security.DelegationPrincipal;
 @RestController
 class ObjectivesController {
   private final ObjectivesService objectives;
+  private final ObjectiveImportSampleSourceClient sampleSource;
 
-  ObjectivesController(ObjectivesService objectives) {
+  ObjectivesController(ObjectivesService objectives, ObjectiveImportSampleSourceClient sampleSource) {
     this.objectives = objectives;
+    this.sampleSource = sampleSource;
   }
 
   @PostMapping("/v1/objectives")
@@ -61,6 +64,13 @@ class ObjectivesController {
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
     return ResponseEntity.accepted()
         .body(objectives.getImportPreview(DelegationPrincipal.from(jwt), id));
+  }
+
+  @GetMapping("/v1/objective-imports/{id}/sample-source")
+  ResponseEntity<ObjectiveImportSampleSourceClient.Inspection> inspectSampleSource(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id) {
+    var request = objectives.getSampleSourceRequest(DelegationPrincipal.from(jwt), id);
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(sampleSource.inspect(jwt, request));
   }
 
   @GetMapping("/v1/objective-imports")

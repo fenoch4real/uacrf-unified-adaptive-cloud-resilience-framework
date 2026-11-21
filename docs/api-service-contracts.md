@@ -171,8 +171,17 @@ the unkeyed route.
   `objectives.import.synthetic-source` purpose, after checking the actor's current
   global objective-read and connection-read memberships. S03 confines this
   exchange to the sample endpoint and exact connection. This point-in-time
-  exchange is not an atomic current-authority fence. No S05 client consumes it
-  yet, and it does not process a pending import.
+  exchange is not an atomic current-authority fence. When explicitly enabled,
+  S05 `GET /v1/objective-imports/{id}/sample-source` requires a global
+  objective-read delegation and resolves only a pending request in the caller's
+  tenant and environment. It checks the retained request's consistency and
+  digest, exchanges the caller's delegation, and validates the bound fictional
+  source's identity and payload digest before returning its parsed definition.
+  Responses are `no-store`; inspection leaves the request pending. The request
+  digest detects inconsistency, not privileged tampering or trusted provenance.
+  The client is disabled by default; endpoints require HTTPS except explicitly
+  enabled loopback HTTP. This read does not approve mappings, verify a provider,
+  or process an import.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

@@ -77,6 +77,7 @@ class ObjectivesApplicationTests {
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ObjectMapper json;
+  @Autowired private ObjectivesService objectives;
   @MockitoBean private ObjectiveWorkloadAuthorityClient workloadAuthority;
   private final HttpClient http = HttpClient.newHttpClient();
 
@@ -365,6 +366,55 @@ class ObjectivesApplicationTests {
         token("scoped", "t-list-imports", "w1", List.of("objectives.objective.read"))).statusCode());
     assertEquals(403, get("/v1/objective-imports",
         bearer("writer-only", "t-list-imports", List.of("objectives.objective.write"))).statusCode());
+  }
+
+  @Test
+  void sampleInspectionIsRequestScopedAndDisabledByDefault() throws Exception {
+    String tenant = "t-sample-inspection";
+    String writer = bearer("importer", tenant, PROPOSER);
+    String reader = bearer("reader", tenant, List.of("objectives.objective.read"));
+    var admission = postWithIdempotency("/v1/objective-imports:preview", writer,
+        importPreview("sample:checkout-recovery", "w1", 1, 0), "sample-inspect");
+    assertEquals(202, admission.statusCode());
+    String id = extractString(admission.body(), "receipt_id");
+    String path = "/v1/objective-imports/" + id + "/sample-source";
+    assertEquals(503, get(path, reader).statusCode());
+    assertEquals(403, get(path, bearer("write-only", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(403, get(path, token("scoped", tenant, "w1", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(path, bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(404, get(path, tokenForEnvironment("reader", tenant, "other-environment", "*",
+        List.of("objectives.objective.read"))).statusCode());
+    assertEquals(200, get("/v1/objective-imports?pageSize=25", reader).statusCode());
+    assertThat(get("/v1/objective-imports/" + id, reader).body()).contains("PENDING");
+  }
+
+  @Test
+  void sampleInspectionRejectsCorruptRetainedRequests() throws Exception {
+    String tenant = "t-sample-integrity";
+    var admission = postWithIdempotency("/v1/objective-imports:preview",
+        bearer("importer", tenant, PROPOSER),
+        importPreview("sample:checkout-recovery", "w1", 1, 0), "integrity");
+    assertEquals(202, admission.statusCode());
+    String id = extractString(admission.body(), "receipt_id");
+    DelegationPrincipal reader = new DelegationPrincipal(
+        "reader", tenant, "env-1", "*", "https://idp.example.test", "reader",
+        List.of("objectives.objective.read"), List.of(), List.of());
+    assertThat(objectives.getSampleSourceRequest(reader, id).targetWorkloadId()).isEqualTo("w1");
+    String original = jdbc.queryForObject(
+        "SELECT request_body::text FROM uacrf_objectives.objective_import_preview_command "
+            + "WHERE command_id = ?::uuid", String.class, id);
+    for (String expression : List.of(
+        "jsonb_set(request_body, '{target_workload_id}', '\"other\"'::jsonb)",
+        "jsonb_set(request_body, '{external_objective_id}', '\"sample:other\"'::jsonb)",
+        "request_body - 'mapping_revision'",
+        "jsonb_set(request_body, '{mapping_revision}', '\"1\"'::jsonb)")) {
+      jdbc.update("UPDATE uacrf_objectives.objective_import_preview_command SET request_body = "
+          + expression + " WHERE command_id = ?::uuid", id);
+      assertThatThrownBy(() -> objectives.getSampleSourceRequest(reader, id))
+          .isInstanceOf(IllegalStateException.class);
+      jdbc.update("UPDATE uacrf_objectives.objective_import_preview_command "
+          + "SET request_body = ?::jsonb WHERE command_id = ?::uuid", original, id);
+    }
   }
 
   @Test

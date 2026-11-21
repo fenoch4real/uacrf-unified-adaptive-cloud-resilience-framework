@@ -273,7 +273,7 @@ class ObjectiveWorkloadAuthorityClient {
     }
   }
 
-  private static URI endpoint(String value, boolean allowLoopbackHttp) {
+  static URI endpoint(String value, boolean allowLoopbackHttp) {
     URI uri = URI.create(value);
     String host = uri.getHost();
     boolean loopback =
@@ -288,7 +288,7 @@ class ObjectiveWorkloadAuthorityClient {
                 && loopback
                 && "http".equalsIgnoreCase(uri.getScheme())))) {
       throw new IllegalArgumentException(
-          "Objective workload checking requires HTTPS, except for explicitly enabled loopback development.");
+          "Objective authority clients require HTTPS, except for explicitly enabled loopback development.");
     }
     return URI.create(uri.toString().endsWith("/")
         ? uri.toString().substring(0, uri.toString().length() - 1)

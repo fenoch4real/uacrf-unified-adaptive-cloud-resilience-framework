@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**141 completed / 801 total** · 660 open
+**142 completed / 801 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 51 | 214 |
+| Milestone items | 52 | 214 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -319,7 +319,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
 - [ ] M2-025 Resolve the objective-import connector and fetch the actual source definition.
   - [x] M2-025a Read an explicitly synthetic objective definition through a matching active sample connection and binding, without asserting source verification. Evidence: R-0124–R-0125.
   - [x] M2-025b Add a purpose-bound S05-to-S03 synthetic-read exchange with separate current global grants; verify its issuer and receiver independently. Evidence: R-0142–R-0143.
-  - [ ] M2-025c Connect and verify the purpose-bound source read across S05, S01 and S03 using real local services.
+  - [x] M2-025c Connect and verify the purpose-bound synthetic source read across S05, S01 and S03 using real local services. Evidence: R-0150–R-0153; not trusted source verification or import processing.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
   - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. This helper alone does not establish an approved mapping, canonical digest or provenance.
@@ -1240,6 +1240,16 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0142 | 2026-11-20 | M2-025b | Retried clean focused S01 tests: 11 exchange unit tests and the PostgreSQL-backed independent-grant, scope and revocation test passed. Focused S03 source-read test passed, including wrong purpose, resource, scope, lifetime and tenant denial. | These are independent service tests, not a connected S05/S01/S03 journey. |
 | R-0143 | 2026-11-20 | M2-025b | `./mvnw -pl services/identity,services/connections -am clean test` passed 43 S01, 71 S03, 169 transitive S09 and 8 shared-security tests. | Exchanges are short-lived point-in-time authority, not an atomic cross-service fence; no S05 client uses this path yet. |
 | R-0144 | 2026-11-20 | M2-025b | Updated private technical approach Appendix AB to revision 194; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the connected journey remains open. |
+| R-0145 | 2026-11-20 | M2-025b | Committed the scoped synthetic exchange as `9a8f182` and pushed it to `origin/main`. | Authority is checked at exchange time, not fenced across services. |
+| R-0146 | 2026-11-20 | M2-025c | Focused S05 client and default-disabled endpoint tests passed 3/3. | Connected service verification and retained-command integrity checks remained pending. |
+| R-0147 | 2026-11-20 | M2-025c | Focused S05 tests passed 4/4 after adding checks for corrupted retained commands, mismatched workloads, missing revisions and changed JSON types. | The request digest is an integrity consistency check, not proof against privileged database tampering. |
+| R-0148 | 2026-11-20 | M2-025c | Packaged current S01, S03, S05 and supporting service artifacts successfully for the local process test. | Disposable local databases and sample data only. |
+| R-0149 | 2026-11-20 | M2-025c | The first real local S01/S03/S05 inspection journey passed 1/1, including no-store, pending readback, scoped-token confinement and denied/revoked connection access. | Expanded exact fixture and objective-grant assertions required another run. |
+| R-0150 | 2026-11-20 | M2-025c | `./mvnw -pl services/objectives -am clean test` passed 41 S05 and 8 shared-security tests. | Live provider verification, approved mapping and import processing remain open. |
+| R-0151 | 2026-11-20 | M2-025c | Repackaged S05 successfully after the clean regression. | Process verification uses the rebuilt artifact. |
+| R-0152 | 2026-11-20 | M2-025c | Re-ran the real local S01/S03/S05 journey: 1/1 passed with exact fictional fixture and digest, pending readback, no-store, wrong binding/context denial, separate grant absence and revocation, and scoped-token confinement. | The exchange is point-in-time; this neither approves mappings nor establishes trusted provenance or provider acceptance. |
+| R-0153 | 2026-11-20 | M2-025c | Documented the opt-in S05 synthetic inspection contract and its limits. | The broader connector, import worker and browser resolution workflow remain open. |
+| R-0154 | 2026-11-20 | M2-025c | Updated private technical approach Appendix AB to revision 195; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; synthetic inspection is not provider acceptance. |
 
 ## Implementation evidence
 
