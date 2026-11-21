@@ -1201,6 +1201,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0111 | 2026-11-20 | M2-030c | Checked fixed loopback ports; no listeners were reported. Started the isolated browser suite for receipt lookup. | Awaiting result. |
 | R-0112 | 2026-11-20 | M2-030c | `bash e2e/run-live.sh` exited 0: 11 browser tests passed, including lookup of a saved receipt and denial without read access. | Lookup requires a known ID; it is not import history, source verification or provider acceptance. |
 | R-0113 | 2026-11-20 | M2-030c | Updated private technical approach Appendix AB to revision 188; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete import processing remains open. |
+| R-0114 | 2026-11-20 | M2-030c | Committed saved receipt lookup as `1819993` and pushed it to `origin/main`. | Import history and source processing remain open. |
 
 ## Implementation evidence
 
