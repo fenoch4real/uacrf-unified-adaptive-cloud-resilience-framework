@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**148 completed / 807 total** · 659 open
+**149 completed / 808 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 58 | 220 |
+| Milestone items | 59 | 221 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -329,6 +329,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026c Parse the bounded fictional source format strictly and preserve decimal precision. Evidence: R-0138–R-0139. This standalone parser does not run an import worker or establish provenance.
   - [x] M2-026d Define and test an exact-decimal, versioned normalized-definition fingerprint compatible with the existing design fixture; do not imply approved mappings or provenance. Evidence: R-0157–R-0158.
   - [x] M2-026e Expose a versioned fingerprint of the inspected fictional source definition in its original units through S05, EDGE01 and UX01; verify exact values, invalid input and browser readback without implying mapping approval or persistence. Evidence: R-0182–R-0185.
+  - [x] M2-026f Retain immutable, retry-safe fictional source captures for pending requests in S05, including exact source payload and versioned definition fingerprint; verify authorization, isolation and transactional integrity without treating captures as trusted provenance. Evidence: R-0189–R-0193.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1289,6 +1290,14 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0185 | 2026-11-21 | M2-026e | Repackaged S05 and ran `M2ObjectiveSampleSourceLiveTests` against the fresh JAR; 1/1 passed with the exact fictional source fingerprint, authorization checks and pending readback. | The fingerprint is computed as read, not persisted or independently provider-verified. |
 | R-0186 | 2026-11-21 | M2-026e | Updated private technical approach Appendix AB to revision 201; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; imported-objective mapping, persistence and processing remain open. |
 | R-0187 | 2026-11-21 | M2-026e | Committed the source-definition fingerprint inspection as `fb6c246` and pushed it to `origin/main`. | This is an inspection result, not an approved mapping or durable import provenance. |
+| R-0188 | 2026-11-21 | M2-026f | Started an explicit, immutable synthetic source-capture operation in S05. | Captures remain unverified historical observations and cannot approve mappings, compare objectives or process imports. |
+| R-0189 | 2026-11-21 | M2-026f | Initial focused S05 tests passed 28/28, including database retention, immutable records, idempotency, stale request detection and disabled-by-default authorization. | Concurrent retries and real S01/S03/S05 capture are still being verified. |
+| R-0190 | 2026-11-21 | M2-026f | Focused S05 rerun passed 28/28 with eight concurrent retries producing one new capture and one stable receipt, plus cross-tenant denial. | Real multi-service capture remained pending. |
+| R-0191 | 2026-11-21 | M2-026f | `./mvnw -pl services/objectives -am clean test` passed 46 S05 and 8 shared-security tests. | The clean build removed the S05 JAR; it must be repackaged before process validation. |
+| R-0192 | 2026-11-21 | M2-026f | Repackaged S05 and ran the real S01/S03/S05 process test: 1/1 passed with capture creation, stable retry, write denial and pending readback. | Revocation-on-retry and changed retained-request checks were then added and require revalidation. |
+| R-0193 | 2026-11-21 | M2-026f | Focused S05 rerun passed 28/28 after adding changed-request replay protection; the rebuilt real-service test passed 1/1 including denial of replay after connection-read revocation. | Capture and exchange checks remain point-in-time, not an atomic current-authority fence. |
+| R-0194 | 2026-11-21 | M2-026f | A documentation patch partially applied because one context did not match; the remaining design README update was applied separately. | No code or test results were affected. |
+| R-0195 | 2026-11-21 | M2-026f | Updated private technical approach Appendix AB to revision 202; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The document remains private and uncommitted; capture routing, history and import processing remain open. |
 
 ## Implementation evidence
 

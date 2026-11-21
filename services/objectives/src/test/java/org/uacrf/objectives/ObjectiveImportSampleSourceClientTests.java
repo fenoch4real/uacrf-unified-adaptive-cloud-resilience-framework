@@ -33,7 +33,7 @@ class ObjectiveImportSampleSourceClientTests {
   private final AtomicReference<String> exchangeAuth = new AtomicReference<>();
   private final AtomicReference<String> sourceAuth = new AtomicReference<>();
   private final ObjectivesService.SampleSourceRequest source =
-      new ObjectivesService.SampleSourceRequest("sample-connection", "sample:objective&x", "work+load");
+      new ObjectivesService.SampleSourceRequest("sample-connection", "sample:objective&x", "work+load", "a".repeat(64));
   private HttpServer server;
   private ObjectiveImportSampleSourceClient client;
 

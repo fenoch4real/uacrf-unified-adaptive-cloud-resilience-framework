@@ -53,6 +53,10 @@ class ObjectiveImportSampleSourceClient {
   }
 
   Inspection inspect(Jwt jwt, ObjectivesService.SampleSourceRequest source) {
+    return fetch(jwt, source).inspection();
+  }
+
+  Fetched fetch(Jwt jwt, ObjectivesService.SampleSourceRequest source) {
     if (!enabled) throw unavailable();
     if (!source.connectionId().matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")) {
       throw new ObjectivesException(HttpStatus.UNPROCESSABLE_ENTITY, "SAMPLE_SOURCE_INVALID",
@@ -101,10 +105,11 @@ class ObjectiveImportSampleSourceClient {
             "The synthetic source definition is invalid or unsupported.");
       }
       if (!Instant.now().isBefore(deadline)) throw unavailable();
-      return new Inspection(source.connectionId(), revision(response, "connection_revision"),
+      var inspection = new Inspection(source.connectionId(), revision(response, "connection_revision"),
           bindingId, revision(response, "binding_revision"), source.targetWorkloadId(),
           sourceSystem, source.externalObjectiveId(), sourceVersion, digest, "SYNTHETIC_UNVERIFIED",
           definition, fingerprint);
+      return new Fetched(inspection, payload);
     } catch (IOException | JacksonException error) {
       throw unavailable();
     } catch (InterruptedException error) {
@@ -172,4 +177,6 @@ class ObjectiveImportSampleSourceClient {
       String targetWorkloadId, String sourceSystem, String externalObjectiveId, String sourceVersion,
       String payloadDigest, String verification, ObjectiveImportDefinition definition,
       ObjectiveImportFingerprint.Value definitionFingerprint) {}
+
+  record Fetched(Inspection inspection, String payload) {}
 }

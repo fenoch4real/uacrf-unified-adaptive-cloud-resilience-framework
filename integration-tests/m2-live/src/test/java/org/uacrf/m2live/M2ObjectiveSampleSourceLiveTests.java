@@ -70,6 +70,17 @@ class M2ObjectiveSampleSourceLiveTests {
       assertEquals(Map.of("version", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1",
           "digest", "0615af06050a1ebe47c53362ebd790c68e0abd5ed9749b01605a3b006a9b7e1d"),
           result.get("definition_fingerprint"));
+      String capturePath = "/v1/objective-imports/" + id + "/sample-captures";
+      var capture = env.request(env.objectivesUrl(), "POST", capturePath, actor, "", "capture");
+      assertEquals(201, capture.statusCode(), capture.body());
+      assertTrue(capture.raw().headers().firstValue("Cache-Control").orElse("").contains("no-store"));
+      var captured = LiveM2TestSupport.readJson(capture.body());
+      assertEquals("SYNTHETIC_UNVERIFIED", captured.get("verification"));
+      var replay = env.request(env.objectivesUrl(), "POST", capturePath, actor, "", "capture");
+      assertEquals(200, replay.statusCode(), replay.body());
+      assertEquals(captured, LiveM2TestSupport.readJson(replay.body()));
+      assertEquals(403, env.request(env.objectivesUrl(), "POST", capturePath,
+          env.objectiveToken(principal, subject, List.of(objectiveRead)), "", "denied").statusCode());
       var receipt = env.request(env.objectivesUrl(), "GET", "/v1/objective-imports/" + id, actor, null, null);
       assertEquals("PENDING", LiveM2TestSupport.readJson(receipt.body()).get("status"));
 
@@ -114,6 +125,7 @@ class M2ObjectiveSampleSourceLiveTests {
           env.objectiveToken(revokedObjective, revokedObjective, List.of(objectiveRead)), null, null).statusCode());
       env.revokeCapability(principal, connectionRead);
       assertEquals(403, env.request(env.objectivesUrl(), "GET", path, actor, null, null).statusCode());
+      assertEquals(403, env.request(env.objectivesUrl(), "POST", capturePath, actor, "", "capture").statusCode());
       env.verifyStubHealth();
     }
   }

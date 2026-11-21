@@ -386,6 +386,95 @@ class ObjectivesApplicationTests {
         List.of("objectives.objective.read"))).statusCode());
     assertEquals(200, get("/v1/objective-imports?pageSize=25", reader).statusCode());
     assertThat(get("/v1/objective-imports/" + id, reader).body()).contains("PENDING");
+    String capture = "/v1/objective-imports/" + id + "/sample-captures";
+    assertEquals(503, postWithIdempotency(capture, writer, "", "capture-key").statusCode());
+    assertEquals(403, postWithIdempotency(capture, reader, "", "capture-key").statusCode());
+    assertEquals(400, post(capture, writer, "").statusCode());
+  }
+
+  @Test
+  void syntheticCapturesAreScopedImmutableAndRetrySafe() throws Exception {
+    String tenant = "t-synthetic-capture";
+    var admission = postWithIdempotency("/v1/objective-imports:preview",
+        bearer("importer", tenant, PROPOSER),
+        importPreview("sample:checkout-recovery", "w1", 1, 0), "capture-preview");
+    String id = extractString(admission.body(), "receipt_id");
+    var actor = new DelegationPrincipal("importer", tenant, "env-1", "*", "https://idp.example.test",
+        "importer", PROPOSER, List.of(), List.of());
+    var request = objectives.getSampleCaptureRequest(actor, id, "capture-key");
+    String payload = """
+        {"metric":"recovery.time","target":720,"unit":"seconds","window":"stable-30m",
+         "measurement_ref":"sample:check","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME",
+         "percentile":null}
+        """;
+    var definition = ObjectiveImportSampleParser.parse(payload);
+    String digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+        .digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    var inspection = new ObjectiveImportSampleSourceClient.Inspection(request.connectionId(), 1,
+        "binding", 2, request.targetWorkloadId(), "sample:monitoring", request.externalObjectiveId(),
+        "sample-v1", digest, "SYNTHETIC_UNVERIFIED", definition, ObjectiveImportFingerprint.fingerprint(definition));
+    var fetched = new ObjectiveImportSampleSourceClient.Fetched(inspection, payload);
+    var created = objectives.captureSample(actor, id, "capture-key", request, fetched);
+    var replay = objectives.captureSample(actor, id, "capture-key", request, fetched);
+    assertThat(created.newlyCreated()).isTrue();
+    assertThat(replay.newlyCreated()).isFalse();
+    assertThat(replay.captureId()).isEqualTo(created.captureId());
+    assertThat(replay.capturedAt()).isEqualTo(created.capturedAt());
+    var row = jdbc.queryForMap("SELECT payload, payload_digest, definition_fingerprint_version, "
+        + "definition_fingerprint, verification, request_digest FROM "
+        + "uacrf_objectives.synthetic_objective_source_capture WHERE capture_id = ?::uuid", created.captureId());
+    assertThat(row).containsEntry("payload", payload).containsEntry("payload_digest", digest)
+        .containsEntry("definition_fingerprint_version", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1")
+        .containsEntry("definition_fingerprint", inspection.definitionFingerprint().digest())
+        .containsEntry("verification", "SYNTHETIC_UNVERIFIED").containsEntry("request_digest", request.requestDigest());
+    assertThatThrownBy(() -> jdbc.update("UPDATE uacrf_objectives.synthetic_objective_source_capture "
+        + "SET payload = '{}' WHERE capture_id = ?::uuid", created.captureId()))
+        .hasMessageContaining("captures are immutable");
+    assertThatThrownBy(() -> jdbc.update("DELETE FROM uacrf_objectives.synthetic_objective_source_capture "
+        + "WHERE capture_id = ?::uuid", created.captureId())).hasMessageContaining("captures are immutable");
+    var stale = new ObjectivesService.SampleSourceRequest(request.connectionId(), request.externalObjectiveId(),
+        request.targetWorkloadId(), "a".repeat(64));
+    assertThatThrownBy(() -> objectives.captureSample(actor, id, "stale-key", stale, fetched))
+        .isInstanceOfSatisfying(ObjectivesException.class,
+            error -> assertThat(error.status()).isEqualTo(HttpStatus.CONFLICT));
+    var other = postWithIdempotency("/v1/objective-imports:preview",
+        bearer("importer", tenant, PROPOSER),
+        importPreview("sample:checkout-recovery", "w1", 2, 0), "second-preview");
+    String otherId = extractString(other.body(), "receipt_id");
+    var otherRequest = objectives.getSampleCaptureRequest(actor, otherId, "capture-key");
+    assertThatThrownBy(() -> objectives.captureSample(actor, otherId, "capture-key", otherRequest, fetched))
+        .isInstanceOfSatisfying(ObjectivesException.class,
+            error -> assertThat(error.status()).isEqualTo(HttpStatus.CONFLICT));
+    jdbc.update("UPDATE uacrf_objectives.objective_import_preview_command "
+        + "SET request_body = (SELECT request_body FROM uacrf_objectives.objective_import_preview_command "
+        + "WHERE command_id = ?::uuid), request_digest = (SELECT request_digest FROM "
+        + "uacrf_objectives.objective_import_preview_command WHERE command_id = ?::uuid) "
+        + "WHERE command_id = ?::uuid", otherId, otherId, id);
+    var changedRequest = objectives.getSampleCaptureRequest(actor, id, "capture-key");
+    assertThatThrownBy(() -> objectives.captureSample(actor, id, "capture-key", changedRequest, fetched))
+        .isInstanceOfSatisfying(ObjectivesException.class,
+            error -> assertThat(error.status()).isEqualTo(HttpStatus.CONFLICT));
+    jdbc.update("UPDATE uacrf_objectives.objective_import_preview_command "
+        + "SET request_body = jsonb_set(request_body, '{mapping_revision}', '1'::jsonb), request_digest = ? "
+        + "WHERE command_id = ?::uuid", request.requestDigest(), id);
+    var otherTenant = new DelegationPrincipal("importer", "other-tenant", "env-1", "*", "https://idp.example.test",
+        "importer", PROPOSER, List.of(), List.of());
+    assertThatThrownBy(() -> objectives.getSampleCaptureRequest(otherTenant, id, "capture-key"))
+        .isInstanceOfSatisfying(ObjectivesException.class,
+            error -> assertThat(error.status()).isEqualTo(HttpStatus.NOT_FOUND));
+    try (var pool = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+      var attempts = java.util.stream.IntStream.range(0, 8)
+          .mapToObj(index -> pool.submit(() -> objectives.captureSample(actor, id, "concurrent-key", request, fetched)))
+          .toList();
+      var results = new java.util.ArrayList<ObjectivesService.SampleCapture>();
+      for (var attempt : attempts) results.add(attempt.get());
+      assertThat(results.stream().filter(ObjectivesService.SampleCapture::newlyCreated)).hasSize(1);
+      assertThat(results.stream().map(ObjectivesService.SampleCapture::captureId).distinct()).hasSize(1);
+    }
+    assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM uacrf_objectives.synthetic_objective_source_capture "
+        + "WHERE tenant_id = ?", Integer.class, tenant));
+    assertThat(get("/v1/objective-imports/" + id, bearer("importer", tenant, PROPOSER)).body())
+        .contains("PENDING");
   }
 
   @Test

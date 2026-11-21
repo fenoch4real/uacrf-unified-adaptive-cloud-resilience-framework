@@ -192,6 +192,22 @@ the unkeyed route.
   unverified. S01 independently checks the connection-read grant at exchange
   time. UX01 displays an explicit error when the opt-in source read is disabled
   or access is denied.
+- **Synthetic capture:** S05 `POST /v1/objective-imports/{id}/sample-captures`
+  requires a global delegation containing both `objectives.objective.read`
+  and `objectives.objective.write` and an `Idempotency-Key`. It refetches the
+  bound fictional source through the same S01 exchange and S03 endpoint,
+  rechecks the retained pending request under a database lock, and stores the
+  exact payload, payload digest, source and binding revisions, request digest,
+  actor, and versioned definition fingerprint in an immutable capture. It
+  returns a `no-store` receipt labeled `SYNTHETIC_UNVERIFIED`; an unchanged
+  retry returns the original receipt, while reusing the key for a different or
+  changed request conflicts. Every retry refetches and reauthorizes the source,
+  so revocation, source loss or outage can prevent replay. S01 checks current
+  objective-read and connection-read memberships at exchange time; S05 checks
+  write capability in the incoming delegation, not an atomic current-write
+  fence. Captures do not verify provenance, approve mappings or change the
+  pending request. There is no public capture-history read, EDGE01 route or
+  browser capture flow yet.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

@@ -343,10 +343,84 @@ class ObjectivesService {
     if (!sha256(serialize(retained)).equals(row.get("request_digest").toString().trim())) {
       throw new IllegalStateException("The retained import request digest does not match.");
     }
-    return new SampleSourceRequest(connectionId, externalId, workloadId);
+    return new SampleSourceRequest(connectionId, externalId, workloadId, row.get("request_digest").toString().trim());
   }
 
-  record SampleSourceRequest(String connectionId, String externalObjectiveId, String targetWorkloadId) {}
+  record SampleSourceRequest(String connectionId, String externalObjectiveId, String targetWorkloadId,
+      String requestDigest) {}
+
+  SampleSourceRequest getSampleCaptureRequest(DelegationPrincipal actor, String id, String idempotencyKey) {
+    requireCapability(actor, "objectives.objective.write");
+    validateIdempotencyKey(idempotencyKey);
+    return getSampleSourceRequest(actor, id);
+  }
+
+  @Transactional
+  SampleCapture captureSample(DelegationPrincipal actor, String id, String idempotencyKey,
+      SampleSourceRequest expected, ObjectiveImportSampleSourceClient.Fetched fetched) {
+    requireCapability(actor, "objectives.objective.write");
+    requireCapability(actor, "objectives.objective.read");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(idempotencyKey);
+    UUID commandId;
+    try {
+      commandId = UUID.fromString(id);
+    } catch (IllegalArgumentException error) {
+      throw notFound();
+    }
+    List<UUID> locked = jdbc.query(
+        "SELECT command_id FROM " + SCHEMA
+            + "objective_import_preview_command WHERE tenant_id = ? AND environment_id = ? "
+            + "AND command_id = ? AND status = 'PENDING' FOR UPDATE",
+        (rs, row) -> rs.getObject("command_id", UUID.class),
+        actor.tenantId(), actor.environmentId(), commandId);
+    if (locked.isEmpty()) throw notFound();
+    if (!expected.equals(getSampleSourceRequest(actor, id))) {
+      throw conflict("IMPORT_REQUEST_CHANGED", "The retained import request changed during source capture.");
+    }
+    var source = fetched.inspection();
+    if (!expected.connectionId().equals(source.connectionId())
+        || !expected.externalObjectiveId().equals(source.externalObjectiveId())
+        || !expected.targetWorkloadId().equals(source.targetWorkloadId())) {
+      throw new IllegalStateException("The captured synthetic source does not match the retained request.");
+    }
+    UUID captureId = UUID.randomUUID();
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA + "synthetic_objective_source_capture "
+            + "(capture_id, tenant_id, environment_id, command_id, actor_id, idempotency_key, request_digest, "
+            + "connection_id, connection_revision, binding_id, binding_revision, target_workload_id, "
+            + "source_system, external_objective_id, source_version, payload, payload_digest, "
+            + "definition_fingerprint_version, definition_fingerprint, verification) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            + "ON CONFLICT (tenant_id, environment_id, actor_id, idempotency_key) DO NOTHING",
+        captureId, actor.tenantId(), actor.environmentId(), commandId, actor.principalId(), idempotencyKey,
+        expected.requestDigest(), source.connectionId(), source.connectionRevision(), source.bindingId(),
+        source.bindingRevision(), source.targetWorkloadId(), source.sourceSystem(), source.externalObjectiveId(),
+        source.sourceVersion(), fetched.payload(), source.payloadDigest(), source.definitionFingerprint().version(),
+        source.definitionFingerprint().digest(), source.verification());
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList(
+          "SELECT capture_id, command_id, request_digest, captured_at FROM " + SCHEMA
+              + "synthetic_objective_source_capture WHERE tenant_id = ? AND environment_id = ? "
+              + "AND actor_id = ? AND idempotency_key = ?",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey);
+      if (rows.isEmpty()) throw new IllegalStateException("The synthetic capture receipt disappeared.");
+      Map<String, Object> row = rows.getFirst();
+      if (!commandId.equals(row.get("command_id"))
+          || !expected.requestDigest().equals(row.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key belongs to a different import request.");
+      }
+      return new SampleCapture(row.get("capture_id").toString(), commandId.toString(),
+          ((Timestamp) row.get("captured_at")).toInstant().toString(), false);
+    }
+    Timestamp created = jdbc.queryForObject(
+        "SELECT captured_at FROM " + SCHEMA + "synthetic_objective_source_capture WHERE capture_id = ?",
+        Timestamp.class, captureId);
+    if (created == null) throw new IllegalStateException("The synthetic capture receipt disappeared.");
+    return new SampleCapture(captureId.toString(), commandId.toString(), created.toInstant().toString(), true);
+  }
+
+  record SampleCapture(String captureId, String receiptId, String capturedAt, boolean newlyCreated) {}
 
   @Transactional
   Objective submit(DelegationPrincipal actor, String id, Transition request) {

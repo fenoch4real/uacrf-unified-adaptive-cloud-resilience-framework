@@ -73,6 +73,22 @@ class ObjectivesController {
     return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(sampleSource.inspect(jwt, request));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures")
+  ResponseEntity<SampleCaptureReceipt> captureSampleSource(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+    var actor = DelegationPrincipal.from(jwt);
+    var request = objectives.getSampleCaptureRequest(actor, id, idempotencyKey);
+    var source = sampleSource.fetch(jwt, request);
+    var result = objectives.captureSample(actor, id, idempotencyKey, request, source);
+    var receipt = new SampleCaptureReceipt(result.captureId(), result.receiptId(), result.capturedAt(),
+        "SYNTHETIC_UNVERIFIED");
+    return ResponseEntity.status(result.newlyCreated() ? HttpStatus.CREATED : HttpStatus.OK)
+        .cacheControl(CacheControl.noStore()).body(receipt);
+  }
+
+  record SampleCaptureReceipt(String captureId, String receiptId, String capturedAt, String verification) {}
+
   @GetMapping("/v1/objective-imports")
   Page<PendingImportSummary> listImportPreviews(
       @AuthenticationPrincipal Jwt jwt,
