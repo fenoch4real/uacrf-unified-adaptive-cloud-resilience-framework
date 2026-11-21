@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**138 completed / 797 total** · 659 open
+**139 completed / 798 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 48 | 210 |
+| Milestone items | 49 | 211 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -320,6 +320,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-025a Read an explicitly synthetic objective definition through a matching active sample connection and binding, without asserting source verification. Evidence: R-0124–R-0125.
 - [ ] M2-026 Normalize an imported objective and retain its exact source provenance.
   - [x] M2-026a Implement and test exact target conversion rules without enabling import processing. Evidence: R-0101–R-0102.
+  - [x] M2-026b Validate typed normalized fields and preserve measurement semantics across exact conversion. Evidence: R-0134–R-0135. No source parsing, approved mapping, canonical digest or provenance retention is implemented.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
@@ -1225,6 +1226,9 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0131 | 2026-11-20 | M2-030f | After rechecking free ports, `bash e2e/run-live.sh` passed all 11 tests, including synthetic source inspection and denial without S03 read authority. | The directly inserted test binding bypasses registration; this does not establish ownership, mapping approval, provider acceptance or import processing. |
 | R-0132 | 2026-11-20 | M2-030f | The private-document update command using `python` failed because that executable is unavailable; retrying with `python3` updated Appendix AB to revision 191. Archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; S05 consumption remains open. |
 | R-0133 | 2026-11-20 | M2-030f | Committed browser synthetic-source inspection as `eda6d87` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0134 | 2026-11-20 | M2-026b | `./mvnw -pl services/objectives -am clean test` passed 35 S05 and 8 shared-security tests, including typed definition validation and semantic-preserving conversion. | Not connected to source parsing, mapping approval, provenance or import processing. |
+| R-0135 | 2026-11-20 | M2-026b | Expanded invalid-percentile and empty-field assertions; focused `ObjectiveImportDefinitionTests` passed 2/2. | Canonical definition digest and end-to-end normalization remain open. |
+| R-0136 | 2026-11-20 | M2-026b | Updated private technical approach Appendix AB to revision 192; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the definition helper does not establish trusted provenance. |
 
 ## Implementation evidence
 
