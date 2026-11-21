@@ -1280,6 +1280,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0177 | 2026-11-20 | M2-025f | `UACRF_E2E_SAMPLE_INSPECTION=1 bash e2e/run-live.sh` passed 11/11 browser tests: fictional source success, ungranted-user denial and pending readback through real services. | S05 uses verified HTTPS to a disposable TLS terminator; the isolated proxy-to-owner hops are HTTP. This is not end-to-end TLS or provider acceptance. |
 | R-0178 | 2026-11-20 | M2-025f | `bash e2e/run-live.sh` passed 11/11 browser tests with inspection disabled, including explicit failure and pending readback. Shell, Java and JavaScript syntax checks also passed. | Source verification, approved mapping, comparison and import processing remain open. |
 | R-0179 | 2026-11-20 | M2-025f | Updated private technical approach Appendix AB to revision 200; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The document remains private and uncommitted; test-only TLS termination is not end-to-end TLS evidence. |
+| R-0180 | 2026-11-20 | M2-025f | Committed the enabled browser verification as `ebf6ddf` and pushed it to `origin/main`. | Full objective-import processing and provider acceptance remain open. |
 
 ## Implementation evidence
 
