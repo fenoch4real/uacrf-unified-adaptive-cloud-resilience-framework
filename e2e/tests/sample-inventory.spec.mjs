@@ -989,6 +989,8 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     let captureReadUrl;
     let captureListUrl;
     let rehearsalUrl;
+    let mappingRequest;
+    let mappingReadUrl;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -1051,6 +1053,25 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(sample.locator('main')).toContainText('UNAPPROVED_REHEARSAL');
       await expect(sample.locator('main')).toContainText('720 seconds');
       await expect(sample.locator('main')).toContainText('12 minutes');
+      await sample.getByLabel('Reason for proposal (required)').fill('Review the fictional conversion');
+      const [mappingResponse] = await Promise.all([
+        sample.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-mapping'),
+        sample.getByRole('button', { name: 'Record unapproved proposal' }).click(),
+      ]);
+      expect(mappingResponse.status()).toBe(200);
+      mappingRequest = mappingResponse.request();
+      await expect(sample.locator('main')).toContainText('UNAPPROVED');
+      await expect(sample.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
+      const proposalId = await sample.locator('dt').filter({ hasText: 'Proposal ID' }).locator('+ dd').textContent();
+      const mappingRetry = await sample.request.post('/objectives/import/receipt/synthetic-mapping', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: mappingRequest.postData(),
+      });
+      expect(mappingRetry.status()).toBe(200);
+      expect(await mappingRetry.text()).toContain(proposalId);
+      mappingReadUrl = await sample.getByRole('link', { name: 'Read this retained proposal' }).getAttribute('href');
+      await sample.getByRole('link', { name: 'Read this retained proposal' }).click();
+      await expect(sample.locator('main')).toContainText('Review the fictional conversion');
       await sample.getByRole('link', { name: 'Back to this capture' }).click();
       await sample.getByLabel('Target unit (required)').fill('unsupported');
       const [invalidRehearsal] = await Promise.all([
@@ -1497,8 +1518,23 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
         expect((await restricted.goto(rehearsalUrl)).status()).toBe(403);
         await expect(restricted.locator('main')).not.toContainText('12 minutes');
       }
+      if (mappingReadUrl) {
+        expect((await restricted.goto(mappingReadUrl)).status()).toBe(403);
+        await expect(restricted.locator('main')).not.toContainText('Review the fictional conversion');
+      }
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');
+      if (mappingRequest) {
+        const deniedMappingForm = new URLSearchParams(mappingRequest.postData());
+        for (const field of ['_csrf', 'principalName', 'tenantId', 'environmentId']) {
+          deniedMappingForm.set(field, await restricted.locator(`input[name="${field}"]`).first().inputValue());
+        }
+        deniedMappingForm.set('idempotencyKey', randomUUID());
+        const deniedMapping = await restricted.request.post('/objectives/import/receipt/synthetic-mapping', {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: deniedMappingForm.toString(),
+        });
+        expect(deniedMapping.status()).toBe(403);
+      }
       if (captureRequest) {
         const deniedCaptureForm = new URLSearchParams(captureRequest.postData());
         for (const field of ['_csrf', 'principalName', 'tenantId', 'environmentId']) {

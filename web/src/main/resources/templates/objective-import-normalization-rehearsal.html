@@ -30,5 +30,21 @@
       <dt>Hypothetical fingerprint version</dt><dd th:text="${rehearsal.normalizedFingerprint.version}"></dd>
       <dt>Hypothetical fingerprint</dt><dd th:text="${rehearsal.normalizedFingerprint.digest}"></dd>
     </dl>
+    <h2>Propose this conversion for review</h2>
+    <p>This records an unapproved proposal for this historical fictional capture.
+      It does not approve the mapping, verify the source, or create an import candidate.</p>
+    <form method="post" th:action="@{/objectives/import/receipt/synthetic-mapping}" th:object="${mappingForm}">
+      <input type="hidden" th:field="*{receiptId}">
+      <input type="hidden" th:field="*{captureId}">
+      <input type="hidden" th:field="*{targetUnit}">
+      <input type="hidden" th:field="*{allowFractionToPercent}">
+      <input type="hidden" th:field="*{idempotencyKey}">
+      <input type="hidden" th:field="*{tenantId}">
+      <input type="hidden" th:field="*{environmentId}">
+      <input type="hidden" th:field="*{principalName}">
+      <label for="reason">Reason for proposal (required)</label>
+      <textarea id="reason" th:field="*{reason}" required maxlength="1000"></textarea>
+      <button type="submit">Record unapproved proposal</button>
+    </form>
   </section>
 </main></body></html>

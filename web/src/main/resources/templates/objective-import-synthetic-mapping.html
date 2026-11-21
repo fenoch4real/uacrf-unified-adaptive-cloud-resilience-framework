@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fictional mapping proposal | UACRF</title></head>
+<body><main>
+  <h1>Fictional mapping proposal</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This proposal is unapproved and its historical fictional source is unverified.
+    It does not approve a conversion, verify the current source, or create an import candidate.</p>
+  <p role="alert" th:if="${mappingError != null}" th:text="${mappingError}"></p>
+  <section th:if="${mappingProposal != null}">
+    <h2>Retained proposal</h2>
+    <dl>
+      <dt>Proposal ID</dt><dd th:text="${mappingProposal.proposalId}"></dd>
+      <dt>Import request</dt><dd th:text="${mappingProposal.receiptId}"></dd>
+      <dt>Capture</dt><dd th:text="${mappingProposal.captureId}"></dd>
+      <dt>Proposed by</dt><dd th:text="${mappingProposal.proposedBy}"></dd>
+      <dt>Proposed at</dt><dd th:text="${mappingProposal.proposedAt}"></dd>
+      <dt>Target unit</dt><dd th:text="${mappingProposal.targetUnit}"></dd>
+      <dt>Fraction-to-percent requested</dt><dd th:text="${mappingProposal.allowFractionToPercent}"></dd>
+      <dt>Reason</dt><dd th:text="${mappingProposal.reason}"></dd>
+      <dt>Fingerprint version</dt><dd th:text="${mappingProposal.fingerprintVersion}"></dd>
+      <dt>Source fingerprint</dt><dd th:text="${mappingProposal.sourceFingerprint}"></dd>
+      <dt>Hypothetical fingerprint</dt><dd th:text="${mappingProposal.normalizedFingerprint}"></dd>
+      <dt>Status</dt><dd th:text="${mappingProposal.status}"></dd>
+      <dt>Verification</dt><dd th:text="${mappingProposal.verification}"></dd>
+    </dl>
+    <p><a th:href="@{/objectives/import/receipt/synthetic-mapping(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId},proposalId=${mappingProposal.proposalId})}">Read this retained proposal</a></p>
+    <p><a th:href="@{/objectives/import/receipt/sample-capture(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId})}">Back to this capture</a></p>
+  </section>
+  <form th:if="${retryAllowed}" method="post" th:action="@{/objectives/import/receipt/synthetic-mapping}"
+        th:object="${mappingForm}">
+    <input type="hidden" th:field="*{receiptId}">
+    <input type="hidden" th:field="*{captureId}">
+    <input type="hidden" th:field="*{targetUnit}">
+    <input type="hidden" th:field="*{allowFractionToPercent}">
+    <input type="hidden" th:field="*{reason}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <button type="submit">Retry this proposal</button>
+  </form>
+  <p><a href="/objectives/import">Return to import requests</a></p>
+</main></body></html>

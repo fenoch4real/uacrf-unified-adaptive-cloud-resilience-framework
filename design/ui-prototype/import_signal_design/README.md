@@ -105,7 +105,8 @@ idempotent retries while the request is pending, and is readable within the
 authorized context. It relies on the incoming delegation rather than a fresh
 membership check, does not reverify the source or approve a mapping, and does
 not create a candidate or process an import. EDGE01 forwards proposal creation
-and read; browser access and independent approval remain open.
+and read, and UX01 exposes submission from the rehearsal and known-proposal
+readback. Independent approval remains open.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

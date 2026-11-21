@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**163 completed / 822 total** · 659 open
+**164 completed / 823 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 73 | 235 |
+| Milestone items | 74 | 236 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -344,6 +344,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026r Connect and verify the unapproved synthetic normalization rehearsal in UX01, including conversion, error and denial. Evidence: R-0246–R-0248.
   - [x] M2-026s Retain an immutable, retry-safe, explicitly unapproved synthetic mapping proposal bound to an exact capture and its versioned fingerprints; authorize, isolate and read it in S05 without enabling import processing. Evidence: R-0253–R-0255.
   - [x] M2-026t Forward synthetic mapping proposal creation and read through EDGE01 with the original delegation, idempotency key and owner response. Evidence: R-0259.
+  - [x] M2-026u Connect synthetic mapping proposal submission and readback to UX01 with retry-safe context, explicit unapproved status and authorization; verify browser success and denial. Evidence: R-0263–R-0265.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1377,6 +1378,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0258 | 2026-11-21 | M2-026t | Started EDGE01 forwarding for synthetic mapping proposals. | Authority and approval remain with owner services; the edge does not interpret the record. |
 | R-0259 | 2026-11-21 | M2-026t | Ran the EDGE01 regression including proposal body, delegation, idempotency, no-store and owner status forwarding. | 38 tests passed; the proposal is still unapproved and UX01 access remains open. |
 | R-0260 | 2026-11-21 | M2-026t | Updated private technical approach Appendix AB to revision 214 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; browser access and independent approval remain open. |
+| R-0261 | 2026-11-21 | M2-026t | Committed the EDGE01 synthetic mapping proposal routes as `be1437d` and pushed them to `origin/main`. | UX01 access and independent approval remain open. |
+| R-0262 | 2026-11-21 | M2-026u | Started browser submission and readback of synthetic mapping proposals. | Preserve explicit unapproved status and do not imply source verification or import processing. |
+| R-0263 | 2026-11-21 | M2-026u | Ran focused UX01 client and controller tests. | 181 tests passed, including retry context, escaped reason, separate grants, denial and malformed owner responses; real browser verification remains open. |
+| R-0264 | 2026-11-21 | M2-026u | Checked fixed ports and ran the enabled isolated synthetic-inspection browser suite. | 11 tests passed, including proposal creation, replay, readback and restricted-user denial; proxy-to-owner hops use HTTP, not end-to-end TLS. |
+| R-0265 | 2026-11-21 | M2-026u | Rechecked fixed ports and ran the default-disabled isolated browser suite. | 11 tests passed; the default-disabled synthetic-source boundary remains in place. |
+| R-0266 | 2026-11-21 | M2-026u | Updated private technical approach Appendix AB to revision 215 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; independent approval and import processing remain open. |
 
 ## Implementation evidence
 

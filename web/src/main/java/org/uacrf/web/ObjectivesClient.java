@@ -241,6 +241,54 @@ class ObjectivesClient {
     return result;
   }
 
+  SyntheticMappingProposal proposeSyntheticMapping(String token, String id, String captureId, String key,
+      SyntheticMappingRequest request) {
+    if (!validUuid(id) || !validUuid(captureId) || !validUuid(key)) {
+      throw new IllegalStateException("Invalid synthetic mapping proposal parameters.");
+    }
+    SyntheticMappingProposal result = restClient.post()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals", id, captureId)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(request).retrieve().body(SyntheticMappingProposal.class);
+    if (!validProposal(result, id, captureId) || !request.targetUnit().equals(result.targetUnit())
+        || request.allowFractionToPercent() != result.allowFractionToPercent()
+        || !request.reason().equals(result.reason())) {
+      throw new IllegalStateException("S05 returned an invalid synthetic mapping proposal.");
+    }
+    return result;
+  }
+
+  SyntheticMappingProposal syntheticMappingProposal(String token, String id, String captureId, String proposalId) {
+    if (!validUuid(id) || !validUuid(captureId) || !validUuid(proposalId)) {
+      throw new IllegalStateException("Invalid synthetic mapping proposal identifiers.");
+    }
+    SyntheticMappingProposal result = restClient.get()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}",
+            id, captureId, proposalId)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SyntheticMappingProposal.class);
+    if (!validProposal(result, id, captureId) || !proposalId.equals(result.proposalId())) {
+      throw new IllegalStateException("S05 returned an invalid synthetic mapping proposal.");
+    }
+    return result;
+  }
+
+  private static boolean validProposal(SyntheticMappingProposal value, String id, String captureId) {
+    if (value == null || !validUuid(value.proposalId()) || !id.equals(value.receiptId())
+        || !captureId.equals(value.captureId()) || !present(value.proposedBy()) || !present(value.targetUnit())
+        || value.targetUnit().length() > 80 || value.allowFractionToPercent() == null
+        || !present(value.reason()) || value.reason().length() > 1000
+        || !"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(value.fingerprintVersion())
+        || !digest(value.sourceFingerprint()) || !digest(value.normalizedFingerprint())
+        || !"UNAPPROVED".equals(value.status()) || !"SYNTHETIC_UNVERIFIED".equals(value.verification())
+        || !present(value.proposedAt())) return false;
+    try {
+      java.time.Instant.parse(value.proposedAt());
+      return true;
+    } catch (java.time.format.DateTimeParseException error) {
+      return false;
+    }
+  }
+
   private static boolean validFingerprint(DefinitionFingerprint value) {
     return value != null && "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(value.version()) && digest(value.digest());
   }
@@ -415,6 +463,18 @@ class ObjectivesClient {
       @JsonProperty("normalized_definition") ImportDefinition normalizedDefinition,
       @JsonProperty("normalized_fingerprint") DefinitionFingerprint normalizedFingerprint,
       String verification, String status) {}
+
+  record SyntheticMappingRequest(@JsonProperty("target_unit") String targetUnit,
+      @JsonProperty("allow_fraction_to_percent") boolean allowFractionToPercent, String reason) {}
+
+  record SyntheticMappingProposal(@JsonProperty("proposal_id") String proposalId,
+      @JsonProperty("receipt_id") String receiptId, @JsonProperty("capture_id") String captureId,
+      @JsonProperty("proposed_by") String proposedBy, @JsonProperty("target_unit") String targetUnit,
+      @JsonProperty("allow_fraction_to_percent") Boolean allowFractionToPercent, String reason,
+      @JsonProperty("fingerprint_version") String fingerprintVersion,
+      @JsonProperty("source_fingerprint") String sourceFingerprint,
+      @JsonProperty("normalized_fingerprint") String normalizedFingerprint,
+      String status, String verification, @JsonProperty("proposed_at") String proposedAt) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

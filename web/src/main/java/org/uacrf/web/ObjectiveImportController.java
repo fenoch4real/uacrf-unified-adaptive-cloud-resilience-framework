@@ -301,6 +301,8 @@ class ObjectiveImportController {
           List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
       model.addAttribute("rehearsal", objectives.rehearseImportNormalization(
           token, id, captureId, targetUnit, allowFractionToPercent));
+      model.addAttribute("mappingForm", new SyntheticMappingForm(id, captureId, targetUnit, allowFractionToPercent,
+          "", UUID.randomUUID().toString(), context.tenantId(), context.environmentId(), client.getPrincipalName()));
     } catch (ResourceAccessException error) {
       response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
       model.addAttribute("rehearsalError", "Identity or objectives service is unavailable; rehearsal was not loaded.");
@@ -312,6 +314,79 @@ class ObjectiveImportController {
       model.addAttribute("rehearsalError", "Identity or objectives service returned an invalid rehearsal.");
     }
     return "objective-import-normalization-rehearsal";
+  }
+
+  @PostMapping("/objectives/import/receipt/synthetic-mapping")
+  String proposeSyntheticMapping(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @Valid @ModelAttribute("mappingForm") SyntheticMappingForm form, BindingResult errors, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!context.tenantId().equals(form.tenantId()) || !context.environmentId().equals(form.environmentId())
+        || !client.getPrincipalName().equals(form.principalName())) {
+      response.setStatus(HttpStatus.CONFLICT.value());
+      model.addAttribute("mappingError", "The signed-in user or context changed; reopen the rehearsal.");
+      return "objective-import-synthetic-mapping";
+    }
+    if (errors.hasErrors() || !ObjectivesClient.validUuid(form.receiptId())
+        || !ObjectivesClient.validUuid(form.captureId())) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("mappingError", "The proposal form is invalid; reopen the rehearsal and provide a reason.");
+      return "objective-import-synthetic-mapping";
+    }
+    model.addAttribute("retryAllowed", true);
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read", "objectives.objective.write"),
+          context.tenantId(), context.environmentId()).accessToken();
+      var request = new ObjectivesClient.SyntheticMappingRequest(
+          form.targetUnit(), form.allowFractionToPercent(), form.reason());
+      model.addAttribute("mappingProposal", objectives.proposeSyntheticMapping(
+          token, form.receiptId(), form.captureId(), form.idempotencyKey(), request));
+      model.addAttribute("retryAllowed", false);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("mappingError", "The proposal outcome is unconfirmed. Retry this same form in the same context.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("mappingError", "Proposal failed or is unconfirmed (HTTP " + error.getStatusCode().value()
+          + "). Retry only this same form in the same context.");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("mappingError", "The response was invalid; the outcome is unconfirmed. Retry this same form.");
+    }
+    return "objective-import-synthetic-mapping";
+  }
+
+  @GetMapping("/objectives/import/receipt/synthetic-mapping")
+  String syntheticMapping(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id,
+      @RequestParam String captureId, @RequestParam String proposalId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!ObjectivesClient.validUuid(id) || !ObjectivesClient.validUuid(captureId)
+        || !ObjectivesClient.validUuid(proposalId)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("mappingError", "Provide valid request, capture and proposal IDs.");
+      return "objective-import-synthetic-mapping";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("mappingProposal", objectives.syntheticMappingProposal(token, id, captureId, proposalId));
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("mappingError", "Identity or objectives service is unavailable; the proposal was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("mappingError", "Proposal access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("mappingError", "Identity or objectives service returned an invalid proposal.");
+    }
+    return "objective-import-synthetic-mapping";
   }
 
   @GetMapping("/objectives/import/requests")
@@ -346,6 +421,12 @@ class ObjectiveImportController {
       @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
 
   record CaptureForm(@NotBlank String receiptId,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
+      @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
+
+  record SyntheticMappingForm(@NotBlank String receiptId, @NotBlank String captureId,
+      @NotBlank @Size(max=80) String targetUnit, @NotNull Boolean allowFractionToPercent,
+      @NotBlank @Size(max=1000) String reason,
       @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
       @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
 }

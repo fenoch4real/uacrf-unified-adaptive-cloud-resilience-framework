@@ -256,6 +256,50 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void validatesSyntheticMappingProposalAndBindsSubmission() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposal = "12345678-1234-4234-8234-123456789015";
+    String key = "12345678-1234-4234-8234-123456789016";
+    String body = """
+        {"proposal_id":"%s","receipt_id":"%s","capture_id":"%s","proposed_by":"issuer|actor",
+         "target_unit":"minutes","allow_fraction_to_percent":false,"reason":"review",
+         "fingerprint_version":"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1","source_fingerprint":"%s",
+         "normalized_fingerprint":"%s","status":"UNAPPROVED","verification":"SYNTHETIC_UNVERIFIED",
+         "proposed_at":"2026-11-21T00:00:00Z"}
+        """.formatted(proposal, id, capture, "a".repeat(64), "b".repeat(64));
+    for (String response : List.of(body, body.replace("UNAPPROVED", "APPROVED"),
+        body.replace("\"reason\":\"review\"", "\"reason\":\"different\""),
+        body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"), body.replace("2026-11-21T00:00:00Z", "invalid"),
+        body.replace("\"allow_fraction_to_percent\":false,", ""))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
+              + "/mapping-proposals"))
+          .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+          .andExpect(header("Idempotency-Key", key)).andExpect(jsonPath("$.reason").value("review"))
+          .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      var request = new ObjectivesClient.SyntheticMappingRequest("minutes", false, "review");
+      if (response.equals(body)) {
+        assertThat(client.proposeSyntheticMapping("writer", id, capture, key, request).proposalId()).isEqualTo(proposal);
+      } else {
+        assertThatThrownBy(() -> client.proposeSyntheticMapping("writer", id, capture, key, request))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+    RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+    MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+    server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
+        + "/mapping-proposals/" + proposal)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+        .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+    assertThat(new ObjectivesClient(builder.build()).syntheticMappingProposal("reader", id, capture, proposal).status())
+        .isEqualTo("UNAPPROVED");
+    server.verify();
+  }
+
+  @Test
   void readsPendingImportPagesAndRejectsInvalidItems() {
     String id = "12345678-1234-4234-8234-123456789012";
     for (String status : List.of("PENDING", "SUCCEEDED")) {

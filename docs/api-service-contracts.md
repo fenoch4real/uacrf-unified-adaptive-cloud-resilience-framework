@@ -260,7 +260,9 @@ the unkeyed route.
   Both responses are `no-store`. These routes do not recheck current
   membership or source state, approve a conversion, create a candidate or
   process an import. EDGE01 forwards both routes without changing the owner
-  status or body; UX01 does not yet expose them.
+  status or body. UX01 can submit a proposal from a successful rehearsal and
+  read a known proposal with separate read authority; on an uncertain POST it
+  preserves the same form and key for retry in the same context.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

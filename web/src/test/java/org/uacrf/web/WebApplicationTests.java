@@ -527,6 +527,68 @@ class WebApplicationTests {
         .andExpect(content().string(containsString("HTTP 403")));
   }
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder syntheticMappingForm() {
+    return post("/objectives/import/receipt/synthetic-mapping").with(browserLogin()).with(csrf())
+        .session(sessionWithSelectedContext())
+        .param("receiptId", "12345678-1234-4234-8234-123456789012")
+        .param("captureId", "12345678-1234-4234-8234-123456789014")
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789013")
+        .param("targetUnit", "minutes").param("allowFractionToPercent", "false").param("reason", "<review>")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void syntheticMappingProposalPreservesRetryAndUsesSeparateDelegations() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String key = "12345678-1234-4234-8234-123456789013";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposal = "12345678-1234-4234-8234-123456789015";
+    var record = new ObjectivesClient.SyntheticMappingProposal(proposal, id, capture, "actor", "minutes", false,
+        "<review>", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), "b".repeat(64),
+        "UNAPPROVED", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z");
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read", "objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("writer", "Bearer", 30));
+    var request = new ObjectivesClient.SyntheticMappingRequest("minutes", false, "<review>");
+    when(objectives.proposeSyntheticMapping("writer", id, capture, key, request))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(record);
+    mockMvc.perform(syntheticMappingForm()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("outcome is unconfirmed")))
+        .andExpect(content().string(containsString(key)))
+        .andExpect(content().string(containsString("&lt;review&gt;")));
+    mockMvc.perform(syntheticMappingForm()).andExpect(status().isOk())
+        .andExpect(content().string(containsString("UNAPPROVED")))
+        .andExpect(content().string(containsString("&lt;review&gt;")))
+        .andExpect(content().string(containsString(proposal)));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(objectives.syntheticMappingProposal("reader", id, capture, proposal)).thenReturn(record);
+    mockMvc.perform(get("/objectives/import/receipt/synthetic-mapping").param("id", id)
+        .param("captureId", capture).param("proposalId", proposal).with(browserLogin())
+        .session(sessionWithSelectedContext())).andExpect(status().isOk())
+        .andExpect(content().string(containsString("SYNTHETIC_UNVERIFIED")));
+    verify(objectives, org.mockito.Mockito.times(2)).proposeSyntheticMapping("writer", id, capture, key, request);
+  }
+
+  @Test
+  void syntheticMappingProposalRejectsChangedContextDenialAndMissingCsrf() throws Exception {
+    for (String field : List.of("tenantId", "environmentId", "principalName")) {
+      mockMvc.perform(syntheticMappingForm().with(request -> {
+        request.setParameter(field, "different"); return request;
+      })).andExpect(status().isConflict());
+    }
+    mockMvc.perform(post("/objectives/import/receipt/synthetic-mapping").with(browserLogin())
+        .session(sessionWithSelectedContext())).andExpect(status().isForbidden());
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read", "objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(syntheticMappingForm()).andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("HTTP 403")));
+    verifyNoInteractions(objectives);
+  }
+
   @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
