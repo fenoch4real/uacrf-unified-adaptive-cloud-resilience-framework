@@ -207,8 +207,13 @@ the unkeyed route.
   write capability in the incoming delegation, not an atomic current-write
   fence. Captures do not verify provenance, approve mappings or change the
   pending request. EDGE01 forwards the same delegation and idempotency key and
-  preserves the owner response and `no-store`; there is no public
-  capture-history read or browser capture flow yet.
+  preserves the owner response and `no-store`. UX01 offers capture from the
+  inspection page, explicitly warns that the source is refetched and may
+  differ, and requests a separate global read/write delegation. Its
+  context-bound retry form preserves the idempotency key after an uncertain
+  outcome. The browser receipt is historical and unverified; it does not
+  display the captured payload or fingerprint. There is no public
+  capture-history read yet.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus

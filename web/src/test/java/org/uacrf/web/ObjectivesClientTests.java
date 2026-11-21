@@ -132,6 +132,34 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void capturesOnlyWithValidBoundSyntheticReceipt() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String key = "12345678-1234-4234-8234-123456789013";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String body = """
+        {"capture_id":"%s","receipt_id":"%s","captured_at":"2026-11-21T00:00:00Z",
+         "verification":"SYNTHETIC_UNVERIFIED"}
+        """.formatted(capture, id);
+    for (String response : List.of(body, body.replace(id, capture),
+        body.replace("SYNTHETIC_UNVERIFIED", "VERIFIED"), body.replace("2026-11-21T00:00:00Z", "bad"))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objective-imports/" + id + "/sample-captures"))
+          .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", key))
+          .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (response.equals(body)) {
+        assertThat(client.captureImportSample("delegated", id, key).captureId()).isEqualTo(capture);
+      } else {
+        assertThatThrownBy(() -> client.captureImportSample("delegated", id, key))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void readsPendingImportPagesAndRejectsInvalidItems() {
     String id = "12345678-1234-4234-8234-123456789012";
     for (String status : List.of("PENDING", "SUCCEEDED")) {

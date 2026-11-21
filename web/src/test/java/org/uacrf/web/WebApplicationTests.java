@@ -384,6 +384,61 @@ class WebApplicationTests {
   }
 
   @Test
+  void syntheticCaptureUsesSeparateReadWriteAndPreservesRetryContext() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String key = "12345678-1234-4234-8234-123456789013";
+    String captureId = "12345678-1234-4234-8234-123456789014";
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read", "objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("capture-token", "Bearer", 30));
+    when(objectives.captureImportSample("capture-token", id, key))
+        .thenThrow(new ResourceAccessException("timeout"))
+        .thenReturn(new ObjectivesClient.SampleCaptureReceipt(captureId, id, "2026-11-21T00:00:00Z",
+            "SYNTHETIC_UNVERIFIED"));
+    var first = post("/objectives/import/receipt/sample-capture").with(browserLogin()).with(csrf())
+        .session(sessionWithSelectedContext()).param("receiptId", id).param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+    mockMvc.perform(first).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("outcome is unconfirmed")))
+        .andExpect(content().string(containsString(key)));
+    var retry = post("/objectives/import/receipt/sample-capture").with(browserLogin()).with(csrf())
+        .session(sessionWithSelectedContext()).param("receiptId", id).param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+    mockMvc.perform(retry).andExpect(status().isOk())
+        .andExpect(content().string(containsString(captureId)))
+        .andExpect(content().string(containsString("SYNTHETIC_UNVERIFIED")))
+        .andExpect(content().string(containsString("request remains pending")));
+    mockMvc.perform(post("/objectives/import/receipt/sample-capture").with(browserLogin())
+        .session(sessionWithSelectedContext())).andExpect(status().isForbidden());
+    verify(objectives, org.mockito.Mockito.times(2)).captureImportSample("capture-token", id, key);
+  }
+
+  @Test
+  void syntheticCaptureRejectsChangedContextAndDeniedDelegation() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String key = "12345678-1234-4234-8234-123456789013";
+    for (String field : List.of("tenantId", "environmentId", "principalName")) {
+      mockMvc.perform(post("/objectives/import/receipt/sample-capture").with(browserLogin()).with(csrf())
+          .session(sessionWithSelectedContext()).param("receiptId", id).param("idempotencyKey", key)
+          .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+          .param("principalName", "local-admin-subject")
+          .with(request -> { request.setParameter(field, "different"); return request; }))
+          .andExpect(status().isConflict());
+    }
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read", "objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(post("/objectives/import/receipt/sample-capture").with(browserLogin()).with(csrf())
+        .session(sessionWithSelectedContext()).param("receiptId", id).param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject"))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("HTTP 403")));
+    verifyNoInteractions(objectives);
+  }
+
+  @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
         List.of("connections.connection.read"), "tenant-test", "environment-test"))

@@ -167,6 +167,8 @@ class ObjectiveImportController {
       String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
           List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
       model.addAttribute("source", objectives.inspectImportSample(token, id));
+      model.addAttribute("captureForm", new CaptureForm(id, UUID.randomUUID().toString(),
+          context.tenantId(), context.environmentId(), client.getPrincipalName()));
     } catch (ResourceAccessException error) {
       response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
       model.addAttribute("sourceError", "Identity or objectives service is unavailable; the sample was not loaded.");
@@ -178,6 +180,45 @@ class ObjectiveImportController {
       model.addAttribute("sourceError", "Identity or objectives service returned an invalid response.");
     }
     return "objective-import-receipt-source";
+  }
+
+  @PostMapping("/objectives/import/receipt/sample-capture")
+  String capture(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @Valid @ModelAttribute("captureForm") CaptureForm form, BindingResult errors, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!context.tenantId().equals(form.tenantId()) || !context.environmentId().equals(form.environmentId())
+        || !client.getPrincipalName().equals(form.principalName())) {
+      response.setStatus(HttpStatus.CONFLICT.value());
+      model.addAttribute("captureError", "The signed-in user or context changed; reopen the original request.");
+      return "objective-import-capture";
+    }
+    if (errors.hasErrors() || !ObjectivesClient.validUuid(form.receiptId())) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("captureError", "The capture form is invalid; reopen the original request.");
+      return "objective-import-capture";
+    }
+    model.addAttribute("retryAllowed", true);
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read", "objectives.objective.write"),
+          context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("captureReceipt", objectives.captureImportSample(token, form.receiptId(), form.idempotencyKey()));
+      model.addAttribute("retryAllowed", false);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("captureError", "Capture outcome is unconfirmed. Retry this same form in the same context.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("captureError", "Capture failed or is unconfirmed (HTTP " + error.getStatusCode().value()
+          + "). Retry only this same form in the same context.");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("captureError", "The response was invalid; the outcome is unconfirmed. Retry this same form.");
+    }
+    return "objective-import-capture";
   }
 
   @GetMapping("/objectives/import/requests")
@@ -208,6 +249,10 @@ class ObjectiveImportController {
       @NotBlank @Size(max=1000) String externalObjectiveId,
       @NotBlank @Size(max=200) String targetWorkloadId,
       @NotNull @Min(1) Long mappingRevision, @NotNull @Min(0) Long expectedLocalRevision,
+      @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
+      @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
+
+  record CaptureForm(@NotBlank String receiptId,
       @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
       @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
 }

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fictional source capture | UACRF</title></head>
+<body><main>
+  <h1>Fictional source capture</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This capture is unverified. It does not approve a mapping, process the request or create an objective.</p>
+  <p role="alert" th:if="${captureError != null}" th:text="${captureError}"></p>
+  <section th:if="${captureReceipt != null}">
+    <h2>Capture receipt</h2>
+    <dl>
+      <dt>Capture ID</dt><dd th:text="${captureReceipt.captureId}"></dd>
+      <dt>Import request</dt><dd th:text="${captureReceipt.receiptId}"></dd>
+      <dt>Captured at</dt><dd th:text="${captureReceipt.capturedAt}"></dd>
+      <dt>Verification</dt><dd th:text="${captureReceipt.verification}"></dd>
+    </dl>
+    <p>The request remains pending. Capture history is not available in the browser yet.</p>
+    <p><a th:href="@{/objectives/import/receipt(id=${captureReceipt.receiptId})}">Back to this request</a></p>
+  </section>
+  <form th:if="${retryAllowed}" method="post" th:action="@{/objectives/import/receipt/sample-capture}"
+        th:object="${captureForm}">
+    <input type="hidden" th:field="*{receiptId}">
+    <input type="hidden" th:field="*{idempotencyKey}">
+    <input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}">
+    <input type="hidden" th:field="*{principalName}">
+    <button type="submit">Retry this capture</button>
+  </form>
+  <p><a href="/objectives/import">Return to import requests</a></p>
+</main></body></html>

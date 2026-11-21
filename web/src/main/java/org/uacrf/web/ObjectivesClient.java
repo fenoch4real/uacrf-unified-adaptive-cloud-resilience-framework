@@ -133,6 +133,25 @@ class ObjectivesClient {
     return sample;
   }
 
+  SampleCaptureReceipt captureImportSample(String token, String id, String idempotencyKey) {
+    if (!validUuid(id) || !validUuid(idempotencyKey)) {
+      throw new IllegalStateException("Invalid import receipt or capture key.");
+    }
+    SampleCaptureReceipt receipt = restClient.post().uri("/v1/objective-imports/{id}/sample-captures", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+        .header("Idempotency-Key", idempotencyKey).retrieve().body(SampleCaptureReceipt.class);
+    if (receipt == null || !validUuid(receipt.captureId()) || !id.equals(receipt.receiptId())
+        || !present(receipt.capturedAt()) || !"SYNTHETIC_UNVERIFIED".equals(receipt.verification())) {
+      throw new IllegalStateException("S05 returned an invalid synthetic capture receipt.");
+    }
+    try {
+      java.time.Instant.parse(receipt.capturedAt());
+    } catch (java.time.format.DateTimeParseException error) {
+      throw new IllegalStateException("S05 returned an invalid synthetic capture time.", error);
+    }
+    return receipt;
+  }
+
   private static boolean valid(ImportDefinition value) {
     return value != null && present(value.metric()) && present(value.unit()) && present(value.window())
         && present(value.measurementRef()) && value.target() != null && value.target().signum() >= 0
@@ -275,6 +294,10 @@ class ObjectivesClient {
       @JsonProperty("definition_fingerprint") DefinitionFingerprint definitionFingerprint) {}
 
   record DefinitionFingerprint(String version, String digest) {}
+
+  record SampleCaptureReceipt(@JsonProperty("capture_id") String captureId,
+      @JsonProperty("receipt_id") String receiptId, @JsonProperty("captured_at") String capturedAt,
+      String verification) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

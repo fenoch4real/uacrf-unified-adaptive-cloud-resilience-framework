@@ -985,6 +985,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     await sample.getByRole('link', { name: 'Read current request status' }).click();
     await expect(sample.locator('main')).toContainText('PENDING');
     const savedReceiptId = new URL(importReceiptUrl, sample.url()).searchParams.get('id');
+    let captureRequest;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -999,6 +1000,22 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(sample.locator('main')).toContainText('OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1');
       await expect(sample.locator('main'))
         .toContainText('0615af06050a1ebe47c53362ebd790c68e0abd5ed9749b01605a3b006a9b7e1d');
+      await expect(sample.locator('main')).toContainText('may differ from this inspection');
+      const [captureResponse] = await Promise.all([
+        sample.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/objectives/import/receipt/sample-capture'),
+        sample.getByRole('button', { name: 'Capture current fictional source' }).click(),
+      ]);
+      expect(captureResponse.status()).toBe(200);
+      captureRequest = captureResponse.request();
+      await expect(sample.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
+      const captureId = await sample.locator('dt').filter({ hasText: 'Capture ID' }).locator('+ dd').textContent();
+      expect(captureId).toMatch(/^[0-9a-f-]{36}$/);
+      const captureRetry = await sample.request.post('/objectives/import/receipt/sample-capture', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: captureRequest.postData(),
+      });
+      expect(captureRetry.status()).toBe(200);
+      expect(await captureRetry.text()).toContain(captureId);
     } else {
       expect(inspectionResponse.status()).toBe(503);
       await expect(sample.locator('main')).toContainText('Pending sample inspection failed (HTTP 503)');
@@ -1413,6 +1430,18 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
         + new URLSearchParams({ id: savedReceiptId }))).status()).toBe(403);
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');
+      if (captureRequest) {
+        const deniedCaptureForm = new URLSearchParams(captureRequest.postData());
+        for (const field of ['_csrf', 'principalName', 'tenantId', 'environmentId']) {
+          deniedCaptureForm.set(field, await restricted.locator(`input[name="${field}"]`).first().inputValue());
+        }
+        deniedCaptureForm.set('idempotencyKey', randomUUID());
+        const deniedCapture = await restricted.request.post('/objectives/import/receipt/sample-capture', {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: deniedCaptureForm.toString(),
+        });
+        expect(deniedCapture.status()).toBe(403);
+        expect(await deniedCapture.text()).not.toContain('Capture receipt');
+      }
       await restricted.getByLabel('Receipt ID (required)').fill(savedReceiptId);
       const [deniedImportLookup] = await Promise.all([
         restricted.waitForResponse((response) => response.request().method() === 'GET'

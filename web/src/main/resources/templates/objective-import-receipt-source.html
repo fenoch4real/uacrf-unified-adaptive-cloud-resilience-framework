@@ -28,6 +28,16 @@
       <dt>Source definition fingerprint</dt><dd th:text="${source.definitionFingerprint.digest}"></dd>
     </dl>
     <p>The definition fingerprint uses the source units as read; it is not an approved mapping or retained provenance.</p>
+    <p>Capturing refetches the current fictional source, which may differ from this inspection.
+      It requires objective read and write access and separate connection-read access.</p>
+    <form method="post" th:action="@{/objectives/import/receipt/sample-capture}" th:object="${captureForm}">
+      <input type="hidden" th:field="*{receiptId}">
+      <input type="hidden" th:field="*{idempotencyKey}">
+      <input type="hidden" th:field="*{tenantId}">
+      <input type="hidden" th:field="*{environmentId}">
+      <input type="hidden" th:field="*{principalName}">
+      <button type="submit">Capture current fictional source</button>
+    </form>
     <h2>Fictional definition</h2>
     <dl>
       <dt>Metric</dt><dd th:text="${source.definition.metric}"></dd>
