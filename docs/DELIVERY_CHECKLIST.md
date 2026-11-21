@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**182 completed / 841 total** · 659 open
+**182 completed / 842 total** · 660 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 92 | 254 |
+| Milestone items | 92 | 255 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -366,6 +366,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-027d Forward the partial synthetic/local field comparison through EDGE01 with the original authorization and owner response. Evidence: R-0344.
   - [x] M2-027e Connect the partial comparison to UX01 with explicit objective selection and unverified/incomplete limitations; verify browser success and denial. Evidence: R-0348–R-0351.
   - [x] M2-027f Allow new local objectives to retain optional complete normalized measurement semantics bound to their content digest and immutable creation, preserving legacy requests and retries; expose scoped readback in S05. Evidence: R-0354–R-0356.
+  - [ ] M2-027g Compare retained local normalized semantics with synthetic candidates and validate the resulting field comparisons through EDGE01 and UX01, while preserving the legacy partial response and unverified-source limitations.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1494,6 +1495,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0356 | 2026-11-21 | M2-027f | Re-ran `./mvnw -q -pl services/objectives -am test` after the rounding guard: all 48 S05 tests passed. | Scoped reads, retry conflicts, lifecycle binding, malformed semantics, immutability and legacy behavior are covered; comparison integration and authoritative baseline remain open. |
 | R-0357 | 2026-11-21 | M2-027f | Attempted the private approach document update using `python`. | The command was unavailable; retry with the installed `python3` interpreter. |
 | R-0358 | 2026-11-21 | M2-027f | Updated private technical approach Appendix AB to revision 230 with `python3`. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; the document remains private. |
+| R-0359 | 2026-11-21 | M2-027f | Committed and pushed the verified local-semantics slice as `957404c`; confirmed the remote main branch contains it. | Existing UX01 comparison validation expects legacy-only fields, so consuming retained semantics requires coordinated S05 and UX01 changes. |
 
 ## Implementation evidence
 
