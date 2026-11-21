@@ -1250,6 +1250,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0152 | 2026-11-20 | M2-025c | Re-ran the real local S01/S03/S05 journey: 1/1 passed with exact fictional fixture and digest, pending readback, no-store, wrong binding/context denial, separate grant absence and revocation, and scoped-token confinement. | The exchange is point-in-time; this neither approves mappings nor establishes trusted provenance or provider acceptance. |
 | R-0153 | 2026-11-20 | M2-025c | Documented the opt-in S05 synthetic inspection contract and its limits. | The broader connector, import worker and browser resolution workflow remain open. |
 | R-0154 | 2026-11-20 | M2-025c | Updated private technical approach Appendix AB to revision 195; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; synthetic inspection is not provider acceptance. |
+| R-0155 | 2026-11-20 | M2-025c | Committed the connected fictional inspection as `e9b61ce` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
 
 ## Implementation evidence
 
