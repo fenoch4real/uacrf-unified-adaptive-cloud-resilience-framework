@@ -1229,6 +1229,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0134 | 2026-11-20 | M2-026b | `./mvnw -pl services/objectives -am clean test` passed 35 S05 and 8 shared-security tests, including typed definition validation and semantic-preserving conversion. | Not connected to source parsing, mapping approval, provenance or import processing. |
 | R-0135 | 2026-11-20 | M2-026b | Expanded invalid-percentile and empty-field assertions; focused `ObjectiveImportDefinitionTests` passed 2/2. | Canonical definition digest and end-to-end normalization remain open. |
 | R-0136 | 2026-11-20 | M2-026b | Updated private technical approach Appendix AB to revision 192; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the definition helper does not establish trusted provenance. |
+| R-0137 | 2026-11-20 | M2-026b | Committed the typed definition conversion as `f690c44` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
 
 ## Implementation evidence
 
