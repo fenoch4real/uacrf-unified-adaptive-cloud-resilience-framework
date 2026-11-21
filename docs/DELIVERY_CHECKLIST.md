@@ -957,6 +957,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0032 | 2026-11-20 | Delivery tracking | Combined milestone status, granular checklist, run log and implementation evidence in this document; redirected workspace links and retained a compatibility pointer at the old status path. | Historical operation-by-operation reconciliation remains open. |
 | R-0033 | 2026-11-20 | Delivery tracking | Verified prior status-detail lines remain in order, combined-document heading links resolve, redirected workspace links point to the combined document, and `git diff --check` passes. | External links to the old file land on its compatibility pointer. |
 | R-0034 | 2026-11-20 | Delivery tracking | Rechecked the combined checklist: 727 unique IDs, including all 144 operations, 153 data allocations and 131 requirements; browser spec syntax and whitespace checks pass. | Unchecked reconciliation entries do not imply unimplemented features and are not a percentage-complete estimate. |
+| R-0035 | 2026-11-20 | M2-022, delivery tracking | Committed the verified review flow and unified tracker as `7b6d2e3` and pushed it to `origin/main`. | Complete decision-history disclosure and historical allocation reconciliation remain open. |
 
 ## Implementation evidence
 
