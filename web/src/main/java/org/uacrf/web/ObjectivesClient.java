@@ -54,6 +54,26 @@ class ObjectivesClient {
     return result;
   }
 
+  Objective get(String token, String id) {
+    Objective result = restClient.get().uri("/v1/objectives/{id}", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(Objective.class);
+    if (!valid(result) || !id.equals(result.id())) {
+      throw new IllegalStateException("S05 returned an invalid objective.");
+    }
+    return result;
+  }
+
+  Objective submit(String token, String id, String key, long revision, String digest) {
+    Objective result = restClient.post().uri("/v1/objectives/{id}:idempotent-submit", id)
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(new Submission(revision, digest)).retrieve().body(Objective.class);
+    if (!valid(result) || !id.equals(result.id()) || !digest.equals(result.contentDigest())
+        || result.revision() <= revision || "DRAFT".equals(result.state())) {
+      throw new IllegalStateException("S05 returned an invalid submission result.");
+    }
+    return result;
+  }
+
   private static boolean valid(Objective item) {
     return item != null && present(item.id()) && present(item.workloadId())
         && present(item.title()) && present(item.metric()) && present(item.unit())
@@ -79,6 +99,9 @@ class ObjectivesClient {
   record LocalObjective(String id, @JsonProperty("workload_id") String workloadId,
       String title, String metric, String comparator, BigDecimal target, String unit,
       @JsonProperty("window_seconds") Integer windowSeconds, String origin) {}
+
+  record Submission(@JsonProperty("expected_revision") long expectedRevision,
+      @JsonProperty("expected_content_digest") String expectedContentDigest) {}
 
   record Objective(
       String id,

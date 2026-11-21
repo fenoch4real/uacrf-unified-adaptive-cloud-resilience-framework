@@ -26,6 +26,31 @@ class ObjectivesClientTests {
       """;
 
   @Test
+  void submissionBindsRevisionAndDigestAndRejectsMismatchedResult() {
+    String digest = "a".repeat(64);
+    for (boolean matching : List.of(true, false)) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo("http://edge.test/v1/objectives/objective:idempotent-submit"))
+          .andExpect(method(HttpMethod.POST)).andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+          .andExpect(header("Idempotency-Key", "key"))
+          .andExpect(jsonPath("$.expected_revision").value(1))
+          .andExpect(jsonPath("$.expected_content_digest").value(digest))
+          .andRespond(withSuccess(RECORD.replace("\"state\":\"DRAFT\",\"revision\":1",
+              matching ? "\"state\":\"SUBMITTED\",\"revision\":2" : "\"state\":\"DRAFT\",\"revision\":1"),
+              MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (matching) {
+        assertThat(client.submit("delegated", "objective", "key", 1, digest).state()).isEqualTo("SUBMITTED");
+      } else {
+        assertThatThrownBy(() -> client.submit("delegated", "objective", "key", 1, digest))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void createsLocalDraftAndRejectsMismatchedReceipt() {
     var request = new ObjectivesClient.LocalObjective("objective", "workload-a", "Latency", "latency",
         "LTE", new BigDecimal("99.75"), "ms", 60, "LOCAL");

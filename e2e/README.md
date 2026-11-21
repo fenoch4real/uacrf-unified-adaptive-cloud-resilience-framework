@@ -96,8 +96,11 @@ acceptance.
 
 The synthetic objective flow grants separate global S05 read and write access.
 It creates a local draft through UX01, EDGE01 and S05, retries the same form,
-and checks that changed content with the same key conflicts. A separately
-admitted user without global write access is denied. S05's optional S02 owner
+and checks that changed content with the same key conflicts. It then reads the
+draft with a separate read delegation, submits its reviewed revision and digest
+with write authority, retries the same submission, and checks changed-content
+conflict. A separately admitted user without global read/write access is
+denied. S05's optional S02 owner
 check is not enabled in this browser stack; this does not establish workload
 ownership, approval, activation, measured compliance or provider acceptance.
 

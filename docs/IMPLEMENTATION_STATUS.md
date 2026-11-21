@@ -1125,6 +1125,17 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   suite passed 11 tests, including synthetic local draft creation, unchanged
   replay, changed-content conflict and denied write access. Its optional S02
   owner check was disabled; this is not owner or provider acceptance.
+- UX01 now reads an objective using a separate global read delegation and
+  submits the reviewed draft revision and content digest using a global write
+  delegation. The retry-safe S05 route checks the draft's revision, digest and
+  mandatory constraint, and atomically records the submission key, transition
+  and outbox event. Unchanged retries return the current recorded state; changed
+  requests conflict. The browser retains the original form for an unconfirmed
+  outcome and validates the returned ID, digest, state and revision. Submission
+  requests independent review; it is not approval, activation or compliance.
+  The clean S05/EDGE01 reactor passed 58 tests, UX01 passed 186 tests, and the
+  isolated synthetic browser suite passed 11 tests. Browser tests do not
+  establish workload-owner or provider acceptance.
 - Separate transitions with expected revisions: propose (DRAFT) -> submit -> decide
   (APPROVE/REJECT by a principal other than the proposer) -> activate (SUBMITTED,
   APPROVED, ACTIVE). Activation supersedes the active objective for the same

@@ -351,6 +351,63 @@ class ObjectivesApplicationTests {
   }
 
   @Test
+  void idempotentSubmissionSerializesConcurrentRequestsAndReplaysCurrentState() throws Exception {
+    String propose = bearer("creator", "t-submit-idempotent", PROPOSER);
+    String created = post("/v1/objectives", propose,
+        objective("submit-one", "w-submit", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    String body = "{\"expected_revision\":1,\"expected_content_digest\":\"" + digest + "\"}";
+    String path = "/v1/objectives/submit-one:idempotent-submit";
+    HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        .header("Authorization", propose).header("Content-Type", "application/json")
+        .header("Idempotency-Key", "submit-key").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    var first = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    var second = http.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    assertEquals(200, first.get().statusCode());
+    assertEquals(200, second.get().statusCode());
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.outbox_event WHERE tenant_id = 't-submit-idempotent' AND event_type = 'objectives.objective.submitted'",
+        Integer.class));
+    assertThat(postWithIdempotency(path, propose, body.replace(":1,", ":2,"), "submit-key").body())
+        .contains("IDEMPOTENCY_CONFLICT");
+    assertEquals(403, postWithIdempotency(path,
+        token("creator", "t-submit-idempotent", "w-submit", PROPOSER), body, "submit-key").statusCode());
+    assertEquals(200, post("/v1/objectives/submit-one:decide",
+        bearer("reviewer", "t-submit-idempotent", DECIDER), decision("APPROVE", 2)).statusCode());
+    assertThat(postWithIdempotency(path, propose, body, "submit-key").body())
+        .contains("\"state\":\"APPROVED\"").contains("\"revision\":3");
+  }
+
+  @Test
+  void idempotentSubmissionRejectsMismatchAndRollsBackLedger() throws Exception {
+    String propose = bearer("creator", "t-submit-invalid", PROPOSER);
+    String created = post("/v1/objectives", propose,
+        objective("submit-two", "w-submit-two", "latency.p95", "LTE", "250", "ms")).body();
+    String digest = extractString(created, "content_digest");
+    String body = "{\"expected_revision\":1,\"expected_content_digest\":\"" + digest + "\"}";
+    String path = "/v1/objectives/submit-two:idempotent-submit";
+    assertEquals(400, post(path, propose, body).statusCode());
+    assertThat(postWithIdempotency(path, propose, body.replace(digest, "a".repeat(64)), "retry-key").body())
+        .contains("CONTENT_MISMATCH");
+    assertThat(postWithIdempotency(path, propose, body.replace(":1,", ":2,"), "retry-key").body())
+        .contains("REVISION_MISMATCH");
+    String admin = bearer("admin", "t-submit-invalid", List.of("objectives.constraint.write"));
+    assertEquals(200, put("/v1/organization-constraints/latency.p95", admin,
+        "{\"unit\":\"ms\",\"max_target\":\"100\"}").statusCode());
+    assertThat(postWithIdempotency(path, propose, body, "retry-key").body()).contains("CONSTRAINT_VIOLATION");
+    assertEquals(0, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.objective_submission WHERE tenant_id = 't-submit-invalid'",
+        Integer.class));
+    assertEquals(200, put("/v1/organization-constraints/latency.p95", admin,
+        "{\"unit\":\"ms\",\"max_target\":\"300\"}").statusCode());
+    assertEquals(200, postWithIdempotency(path, propose, body, "retry-key").statusCode());
+    assertThat(postWithIdempotency(path, propose, body, "different-key").body()).contains("REVISION_MISMATCH");
+    assertEquals(1, jdbc.queryForObject(
+        "SELECT count(*) FROM uacrf_objectives.objective_submission WHERE tenant_id = 't-submit-invalid'",
+        Integer.class));
+  }
+
+  @Test
   void localObjectiveCreationSerializesReplayAndReturnsCurrentState() throws Exception {
     String path = "/v1/objectives:local-idempotent-create";
     String propose = bearer("creator", "t-local-idempotent", PROPOSER);

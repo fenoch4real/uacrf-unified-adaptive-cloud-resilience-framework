@@ -111,7 +111,12 @@ provider acceptance.
 ### S05 objectives
 
 - [x] M2-020 Create retry-safe local objective drafts through UX01, EDGE01 and S05 with separate global write authority. Evidence: commit `8239039`; 182 web tests, 56 selected reactor tests and 11 isolated browser tests passed.
-- [ ] M2-021 Connect objective submission through the browser with expected-revision and separate authorization checks.
+- [x] M2-021 Connect objective submission through the browser with expected-revision and separate authorization checks. Evidence: R-0011–R-0015 below; synthetic/local scope only.
+  - [x] M2-021a Add atomic, retry-safe objective submission with preserved revision and constraint checks.
+  - [x] M2-021b Forward submission and idempotency key through EDGE01.
+  - [x] M2-021c Connect a semantic, context-bound UX01 submission form with separate read/write delegations; full accessibility review remains M8-013.
+  - [x] M2-021d Verify creation-to-submission, replay, conflict, stale revision, denial and database rollback.
+  - [x] M2-021e Update contracts, status and private approach documentation after verified completion.
 - [ ] M2-022 Connect independent objective approval/rejection through the browser with review-history disclosure.
 - [ ] M2-023 Connect objective activation and active-objective readback through the browser.
 - [ ] M2-024 Verify S02 workload ownership at proposal and activation across real owner services when enabled.
@@ -350,3 +355,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0007 | 2026-11-20 | M2-020 | Completed and committed local objective creation as `8239039`; private approach revision 173 verified. | Broader S05 lifecycle/import and provider acceptance remain open. |
 | R-0008 | 2026-11-20 | Checklist setup | Established this initial milestone breakdown, individual distributed cases and inherited-scenario checklist from the linked roadmap and inventories. | Item-level operation/table/requirement reconciliation and future task decomposition remain open. |
 | R-0009 | 2026-11-20 | Checklist setup | Verified 235 unique checkbox IDs, all 39 inventory scenario IDs, all 30 distributed-case IDs, and no whitespace errors. | The checklist is a living baseline, not a fully reconciled operation-by-operation inventory. |
+| R-0010 | 2026-11-20 | Checklist setup | Committed `d851897` and pushed the checklist and preceding verified objective-creation slice to `origin/main`. | Objective submission is the next selected slice. |
+| R-0011 | 2026-11-20 | M2-021a, M2-021b | Clean selected S05/EDGE01 reactor: 58 tests passed, including concurrent retry and forwarding. | UI, browser integration and full slice verification remain open. |
+| R-0012 | 2026-11-20 | M2-021c | Clean UX01 suite: 186 tests passed, including separate read/write delegations and CSRF/uncertain-outcome handling. | Isolated browser integration and full slice verification remain open. |
+| R-0013 | 2026-11-20 | M2-021d | Focused S05 application suite: 14 tests passed, including constraint-violation rollback and safe retry. | Browser integration and end-to-end slice verification remain open. |
+| R-0014 | 2026-11-20 | M2-021c | Focused objective form/client tests: 5 passed after adding provenance details to the review page. | Isolated browser validation remains open. |
+| R-0015 | 2026-11-20 | M2-021d | Isolated browser suite: 11 passed, including synthetic creation-to-submission, replay, conflict and denied read/write. | Optional S02 workload-owner check is disabled in this browser stack; no provider acceptance. |
+| R-0016 | 2026-11-20 | M2-021, M2-021e | Completed the retry-safe submission slice and updated the status, contract, browser evidence and private technical approach revision 174. | Independent review/activation and imported-objective workflow remain open. |

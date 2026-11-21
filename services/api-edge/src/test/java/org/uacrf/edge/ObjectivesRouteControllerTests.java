@@ -62,6 +62,12 @@ class ObjectivesRouteControllerTests {
         .andExpect(header("Idempotency-Key", "preview-1"))
         .andRespond(withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON).body("{}"));
     server
+        .expect(requestTo(URL + "/v1/objectives/o-1:idempotent-submit"))
+        .andExpect(method(HttpMethod.POST))
+        .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer delegated"))
+        .andExpect(header("Idempotency-Key", "submission-1"))
+        .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON).body("{}"));
+    server
         .expect(requestTo(URL + "/v1/objective-imports/import-1"))
         .andExpect(method(HttpMethod.GET))
         .andRespond(withStatus(HttpStatus.ACCEPTED).contentType(MediaType.APPLICATION_JSON).body("{}"));
@@ -95,6 +101,10 @@ class ObjectivesRouteControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isAccepted());
+    mvc.perform(post("/internal/objectives/v1/objectives/o-1:idempotent-submit")
+            .header(HttpHeaders.AUTHORIZATION, "Bearer delegated")
+            .header("Idempotency-Key", "submission-1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isOk());
     mvc.perform(get("/internal/objectives/v1/objective-imports/import-1"))
         .andExpect(status().isAccepted());
     mvc.perform(post("/internal/objectives/v1/objectives/o-1:decide").contentType(MediaType.APPLICATION_JSON).content("{}"))

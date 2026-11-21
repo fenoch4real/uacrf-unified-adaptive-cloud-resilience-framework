@@ -51,6 +51,7 @@
         <dt>Decision reason</dt><dd th:text="${item.decisionReason != null ? item.decisionReason : 'Not recorded'}">Reason</dd>
         <dt>Activated by</dt><dd th:text="${item.activatedBy != null ? item.activatedBy : 'Not recorded'}">Activator</dd>
       </dl>
+      <p th:if="${item.state == 'DRAFT'}"><a th:href="@{/objectives/submit(id=${item.id})}">Review draft for submission</a></p>
     </li>
   </ul>
   <nav aria-label="Objective pages" th:if="${nextCursor != null}">

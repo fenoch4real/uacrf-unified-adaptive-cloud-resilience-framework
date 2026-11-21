@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Objective submission receipt | UACRF</title></head>
+<body><main>
+  <h1>Objective submission receipt</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This is the current recorded state; submission is not approval, activation or proof of compliance.</p>
+  <dl><dt>Objective ID</dt><dd th:text="${objective.id}">ID</dd>
+    <dt>State</dt><dd th:text="${objective.state}">SUBMITTED</dd>
+    <dt>Revision</dt><dd th:text="${objective.revision}">Revision</dd>
+    <dt>Content digest</dt><dd th:text="${objective.contentDigest}">Digest</dd></dl>
+  <p><a href="/objectives">View objectives</a> (requires separate global read access)</p>
+</main></body></html>

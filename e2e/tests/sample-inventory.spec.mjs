@@ -842,6 +842,26 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedObjectiveForm.toString(),
     });
     expect(changedObjective.status()).toBe(409);
+    await sample.getByRole('link', { name: 'Review draft for submission' }).click();
+    await expect(sample.getByRole('heading', { name: 'Review objective submission' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('Synthetic local objective');
+    const [submissionRequest] = await Promise.all([
+      sample.waitForRequest((request) => request.method() === 'POST'
+        && new URL(request.url()).pathname === '/objectives/submit'),
+      sample.getByRole('button', { name: 'Submit objective for review' }).click(),
+    ]);
+    await expect(sample.getByRole('heading', { name: 'Objective submission receipt' })).toBeVisible();
+    await expect(sample.locator('main')).toContainText('SUBMITTED');
+    const replaySubmission = await sample.request.post('/objectives/submit', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: submissionRequest.postData(),
+    });
+    expect(replaySubmission.status()).toBe(200);
+    const changedSubmission = new URLSearchParams(submissionRequest.postData());
+    changedSubmission.set('contentDigest', 'a'.repeat(64));
+    const conflictSubmission = await sample.request.post('/objectives/submit', {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: changedSubmission.toString(),
+    });
+    expect(conflictSubmission.status()).toBe(409);
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -1209,7 +1229,18 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await expect(restricted.getByRole('alert')).toContainText('not authorized');
       const globalObjectives = await restricted.goto('/objectives');
       expect(globalObjectives.status()).toBe(403);
+      const deniedSubmissionRead = await restricted.goto(`/objectives/submit?id=${newObjectiveId}`);
+      expect(deniedSubmissionRead.status()).toBe(403);
       await restricted.goto('/objectives/new');
+      const restrictedSubmission = new URLSearchParams(submissionRequest.postData());
+      for (const field of ['_csrf', 'principalName', 'tenantId', 'environmentId']) {
+        restrictedSubmission.set(field, await restricted.locator(`input[name="${field}"]`).inputValue());
+      }
+      restrictedSubmission.set('idempotencyKey', randomUUID());
+      const deniedSubmissionWrite = await restricted.request.post('/objectives/submit', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: restrictedSubmission.toString(),
+      });
+      expect(deniedSubmissionWrite.status()).toBe(403);
       await restricted.getByLabel('Objective ID').fill(`denied-objective-${randomUUID()}`);
       await restricted.getByLabel('Workload ID').fill('browser-objective-workload');
       await restricted.getByLabel('Title').fill('Denied synthetic objective');

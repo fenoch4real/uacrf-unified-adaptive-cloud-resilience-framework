@@ -57,6 +57,58 @@ class WebApplicationTests {
   @MockitoBean private KnowledgeClient knowledge;
   @MockitoBean private PolicyClient policies;
 
+  private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveSubmission() {
+    return post("/objectives/submit").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("id", "objective-a").param("expectedRevision", "1").param("contentDigest", "a".repeat(64))
+        .param("idempotencyKey", "12345678-1234-4234-8234-123456789012")
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+  }
+
+  @Test
+  void objectiveSubmissionFormReadsCurrentObjectiveWithSeparateReadGrant() throws Exception {
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-reader", "Bearer", 30));
+    when(objectives.get("objective-reader", "objective-a"))
+        .thenReturn(new ObjectivesClient.Objective("objective-a", "workload-a", "Latency", "latency.p95",
+            "LTE", new java.math.BigDecimal("99.75"), "ms", 60, "LOCAL", null, null, null, null,
+            "a".repeat(64), "DRAFT", 1L, "creator", null, null, null));
+    mockMvc.perform(get("/objectives/submit").param("id", "objective-a")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Latency")))
+        .andExpect(content().string(containsString("Submit objective for review")))
+        .andExpect(content().string(containsString("name=\"_csrf\"")));
+    verify(identity).createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read"), "tenant-test", "environment-test");
+  }
+
+  @Test
+  void objectiveSubmissionPreservesUnconfirmedRequestAndUsesSeparateWriteGrant() throws Exception {
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("objective-writer", "Bearer", 30));
+    when(objectives.submit("objective-writer", "objective-a", "12345678-1234-4234-8234-123456789012", 1, "a".repeat(64)))
+        .thenThrow(new ResourceAccessException("timeout"));
+    mockMvc.perform(objectiveSubmission()).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Submission is unconfirmed")))
+        .andExpect(content().string(containsString("12345678-1234-4234-8234-123456789012")))
+        .andExpect(content().string(containsString("Submit objective for review")));
+    verify(identity).createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.write"), "tenant-test", "environment-test");
+  }
+
+  @Test
+  void objectiveSubmissionRejectsChangedContextInvalidDigestAndMissingCsrf() throws Exception {
+    mockMvc.perform(objectiveSubmission().with(request -> { request.setParameter("contentDigest", "bad"); return request; }))
+        .andExpect(status().isBadRequest());
+    mockMvc.perform(objectiveSubmission().with(request -> { request.setParameter("principalName", "other"); return request; }))
+        .andExpect(status().isConflict());
+    mockMvc.perform(post("/objectives/submit").with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    verifyNoInteractions(identity, objectives);
+  }
+
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder objectiveCreation() {
     return post("/objectives").with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
         .param("id", "objective-a").param("workloadId", "workload-a").param("title", "Latency")

@@ -164,6 +164,14 @@ the unkeyed route.
   state, while changed content returns 409. The ledger, objective and outbox
   commit together. This does not change the original non-idempotent proposal
   route or establish approval, activation or compliance.
+- **Retry-safe objective submission:** `POST /v1/objectives/{id}:idempotent-submit`
+  requires a global `objectives.objective.write` delegation, `Idempotency-Key`,
+  expected revision and expected content digest. S05 checks the current draft
+  and organization constraint under the objective lock. The actor/context
+  scoped idempotency record, transition and outbox event commit together;
+  unchanged retries return the objective's current recorded state and changed
+  request content conflicts. Submission requests review; it is not approval
+  or activation. The original submit route remains available.
 - **Synchronous service calls:** The browser application calls the Experience API for identity operations and the API Edge for catalog operations. The Experience API forwards to S01. The API Edge routes to S01, S02, S03, S04, S05, S06, S07, or S08 without response aggregation.
 - **Versioning:** HTTP APIs use path-based `/v1` versioning; service-only routes are placed beneath `/internal`. No header- or query-based API versioning was found.
 - **Internal proof and receipt calls:** S06 verifies identity delegation, S02 owner receipts and exact catalog revisions, S04 bounded evidence summaries, and S07 case receipts. When enabled, S05 exchanges the caller's S05 JWT with S01 for an exact purpose/resource S02 delegation, requests the current workload receipt, and verifies its signature and context before proposal or activation. S02 also verifies the caller principal matches the workload's current catalog owner for these S05 purposes. The S05 receipt is point-in-time and is not an atomic fence or persisted by S05. The S07 receipt's `purpose` is the case's business purpose (for example, `incident`); the topology operation purpose is bound and authorized by the S01 delegation exchanged for that exact case ID and is not required to equal the receipt's purpose. S07 also has optional receipt clients for S04/S05/S06; S08 has an optional S07 case-receipt client. These are direct synchronous REST calls, controlled by environment-configurable base URLs.

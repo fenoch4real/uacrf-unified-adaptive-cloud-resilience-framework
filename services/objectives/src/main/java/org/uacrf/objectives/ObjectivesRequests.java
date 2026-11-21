@@ -1,6 +1,7 @@
 package org.uacrf.objectives;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -50,6 +51,10 @@ final class ObjectivesRequests {
       @Min(0) long expectedLocalRevision) {}
 
   record Transition(@Min(1) long expectedRevision) {}
+
+  record IdempotentSubmission(
+      @Min(1) @Max(9223372036854775806L) long expectedRevision,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String expectedContentDigest) {}
 
   record DecideObjective(
       @NotNull Decision decision,

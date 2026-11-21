@@ -262,9 +262,48 @@ class ObjectivesService {
   Objective submit(DelegationPrincipal actor, String id, Transition request) {
     requireCapability(actor, "objectives.objective.write");
     requireGlobalScope(actor);
+    return submitObjective(actor, id, request.expectedRevision(), null);
+  }
+
+  @Transactional
+  Objective submitIdempotent(
+      DelegationPrincipal actor, String id, IdempotentSubmission request, String idempotencyKey) {
+    requireCapability(actor, "objectives.objective.write");
+    requireGlobalScope(actor);
+    validateIdempotencyKey(idempotencyKey);
+    Map<String, Object> material = new TreeMap<>();
+    material.put("id", id);
+    material.put("expected_revision", request.expectedRevision());
+    material.put("expected_content_digest", request.expectedContentDigest());
+    String digest = sha256(serialize(material));
+    int inserted = jdbc.update(
+        "INSERT INTO " + SCHEMA + "objective_submission "
+            + "(tenant_id, environment_id, actor_id, idempotency_key, request_digest, objective_id) "
+            + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+        actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey, digest, id);
+    if (inserted == 0) {
+      List<Map<String, Object>> rows = jdbc.queryForList(
+          "SELECT objective_id, request_digest FROM " + SCHEMA + "objective_submission "
+              + "WHERE tenant_id = ? AND environment_id = ? AND actor_id = ? AND idempotency_key = ? FOR UPDATE",
+          actor.tenantId(), actor.environmentId(), actor.principalId(), idempotencyKey);
+      if (rows.isEmpty()) throw new IllegalStateException("The objective submission record disappeared.");
+      Map<String, Object> row = rows.getFirst();
+      if (!digest.equals(row.get("request_digest").toString().trim())) {
+        throw conflict("IDEMPOTENCY_CONFLICT", "The idempotency key was already used for a different submission.");
+      }
+      return find(actor, row.get("objective_id").toString());
+    }
+    return submitObjective(actor, id, request.expectedRevision(), request.expectedContentDigest());
+  }
+
+  private Objective submitObjective(
+      DelegationPrincipal actor, String id, long expectedRevision, String expectedContentDigest) {
     Map<String, Object> row = lock(actor, id);
-    requireRevision(row, request.expectedRevision());
+    requireRevision(row, expectedRevision);
     requireState(row, "DRAFT");
+    if (expectedContentDigest != null && !expectedContentDigest.equals(row.get("content_digest").toString().trim())) {
+      throw conflict("CONTENT_MISMATCH", "The objective content changed since it was read.");
+    }
     enforceConstraint(actor, row);
     move(actor, id, row, "SUBMITTED", null, null, "objectives.objective.submitted");
     return find(actor, id);

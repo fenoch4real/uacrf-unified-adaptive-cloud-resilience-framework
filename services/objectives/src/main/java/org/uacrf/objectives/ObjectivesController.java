@@ -84,6 +84,14 @@ class ObjectivesController {
     return objectives.submit(DelegationPrincipal.from(jwt), id, request);
   }
 
+  @PostMapping("/v1/objectives/{id}:idempotent-submit")
+  Objective submitIdempotent(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @Valid @RequestBody IdempotentSubmission request) {
+    return objectives.submitIdempotent(DelegationPrincipal.from(jwt), id, request, idempotencyKey);
+  }
+
   @PostMapping("/v1/objectives/{id}:decide")
   Objective decide(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @Valid @RequestBody DecideObjective request) {
