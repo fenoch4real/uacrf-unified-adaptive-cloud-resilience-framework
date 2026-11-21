@@ -993,6 +993,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     let mappingReadUrl;
     let proposalListUrl;
     let candidateUrl;
+    let comparisonUrl;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -1145,6 +1146,19 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       await sample.goto(candidateUrl);
       await expect(sample.getByRole('heading', { name: 'Retained synthetic candidate' })).toBeVisible();
       await expect(sample.getByRole('button', { name: 'Retain synthetic candidate' })).toHaveCount(0);
+      await sample.getByLabel('Local objective ID (required)').fill(newObjectiveId);
+      const [comparisonResponse] = await Promise.all([
+        sample.waitForResponse((response) => response.request().method() === 'GET'
+          && new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-candidate'
+          && new URL(response.url()).searchParams.has('objectiveId')),
+        sample.getByRole('button', { name: 'Compare fields' }).click(),
+      ]);
+      expect(comparisonResponse.status()).toBe(200);
+      comparisonUrl = sample.url();
+      await expect(sample.getByRole('heading', { name: 'Partial field comparison' })).toBeVisible();
+      await expect(sample.locator('main')).toContainText('NOT_AVAILABLE');
+      await expect(sample.locator('main')).toContainText('NOT_COMPARABLE');
+      await expect(sample.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
       await sample.goto(new URL(mappingReadUrl, sample.url()).toString());
       await sample.getByRole('link', { name: 'Back to this capture' }).click();
       const [proposalList] = await Promise.all([
@@ -1622,6 +1636,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       if (candidateUrl) {
         expect((await restricted.goto(candidateUrl)).status()).toBe(403);
         await expect(restricted.getByRole('heading', { name: 'Retained synthetic candidate' })).toHaveCount(0);
+      }
+      if (comparisonUrl) {
+        expect((await restricted.goto(comparisonUrl)).status()).toBe(403);
+        await expect(restricted.getByRole('heading', { name: 'Partial field comparison' })).toHaveCount(0);
       }
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');

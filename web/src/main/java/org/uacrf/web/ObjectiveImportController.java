@@ -518,7 +518,8 @@ class ObjectiveImportController {
   @GetMapping("/objectives/import/receipt/synthetic-candidate")
   String syntheticCandidate(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response, @RequestParam String id, @RequestParam String captureId,
-      @RequestParam String proposalId, @RequestParam String reviewId, Model model) {
+      @RequestParam String proposalId, @RequestParam String reviewId,
+      @RequestParam(required = false) String objectiveId, Model model) {
     if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
     response.setHeader("Cache-Control", "no-store");
     model.addAttribute("selectedContext", context);
@@ -552,7 +553,17 @@ class ObjectiveImportController {
             proposal.proposalDigestVersion(), proposal.proposalDigest(), UUID.randomUUID().toString(),
             context.tenantId(), context.environmentId(), client.getPrincipalName()));
       } else {
-        model.addAttribute("candidate", candidates.items().getFirst());
+        var candidate = candidates.items().getFirst();
+        model.addAttribute("candidate", candidate);
+        if (objectiveId != null) {
+          if (!objectiveId.matches("^[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}$")) {
+            response.setStatus(HttpStatus.BAD_REQUEST.value());
+            model.addAttribute("candidateError", "Provide a valid local objective ID.");
+            return "objective-import-synthetic-candidate";
+          }
+          var capture = objectives.getImportSampleCapture(token, id, captureId);
+          model.addAttribute("comparison", objectives.compareSyntheticCandidate(token, candidate, capture, objectiveId));
+        }
       }
     } catch (ResourceAccessException error) {
       response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());

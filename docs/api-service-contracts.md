@@ -304,7 +304,9 @@ the unkeyed route.
   `SYNTHETIC_UNVERIFIED`; it is not a three-way classification, a source
   recheck, a revision guard or a retained import decision. Neither record is
   changed. The read is `no-store`; EDGE01 forwards the objective selection,
-  authorization and owner response. UX01 access remains open.
+  authorization and owner response. UX01 accepts an explicit objective ID,
+  checks the returned candidate, workload, fields and status, and displays the
+  partial results with an explicit limitation notice.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

@@ -21,6 +21,42 @@
     <p><a th:href="@{/objectives/import/receipt/synthetic-mapping-review(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId},proposalId=${mappingProposal.proposalId})}">Back to review</a></p>
   </section>
   <section th:if="${candidate != null}">
+    <h2>Compare selected local objective</h2>
+    <p>Choose an objective ID in this workload. This read-only comparison is partial, not a three-way
+      classification or a source verification, and it does not resolve or process the import.</p>
+    <form method="get" th:action="@{/objectives/import/receipt/synthetic-candidate}">
+      <input type="hidden" name="id" th:value="${candidate.receiptId}">
+      <input type="hidden" name="captureId" th:value="${candidate.captureId}">
+      <input type="hidden" name="proposalId" th:value="${candidate.proposalId}">
+      <input type="hidden" name="reviewId" th:value="${candidate.reviewId}">
+      <label for="objective-id">Local objective ID (required)</label>
+      <input id="objective-id" name="objectiveId" required maxlength="200" pattern="[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}">
+      <button type="submit">Compare fields</button>
+    </form>
+  </section>
+  <section th:if="${comparison != null}">
+    <h2>Partial field comparison</h2>
+    <p>The local revision and lifecycle digest describe the selected snapshot, not an import fingerprint or revision guard.
+      Measurement semantics are unavailable and windows use different representations. Reopen to refresh.</p>
+    <dl>
+      <dt>Objective ID</dt><dd th:text="${comparison.objectiveId}"></dd>
+      <dt>Workload ID</dt><dd th:text="${comparison.workloadId}"></dd>
+      <dt>Local revision</dt><dd th:text="${comparison.localRevision}"></dd>
+      <dt>Local lifecycle digest</dt><dd th:text="${comparison.localContentDigest}"></dd>
+      <dt>Local state</dt><dd th:text="${comparison.localState}"></dd>
+      <dt>Status</dt><dd th:text="${comparison.status}"></dd>
+      <dt>Verification</dt><dd th:text="${comparison.verification}"></dd>
+    </dl>
+    <ul><li th:each="field : ${comparison.fields}">
+      <strong th:text="${field.field}"></strong>
+      <dl>
+        <dt>Result</dt><dd th:text="${field.result}"></dd>
+        <dt>Historical synthetic</dt><dd th:text="${field.syntheticValue == null ? 'Not provided' : field.syntheticValue}"></dd>
+        <dt>Selected local</dt><dd th:text="${field.localValue == null ? 'Not available' : field.localValue}"></dd>
+      </dl>
+    </li></ul>
+  </section>
+  <section th:if="${candidate != null}">
     <h2>Retained synthetic candidate</h2>
     <dl>
       <dt>Candidate ID</dt><dd th:text="${candidate.candidateId}"></dd>

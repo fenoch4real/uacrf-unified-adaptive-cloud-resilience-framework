@@ -746,6 +746,31 @@ class WebApplicationTests {
     mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
             .param("reviewId", reviewId).with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isOk()).andExpect(content().string(containsString("UNCOMPARED")));
+    var retained = new ObjectivesClient.RetainedSampleCapture(capture, id, "2026-11-21T00:00:00Z",
+        "actor", "a".repeat(64), "connection", 1L, "binding", 2L, "workload",
+        "sample", "external", "v1", "payload", "b".repeat(64),
+        "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "c".repeat(64), "SYNTHETIC_UNVERIFIED");
+    when(objectives.getImportSampleCapture("reader", id, capture)).thenReturn(retained);
+    var comparison = new ObjectivesClient.SyntheticLocalComparison(candidate.candidateId(), "local-1", "workload",
+        1L, "a".repeat(64), "DRAFT", "PARTIAL", "SYNTHETIC_UNVERIFIED",
+        List.of(new ObjectivesClient.SyntheticComparisonField("metric", "DIFFERENT", "<metric>", "<local>")));
+    when(objectives.compareSyntheticCandidate("reader", candidate, retained, "local-1")).thenReturn(comparison);
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .param("reviewId", reviewId).param("objectiveId", "local-1")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("Partial field comparison")))
+        .andExpect(content().string(containsString("&lt;local&gt;")))
+        .andExpect(content().string(containsString("not a three-way")));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .param("reviewId", reviewId).param("objectiveId", "bad/id")
+            .with(browserLogin()).session(sessionWithSelectedContext())).andExpect(status().isBadRequest());
+    when(objectives.compareSyntheticCandidate("reader", candidate, retained, "local-1"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .param("reviewId", reviewId).param("objectiveId", "local-1")
+            .with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden()).andExpect(content().string(containsString("HTTP 403")))
+        .andExpect(content().string(not(containsString("Partial field comparison"))));
     verify(objectives, org.mockito.Mockito.times(2)).createSyntheticCandidate("writer", proposal, review, key);
     mockMvc.perform(post(path).with(browserLogin()).session(sessionWithSelectedContext()))
         .andExpect(status().isForbidden());

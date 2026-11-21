@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**180 completed / 840 total** · 660 open
+**181 completed / 840 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 90 | 253 |
+| Milestone items | 91 | 253 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -364,7 +364,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
   - [x] M2-027c Expose a read-only synthetic candidate versus explicitly selected local-objective field comparison in S05, bound to the captured workload and scoped read authority. Disclose incomparable semantics and never claim a complete three-way decision or modify either record. Evidence: R-0339–R-0340.
   - [x] M2-027d Forward the partial synthetic/local field comparison through EDGE01 with the original authorization and owner response. Evidence: R-0344.
-  - [ ] M2-027e Connect the partial comparison to UX01 with explicit objective selection and unverified/incomplete limitations; verify browser success and denial.
+  - [x] M2-027e Connect the partial comparison to UX01 with explicit objective selection and unverified/incomplete limitations; verify browser success and denial. Evidence: R-0348–R-0351.
 - [ ] M2-028 Resolve an import preview and reject changed source/local revisions.
 - [ ] M2-029 Propose an imported objective from a reviewed resolution and retain history.
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
@@ -1481,6 +1481,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0344 | 2026-11-21 | M2-027d | Ran the complete EDGE01 regression. | All 44 tests passed, including authorization forwarding, selected objective ID, owner errors and no-store behavior. |
 | R-0345 | 2026-11-21 | M2-027d | Updated tracking and contract documentation. | The combined patch partially failed on an incorrect design-note context; reapplied the remaining edit with the correct context. |
 | R-0346 | 2026-11-21 | M2-027d | Updated private technical approach Appendix AB to revision 228. | Verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
+| R-0347 | 2026-11-21 | M2-027d | Committed and pushed EDGE01 comparison forwarding as `704b6b3`. | UX01 access remains open. |
+| R-0348 | 2026-11-21 | M2-027e | Implemented comparison selection and response validation; ran focused UX01 tests. | All 189 tests passed; end-to-end browser comparison and denial remain to be verified. |
+| R-0349 | 2026-11-21 | M2-027e | Ran the opt-in browser suite with the initial comparison layout. | All 11 tests passed, including comparison and restricted-user denial; changed the display to a semantic list afterward and will rerun. |
+| R-0350 | 2026-11-21 | M2-027e | Re-ran focused UX01 tests and the opt-in browser suite after the accessible list change. | All 189 web tests and 11 browser tests passed; the TLS proxy uses HTTP owner hops and is not end-to-end TLS evidence. |
+| R-0351 | 2026-11-21 | M2-027e | Ran the default-disabled browser suite and updated contracts, design notes and private technical approach Appendix AB to revision 229. | All 11 browser tests passed; verified DOCX archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. |
 
 ## Implementation evidence
 

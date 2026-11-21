@@ -412,6 +412,78 @@ class ObjectivesClient {
     }
   }
 
+  SyntheticLocalComparison compareSyntheticCandidate(String token, SyntheticCandidate candidate,
+      RetainedSampleCapture capture, String objectiveId) {
+    SyntheticLocalComparison result = restClient.get()
+        .uri(uri -> uri.path("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/"
+            + "{proposalId}/reviews/{reviewId}/synthetic-candidates/{candidateId}/local-comparison")
+            .queryParam("objectiveId", "{objectiveId}")
+            .build(candidate.receiptId(), candidate.captureId(), candidate.proposalId(), candidate.reviewId(),
+                candidate.candidateId(), objectiveId))
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SyntheticLocalComparison.class);
+    if (result == null || !candidate.candidateId().equals(result.candidateId())
+        || !objectiveId.equals(result.objectiveId()) || !capture.targetWorkloadId().equals(result.workloadId())
+        || result.localRevision() == null || result.localRevision() < 1 || !digest(result.localContentDigest())
+        || !present(result.localState())
+        || !List.of("DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ACTIVE", "SUPERSEDED").contains(result.localState())
+        || !"PARTIAL".equals(result.status()) || !"SYNTHETIC_UNVERIFIED".equals(result.verification())
+        || !validComparisonFields(result.fields(), candidate.normalizedDefinition())) {
+      throw new IllegalStateException("S05 returned an invalid partial comparison.");
+    }
+    return result;
+  }
+
+  private static boolean validComparisonFields(List<SyntheticComparisonField> fields, ImportDefinition source) {
+    if (fields == null || fields.size() != 8 || fields.stream().anyMatch(java.util.Objects::isNull)) return false;
+    var metric = fields.get(0);
+    var unit = fields.get(1);
+    var comparison = fields.get(2);
+    var target = fields.get(3);
+    var window = fields.get(4);
+    var measurement = fields.get(5);
+    var kind = fields.get(6);
+    var percentile = fields.get(7);
+    if (!validComparedField(metric, "metric", source.metric())
+        || !validComparedField(unit, "unit", source.unit())
+        || !validComparedField(comparison, "comparison", source.comparison())
+        || !List.of("AT_MOST", "AT_LEAST").contains(comparison.localValue())
+        || !"target".equals(target.field()) || !present(target.localValue())
+        || !sameNumber(target.syntheticValue(), source.target())
+        || !"window".equals(window.field()) || !"NOT_COMPARABLE".equals(window.result())
+        || !source.window().equals(window.syntheticValue()) || !present(window.localValue())
+        || !validUnavailableField(measurement, "measurement_ref", source.measurementRef())
+        || !validUnavailableField(kind, "measurement_kind", source.measurementKind())
+        || !validUnavailableField(percentile, "percentile",
+            source.percentile() == null ? null : source.percentile().toPlainString())) return false;
+    try {
+      if (Integer.parseInt(window.localValue()) <= 0) return false;
+      BigDecimal localTarget = new BigDecimal(target.localValue());
+      String expected = !unit.syntheticValue().equals(unit.localValue()) ? "NOT_COMPARABLE"
+          : source.target().compareTo(localTarget) == 0 ? "MATCH" : "DIFFERENT";
+      return expected.equals(target.result());
+    } catch (NumberFormatException error) {
+      return false;
+    }
+  }
+
+  private static boolean validComparedField(SyntheticComparisonField field, String name, String source) {
+    return name.equals(field.field()) && source.equals(field.syntheticValue()) && present(field.localValue())
+        && (source.equals(field.localValue()) ? "MATCH" : "DIFFERENT").equals(field.result());
+  }
+
+  private static boolean validUnavailableField(SyntheticComparisonField field, String name, String source) {
+    return name.equals(field.field()) && "NOT_AVAILABLE".equals(field.result())
+        && java.util.Objects.equals(source, field.syntheticValue()) && field.localValue() == null;
+  }
+
+  private static boolean sameNumber(String value, BigDecimal expected) {
+    try {
+      return value != null && expected != null && new BigDecimal(value).compareTo(expected) == 0;
+    } catch (NumberFormatException error) {
+      return false;
+    }
+  }
+
   private static boolean validFingerprint(DefinitionFingerprint value) {
     return value != null && "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(value.version()) && digest(value.digest());
   }
@@ -635,6 +707,15 @@ class ObjectivesClient {
       String status, String verification) {}
 
   record SyntheticCandidates(List<SyntheticCandidate> items) {}
+
+  record SyntheticComparisonField(String field, String result,
+      @JsonProperty("synthetic_value") String syntheticValue, @JsonProperty("local_value") String localValue) {}
+
+  record SyntheticLocalComparison(@JsonProperty("candidate_id") String candidateId,
+      @JsonProperty("objective_id") String objectiveId, @JsonProperty("workload_id") String workloadId,
+      @JsonProperty("local_revision") Long localRevision, @JsonProperty("local_content_digest") String localContentDigest,
+      @JsonProperty("local_state") String localState, String status, String verification,
+      List<SyntheticComparisonField> fields) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

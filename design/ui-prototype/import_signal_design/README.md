@@ -140,7 +140,8 @@ missing local measurement semantics as incomparable or unavailable. The
 current local revision and existing lifecycle digest are context, not a
 normalized-definition fingerprint. This is only a partial field comparison,
 not a three-way import classification, source verification or resolution.
-EDGE01 forwards the read; browser access remains open.
+EDGE01 forwards the read; UX01 accepts an explicit objective ID and displays
+validated, clearly labeled field results.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact
