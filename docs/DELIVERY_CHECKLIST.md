@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**133 completed / 792 total** · 659 open
+**134 completed / 793 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 43 | 205 |
+| Milestone items | 44 | 206 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -326,6 +326,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
 - [ ] M2-030 Connect import preview, resolution, proposal and history to the browser.
   - [x] M2-030a Connect pending preview admission and receipt readback to UX01 without implying that a source was fetched. Evidence: R-0094–R-0097.
   - [x] M2-030b Verify pending preview admission, replay, conflict, authorization and receipt readback in the isolated browser. Evidence: R-0097.
+  - [x] M2-030c Recover a known pending receipt from the import page with separate read authorization. Evidence: R-0110–R-0112.
 - [ ] M2-031 Publish and consume objective outbox events with idempotent downstream handling.
 
 ### S06 graph and S14 reporting
@@ -1194,6 +1195,12 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0105 | 2026-11-20 | M2-027a | Started implementing the design's conservative three-way import classification. | This isolated foundation does not fetch or compare persisted definitions. |
 | R-0106 | 2026-11-20 | M2-027a | `./mvnw -pl services/objectives -am clean test` exited 0: 32 S05 and 8 shared-security tests passed, including three-way comparison, invalid scope, explicit withdrawal and malformed digests. | The helper is not wired to import processing; it cannot establish source scope or verify withdrawal. |
 | R-0107 | 2026-11-20 | M2-027a | Updated private technical approach Appendix AB to revision 187; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; the import worker and source verification remain open. |
+| R-0108 | 2026-11-20 | M2-027a | Committed the standalone comparison foundation as `b4f54d7` and pushed it to `origin/main`. | Import processing and provider acceptance remain open. |
+| R-0109 | 2026-11-20 | M2-030c | Started connecting lookup of a saved pending receipt ID from the import page. | This is readback of a known ID, not import history or source processing. |
+| R-0110 | 2026-11-20 | M2-030c | `./mvnw -pl web -am clean test` exited 0: 200 UX01 tests passed. | The new browser lookup and denial flow still need end-to-end verification. |
+| R-0111 | 2026-11-20 | M2-030c | Checked fixed loopback ports; no listeners were reported. Started the isolated browser suite for receipt lookup. | Awaiting result. |
+| R-0112 | 2026-11-20 | M2-030c | `bash e2e/run-live.sh` exited 0: 11 browser tests passed, including lookup of a saved receipt and denial without read access. | Lookup requires a known ID; it is not import history, source verification or provider acceptance. |
+| R-0113 | 2026-11-20 | M2-030c | Updated private technical approach Appendix AB to revision 188; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; complete import processing remains open. |
 
 ## Implementation evidence
 
@@ -2366,6 +2373,8 @@ provisioning and live S01-to-S04 grant/delegation conformance remain outstanding
   The clean UX01 regression passed 200 tests and the isolated browser suite
   passed 11 tests, including admission, replay, conflict and denial. No worker
   fetches or verifies a source, performs comparison or creates a proposal.
+  A saved receipt ID can be looked up later using the separate read authority;
+  this does not list request history.
 - S05 has a tested, standalone exact-target conversion helper for the design's
   seconds/minutes and explicitly approved fraction/percent cases. It rejects
   unsupported mappings, incompatible windows, out-of-range values and

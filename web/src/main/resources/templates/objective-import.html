@@ -3,14 +3,14 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Request objective import preview | UACRF</title></head>
 <body><main>
-  <h1>Request objective import preview</h1>
+  <h1 id="import-heading">Request objective import preview</h1>
   <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/objectives">Back to objectives</a></p>
   <p>This only records a pending request. No worker currently resolves the connection, fetches or verifies
     a source definition, compares objectives, or creates a proposal. It will remain pending.</p>
   <p role="alert" th:if="${importError != null}" th:text="${importError}"></p>
-  <form method="post" th:action="@{/objectives/import}" th:object="${importForm}">
+  <form method="post" th:action="@{/objectives/import}" th:object="${importForm}" aria-labelledby="import-heading">
     <input type="hidden" th:field="*{idempotencyKey}">
     <input type="hidden" th:field="*{tenantId}">
     <input type="hidden" th:field="*{environmentId}">
@@ -32,4 +32,14 @@
       Changed details require a new form.</p>
     <button type="submit">Record pending preview request</button>
   </form>
+  <h2 id="receipt-lookup-heading">Find a saved request</h2>
+  <p>Enter a previously saved receipt ID. Reading requires separate global objective-read access.</p>
+  <search>
+    <form method="get" action="/objectives/import/receipt" aria-labelledby="receipt-lookup-heading">
+      <label for="receiptId">Receipt ID (required)</label>
+      <input id="receiptId" name="id" maxlength="36" required
+             autocorrect="off" autocapitalize="none" spellcheck="false">
+      <button type="submit">Find request</button>
+    </form>
+  </search>
 </main></body></html>

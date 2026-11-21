@@ -984,6 +984,12 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     const importReceiptUrl = await sample.getByRole('link', { name: 'Read current request status' }).getAttribute('href');
     await sample.getByRole('link', { name: 'Read current request status' }).click();
     await expect(sample.locator('main')).toContainText('PENDING');
+    const savedReceiptId = new URL(importReceiptUrl, sample.url()).searchParams.get('id');
+    await sample.getByRole('link', { name: 'Request or find an import' }).click();
+    await sample.getByLabel('Receipt ID (required)').fill(savedReceiptId);
+    await sample.getByRole('button', { name: 'Find request' }).click();
+    await expect(sample.locator('main')).toContainText(savedReceiptId);
+    await expect(sample.locator('main')).toContainText('PENDING');
     await sample.goto('/objectives');
     await expect(sample.getByRole('listitem').filter({ hasText: 'browser-objective-a' }))
       .toContainText('Synthetic browser objective');
@@ -1356,6 +1362,14 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       const deniedReviewRead = await restricted.goto(`/objectives/review?id=${newObjectiveId}`);
       expect(deniedReviewRead.status()).toBe(403);
       expect((await restricted.goto(importReceiptUrl)).status()).toBe(403);
+      await restricted.goto('/objectives/import');
+      await restricted.getByLabel('Receipt ID (required)').fill(savedReceiptId);
+      const [deniedImportLookup] = await Promise.all([
+        restricted.waitForResponse((response) => response.request().method() === 'GET'
+          && new URL(response.url()).pathname === '/objectives/import/receipt'),
+        restricted.getByRole('button', { name: 'Find request' }).click(),
+      ]);
+      expect(deniedImportLookup.status()).toBe(403);
       await restricted.goto('/objectives/import');
       await restricted.getByLabel('Connection ID (required)').fill('synthetic-import-connection');
       await restricted.getByLabel('External objective ID (required)').fill('denied-synthetic-definition');

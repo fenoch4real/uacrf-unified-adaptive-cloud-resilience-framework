@@ -118,6 +118,9 @@ checks that changing its contents conflicts, and reads its receipt with
 separate read authority. An ungranted user is denied both submission and
 receipt access. No connector is resolved, no source is fetched or verified,
 and no comparison or imported proposal is produced by this flow.
+The user can also enter a saved receipt ID on the import page to reopen it;
+the browser test checks this lookup and denial without read authority. It is
+not a history listing.
 S05's optional S02 owner check is not enabled in this browser stack; this does
 not establish workload ownership, measured compliance or provider acceptance.
 

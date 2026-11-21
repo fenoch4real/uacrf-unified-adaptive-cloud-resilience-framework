@@ -7,6 +7,7 @@
   <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
     <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
   <p><a href="/objectives">Back to objectives</a></p>
+  <p><a href="/objectives/import">Request or find an import</a></p>
   <p>The request is pending and no source has been fetched or verified. It is not a preview,
     a proposal, approval, activation or evidence of provider acceptance.</p>
   <p role="alert" th:if="${receiptError != null}" th:text="${receiptError}"></p>
