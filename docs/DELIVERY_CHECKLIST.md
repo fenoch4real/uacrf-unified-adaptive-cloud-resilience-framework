@@ -1,6 +1,6 @@
 # UACRF implementation status and delivery checklist
 
-[Milestone tracker](#milestone-and-capability-tracker) · [Delivery checklist](#granular-delivery-checklist) · [Inventory reconciliation](#item-by-item-inventory-reconciliation) · [Execution log](#execution-log) · [Implementation evidence](#implementation-evidence)
+[Overview](#milestone-and-capability-tracker) · [Work by milestone](#granular-delivery-checklist) · [Inventory reconciliation](#item-by-item-inventory-reconciliation) · [Acceptance cases](#distributed-acceptance-cases) · [Execution log](#execution-log) · [Evidence](#implementation-evidence)
 
 The target is the complete M0-M8 roadmap in
 [`implementation-roadmap.md`](implementation-roadmap.md). No milestone is
@@ -21,17 +21,32 @@ see the [granular delivery checklist](#granular-delivery-checklist).
 recorded in the detailed sections below; it is not a percentage-complete
 estimate.
 
-| Milestone | Services and capabilities | Progress | Remaining milestone-level work |
-| --- | --- | --- | --- |
-| M0 — Implementation baseline | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress | Reconcile inherited design allocations against this fresh implementation; record unavailable legacy source or database evidence as unknown. Close remaining threat-model and release-control gaps. |
-| M1 — First service workflow | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress | The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review. |
-| M2 — Evidence and topology | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress | The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after the aggregate-type contract change (5 tests, 0 failures, 0 errors, 0 skips). S04 sequence identity now includes aggregate type; the V8 migration classifies retained S03 events and conservatively preserves ambiguous legacy quarantines. The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain. |
-| M3 — Assessment and advisory | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress | UX01 creates retry-protected S07 draft cases, incidents and learning proposals, reviews and seals drafts, runs retry-protected evaluations, and supports learning review and historical decision reads through EDGE01 with separate globally scoped, context-bound delegations. UX01 also stages retry-protected S08 candidates, browses metadata, independently reviews exact versions, withdraws approved items, creates retry-protected retrievals and browses retrieval history with explicit classification grants. Case creation and sealing do not verify references; skipped receipt verification does not qualify evidence for incident creation; learning proposals and reviews do not establish adoption. Knowledge reviews, metadata and retrievals are not current authorization. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation. |
-| M4 — Policy and authorization | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial | UX01 proposes retry-safe policy revisions, browses service-scoped summaries and exact revisions, and submits rejections or signed approvals through EDGE01 with separate S10 write, read and review delegations. A local PEM-key helper can generate approval assertions; production key management, policy evaluation, action authorization, current-state fences, and read-only decision replay remain open. The existing S10 slice is governance metadata, not operational authority. |
-| M5 — Execution and recovery validation | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started | Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately. |
-| M6 — Commercial and operational administration | Usage admission, rating, invoicing, payment reconciliation, notifications, evidence export | Not started | Implement and test the commercial and operational workflows, including duplicate/reordered events and interrupted reconciliation. |
-| M7 — Governed prediction and provider breadth | Model evaluation and learning; AWS, Azure, and Google Cloud capabilities | Not started | Implement temporal evaluation, uncertainty/calibration and shadow criteria; qualify providers individually. Existing model metadata and provider stubs do not meet this milestone. |
-| M8 — Migration and release acceptance | Single-writer cutovers, inherited scenarios, distributed and browser acceptance, deployment/restore/provider/billing evidence | Not started | Complete migration and the release-scope acceptance matrix; retain the required operational evidence. |
+| Milestone | Services and capabilities | Progress |
+| --- | --- | --- |
+| [M0 — Implementation baseline](#m0--baseline-security-and-release-controls) | Contracts and ownership, Maven/CI, security and dependency controls, Docker images, bounded recovery-action selection | In progress |
+| [M1 — First service workflow](#m1--identity-catalog-and-first-browser-workflow) | EDGE01, UX01, S01 identity, S02 catalog, browser customer journeys | In progress |
+| [M2 — Evidence and topology](#m2--collection-evidence-objectives-topology-reporting) | S03 connections and ingestion, S04 evidence, shared-schema validation, qualification-policy and gap-waiver governance, S05 objectives, S06 topology and projection | In progress |
+| [M3 — Assessment and advisory](#m3--assessment-knowledge-and-advisory) | S07 assessment, S08 knowledge and retrieval, S09 advisory orchestration | In progress |
+| [M4 — Policy and authorization](#m4--policy-and-operational-authorization) | S10 policy-bundle proposal, review, and read; policy lifecycle and authorization | Partial |
+| [M5 — Execution and recovery validation](#m5--execution-and-recovery-validation) | Bounded action adapter, execution, cancellation, compensation, probes, recovery certification | Not started |
+| [M6 — Commercial and operational administration](#m6--commercial-and-operational-administration) | Usage admission, rating, invoicing, payment reconciliation, notifications, evidence export | Not started |
+| [M7 — Governed prediction and provider breadth](#m7--prediction-learning-and-provider-breadth) | Model evaluation and learning; AWS, Azure, and Google Cloud capabilities | Not started |
+| [M8 — Migration and release acceptance](#m8--migration-release-and-end-to-end-acceptance) | Single-writer cutovers, inherited scenarios, distributed and browser acceptance, deployment/restore/provider/billing evidence | Not started |
+
+<details>
+<summary>Milestone scope, evidence and remaining gaps</summary>
+
+- **M0 — Implementation baseline:** Reconcile inherited design allocations against this fresh implementation; record unavailable legacy source or database evidence as unknown. Close remaining threat-model and release-control gaps.
+- **M1 — First service workflow:** The live browser suite creates, links, reads back, and transfers ownership of a journey and service; it registers standalone and service-bound workloads through independent S01 grants and owner selection, then reads both persisted records back through UX01 with only `catalog.agent.read`. A separately admitted user holding only `owner.eligible` is denied workload readback by S01 and receives no records. The isolated S03 publisher and collector client-credentials identities resolve to separately admitted SYSTEM principals through EDGE01 and receive only their approved S04/S03 delegations; the collection runner remains disabled. Production deployment identity and end-to-end acceptance remain open. Re-enabling principals remains unavailable pending verification and independent review.
+- **M2 — Evidence and topology:** The focused S01/S02/S05/S06/S07 API runtime gate passes with live Neo4j projection and reconciliation. The `m2-live` S03/S04 process test exercises S01's public admission, separate grant-decision, membership and delegation APIs; it also injects a 503 after S04 persists the first event and verifies S03 retries against S04's `DUPLICATE` response. The targeted test passed 1/1, and the full five-test module has now passed after the aggregate-type contract change (5 tests, 0 failures, 0 errors, 0 skips). S04 sequence identity now includes aggregate type; the V8 migration classifies retained S03 events and conservatively preserves ambiguous legacy quarantines. The publisher is admitted through a test-only directory stub and receives only `evidence.inbox.write`; an ungranted `connections.connection.write` request is denied. Production identity and IdP conformance remain unverified. A paginated S03 source-collection outcome report is available through EDGE01. Broader S01 owner/grant conformance, AWS Config and CloudWatch metrics, Azure Resource Graph and Monitor metrics, GCP Cloud Asset Inventory and Monitoring metrics (all providers remain unaccepted), broader freshness and ontology coverage, full live multi-service acceptance, and additional reporting capabilities remain.
+- **M3 — Assessment and advisory:** UX01 creates retry-protected S07 draft cases, incidents and learning proposals, reviews and seals drafts, runs retry-protected evaluations, and supports learning review and historical decision reads through EDGE01 with separate globally scoped, context-bound delegations. UX01 also stages retry-protected S08 candidates, browses metadata, independently reviews exact versions, withdraws approved items, creates retry-protected retrievals and browses retrieval history with explicit classification grants. Case creation and sealing do not verify references; skipped receipt verification does not qualify evidence for incident creation; learning proposals and reviews do not establish adoption. Knowledge reviews, metadata and retrievals are not current authorization. Complete connected assessment/knowledge/advisory workflows. S09 now has plan-bound idempotent admission and a lease-fenced outbox foundation for renewal, bounded jittered exponential retries, and active/unexpired-run delivery gating, but no connected run handler, current-context commit guard, authorized provider dispatch, or reconciliation.
+- **M4 — Policy and authorization:** UX01 proposes retry-safe policy revisions, browses service-scoped summaries and exact revisions, and submits rejections or signed approvals through EDGE01 with separate S10 write, read and review delegations. A local PEM-key helper can generate approval assertions; production key management, policy evaluation, action authorization, current-state fences, and read-only decision replay remain open. The existing S10 slice is governance metadata, not operational authority.
+- **M5 — Execution and recovery validation:** Build and independently verify the local adapter and execution lifecycle; qualify any real provider action separately.
+- **M6 — Commercial and operational administration:** Implement and test the commercial and operational workflows, including duplicate/reordered events and interrupted reconciliation.
+- **M7 — Governed prediction and provider breadth:** Implement temporal evaluation, uncertainty/calibration and shadow criteria; qualify providers individually. Existing model metadata and provider stubs do not meet this milestone.
+- **M8 — Migration and release acceptance:** Complete migration and the release-scope acceptance matrix; retain the required operational evidence.
+
+</details>
 
 **Status meanings:** *In progress* means implementation and tests exist, but
 the milestone acceptance criteria remain open. *Partial* means a limited
@@ -51,7 +66,10 @@ results and scope limits in the corresponding sections below.
 ## Granular delivery checklist
 
 This is the working checklist for the complete M0–M8 application, including
-connected browser workflows. It complements the
+connected browser workflows. Each milestone groups verified work with its
+remaining work; a checked historical slice does not close its broader
+milestone. An open task may also contain checked substeps. IDs remain stable,
+including `HIST` IDs. It complements the
 [implementation plan](IMPLEMENTATION_PLAN.md) and
 [acceptance register](ACCEPTANCE_AND_RISKS.md). The checked-in
 [MS01 plan](../design/ms01/IMPLEMENTATION_PLAN.md) and its inventories provide
@@ -91,9 +109,21 @@ provider acceptance.
   unknown outcome is not a pass. Never place credentials or private keys here.
 - This log starts with the latest verified slice and this checklist setup.
   Earlier run-by-run history was not reconstructed; prior evidence remains in
-  [implementation status](#implementation-evidence) and version history.
+  [implementation evidence](#implementation-evidence) and version history.
 
 ## M0 — Baseline, security, and release controls
+
+### Verified work
+
+Evidence: [current handoff](#current-handoff) and [fresh-build delivery tracking](#fresh-build-delivery-tracking).
+
+- [x] HIST-001 Establish the Java/Maven build and dependency policy.
+- [x] HIST-002 Add non-root service images, image smoke checks and local build-context exclusions.
+- [x] HIST-003 Add initial SBOM and security-scanning configuration; release enforcement remains M0-009–M0-010.
+
+- [x] M0-019 Select the first bounded local recovery action and its acceptance bounds. Evidence: [first recovery action](FIRST_RECOVERY_ACTION.md); adapter implementation remains M5 work.
+
+### Remaining work
 
 - [ ] M0-001 Reconcile every retained public operation with its effective contract, owner, implementation and acceptance case.
 - [ ] M0-002 Reconcile all 144 operation allocations, preserving the distinction between the 107 registered routes and older 99-route inventory.
@@ -113,11 +143,36 @@ provider acceptance.
 - [ ] M0-016 Validate deployment-level database isolation and least privilege for all included services.
 - [ ] M0-017 Verify image/runtime probes, graceful shutdown, bounded pools, and operational telemetry for each release service.
 - [ ] M0-018 Review shared/remote builder cache access and retention for private-document exposure.
-- [x] M0-019 Select the first bounded local recovery action and its acceptance bounds. Evidence: [first recovery action](FIRST_RECOVERY_ACTION.md); adapter implementation remains M5 work.
 - [ ] M0-020 Reconcile the remaining historical implementation slices and executions against status evidence and version history; add verified granular items without inventing results.
 - [ ] M0-021 Add and reconcile any implemented operations and requirements discovered after the inherited inventories were produced.
 
 ## M1 — Identity, catalog, and first browser workflow
+
+### Verified work
+
+Evidence: [current handoff](#current-handoff) and [independent grant authority](#independent-grant-authority).
+
+- [x] HIST-004 Implement S01 tenant, provider, principal and membership persistence.
+- [x] HIST-005 Implement expiring, narrowed S01 capability delegations.
+- [x] HIST-006 Implement independently approved grants and membership creation.
+- [x] HIST-007 Implement trusted-directory principal admission without automatic grants.
+- [x] HIST-008 Implement principal disable and membership revocation with audit and retry handling.
+- [x] HIST-009 Implement S02 service, journey and agent-workload records.
+- [x] HIST-010 Implement S02 ownership transfer and workload-version records.
+- [x] HIST-011 Implement signed S02 workload receipts and local verification.
+- [x] HIST-012 Implement initial fixed-owner EDGE01 routes and authorization forwarding.
+- [x] HIST-013 Implement browser OIDC sign-in with PKCE, context selection and local logout.
+- [x] HIST-014 Connect principal admission, independent grant and membership forms.
+- [x] HIST-015 Connect synthetic journey, service and workload creation and readback.
+- [x] HIST-016 Connect synthetic journey and service ownership transfer.
+- [x] HIST-045 Track S01 capability and session expiry horizons, membership digests and scoped generations. Evidence: [identity handoff](#current-handoff); not an atomic fence.
+- [x] HIST-046 Consume context-bound independent grant decisions atomically with membership creation. Evidence: [grant authority](#independent-grant-authority).
+- [x] HIST-047 Test signed delegation key, issuer, audience and lifetime validation. Evidence: [identity handoff](#current-handoff).
+- [x] HIST-048 Test S02 tenant isolation, registration, idempotency, links and snapshot behavior. Evidence: [identity handoff](#current-handoff).
+
+- [x] M1-012 Exercise synthetic browser journey/service creation, linking, ownership transfer and workload readback. Evidence: [M1 status](#milestone-and-capability-tracker); production acceptance remains open.
+
+### Remaining work
 
 - [ ] M1-001 Verify production deployment identities and audience-scoped service credentials end to end.
 - [ ] M1-002 Configure and verify a production identity provider rather than the local Keycloak fixture.
@@ -130,11 +185,34 @@ provider acceptance.
 - [ ] M1-009 Verify public response compatibility against the effective contract inventory.
 - [ ] M1-010 Verify cross-service database read and write denial in the actual deployment configuration.
 - [ ] M1-011 Complete and retain the full sign-in, owner, service, workload and journey browser acceptance walkthrough.
-- [x] M1-012 Exercise synthetic browser journey/service creation, linking, ownership transfer and workload readback. Evidence: [M1 status](#milestone-and-capability-tracker); production acceptance remains open.
 
 ## M2 — Collection, evidence, objectives, topology, reporting
 
 ### S03 connections and ingestion
+
+#### Verified work
+
+Evidence and limits: [S03 status](#m2--s03-connections-in-progress). Provider paths are bounded local implementations, not live-provider acceptance.
+
+- [x] HIST-017 Implement S03 connection and source-binding persistence.
+- [x] HIST-018 Implement S03 observation intake, replay/conflict handling and quarantine.
+- [x] HIST-019 Implement leased collection, checkpoint and bounded runner foundations.
+- [x] HIST-020 Implement opt-in S03 outbox publishing and acknowledgement fencing.
+- [x] HIST-021 Add bounded AWS, Azure and GCP collection paths; provider qualification remains M2-011–M2-013.
+- [x] HIST-049 Compare S03 duplicate observations using original nanosecond precision. Evidence: [observation replay](#s03-observation-replay-integrity).
+- [x] HIST-050 Implement bounded S03 request timeouts and refresh expiring collection credentials. Evidence: [S03 status](#m2--s03-connections-in-progress).
+- [x] HIST-051 Renew and fence S03 collection leases during bounded cycles. Evidence: [S03 status](#m2--s03-connections-in-progress).
+- [x] HIST-052 Match S04 acknowledgement event IDs before S03 outbox disposition. Evidence: [S03 status](#m2--s03-connections-in-progress).
+- [x] HIST-053 Implement bounded AWS Config and CloudWatch collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
+- [x] HIST-054 Implement bounded Azure Resource Graph and Monitor collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
+- [x] HIST-055 Implement bounded GCP Asset Inventory and Monitoring collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
+- [x] HIST-056 Import and browse synthetic provider-format observations with replay and partial-result disclosure. Evidence: [inventory projection](#s03-inventory-observation-projection).
+- [x] HIST-057 Exercise S03 delivery to S04 with real test delegations and retry after a lost acknowledgement. Evidence: [S03 status](#m2--s03-connections-in-progress); test identities only.
+
+#### Remaining work
+
+The provider tasks below remain open beyond the bounded paths listed above;
+independent provider qualification is tracked separately in M2-011–M2-013.
 
 - [ ] M2-001 Finish controlled source discovery and binding through the connected UI.
 - [ ] M2-002 Complete collection execution with production-safe service identity and configuration.
@@ -153,6 +231,24 @@ provider acceptance.
 
 ### S04 evidence
 
+#### Verified work
+
+Evidence and limits: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+
+- [x] HIST-022 Implement S04 evidence inbox, sequence/digest checks and quarantine.
+- [x] HIST-023 Implement S04 qualification review, policy and waiver records.
+- [x] HIST-024 Implement S04 measurement receipts and cutoff checks.
+- [x] HIST-025 Implement S04 aggregate-type identity and legacy-quarantine migration.
+- [x] HIST-058 Verify distinct S03 aggregate types sharing an ID do not collide at S04. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-059 Record S04 evidence byte length and digest and serialize replay/conflict admission. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-060 Block independent qualification of synthetic SAMPLE_LOCAL evidence. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-061 Validate provider evidence envelopes and schemas before qualification. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-062 Retain versioned qualification policies and independently reviewed gap waivers. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+- [x] HIST-063 Enforce evidence qualification and measurement cutoff checks in S04 receipts. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows); receipts are point-in-time.
+- [x] HIST-064 Browse S04 evidence metadata through separately scoped browser access. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
+
+#### Remaining work
+
 - [ ] M2-015 Connect source observations to qualification and retained provenance in the browser.
 - [ ] M2-016 Verify current-source failure, expired evidence, conflicting events and explicit unavailable outcomes.
 - [ ] M2-017 Complete broker-backed outbox/inbox processing with crash recovery and duplicate/conflict handling.
@@ -161,6 +257,18 @@ provider acceptance.
 
 ### S05 objectives
 
+#### Verified work
+
+Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
+
+- [x] HIST-026 Implement S05 objective proposal, independent decision, activation and supersession APIs.
+- [x] HIST-027 Implement S05 organization constraints and active-objective receipts.
+- [x] HIST-028 Implement retry-safe S05 import-preview admission; source resolution remains M2-025.
+- [x] HIST-029 Implement opt-in S05 reviewer and workload-owner authority checks; these are not atomic cross-service fences.
+- [x] HIST-065 Enforce S05 activation constraints and supersede the prior active workload/metric objective. Evidence: [S05 status](#m2--s05-objectives-first-slice).
+- [x] HIST-066 Issue S05 active-objective set receipts with retained digests. Evidence: [S05 status](#m2--s05-objectives-first-slice); S05 outbox publishing remains open.
+- [x] HIST-067 Verify S05 workload ownership with optional signed S02 receipts. Evidence: [S05 status](#m2--s05-objectives-first-slice); the check is point-in-time.
+
 - [x] M2-020 Create retry-safe local objective drafts through UX01, EDGE01 and S05 with separate global write authority. Evidence: commit `8239039`; 182 web tests, 56 selected reactor tests and 11 isolated browser tests passed.
 - [x] M2-021 Connect objective submission through the browser with expected-revision and separate authorization checks. Evidence: R-0011–R-0015 below; synthetic/local scope only.
   - [x] M2-021a Add atomic, retry-safe objective submission with preserved revision and constraint checks.
@@ -168,6 +276,9 @@ provider acceptance.
   - [x] M2-021c Connect a semantic, context-bound UX01 submission form with separate read/write delegations; full accessibility review remains M8-013.
   - [x] M2-021d Verify creation-to-submission, replay, conflict, stale revision, denial and database rollback.
   - [x] M2-021e Update contracts, status and private approach documentation after verified completion.
+
+#### Remaining work
+
 - [ ] M2-022 Connect independent objective approval/rejection through the browser with review-history disclosure. Current-decision display is complete; full historical decision disclosure remains open.
   - [x] M2-022a Add retry-safe S05 decisions bound to objective ID, revision, digest, decision and exact reason, preserving independent reviewer checks. Evidence: R-0028.
   - [x] M2-022b Forward decision requests and idempotency keys through EDGE01. Evidence: R-0028.
@@ -186,6 +297,19 @@ provider acceptance.
 
 ### S06 graph and S14 reporting
 
+#### Verified work
+
+Evidence and limits: [S06 status](#m2--s06-topology-first-slice).
+
+- [x] HIST-030 Implement S06 graph authority, immutable revisions and relationship checks.
+- [x] HIST-031 Implement S06 Neo4j projection and reconciliation checks.
+- [x] HIST-032 Implement S06 dependency proposals, review, selection and difference classification.
+- [x] HIST-068 Reconcile S06 graph projections against retained graph digests. Evidence: [S06 status](#m2--s06-topology-first-slice).
+- [x] HIST-069 Bind S06 dependency selection to retained graph and owner receipts. Evidence: [S06 status](#m2--s06-topology-first-slice); provider acceptance remains open.
+- [x] HIST-070 Verify evidence replay conflicts make affected S06 projected context ineligible. Evidence: [S06 status](#m2--s06-topology-first-slice).
+
+#### Remaining work
+
 - [ ] M2-032 Complete typed dependency proposal and independent acceptance through the browser.
 - [ ] M2-033 Connect accepted graph reads and service-only, agent-only and mixed dependency views.
 - [ ] M2-034 Connect impact, difference and subgraph operations and their retained results to the browser.
@@ -198,21 +322,73 @@ provider acceptance.
 
 ## M3 — Assessment, knowledge, and advisory
 
-### S07 assessment and S08 knowledge
+### S07 assessment
+
+#### Verified work
+
+Evidence and limits: [S07 status](#m3--s07-assessment-first-slice).
+
+- [x] HIST-033 Implement S07 assessment cases and deterministic evaluation foundations.
+- [x] HIST-034 Implement S07 incident and learning proposal/review records; adoption remains M3-004.
+- [x] HIST-035 Implement S07 model-governance and adaptation-draft records; model promotion remains M7 work.
+- [x] HIST-071 Browse S07 cases, evaluation history and investigation-only recommendations. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-072 Submit retry-safe incident creation requests through the browser and verify skipped evidence is rejected. Evidence: [S07 status](#m3--s07-assessment-first-slice); successful qualified browser creation remains open.
+- [x] HIST-073 Browse S07 incident and learning records with separate read grants. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-074 Independently review learning proposals and display retained review decisions. Evidence: [S07 status](#m3--s07-assessment-first-slice); review is not adoption.
+- [x] HIST-075 Force insufficient evidence when enabled S07 owner-receipt checks fail. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+- [x] HIST-076 Block S07 model promotion without the required model-specific evaluation. Evidence: [S07 status](#m3--s07-assessment-first-slice).
+
+- [x] M3-023 Create and read retry-safe synthetic assessment case drafts through UX01, EDGE01 and S07. Evidence: [S07 status](#m3--s07-assessment-first-slice); reference verification remains M3-002.
+- [x] M3-024 Review and seal a synthetic draft with separate read/write grants. Evidence: [S07 status](#m3--s07-assessment-first-slice); sealing is not idempotent.
+- [x] M3-025 Run and replay an empty synthetic assessment evaluation through the browser. Evidence: [S07 status](#m3--s07-assessment-first-slice); verified source-owner evidence remains M3-001.
+- [x] M3-026 Submit and replay a learning proposal for a directly inserted synthetic incident. Evidence: [S07 status](#m3--s07-assessment-first-slice); complete qualified incident-to-adoption workflow remains M3-004.
+
+#### Remaining work
 
 - [ ] M3-001 Complete connected deterministic evaluation and recommendation workflows with source-owner receipts.
 - [ ] M3-002 Verify case references and evidence eligibility before any operation that requires them.
 - [ ] M3-003 Expose retained recommendations, uncertainty, source disclosure and next valid review steps in the browser.
 - [ ] M3-004 Complete incident-to-learning proposal, independent review and governed adoption workflow.
 - [ ] M3-005 Verify unavailable or modified source artifacts fail closed and remain visible.
+
+### S08 knowledge
+
+#### Verified work
+
+Evidence and limits: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+
+- [x] HIST-036 Implement S08 retry-safe knowledge staging and version-bound review.
+- [x] HIST-037 Implement S08 withdrawal and retrieval concealment.
+- [x] HIST-038 Implement S08 exact-term retrieval, classification filtering and history readback.
+- [x] HIST-077 Browse S08 knowledge metadata with explicit classification grants. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-078 Stage and replay synthetic knowledge candidates through UX01, EDGE01 and S08. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-079 Review exact candidate versions and reject stale or self-review requests. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-080 Withdraw an exact approved knowledge version and conceal withdrawn excerpts. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-081 Create and replay exact-term synthetic knowledge retrievals with classification clearance. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-082 Read retained S08 retrievals and paginated classification-filtered retrieval history. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+- [x] HIST-083 Verify S08 knowledge source and excerpt digests and prevent retained-record substitution. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
+
+#### Remaining work
+
 - [ ] M3-006 Complete knowledge staging, independent approval, retrieval and withdrawal as a connected workflow with current disclosure checks.
 - [ ] M3-007 Verify approved knowledge cannot be disclosed after relevant access or source eligibility changes.
-- [x] M3-023 Create and read retry-safe synthetic assessment case drafts through UX01, EDGE01 and S07. Evidence: [S07 status](#m3--s07-assessment-first-slice); reference verification remains M3-002.
-- [x] M3-024 Review and seal a synthetic draft with separate read/write grants. Evidence: [S07 status](#m3--s07-assessment-first-slice); sealing is not idempotent.
-- [x] M3-025 Run and replay an empty synthetic assessment evaluation through the browser. Evidence: [S07 status](#m3--s07-assessment-first-slice); verified source-owner evidence remains M3-001.
-- [x] M3-026 Submit and replay a learning proposal for a directly inserted synthetic incident. Evidence: [S07 status](#m3--s07-assessment-first-slice); complete qualified incident-to-adoption workflow remains M3-004.
 
 ### S09 advisory
+
+#### Verified work
+
+Evidence and limits: [S09 status](#m3--s09-advisory-gateway-foundation).
+
+- [x] HIST-039 Implement S09 plan-bound idempotent admission and run/deadline fences.
+- [x] HIST-040 Implement S09 lease-fenced outbox delivery, bounded retry and cancellation/expiry handling.
+- [x] HIST-041 Implement S09 budget and dispatch-journal foundations; connected admission and provider dispatch remain disabled.
+- [x] HIST-084 Test S09 planned-run idempotency, immutable dispatch plans and rejection of unplanned legacy intents. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
+- [x] HIST-085 Test S09 outbox claim exclusivity, lease renewal, token fencing and atomic acknowledgement. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
+- [x] HIST-086 Test bounded, jittered S09 retry scheduling and cancellation/deadline delivery gating. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
+- [x] HIST-087 Test S09 requester capability, expiry and scope snapshots at journal boundaries. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation); not transaction-fenced.
+- [x] HIST-088 Exercise S09 provider adapter contracts with fake transports. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation); adapters remain unwired and unqualified.
+
+#### Remaining work
 
 - [ ] M3-008 Design a genuine atomic cross-service current-context commit guard; do not enable connected admission without it.
 - [ ] M3-009 Implement and verify the current-context guard, including revocation, source changes and expiry races.
@@ -232,11 +408,24 @@ provider acceptance.
 
 ## M4 — Policy and operational authorization
 
+### Verified work
+
+Evidence and limits: [S10 status](#s10-policy-bundle-proposal-review-and-read).
+
+- [x] HIST-042 Implement S10 immutable policy revisions and scoped read/write grants.
+- [x] HIST-043 Implement S10 independent review, signed approval verification and quorum decisions.
+- [x] HIST-044 Add a local policy-assertion signer; production key management remains M4-013.
+- [x] HIST-089 Test S10 trust rollback and contradictory trust-revision denial. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
+- [x] HIST-090 Test S10 concurrent replay and competing revisions on one service instance. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
+
 - [x] M4-001 Connect policy proposal, revision browsing, independent rejection and externally signed approval. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read); governance metadata only.
   - [x] M4-001a Propose and replay synthetic policy revisions with separate service-scoped write authority. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
   - [x] M4-001b Browse immutable revisions and navigate to predecessor and current versions. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
   - [x] M4-001c Submit an independent rejection and verify replay, conflicts and self-review denial. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
   - [x] M4-001d Submit a signed approval using disposable browser-test trust material. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read); production signing remains M4-013.
+
+### Remaining work
+
 - [ ] M4-002 Integrate the policy calculator into durable, context-bound policy evaluation.
 - [ ] M4-003 Implement review obligations and exact human-reason retention for authorization proposals.
 - [ ] M4-004 Issue a narrowly bounded action authorization using current owner receipts.
@@ -321,120 +510,6 @@ provider acceptance.
 - [ ] M8-017 Regenerate and reconcile API/database guides, diagrams, UI illustrations and paired documents.
 - [ ] M8-018 Produce code/document packages with manifests, exact test results and remaining deployment limitations.
 - [ ] M8-019 Conduct release acceptance against all selected scope, not just structure checks or local fixtures.
-
-## Earlier implemented slices
-
-These are historical, bounded accomplishments documented in
-[implementation status](#implementation-evidence); they are not milestone
-acceptance. The unchecked milestone items above remain open even when a
-related earlier slice is checked. This backfill is not yet a complete
-operation-by-operation reconciliation (M0-001–M0-005).
-
-### Foundation, identity, catalog and browser
-
-- [x] HIST-001 Establish the Java/Maven build and dependency policy.
-- [x] HIST-002 Add non-root service images, image smoke checks and local build-context exclusions.
-- [x] HIST-003 Add initial SBOM and security-scanning configuration; release enforcement remains M0-009–M0-010.
-- [x] HIST-004 Implement S01 tenant, provider, principal and membership persistence.
-- [x] HIST-005 Implement expiring, narrowed S01 capability delegations.
-- [x] HIST-006 Implement independently approved grants and membership creation.
-- [x] HIST-007 Implement trusted-directory principal admission without automatic grants.
-- [x] HIST-008 Implement principal disable and membership revocation with audit and retry handling.
-- [x] HIST-009 Implement S02 service, journey and agent-workload records.
-- [x] HIST-010 Implement S02 ownership transfer and workload-version records.
-- [x] HIST-011 Implement signed S02 workload receipts and local verification.
-- [x] HIST-012 Implement initial fixed-owner EDGE01 routes and authorization forwarding.
-- [x] HIST-013 Implement browser OIDC sign-in with PKCE, context selection and local logout.
-- [x] HIST-014 Connect principal admission, independent grant and membership forms.
-- [x] HIST-015 Connect synthetic journey, service and workload creation and readback.
-- [x] HIST-016 Connect synthetic journey and service ownership transfer.
-
-### Connections, evidence, objectives and topology
-
-- [x] HIST-017 Implement S03 connection and source-binding persistence.
-- [x] HIST-018 Implement S03 observation intake, replay/conflict handling and quarantine.
-- [x] HIST-019 Implement leased collection, checkpoint and bounded runner foundations.
-- [x] HIST-020 Implement opt-in S03 outbox publishing and acknowledgement fencing.
-- [x] HIST-021 Add bounded AWS, Azure and GCP collection paths; provider qualification remains M2-011–M2-013.
-- [x] HIST-022 Implement S04 evidence inbox, sequence/digest checks and quarantine.
-- [x] HIST-023 Implement S04 qualification review, policy and waiver records.
-- [x] HIST-024 Implement S04 measurement receipts and cutoff checks.
-- [x] HIST-025 Implement S04 aggregate-type identity and legacy-quarantine migration.
-- [x] HIST-026 Implement S05 objective proposal, independent decision, activation and supersession APIs.
-- [x] HIST-027 Implement S05 organization constraints and active-objective receipts.
-- [x] HIST-028 Implement retry-safe S05 import-preview admission; source resolution remains M2-025.
-- [x] HIST-029 Implement opt-in S05 reviewer and workload-owner authority checks; these are not atomic cross-service fences.
-- [x] HIST-030 Implement S06 graph authority, immutable revisions and relationship checks.
-- [x] HIST-031 Implement S06 Neo4j projection and reconciliation checks.
-- [x] HIST-032 Implement S06 dependency proposals, review, selection and difference classification.
-
-### Assessment, knowledge, advisory and governance
-
-- [x] HIST-033 Implement S07 assessment cases and deterministic evaluation foundations.
-- [x] HIST-034 Implement S07 incident and learning proposal/review records; adoption remains M3-004.
-- [x] HIST-035 Implement S07 model-governance and adaptation-draft records; model promotion remains M7 work.
-- [x] HIST-036 Implement S08 retry-safe knowledge staging and version-bound review.
-- [x] HIST-037 Implement S08 withdrawal and retrieval concealment.
-- [x] HIST-038 Implement S08 exact-term retrieval, classification filtering and history readback.
-- [x] HIST-039 Implement S09 plan-bound idempotent admission and run/deadline fences.
-- [x] HIST-040 Implement S09 lease-fenced outbox delivery, bounded retry and cancellation/expiry handling.
-- [x] HIST-041 Implement S09 budget and dispatch-journal foundations; connected admission and provider dispatch remain disabled.
-- [x] HIST-042 Implement S10 immutable policy revisions and scoped read/write grants.
-- [x] HIST-043 Implement S10 independent review, signed approval verification and quorum decisions.
-- [x] HIST-044 Add a local policy-assertion signer; production key management remains M4-013.
-
-### Additional verified details
-
-The following items record narrower local or isolated slices. Their linked
-evidence includes the exact tests and limitations; they do not close their
-broader milestone or release acceptance items.
-
-- [x] HIST-045 Track S01 capability and session expiry horizons, membership digests and scoped generations. Evidence: [identity handoff](#current-handoff); not an atomic fence.
-- [x] HIST-046 Consume context-bound independent grant decisions atomically with membership creation. Evidence: [grant authority](#independent-grant-authority).
-- [x] HIST-047 Test signed delegation key, issuer, audience and lifetime validation. Evidence: [identity handoff](#current-handoff).
-- [x] HIST-048 Test S02 tenant isolation, registration, idempotency, links and snapshot behavior. Evidence: [identity handoff](#current-handoff).
-- [x] HIST-049 Compare S03 duplicate observations using original nanosecond precision. Evidence: [observation replay](#s03-observation-replay-integrity).
-- [x] HIST-050 Implement bounded S03 request timeouts and refresh expiring collection credentials. Evidence: [S03 status](#m2--s03-connections-in-progress).
-- [x] HIST-051 Renew and fence S03 collection leases during bounded cycles. Evidence: [S03 status](#m2--s03-connections-in-progress).
-- [x] HIST-052 Match S04 acknowledgement event IDs before S03 outbox disposition. Evidence: [S03 status](#m2--s03-connections-in-progress).
-- [x] HIST-053 Implement bounded AWS Config and CloudWatch collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
-- [x] HIST-054 Implement bounded Azure Resource Graph and Monitor collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
-- [x] HIST-055 Implement bounded GCP Asset Inventory and Monitoring collection paths. Evidence: [S03 provider details](#s03-leased-collection-and-cloud-provider-inventory); live conformance is open.
-- [x] HIST-056 Import and browse synthetic provider-format observations with replay and partial-result disclosure. Evidence: [inventory projection](#s03-inventory-observation-projection).
-- [x] HIST-057 Exercise S03 delivery to S04 with real test delegations and retry after a lost acknowledgement. Evidence: [S03 status](#m2--s03-connections-in-progress); test identities only.
-- [x] HIST-058 Verify distinct S03 aggregate types sharing an ID do not collide at S04. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
-- [x] HIST-059 Record S04 evidence byte length and digest and serialize replay/conflict admission. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
-- [x] HIST-060 Block independent qualification of synthetic SAMPLE_LOCAL evidence. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
-- [x] HIST-061 Validate provider evidence envelopes and schemas before qualification. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
-- [x] HIST-062 Retain versioned qualification policies and independently reviewed gap waivers. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
-- [x] HIST-063 Enforce evidence qualification and measurement cutoff checks in S04 receipts. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows); receipts are point-in-time.
-- [x] HIST-064 Browse S04 evidence metadata through separately scoped browser access. Evidence: [S04 status](#m2--s04-evidence-qualification-and-waiver-workflows).
-- [x] HIST-065 Enforce S05 activation constraints and supersede the prior active workload/metric objective. Evidence: [S05 status](#m2--s05-objectives-first-slice).
-- [x] HIST-066 Issue S05 active-objective set receipts with retained digests. Evidence: [S05 status](#m2--s05-objectives-first-slice); S05 outbox publishing remains open.
-- [x] HIST-067 Verify S05 workload ownership with optional signed S02 receipts. Evidence: [S05 status](#m2--s05-objectives-first-slice); the check is point-in-time.
-- [x] HIST-068 Reconcile S06 graph projections against retained graph digests. Evidence: [S06 status](#m2--s06-topology-first-slice).
-- [x] HIST-069 Bind S06 dependency selection to retained graph and owner receipts. Evidence: [S06 status](#m2--s06-topology-first-slice); provider acceptance remains open.
-- [x] HIST-070 Verify evidence replay conflicts make affected S06 projected context ineligible. Evidence: [S06 status](#m2--s06-topology-first-slice).
-- [x] HIST-071 Browse S07 cases, evaluation history and investigation-only recommendations. Evidence: [S07 status](#m3--s07-assessment-first-slice).
-- [x] HIST-072 Submit retry-safe incident creation requests through the browser and verify skipped evidence is rejected. Evidence: [S07 status](#m3--s07-assessment-first-slice); successful qualified browser creation remains open.
-- [x] HIST-073 Browse S07 incident and learning records with separate read grants. Evidence: [S07 status](#m3--s07-assessment-first-slice).
-- [x] HIST-074 Independently review learning proposals and display retained review decisions. Evidence: [S07 status](#m3--s07-assessment-first-slice); review is not adoption.
-- [x] HIST-075 Force insufficient evidence when enabled S07 owner-receipt checks fail. Evidence: [S07 status](#m3--s07-assessment-first-slice).
-- [x] HIST-076 Block S07 model promotion without the required model-specific evaluation. Evidence: [S07 status](#m3--s07-assessment-first-slice).
-- [x] HIST-077 Browse S08 knowledge metadata with explicit classification grants. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-078 Stage and replay synthetic knowledge candidates through UX01, EDGE01 and S08. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-079 Review exact candidate versions and reject stale or self-review requests. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-080 Withdraw an exact approved knowledge version and conceal withdrawn excerpts. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-081 Create and replay exact-term synthetic knowledge retrievals with classification clearance. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-082 Read retained S08 retrievals and paginated classification-filtered retrieval history. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-083 Verify S08 knowledge source and excerpt digests and prevent retained-record substitution. Evidence: [S08 status](#m3--s08-knowledge-and-retrieval-conservative-first-slice).
-- [x] HIST-084 Test S09 planned-run idempotency, immutable dispatch plans and rejection of unplanned legacy intents. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
-- [x] HIST-085 Test S09 outbox claim exclusivity, lease renewal, token fencing and atomic acknowledgement. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
-- [x] HIST-086 Test bounded, jittered S09 retry scheduling and cancellation/deadline delivery gating. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation).
-- [x] HIST-087 Test S09 requester capability, expiry and scope snapshots at journal boundaries. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation); not transaction-fenced.
-- [x] HIST-088 Exercise S09 provider adapter contracts with fake transports. Evidence: [S09 status](#m3--s09-advisory-gateway-foundation); adapters remain unwired and unqualified.
-- [x] HIST-089 Test S10 trust rollback and contradictory trust-revision denial. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
-- [x] HIST-090 Test S10 concurrent replay and competing revisions on one service instance. Evidence: [S10 status](#s10-policy-bundle-proposal-review-and-read).
 
 ## Item-by-item inventory reconciliation
 
@@ -1018,6 +1093,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0040 | 2026-11-20 | M0-020, HIST-045–HIST-090 | Backfilled 46 additional narrowly scoped historical slices from the retained implementation evidence. | Further historical reconciliation and release acceptance remain open. |
 | R-0041 | 2026-11-20 | Delivery tracking | Verified the old file is absent, tracked workspace references are absent, all local tracker links and anchors resolve, 773 checklist IDs are unique, all 428 inventory allocations remain represented, and `git diff --check` passes. | Inventory entries remain reconciliation tasks, not acceptance results. |
 | R-0042 | 2026-11-20 | Delivery tracking | Committed the consolidated tracking updates and obsolete-file removal as `0847fdd` and pushed them to `origin/main`. | Historical reconciliation and application implementation remain open. |
+| R-0043 | 2026-11-20 | Delivery tracking | Initial checklist-reorganization script stopped at its preservation assertion because the verification pattern also captured surrounding blank lines; it wrote no changes. | Corrected the pattern and retried in R-0044. |
+| R-0044 | 2026-11-20 | Delivery tracking | Reorganized the historical work into its relevant milestone and service sections, separated verified and remaining work, and simplified the overview while retaining its detailed scope. The script verified unchanged checkbox text, states and nesting before writing. | Historical reconciliation and milestone acceptance remain open. |
+| R-0045 | 2026-11-20 | Delivery tracking | The first post-edit grouping check failed because its section-boundary pattern treated nested headings as milestone boundaries. | Corrected the validation and reran it in R-0046; no checklist data was changed by the check. |
+| R-0046 | 2026-11-20 | Delivery tracking | The second grouping check failed because its scan started inside the current heading and misidentified it as the next heading. | The validation was corrected to start after the heading; the document itself was unchanged. |
+| R-0047 | 2026-11-20 | Delivery tracking | Verified all 773 checkbox IDs, states and descriptions are unchanged; all 90 historical items are grouped by milestone or service; all 428 source allocations, local links, anchors and 42 earlier log rows are retained. `git diff --check` passes. | This verifies document preservation, not implementation or acceptance. |
 
 ## Implementation evidence
 
