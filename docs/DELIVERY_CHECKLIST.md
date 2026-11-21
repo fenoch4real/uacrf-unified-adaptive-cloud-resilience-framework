@@ -1288,6 +1288,7 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0184 | 2026-11-21 | M2-026e | The enabled `UACRF_E2E_SAMPLE_INSPECTION=1 bash e2e/run-live.sh` suite passed 11/11, including the exact source-definition version and digest through real services and pending browser readback. | Its test-only TLS terminator forwards to the isolated owners over HTTP; it is not end-to-end TLS evidence. |
 | R-0185 | 2026-11-21 | M2-026e | Repackaged S05 and ran `M2ObjectiveSampleSourceLiveTests` against the fresh JAR; 1/1 passed with the exact fictional source fingerprint, authorization checks and pending readback. | The fingerprint is computed as read, not persisted or independently provider-verified. |
 | R-0186 | 2026-11-21 | M2-026e | Updated private technical approach Appendix AB to revision 201; archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600` were verified. | The private document is not committed; imported-objective mapping, persistence and processing remain open. |
+| R-0187 | 2026-11-21 | M2-026e | Committed the source-definition fingerprint inspection as `fb6c246` and pushed it to `origin/main`. | This is an inspection result, not an approved mapping or durable import provenance. |
 
 ## Implementation evidence
 
