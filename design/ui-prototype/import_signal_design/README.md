@@ -110,9 +110,9 @@ readback. S05 can retain one independent approval or rejection of the exact
 synthetic proposal after a fail-closed current-reviewer check. The immutable
 proposal remains marked `UNAPPROVED`; the separate decision is limited to the
 historical fictional capture and is not trusted source provenance. The reviewer
-check is not atomic with the S05 commit. Review access through the edge and
-browser, review discovery, real-provider mapping and import processing remain
-open.
+check is not atomic with the S05 commit. EDGE01 forwards review admission and
+known-review read without interpreting the decision. Browser review access,
+review discovery, real-provider mapping and import processing remain open.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

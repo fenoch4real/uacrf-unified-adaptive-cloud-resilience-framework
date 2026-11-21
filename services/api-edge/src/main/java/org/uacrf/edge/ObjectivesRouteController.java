@@ -134,6 +134,24 @@ class ObjectivesRouteController {
     return forward(() -> objectives.getSyntheticMappingProposal(authorization, id, captureId, proposalId));
   }
 
+  @PostMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews")
+  ResponseEntity<String> reviewSyntheticMapping(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+      @PathVariable String id, @PathVariable String captureId, @PathVariable String proposalId,
+      @RequestBody String requestBody) {
+    return forward(() -> objectives.reviewSyntheticMapping(
+        authorization, id, captureId, proposalId, idempotencyKey, requestBody));
+  }
+
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}")
+  ResponseEntity<String> getSyntheticMappingReview(
+      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+      @PathVariable String id, @PathVariable String captureId, @PathVariable String proposalId,
+      @PathVariable String reviewId) {
+    return forward(() -> objectives.getSyntheticMappingReview(authorization, id, captureId, proposalId, reviewId));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<String> listImportSampleCaptures(
       @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,

@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**165 completed / 824 total** · 659 open
+**166 completed / 825 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 75 | 237 |
+| Milestone items | 76 | 238 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -346,6 +346,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026t Forward synthetic mapping proposal creation and read through EDGE01 with the original delegation, idempotency key and owner response. Evidence: R-0259.
   - [x] M2-026u Connect synthetic mapping proposal submission and readback to UX01 with retry-safe context, explicit unapproved status and authorization; verify browser success and denial. Evidence: R-0263–R-0265.
   - [x] M2-026v Record an independent S05 review decision bound to the exact synthetic mapping proposal, with current reviewer checking, idempotency and immutable audit; never treat it as provider provenance or enable import processing. Evidence: R-0269–R-0272.
+  - [x] M2-026w Forward synthetic mapping review admission and known-review read through EDGE01, preserving delegation, idempotency, owner responses and no-store. Evidence: R-0277.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1393,6 +1394,10 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0272 | 2026-11-21 | M2-026v | Ran the focused UX01 client test against the expanded proposal response. | The test passed; edge and browser review access are not implemented. |
 | R-0273 | 2026-11-21 | M2-026v | Updated private technical approach Appendix AB to revision 216 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; the reviewer check is not atomic with the S05 commit and import processing remains open. |
 | R-0274 | 2026-11-21 | M2-026v | Re-ran focused S05 tests after adding disabled-check and scoped-reviewer denial cases. | Four tests passed; the reviewer-authority integration uses simulated S01 responses. |
+| R-0275 | 2026-11-21 | M2-026v | Committed the independent synthetic mapping review slice as `ed05d26` and pushed it to `origin/main`. | Edge and browser review access, discovery and live S01 integration evidence remain open. |
+| R-0276 | 2026-11-21 | M2-026w | Started EDGE01 forwarding for synthetic mapping reviews. | The owner remains responsible for authorization and review semantics. |
+| R-0277 | 2026-11-21 | M2-026w | Ran the EDGE01 regression with synthetic review creation and known-review read forwarding. | 39 tests passed; simulated owner responses cover authorization and idempotency forwarding, status, body and no-store, not live S01 integration. |
+| R-0278 | 2026-11-21 | M2-026w | Updated private technical approach Appendix AB to revision 217 and verified the heading, body, document control, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; browser access, review discovery and import processing remain open. |
 
 ## Implementation evidence
 

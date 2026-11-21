@@ -130,6 +130,26 @@ class ObjectivesRouteClient {
             .build(id, captureId, proposalId)), authorization);
   }
 
+  ResponseEntity<String> reviewSyntheticMapping(String authorization, String id, String captureId,
+      String proposalId, String idempotencyKey, String requestBody) {
+    var request = objectivesRestClient.post()
+        .uri(uri -> uri.path(
+            "/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews")
+            .build(id, captureId, proposalId))
+        .contentType(MediaType.APPLICATION_JSON);
+    if (idempotencyKey != null) request.header("Idempotency-Key", idempotencyKey);
+    request.body(requestBody);
+    return send(request, authorization);
+  }
+
+  ResponseEntity<String> getSyntheticMappingReview(
+      String authorization, String id, String captureId, String proposalId, String reviewId) {
+    return send(objectivesRestClient.get()
+        .uri(uri -> uri.path(
+            "/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}")
+            .build(id, captureId, proposalId, reviewId)), authorization);
+  }
+
   ResponseEntity<String> listImportSampleCaptures(String authorization, String id, int pageSize, String cursor) {
     return send(objectivesRestClient.get().uri(uri -> {
       uri.path("/v1/objective-imports/{id}/sample-captures").queryParam("pageSize", pageSize);
