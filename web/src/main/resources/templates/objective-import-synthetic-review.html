@@ -40,6 +40,8 @@
       <dt>Reviewed at</dt><dd th:text="${mappingReview.reviewedAt}"></dd>
       <dt>Verification</dt><dd th:text="${mappingReview.verification}"></dd>
     </dl>
+    <p th:if="${mappingReview.decision == 'APPROVE'}"><a
+      th:href="@{/objectives/import/receipt/synthetic-candidate(id=${mappingReview.receiptId},captureId=${mappingReview.captureId},proposalId=${mappingReview.proposalId},reviewId=${mappingReview.reviewId})}">Open synthetic candidate</a></p>
   </section>
   <form th:if="${reviewForm != null and retryAllowed != true and mappingProposal != null and mappingReview == null}"
         method="post" th:action="@{/objectives/import/receipt/synthetic-mapping-review}" th:object="${reviewForm}">

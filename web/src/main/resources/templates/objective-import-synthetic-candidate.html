@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fictional normalized candidate | UACRF</title></head>
+<body><main>
+  <h1>Fictional normalized candidate</h1>
+  <p>Context: <strong th:text="${selectedContext.tenantName}">Tenant</strong> /
+    <strong th:text="${selectedContext.environmentName}">Environment</strong></p>
+  <p>This candidate is based only on a historical fictional capture and review. It is unverified and
+    uncompared: it does not verify a provider, compare local state, resolve a request, or create an objective.</p>
+  <p role="alert" th:if="${candidateError != null}" th:text="${candidateError}"></p>
+  <section th:if="${mappingReview != null}">
+    <h2>Reviewed proposal</h2>
+    <dl>
+      <dt>Proposal ID</dt><dd th:text="${mappingProposal.proposalId}"></dd>
+      <dt>Review ID</dt><dd th:text="${mappingReview.reviewId}"></dd>
+      <dt>Reviewer</dt><dd th:text="${mappingReview.reviewerId}"></dd>
+      <dt>Proposal digest version</dt><dd th:text="${mappingProposal.proposalDigestVersion}"></dd>
+      <dt>Proposal digest</dt><dd th:text="${mappingProposal.proposalDigest}"></dd>
+    </dl>
+    <p><a th:href="@{/objectives/import/receipt/synthetic-mapping-review(id=${mappingProposal.receiptId},captureId=${mappingProposal.captureId},proposalId=${mappingProposal.proposalId})}">Back to review</a></p>
+  </section>
+  <section th:if="${candidate != null}">
+    <h2>Retained synthetic candidate</h2>
+    <dl>
+      <dt>Candidate ID</dt><dd th:text="${candidate.candidateId}"></dd>
+      <dt>Created by</dt><dd th:text="${candidate.createdBy}"></dd>
+      <dt>Created at</dt><dd th:text="${candidate.createdAt}"></dd>
+      <dt>Metric</dt><dd th:text="${candidate.normalizedDefinition.metric}"></dd>
+      <dt>Target</dt><dd th:text="${candidate.normalizedDefinition.target}"></dd>
+      <dt>Unit</dt><dd th:text="${candidate.normalizedDefinition.unit}"></dd>
+      <dt>Window</dt><dd th:text="${candidate.normalizedDefinition.window}"></dd>
+      <dt>Measurement reference</dt><dd th:text="${candidate.normalizedDefinition.measurementRef}"></dd>
+      <dt>Comparison</dt><dd th:text="${candidate.normalizedDefinition.comparison}"></dd>
+      <dt>Measurement kind</dt><dd th:text="${candidate.normalizedDefinition.measurementKind}"></dd>
+      <dt th:if="${candidate.normalizedDefinition.percentile != null}">Percentile</dt>
+      <dd th:if="${candidate.normalizedDefinition.percentile != null}" th:text="${candidate.normalizedDefinition.percentile}"></dd>
+      <dt>Fingerprint version</dt><dd th:text="${candidate.normalizedFingerprint.version}"></dd>
+      <dt>Normalized fingerprint</dt><dd th:text="${candidate.normalizedFingerprint.digest}"></dd>
+      <dt>Status</dt><dd th:text="${candidate.status}"></dd>
+      <dt>Verification</dt><dd th:text="${candidate.verification}"></dd>
+    </dl>
+  </section>
+  <form th:if="${candidateForm != null and (mappingReview != null or retryAllowed == true) and candidate == null}"
+        method="post" th:action="@{/objectives/import/receipt/synthetic-candidate}" th:object="${candidateForm}">
+    <input type="hidden" th:field="*{receiptId}"><input type="hidden" th:field="*{captureId}">
+    <input type="hidden" th:field="*{proposalId}"><input type="hidden" th:field="*{reviewId}">
+    <input type="hidden" th:field="*{proposalDigestVersion}"><input type="hidden" th:field="*{proposalDigest}">
+    <input type="hidden" th:field="*{idempotencyKey}"><input type="hidden" th:field="*{tenantId}">
+    <input type="hidden" th:field="*{environmentId}"><input type="hidden" th:field="*{principalName}">
+    <button type="submit" th:text="${retryAllowed == true ? 'Retry this candidate' : 'Retain synthetic candidate'}">Retain synthetic candidate</button>
+  </form>
+  <p><a href="/objectives/import">Return to import requests</a></p>
+</main></body></html>

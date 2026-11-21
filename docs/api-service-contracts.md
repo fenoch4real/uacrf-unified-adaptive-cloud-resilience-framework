@@ -287,7 +287,11 @@ the unkeyed route.
   no current membership or source recheck is made, no approved general mapping
   is established, and no local comparison, import resolution, objective
   proposal or processing occurs. EDGE01 forwards admission, discovery and
-  known-candidate readback; UX01 access remains open.
+  known-candidate readback. UX01 links an approved review to candidate
+  discovery and admission, re-reads the exact proposal and review before
+  submitting with separate read/write delegation, and retains the same
+  context-bound form and idempotency key on uncertain outcomes. Browser
+  readback labels the candidate unverified and uncompared.
 - **Synthetic mapping reviews:** S05
   `POST /v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews`
   requires global objective-read and objective-review delegation, an

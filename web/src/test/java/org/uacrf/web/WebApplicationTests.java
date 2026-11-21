@@ -694,6 +694,107 @@ class WebApplicationTests {
   }
 
   @Test
+  void syntheticCandidateDiscoverySubmissionRetryAndContextAreBound() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposalId = "12345678-1234-4234-8234-123456789015";
+    String reviewId = "12345678-1234-4234-8234-123456789016";
+    String key = "12345678-1234-4234-8234-123456789017";
+    String version = "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1";
+    String digest = "c".repeat(64);
+    String path = "/objectives/import/receipt/synthetic-candidate";
+    var proposal = new ObjectivesClient.SyntheticMappingProposal(proposalId, id, capture, "actor", "minutes", false,
+        "reason", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), "b".repeat(64),
+        "UNAPPROVED", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z", version, digest);
+    var review = new ObjectivesClient.SyntheticMappingReview(reviewId, id, capture, proposalId, "reviewer", version,
+        digest, "APPROVE", "reviewed", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:01:00Z");
+    var definition = new ObjectivesClient.ImportDefinition("<metric>", new java.math.BigDecimal("5.5"),
+        "minutes", "PT1H", "sample", "AT_MOST", "RECOVERY_TIME", null);
+    var candidate = new ObjectivesClient.SyntheticCandidate("12345678-1234-4234-8234-123456789018",
+        id, capture, proposalId, reviewId, "writer", "2026-11-21T00:02:00Z", version, digest,
+        definition, new ObjectivesClient.DefinitionFingerprint("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1",
+            "b".repeat(64)), "UNCOMPARED", "SYNTHETIC_UNVERIFIED");
+    when(identity.createDelegation("test-access-token", "S05", null, List.of("objectives.objective.read"),
+        "tenant-test", "environment-test")).thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    when(identity.createDelegation("test-access-token", "S05", null,
+        List.of("objectives.objective.read", "objectives.objective.write"), "tenant-test", "environment-test"))
+        .thenReturn(new IdentityAccessClient.Delegation("writer", "Bearer", 30));
+    when(objectives.syntheticMappingProposal("reader", id, capture, proposalId)).thenReturn(proposal);
+    when(objectives.syntheticMappingReviews("reader", proposal))
+        .thenReturn(new ObjectivesClient.SyntheticMappingReviews(List.of(review)));
+    when(objectives.syntheticCandidates("reader", proposal, review))
+        .thenReturn(new ObjectivesClient.SyntheticCandidates(List.of()))
+        .thenReturn(new ObjectivesClient.SyntheticCandidates(List.of(candidate)));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .param("reviewId", reviewId).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk())
+        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+        .andExpect(content().string(containsString("Retain synthetic candidate")));
+    when(objectives.createSyntheticCandidate("writer", proposal, review, key))
+        .thenThrow(new ResourceAccessException("timeout")).thenReturn(candidate);
+    var form = post(path).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("receiptId", id).param("captureId", capture).param("proposalId", proposalId).param("reviewId", reviewId)
+        .param("proposalDigestVersion", version).param("proposalDigest", digest).param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject");
+    mockMvc.perform(form).andExpect(status().isServiceUnavailable())
+        .andExpect(content().string(containsString("Retry this candidate")))
+        .andExpect(content().string(containsString(key)));
+    mockMvc.perform(form).andExpect(status().isOk())
+        .andExpect(content().string(containsString("Retained synthetic candidate")))
+        .andExpect(content().string(containsString("&lt;metric&gt;")));
+    mockMvc.perform(get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+            .param("reviewId", reviewId).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isOk()).andExpect(content().string(containsString("UNCOMPARED")));
+    verify(objectives, org.mockito.Mockito.times(2)).createSyntheticCandidate("writer", proposal, review, key);
+    mockMvc.perform(post(path).with(browserLogin()).session(sessionWithSelectedContext()))
+        .andExpect(status().isForbidden());
+    for (String field : List.of("tenantId", "environmentId", "principalName")) {
+      mockMvc.perform(post(path).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+          .param(field, "different")).andExpect(status().isConflict());
+    }
+    mockMvc.perform(post(path).with(browserLogin()).with(csrf()).session(sessionWithSelectedContext())
+        .param("receiptId", id).param("captureId", capture).param("proposalId", proposalId).param("reviewId", reviewId)
+        .param("proposalDigestVersion", version).param("proposalDigest", "d".repeat(64)).param("idempotencyKey", key)
+        .param("tenantId", "tenant-test").param("environmentId", "environment-test")
+        .param("principalName", "local-admin-subject")).andExpect(status().isConflict())
+        .andExpect(content().string(containsString("differs from the submitted content")));
+    verify(objectives, org.mockito.Mockito.times(2)).createSyntheticCandidate("writer", proposal, review, key);
+  }
+
+  @Test
+  void syntheticCandidateRejectsDeniedAccessAndNonApprovedReview() throws Exception {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposalId = "12345678-1234-4234-8234-123456789015";
+    String reviewId = "12345678-1234-4234-8234-123456789016";
+    String version = "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1";
+    String digest = "c".repeat(64);
+    String path = "/objectives/import/receipt/synthetic-candidate";
+    var proposal = new ObjectivesClient.SyntheticMappingProposal(proposalId, id, capture, "actor", "minutes", false,
+        "reason", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), "b".repeat(64),
+        "UNAPPROVED", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z", version, digest);
+    var review = new ObjectivesClient.SyntheticMappingReview(reviewId, id, capture, proposalId, "reviewer", version,
+        digest, "REJECT", "rejected", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:01:00Z");
+    when(identity.createDelegation("test-access-token", "S05", null, List.of("objectives.objective.read"),
+        "tenant-test", "environment-test"))
+        .thenThrow(new org.springframework.web.client.HttpClientErrorException(HttpStatus.FORBIDDEN))
+        .thenReturn(new IdentityAccessClient.Delegation("reader", "Bearer", 30));
+    var request = get(path).param("id", id).param("captureId", capture).param("proposalId", proposalId)
+        .param("reviewId", reviewId).with(browserLogin()).session(sessionWithSelectedContext());
+    mockMvc.perform(request).andExpect(status().isForbidden())
+        .andExpect(content().string(containsString("HTTP 403")));
+    when(objectives.syntheticMappingProposal("reader", id, capture, proposalId)).thenReturn(proposal);
+    when(objectives.syntheticMappingReviews("reader", proposal))
+        .thenReturn(new ObjectivesClient.SyntheticMappingReviews(List.of()))
+        .thenReturn(new ObjectivesClient.SyntheticMappingReviews(List.of(review)));
+    mockMvc.perform(request).andExpect(status().isNotFound());
+    mockMvc.perform(request).andExpect(status().isConflict())
+        .andExpect(content().string(containsString("rejected synthetic proposal")));
+    verify(objectives, org.mockito.Mockito.never()).syntheticCandidates(anyString(), any(), any());
+  }
+
+  @Test
   void syntheticObjectiveSourceUsesSeparateConnectionReadAndEscapesPayload() throws Exception {
     when(identity.createDelegation("test-access-token", "S03", null,
         List.of("connections.connection.read"), "tenant-test", "environment-test"))

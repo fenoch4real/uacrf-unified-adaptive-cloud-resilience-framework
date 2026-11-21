@@ -515,6 +515,117 @@ class ObjectiveImportController {
     return "objective-import-synthetic-review";
   }
 
+  @GetMapping("/objectives/import/receipt/synthetic-candidate")
+  String syntheticCandidate(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response, @RequestParam String id, @RequestParam String captureId,
+      @RequestParam String proposalId, @RequestParam String reviewId, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!ObjectivesClient.validUuid(id) || !ObjectivesClient.validUuid(captureId)
+        || !ObjectivesClient.validUuid(proposalId) || !ObjectivesClient.validUuid(reviewId)) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("candidateError", "Provide valid request, capture, proposal and review IDs.");
+      return "objective-import-synthetic-candidate";
+    }
+    try {
+      String token = identity.createDelegation(client.getAccessToken().getTokenValue(), "S05", null,
+          List.of("objectives.objective.read"), context.tenantId(), context.environmentId()).accessToken();
+      var proposal = objectives.syntheticMappingProposal(token, id, captureId, proposalId);
+      var reviews = objectives.syntheticMappingReviews(token, proposal);
+      if (reviews.items().isEmpty() || !reviewId.equals(reviews.items().getFirst().reviewId())) {
+        response.setStatus(HttpStatus.NOT_FOUND.value());
+        model.addAttribute("candidateError", "The requested review was not found.");
+        return "objective-import-synthetic-candidate";
+      }
+      var review = reviews.items().getFirst();
+      model.addAttribute("mappingProposal", proposal);
+      model.addAttribute("mappingReview", review);
+      if (!"APPROVE".equals(review.decision())) {
+        response.setStatus(HttpStatus.CONFLICT.value());
+        model.addAttribute("candidateError", "A rejected synthetic proposal cannot produce a candidate.");
+        return "objective-import-synthetic-candidate";
+      }
+      var candidates = objectives.syntheticCandidates(token, proposal, review);
+      if (candidates.items().isEmpty()) {
+        model.addAttribute("candidateForm", new SyntheticCandidateForm(id, captureId, proposalId, reviewId,
+            proposal.proposalDigestVersion(), proposal.proposalDigest(), UUID.randomUUID().toString(),
+            context.tenantId(), context.environmentId(), client.getPrincipalName()));
+      } else {
+        model.addAttribute("candidate", candidates.items().getFirst());
+      }
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("candidateError", "Identity or objectives service is unavailable; the candidate was not loaded.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("candidateError", "Candidate access failed (HTTP " + error.getStatusCode().value() + ").");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("candidateError", "Identity or objectives service returned an invalid candidate.");
+    }
+    return "objective-import-synthetic-candidate";
+  }
+
+  @PostMapping("/objectives/import/receipt/synthetic-candidate")
+  String createSyntheticCandidate(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
+      HttpSession session, HttpServletResponse response,
+      @Valid @ModelAttribute("candidateForm") SyntheticCandidateForm form, BindingResult errors, Model model) {
+    if (!(session.getAttribute(BrowserContext.SESSION_KEY) instanceof BrowserContext context)) return "redirect:/contexts";
+    response.setHeader("Cache-Control", "no-store");
+    model.addAttribute("selectedContext", context);
+    if (!context.tenantId().equals(form.tenantId()) || !context.environmentId().equals(form.environmentId())
+        || !client.getPrincipalName().equals(form.principalName())) {
+      response.setStatus(HttpStatus.CONFLICT.value());
+      model.addAttribute("candidateError", "The signed-in user or context changed; reopen the candidate.");
+      return "objective-import-synthetic-candidate";
+    }
+    if (errors.hasErrors() || !ObjectivesClient.validUuid(form.receiptId())
+        || !ObjectivesClient.validUuid(form.captureId()) || !ObjectivesClient.validUuid(form.proposalId())
+        || !ObjectivesClient.validUuid(form.reviewId())) {
+      response.setStatus(HttpStatus.BAD_REQUEST.value());
+      model.addAttribute("candidateError", "The candidate form is invalid; reopen the review.");
+      return "objective-import-synthetic-candidate";
+    }
+    model.addAttribute("retryAllowed", true);
+    try {
+      String access = client.getAccessToken().getTokenValue();
+      String readToken = identity.createDelegation(access, "S05", null, List.of("objectives.objective.read"),
+          context.tenantId(), context.environmentId()).accessToken();
+      var proposal = objectives.syntheticMappingProposal(
+          readToken, form.receiptId(), form.captureId(), form.proposalId());
+      var reviews = objectives.syntheticMappingReviews(readToken, proposal);
+      if (!proposal.proposalDigestVersion().equals(form.proposalDigestVersion())
+          || !proposal.proposalDigest().equals(form.proposalDigest())
+          || reviews.items().isEmpty() || !form.reviewId().equals(reviews.items().getFirst().reviewId())
+          || !"APPROVE".equals(reviews.items().getFirst().decision())) {
+        response.setStatus(HttpStatus.CONFLICT.value());
+        model.addAttribute("retryAllowed", false);
+        model.addAttribute("candidateError", "The proposal or review differs from the submitted content; reopen it.");
+        return "objective-import-synthetic-candidate";
+      }
+      var review = reviews.items().getFirst();
+      String writeToken = identity.createDelegation(access, "S05", null,
+          List.of("objectives.objective.read", "objectives.objective.write"),
+          context.tenantId(), context.environmentId()).accessToken();
+      model.addAttribute("mappingProposal", proposal);
+      model.addAttribute("mappingReview", review);
+      model.addAttribute("candidate", objectives.createSyntheticCandidate(writeToken, proposal, review, form.idempotencyKey()));
+      model.addAttribute("retryAllowed", false);
+    } catch (ResourceAccessException error) {
+      response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+      model.addAttribute("candidateError", "The candidate outcome is unconfirmed. Retry this same form in the same context.");
+    } catch (RestClientResponseException error) {
+      response.setStatus(error.getStatusCode().value());
+      model.addAttribute("candidateError", "Candidate creation failed or is unconfirmed (HTTP "
+          + error.getStatusCode().value() + "). Retry only this same form in the same context.");
+    } catch (IllegalStateException | RestClientException error) {
+      response.setStatus(HttpStatus.BAD_GATEWAY.value());
+      model.addAttribute("candidateError", "The response was invalid; the outcome is unconfirmed. Retry this same form.");
+    }
+    return "objective-import-synthetic-candidate";
+  }
+
   @GetMapping("/objectives/import/requests")
   String requests(@RegisteredOAuth2AuthorizedClient("keycloak") OAuth2AuthorizedClient client,
       HttpSession session, HttpServletResponse response,
@@ -562,5 +673,12 @@ class ObjectiveImportController {
       @NotBlank @Pattern(regexp="^(APPROVE|REJECT)$") String decision,
       @NotBlank @Size(max=1000) String reason,
       @NotBlank @Pattern(regexp="^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$") String idempotencyKey,
+      @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
+
+  record SyntheticCandidateForm(
+      @NotBlank String receiptId, @NotBlank String captureId, @NotBlank String proposalId, @NotBlank String reviewId,
+      @NotBlank @Pattern(regexp = "^SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1$") String proposalDigestVersion,
+      @NotBlank @Pattern(regexp = "^[a-f0-9]{64}$") String proposalDigest,
+      @NotBlank @Pattern(regexp = "^[a-f0-9-]{36}$") String idempotencyKey,
       @NotBlank String tenantId, @NotBlank String environmentId, @NotBlank String principalName) {}
 }

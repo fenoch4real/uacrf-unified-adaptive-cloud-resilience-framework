@@ -360,6 +360,58 @@ class ObjectivesClient {
     }
   }
 
+  SyntheticCandidates syntheticCandidates(String token, SyntheticMappingProposal proposal, SyntheticMappingReview review) {
+    if (!validSyntheticReview(review, proposal)) throw new IllegalStateException("Invalid synthetic review.");
+    SyntheticCandidates result = restClient.get()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates",
+            proposal.receiptId(), proposal.captureId(), proposal.proposalId(), review.reviewId())
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).retrieve().body(SyntheticCandidates.class);
+    if (result == null || result.items() == null || result.items().size() > 1
+        || result.items().stream().anyMatch(candidate -> !validSyntheticCandidate(candidate, proposal, review))) {
+      throw new IllegalStateException("S05 returned invalid synthetic candidates.");
+    }
+    return result;
+  }
+
+  SyntheticCandidate createSyntheticCandidate(String token, SyntheticMappingProposal proposal,
+      SyntheticMappingReview review, String key) {
+    if (!validSyntheticReview(review, proposal) || !"APPROVE".equals(review.decision()) || !validUuid(key)) {
+      throw new IllegalStateException("Invalid synthetic candidate parameters.");
+    }
+    var request = new SyntheticCandidateRequest(proposal.proposalDigestVersion(), proposal.proposalDigest());
+    SyntheticCandidate result = restClient.post()
+        .uri("/v1/objective-imports/{id}/sample-captures/{captureId}/mapping-proposals/{proposalId}/reviews/{reviewId}/synthetic-candidates",
+            proposal.receiptId(), proposal.captureId(), proposal.proposalId(), review.reviewId())
+        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).header("Idempotency-Key", key)
+        .body(request).retrieve().body(SyntheticCandidate.class);
+    if (!validSyntheticCandidate(result, proposal, review)) {
+      throw new IllegalStateException("S05 returned an invalid synthetic candidate.");
+    }
+    return result;
+  }
+
+  private static boolean validSyntheticCandidate(
+      SyntheticCandidate candidate, SyntheticMappingProposal proposal, SyntheticMappingReview review) {
+    if (candidate == null || !validUuid(candidate.candidateId())
+        || !proposal.receiptId().equals(candidate.receiptId()) || !proposal.captureId().equals(candidate.captureId())
+        || !proposal.proposalId().equals(candidate.proposalId()) || !review.reviewId().equals(candidate.reviewId())
+        || !"APPROVE".equals(review.decision()) || !proposal.proposalDigestVersion().equals(candidate.proposalDigestVersion())
+        || !proposal.proposalDigest().equals(candidate.proposalDigest()) || !present(candidate.createdBy())
+        || !present(candidate.createdAt()) || !valid(candidate.normalizedDefinition())
+        || !proposal.targetUnit().equals(candidate.normalizedDefinition().unit())
+        || !validFingerprint(candidate.normalizedFingerprint())
+        || !proposal.normalizedFingerprint().equals(candidate.normalizedFingerprint().digest())
+        || !"UNCOMPARED".equals(candidate.status()) || !"SYNTHETIC_UNVERIFIED".equals(candidate.verification())) {
+      return false;
+    }
+    try {
+      java.time.Instant.parse(candidate.createdAt());
+      return true;
+    } catch (java.time.format.DateTimeParseException error) {
+      return false;
+    }
+  }
+
   private static boolean validFingerprint(DefinitionFingerprint value) {
     return value != null && "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1".equals(value.version()) && digest(value.digest());
   }
@@ -567,6 +619,22 @@ class ObjectivesClient {
       String verification, @JsonProperty("reviewed_at") String reviewedAt) {}
 
   record SyntheticMappingReviews(List<SyntheticMappingReview> items) {}
+
+  record SyntheticCandidateRequest(
+      @JsonProperty("expected_proposal_digest_version") String expectedProposalDigestVersion,
+      @JsonProperty("expected_proposal_digest") String expectedProposalDigest) {}
+
+  record SyntheticCandidate(@JsonProperty("candidate_id") String candidateId,
+      @JsonProperty("receipt_id") String receiptId, @JsonProperty("capture_id") String captureId,
+      @JsonProperty("proposal_id") String proposalId, @JsonProperty("review_id") String reviewId,
+      @JsonProperty("created_by") String createdBy, @JsonProperty("created_at") String createdAt,
+      @JsonProperty("proposal_digest_version") String proposalDigestVersion,
+      @JsonProperty("proposal_digest") String proposalDigest,
+      @JsonProperty("normalized_definition") ImportDefinition normalizedDefinition,
+      @JsonProperty("normalized_fingerprint") DefinitionFingerprint normalizedFingerprint,
+      String status, String verification) {}
+
+  record SyntheticCandidates(List<SyntheticCandidate> items) {}
 
   record ImportDefinition(String metric, BigDecimal target, String unit, String window,
       @JsonProperty("measurement_ref") String measurementRef, String comparison,

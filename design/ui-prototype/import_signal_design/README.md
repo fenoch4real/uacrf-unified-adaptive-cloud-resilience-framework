@@ -128,7 +128,9 @@ normalized fingerprint. The candidate is `UNCOMPARED` and
 membership or source check, an approved general mapping, a local comparison,
 an import resolution or an objective proposal. S05 discovers the zero or one
 candidate for a known review; EDGE01 forwards admission, discovery and
-known-candidate readback. UX01 access remains open.
+known-candidate readback. UX01 links an approved review to discovery and
+admission, re-reads the proposal and review before submission, and preserves
+the context-bound form and idempotency key on uncertain outcomes.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

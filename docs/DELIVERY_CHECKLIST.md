@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**177 completed / 837 total** · 660 open
+**178 completed / 837 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 87 | 250 |
+| Milestone items | 88 | 250 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -356,7 +356,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026ad Connect retained synthetic proposal listing to UX01 and verify browser pagination and authorization. Evidence: R-0307–R-0309.
   - [x] M2-026ae Retain an immutable synthetic normalized candidate bound to an independently approved historical capture and exact proposal, with retry-safe admission, scoped readback and explicit unverified/uncompared limits. Evidence: R-0314–R-0315.
   - [x] M2-026af Forward synthetic candidate admission and scoped readback through EDGE01 with the original delegation, idempotency key and owner responses. Evidence: R-0319.
-  - [ ] M2-026ag Connect synthetic candidate admission and readback to UX01 with context-bound retry and explicit unverified/uncompared limits; verify browser success and denial.
+  - [x] M2-026ag Connect synthetic candidate admission and readback to UX01 with context-bound retry and explicit unverified/uncompared limits; verify browser success and denial.
   - [x] M2-026ah Discover the retained synthetic candidate, if any, for a known review with scoped read authority in S05. Evidence: R-0323.
   - [x] M2-026ai Forward synthetic candidate discovery through EDGE01 with the original delegation and owner response. Evidence: R-0325.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
@@ -1458,6 +1458,16 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0324 | 2026-11-21 | M2-026ai | Started EDGE01 candidate discovery forwarding. | S05 remains the authorization and validation owner. |
 | R-0325 | 2026-11-21 | M2-026ai | Ran the complete EDGE01 candidate discovery regression. | 43 tests passed, including original delegation and owner statuses and bodies. |
 | R-0326 | 2026-11-21 | M2-026ah, M2-026ai | Updated contracts, design notes and private technical approach Appendix AB to revision 225. | Verified revision text, archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; UX01 access remains open. |
+| R-0327 | 2026-11-21 | M2-026ah, M2-026ai | Committed and pushed S05 and EDGE01 candidate discovery as `889e53e`. | Browser access remains open. |
+| R-0328 | 2026-11-21 | M2-026ag | Started UX01 candidate creation, discovery and readback. | Use separate read/write delegation and preserve the same form and key on uncertain outcomes. |
+| R-0329 | 2026-11-21 | M2-026ag | Attempted focused web tests with `mvn`. | Failed: Maven is not on PATH; no tests ran. |
+| R-0330 | 2026-11-21 | M2-026ag | Retried focused web tests with the repository Maven wrapper. | Passed 187 tests, including candidate validation, retry, context binding and CSRF; browser verification remains open. |
+| R-0331 | 2026-11-21 | M2-026ag | Added isolated browser coverage for candidate creation, replay, discovery, and denied access. | Syntax and patch checks passed; checked all fixed test ports immediately before starting the enabled suite. |
+| R-0332 | 2026-11-21 | M2-026ag | Added focused denied-access, unknown-review and rejected-review coverage. | The additional controller test passed. |
+| R-0333 | 2026-11-21 | M2-026ag | Ran the opt-in isolated browser suite with synthetic inspection enabled. | All 11 tests passed, including candidate creation, idempotent replay, discovery, denied write and restricted read; proxy-to-owner hops use HTTP, not end-to-end TLS. |
+| R-0334 | 2026-11-21 | M2-026ag | Ran the default-disabled isolated browser suite after checking fixed ports. | All 11 tests passed; the opt-in source remains disabled by default. |
+| R-0335 | 2026-11-21 | M2-026ag | Updated contracts, UI design notes and private technical approach Appendix AB to revision 226. | Verified the DOCX archive, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`; comparison and import processing remain open. |
+| R-0336 | 2026-11-21 | M2-026ag | Re-ran the focused client and controller regression after adding denial cases. | All 188 tests passed; patch whitespace and checklist counts verified. |
 
 ## Implementation evidence
 

@@ -992,6 +992,7 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
     let mappingRequest;
     let mappingReadUrl;
     let proposalListUrl;
+    let candidateUrl;
     const [inspectionResponse] = await Promise.all([
       sample.waitForResponse((response) =>
         new URL(response.url()).pathname === '/objectives/import/receipt/sample-source'),
@@ -1117,9 +1118,33 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
         await reviewer.goto(new URL(reviewUrl, sample.url()).toString());
         await expect(reviewer.getByRole('heading', { name: 'Retained synthetic decision' })).toBeVisible();
         await expect(reviewer.getByRole('button', { name: 'Record synthetic decision' })).toHaveCount(0);
+        candidateUrl = await reviewer.getByRole('link', { name: 'Open synthetic candidate' }).getAttribute('href');
+        await reviewer.goto(candidateUrl);
+        const [deniedCandidateWrite] = await Promise.all([
+          reviewer.waitForResponse((response) => response.request().method() === 'POST'
+            && new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-candidate'),
+          reviewer.getByRole('button', { name: 'Retain synthetic candidate' }).click(),
+        ]);
+        expect(deniedCandidateWrite.status()).toBe(403);
       } finally {
         await syntheticReviewerContext.close();
       }
+      await sample.goto(candidateUrl);
+      const [candidateResponse] = await Promise.all([
+        sample.waitForResponse((response) => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/objectives/import/receipt/synthetic-candidate'),
+        sample.getByRole('button', { name: 'Retain synthetic candidate' }).click(),
+      ]);
+      expect(candidateResponse.status()).toBe(200);
+      await expect(sample.getByRole('heading', { name: 'Retained synthetic candidate' })).toBeVisible();
+      await expect(sample.locator('main')).toContainText('UNCOMPARED');
+      await expect(sample.locator('main')).toContainText('SYNTHETIC_UNVERIFIED');
+      expect((await sample.request.post('/objectives/import/receipt/synthetic-candidate', {
+        headers: { 'content-type': 'application/x-www-form-urlencoded' }, data: candidateResponse.request().postData(),
+      })).status()).toBe(200);
+      await sample.goto(candidateUrl);
+      await expect(sample.getByRole('heading', { name: 'Retained synthetic candidate' })).toBeVisible();
+      await expect(sample.getByRole('button', { name: 'Retain synthetic candidate' })).toHaveCount(0);
       await sample.goto(new URL(mappingReadUrl, sample.url()).toString());
       await sample.getByRole('link', { name: 'Back to this capture' }).click();
       const [proposalList] = await Promise.all([
@@ -1593,6 +1618,10 @@ test('authorized user imports and replays synthetic inventory through S03', asyn
       if (proposalListUrl) {
         expect((await restricted.goto(proposalListUrl)).status()).toBe(403);
         await expect(restricted.locator('main li')).toHaveCount(0);
+      }
+      if (candidateUrl) {
+        expect((await restricted.goto(candidateUrl)).status()).toBe(403);
+        await expect(restricted.getByRole('heading', { name: 'Retained synthetic candidate' })).toHaveCount(0);
       }
       expect((await restricted.goto('/objectives/import/requests')).status()).toBe(403);
       await restricted.goto('/objectives/import');

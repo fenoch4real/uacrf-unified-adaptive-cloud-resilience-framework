@@ -392,6 +392,74 @@ class ObjectivesClientTests {
   }
 
   @Test
+  void validatesSyntheticCandidateDiscoveryAndAdmission() {
+    String id = "12345678-1234-4234-8234-123456789012";
+    String capture = "12345678-1234-4234-8234-123456789014";
+    String proposalId = "12345678-1234-4234-8234-123456789015";
+    String reviewId = "12345678-1234-4234-8234-123456789016";
+    String candidateId = "12345678-1234-4234-8234-123456789017";
+    String key = "12345678-1234-4234-8234-123456789018";
+    String version = "SYNTHETIC_MAPPING_PROPOSAL_SHA256_V1";
+    String digest = "c".repeat(64);
+    String normalized = "b".repeat(64);
+    var proposal = new ObjectivesClient.SyntheticMappingProposal(proposalId, id, capture, "actor", "minutes", false,
+        "reason", "OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1", "a".repeat(64), normalized, "UNAPPROVED",
+        "SYNTHETIC_UNVERIFIED", "2026-11-21T00:00:00Z", version, digest);
+    var review = new ObjectivesClient.SyntheticMappingReview(reviewId, id, capture, proposalId, "reviewer", version,
+        digest, "APPROVE", "reviewed", "SYNTHETIC_UNVERIFIED", "2026-11-21T00:01:00Z");
+    String path = "http://edge.test/v1/objective-imports/" + id + "/sample-captures/" + capture
+        + "/mapping-proposals/" + proposalId + "/reviews/" + reviewId + "/synthetic-candidates";
+    String candidate = """
+        {"candidate_id":"%s","receipt_id":"%s","capture_id":"%s","proposal_id":"%s","review_id":"%s",
+         "created_by":"writer","created_at":"2026-11-21T00:02:00Z","proposal_digest_version":"%s",
+         "proposal_digest":"%s","normalized_definition":{"metric":"recovery","target":5.5,"unit":"minutes",
+         "window":"PT1H","measurement_ref":"sample","comparison":"AT_MOST","measurement_kind":"RECOVERY_TIME"},
+         "normalized_fingerprint":{"version":"OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1","digest":"%s"},
+         "status":"UNCOMPARED","verification":"SYNTHETIC_UNVERIFIED"}
+        """.formatted(candidateId, id, capture, proposalId, reviewId, version, digest, normalized);
+    for (String body : List.of("{\"items\":[]}", "{\"items\":[" + candidate + "]}",
+        "{\"items\":[" + candidate + "," + candidate + "]}", "{}",
+        "{\"items\":[" + candidate.replace(reviewId, key) + "]}",
+        "{\"items\":[" + candidate.replace(normalized, "d".repeat(64)) + "]}",
+        "{\"items\":[" + candidate.replace("UNCOMPARED", "COMPARED") + "]}",
+        "{\"items\":[" + candidate.replace("SYNTHETIC_UNVERIFIED", "VERIFIED") + "]}",
+        "{\"items\":[" + candidate.replace("\"unit\":\"minutes\"", "\"unit\":\"seconds\"") + "]}")) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo(path)).andExpect(method(HttpMethod.GET))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer reader"))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (body.equals("{\"items\":[]}") || body.equals("{\"items\":[" + candidate + "]}")) {
+        assertThat(client.syntheticCandidates("reader", proposal, review).items())
+            .hasSize(body.equals("{\"items\":[]}") ? 0 : 1);
+      } else {
+        assertThatThrownBy(() -> client.syntheticCandidates("reader", proposal, review))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+    for (String body : List.of(candidate, candidate.replace(digest, "d".repeat(64)))) {
+      RestClient.Builder builder = RestClient.builder().baseUrl("http://edge.test");
+      MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+      server.expect(requestTo(path)).andExpect(method(HttpMethod.POST))
+          .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer writer"))
+          .andExpect(header("Idempotency-Key", key))
+          .andExpect(jsonPath("$.expected_proposal_digest").value(digest))
+          .andExpect(jsonPath("$.expected_proposal_digest_version").value(version))
+          .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+      ObjectivesClient client = new ObjectivesClient(builder.build());
+      if (body.equals(candidate)) {
+        assertThat(client.createSyntheticCandidate("writer", proposal, review, key).candidateId()).isEqualTo(candidateId);
+      } else {
+        assertThatThrownBy(() -> client.createSyntheticCandidate("writer", proposal, review, key))
+            .isInstanceOf(IllegalStateException.class);
+      }
+      server.verify();
+    }
+  }
+
+  @Test
   void readsPendingImportPagesAndRejectsInvalidItems() {
     String id = "12345678-1234-4234-8234-123456789012";
     for (String status : List.of("PENDING", "SUCCEEDED")) {
