@@ -14,11 +14,11 @@ infrastructure; dotted connections identify planned or unaccepted paths.
 
 ## Checklist count
 
-**158 completed / 817 total** · 659 open
+**159 completed / 818 total** · 659 open
 
 | Category | Completed | Total |
 | --- | ---: | ---: |
-| Milestone items | 68 | 230 |
+| Milestone items | 69 | 231 |
 | Historical slices | 90 | 90 |
 | Inventory reconciliation | 0 | 428 |
 | Acceptance cases | 0 | 69 |
@@ -339,6 +339,7 @@ Evidence and limits: [S05 status](#m2--s05-objectives-first-slice).
   - [x] M2-026m Forward the retained synthetic capture list through EDGE01 with original authorization and no-store. Evidence: R-0229.
   - [x] M2-026n Connect paginated retained capture listing to UX01 and verify browser navigation and authorization. Evidence: R-0230–R-0232.
   - [x] M2-026o Bind capture-list cursors to their tenant, environment and import request; reject use across scopes without treating a cursor as authority. Evidence: R-0236–R-0237.
+  - [x] M2-026p Provide a read-only synthetic normalization rehearsal from a known retained capture, with exact conversion and versioned fingerprints; never treat it as an approved mapping or import candidate. Evidence: R-0241–R-0242.
 - [ ] M2-027 Compare an imported objective against local state and expose the preview.
   - [x] M2-027a Implement and test conservative three-way digest classification without enabling import processing. Evidence: R-0106.
   - [x] M2-027b Require explicitly supported fingerprint versions in standalone three-way comparisons; reject unversioned or unsupported digests. Evidence: R-0162.
@@ -1350,6 +1351,11 @@ complete scenario; prior local or partial tests are not substituted.
 | R-0236 | 2026-11-21 | M2-026o | Ran the focused S05 capture-list test with the new context-bound cursor. | Same-request pagination and cross-request, legacy and malformed-cursor rejection passed; connected browser verification remains open. |
 | R-0237 | 2026-11-21 | M2-026o | Ran the enabled isolated browser suite with context-bound cursors and 26 fictional captures. | 11 tests passed, including first/next navigation and denial; legacy cursors require restarting from the first page. |
 | R-0238 | 2026-11-21 | M2-026o | Updated private technical approach Appendix AB to revision 210 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; cursor binding does not grant authorization or provide a snapshot. |
+| R-0239 | 2026-11-21 | M2-026o | Committed the context-bound capture cursors as `4912d41` and pushed them to `origin/main`. | Legacy cursors require restarting from the first page. |
+| R-0240 | 2026-11-21 | M2-026p | Started a read-only normalization rehearsal based on a retained fictional capture. | The rehearsal is not an approved mapping, persisted candidate, source verification or import processing. |
+| R-0241 | 2026-11-21 | M2-026p | Ran the focused owner-service rehearsal test. | Exact 720 seconds to 12 minutes, supported fingerprint version, no-store and authorization checks passed; additional semantic and full regression checks remain open. |
+| R-0242 | 2026-11-21 | M2-026p | Ran S05 and shared-security regression after adding semantic preservation and scoped-denial checks. | 46 S05 and 8 shared-security tests passed; the rehearsal does not persist or approve a mapping. |
+| R-0243 | 2026-11-21 | M2-026p | Updated private technical approach Appendix AB to revision 211 and verified archive integrity, unchanged non-document parts, 169 tables, 44 inline images and mode `0600`. | The private document is not committed; edge and browser access and approved mapping remain open. |
 
 ## Implementation evidence
 

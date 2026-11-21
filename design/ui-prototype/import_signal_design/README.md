@@ -80,7 +80,7 @@ The new proposed extension contains nine strict schemas, eight API operations an
 
 S05 implements durable admission of objective preview: an authorized `POST /v1/objective-imports:preview` stores an idempotent request and outbox event, and `GET /v1/objective-imports/{id}` reads its pending receipt. API Edge routes both operations. A separate opt-in S05 read can inspect the bound fictional source for a pending request through S01 and S03 without retaining it. An explicit, idempotent S05 capture operation can retain that fictional payload and its versioned fingerprint as an immutable, unverified historical observation. EDGE01 forwards capture, and UX01 offers it from the inspection page with a warning that capture refetches the source and may differ from the inspected view. The context-bound retry preserves the key; source reauthorization or availability can still prevent replay. S05 can read a known capture and its exact retained payload with global objective-read authority, without refetching the source; EDGE01 forwards that read. The browser receipt links to the escaped exact payload and versioned fingerprint, validates the payload digest, and labels the observation unverified and historical. S05 lists bounded capture summaries in capture-ID order; EDGE01 and UX01 expose that list with first/next navigation and disclose that pages are not a snapshot. Broader import history remains open. Neither operation validates a mapping, compares local definitions, or creates a candidate. No worker consumes the command yet, so the status stays `PENDING` and source verification is not established. The broader import/signal extension and the earlier seven-operation objective extension are not fully deployed or accepted. Both reuse the existing authorized connection and workload identities; this update does not implement a new connector registry.
 
-S05 also contains a standalone tested helper for exact seconds/minutes and explicitly approved fraction/percent target conversions. It rejects incompatible windows, unsupported mappings, invalid ranges and conversions requiring rounding. It is not connected to import processing and does not normalize complete definitions or verify provenance.
+S05 also contains a tested helper for exact seconds/minutes and explicitly enabled fraction/percent target conversions. It rejects incompatible windows, unsupported mappings, invalid ranges and conversions requiring rounding. It is not connected to import processing and does not itself approve mappings or verify provenance.
 
 An additional typed definition validates the proposed normalized fields and preserves
 metric, comparison, measurement kind, percentile, measurement reference and window
@@ -88,6 +88,14 @@ across those exact unit conversions. A standalone strict parser accepts the boun
 fictional sample payload format, rejects duplicate or unknown fields and preserves
 decimal precision. The parser is not connected to a worker and does not establish an
 approved mapping, retain provenance or process imports.
+
+An S05-only, read-only rehearsal applies those exact conversions to a known
+retained fictional capture, checks the stored payload and definition
+fingerprints and returns original and hypothetical normalized definitions with
+versioned fingerprints. It preserves the measurement window and labels the
+result `UNAPPROVED_REHEARSAL` and `SYNTHETIC_UNVERIFIED`. It does not persist a
+candidate, approve the selected conversion or reverify the source. It is not
+yet exposed through the edge or browser.
 
 S05 also has a standalone `OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1` fingerprint
 for the eight normalized definition fields. Its SHA-256 input is UTF-8 compact

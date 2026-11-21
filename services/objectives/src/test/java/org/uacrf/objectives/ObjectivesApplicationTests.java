@@ -445,6 +445,36 @@ class ObjectivesApplicationTests {
     assertEquals(404, get("/v1/objective-imports/" + java.util.UUID.randomUUID() + "/sample-captures/"
         + created.captureId(), reader).statusCode());
     assertEquals(404, get("/v1/objective-imports/" + id + "/sample-captures/not-a-uuid", reader).statusCode());
+    String rehearsalPath = historyPath + "/normalization-rehearsal";
+    var rehearsal = get(rehearsalPath + "?targetUnit=minutes", reader);
+    assertEquals(200, rehearsal.statusCode());
+    assertThat(rehearsal.headers().firstValue("cache-control")).hasValue("no-store");
+    var rehearsalBody = json.readTree(rehearsal.body());
+    assertThat(rehearsalBody.path("status").asText()).isEqualTo("UNAPPROVED_REHEARSAL");
+    assertThat(rehearsalBody.path("verification").asText()).isEqualTo("SYNTHETIC_UNVERIFIED");
+    assertThat(rehearsalBody.path("source_definition").path("target").decimalValue())
+        .isEqualByComparingTo("720");
+    assertThat(rehearsalBody.path("normalized_definition").path("target").decimalValue())
+        .isEqualByComparingTo("12");
+    assertThat(rehearsalBody.path("normalized_definition").path("unit").asText()).isEqualTo("minutes");
+    assertThat(rehearsalBody.path("normalized_definition").path("window").asText()).isEqualTo("stable-30m");
+    assertThat(rehearsalBody.path("source_fingerprint").path("digest").asText())
+        .isEqualTo(inspection.definitionFingerprint().digest());
+    assertThat(rehearsalBody.path("normalized_fingerprint").path("version").asText())
+        .isEqualTo("OBJECTIVE_DEFINITION_EXACT_DECIMAL_V1");
+    assertThat(rehearsalBody.path("normalized_fingerprint").path("digest").asText())
+        .isEqualTo(ObjectiveImportFingerprint.fingerprint(definition.convert("minutes", definition.window(), false)).digest());
+    assertThat(rehearsalBody.path("normalized_definition").path("measurement_ref").asText()).isEqualTo("sample:check");
+    assertThat(rehearsalBody.path("normalized_definition").path("comparison").asText()).isEqualTo("AT_MOST");
+    assertThat(rehearsalBody.path("normalized_definition").path("measurement_kind").asText()).isEqualTo("RECOVERY_TIME");
+    assertEquals(400, get(rehearsalPath + "?targetUnit=invalid", reader).statusCode());
+    assertEquals(400, get(rehearsalPath + "?targetUnit=", reader).statusCode());
+    assertEquals(403, get(rehearsalPath + "?targetUnit=minutes",
+        token("scoped", tenant, "w1", List.of("objectives.objective.read"))).statusCode());
+    assertEquals(403, get(rehearsalPath + "?targetUnit=minutes",
+        bearer("writer-only", tenant, List.of("objectives.objective.write"))).statusCode());
+    assertEquals(404, get(rehearsalPath + "?targetUnit=minutes",
+        bearer("reader", "other-tenant", List.of("objectives.objective.read"))).statusCode());
     var row = jdbc.queryForMap("SELECT payload, payload_digest, definition_fingerprint_version, "
         + "definition_fingerprint, verification, request_digest FROM "
         + "uacrf_objectives.synthetic_objective_source_capture WHERE capture_id = ?::uuid", created.captureId());

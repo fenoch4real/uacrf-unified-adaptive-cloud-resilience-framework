@@ -96,6 +96,15 @@ class ObjectivesController {
         .body(objectives.getRetainedSampleCapture(DelegationPrincipal.from(jwt), id, captureId));
   }
 
+  @GetMapping("/v1/objective-imports/{id}/sample-captures/{captureId}/normalization-rehearsal")
+  ResponseEntity<ObjectivesService.SampleNormalizationRehearsal> rehearseSampleNormalization(
+      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @PathVariable String captureId,
+      @RequestParam String targetUnit, @RequestParam(defaultValue = "false") boolean allowFractionToPercent) {
+    return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+        .body(objectives.rehearseSampleNormalization(
+            DelegationPrincipal.from(jwt), id, captureId, targetUnit, allowFractionToPercent));
+  }
+
   @GetMapping("/v1/objective-imports/{id}/sample-captures")
   ResponseEntity<Page<ObjectivesService.SampleCaptureSummary>> listSampleCaptures(
       @AuthenticationPrincipal Jwt jwt, @PathVariable String id,

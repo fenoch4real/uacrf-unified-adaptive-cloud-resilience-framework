@@ -451,6 +451,42 @@ class ObjectivesService {
       String payloadDigest, String definitionFingerprintVersion, String definitionFingerprint, String verification) {}
 
   @Transactional(readOnly = true)
+  SampleNormalizationRehearsal rehearseSampleNormalization(DelegationPrincipal actor, String id, String captureId,
+      String targetUnit, boolean allowFractionToPercent) {
+    RetainedSampleCapture capture = getRetainedSampleCapture(actor, id, captureId);
+    if (targetUnit == null || targetUnit.isBlank() || targetUnit.length() > 80) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "A valid target unit is required.");
+    }
+    ObjectiveImportDefinition source;
+    ObjectiveImportFingerprint.Value original;
+    try {
+      source = ObjectiveImportSampleParser.parse(capture.payload());
+      original = ObjectiveImportFingerprint.fingerprint(source);
+    } catch (IllegalArgumentException error) {
+      throw new IllegalStateException("The retained synthetic capture is invalid.", error);
+    }
+    if (!sha256(capture.payload()).equals(capture.payloadDigest())
+        || !original.version().equals(capture.definitionFingerprintVersion())
+        || !original.digest().equals(capture.definitionFingerprint())) {
+      throw new IllegalStateException("The retained synthetic capture fingerprints do not match.");
+    }
+    ObjectiveImportDefinition normalized;
+    ObjectiveImportFingerprint.Value normalizedFingerprint;
+    try {
+      normalized = source.convert(targetUnit, source.window(), allowFractionToPercent);
+      normalizedFingerprint = ObjectiveImportFingerprint.fingerprint(normalized);
+    } catch (IllegalArgumentException error) {
+      throw new ObjectivesException(HttpStatus.BAD_REQUEST, "INVALID_CONVERSION", error.getMessage());
+    }
+    return new SampleNormalizationRehearsal(capture.captureId(), capture.receiptId(), source, original,
+        normalized, normalizedFingerprint, "SYNTHETIC_UNVERIFIED", "UNAPPROVED_REHEARSAL");
+  }
+
+  record SampleNormalizationRehearsal(String captureId, String receiptId, ObjectiveImportDefinition sourceDefinition,
+      ObjectiveImportFingerprint.Value sourceFingerprint, ObjectiveImportDefinition normalizedDefinition,
+      ObjectiveImportFingerprint.Value normalizedFingerprint, String verification, String status) {}
+
+  @Transactional(readOnly = true)
   Page<SampleCaptureSummary> listSampleCaptures(DelegationPrincipal actor, String id, int pageSize, String cursor) {
     PendingImportReceipt receipt = getImportPreview(actor, id);
     UUID command = UUID.fromString(receipt.receiptId());

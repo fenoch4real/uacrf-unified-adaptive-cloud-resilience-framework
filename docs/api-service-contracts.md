@@ -232,6 +232,19 @@ the unkeyed route.
   links it from the request and capture receipt, discloses the ordering, and
   links each summary to its retained capture. Broader import history remains
   open.
+- **Synthetic normalization rehearsal:** S05
+  `GET /v1/objective-imports/{id}/sample-captures/{captureId}/normalization-rehearsal`
+  requires global objective-read authority and a `targetUnit` query parameter.
+  It reads the retained payload, checks its stored payload and definition
+  fingerprints, then applies exact supported conversions without changing the
+  source window or measurement semantics. `allowFractionToPercent` defaults
+  to false and only enables a hypothetical conversion; it is not an approval.
+  Unsupported or rounding-requiring conversions return an error. The `no-store`
+  result includes original and normalized definitions with versioned
+  fingerprints and is labeled `UNAPPROVED_REHEARSAL` and
+  `SYNTHETIC_UNVERIFIED`. It is not persisted, does not verify the current
+  source, approve a mapping or create an import candidate, and is not yet
+  routed through EDGE01 or UX01.
 - **Pending import requests:** `GET /v1/objective-imports` requires global
   `objectives.objective.read` and returns context-scoped `items` containing
   `receipt_id`, `status`, `target_workload_id` and `created_at`, plus
