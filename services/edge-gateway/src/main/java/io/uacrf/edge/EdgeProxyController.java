@@ -42,6 +42,7 @@ public class EdgeProxyController {
     private final RestClient recoveryClient;
     private final RestClient knowledgeClient;
     private final RestClient advisoryClient;
+    private final RestClient reportingClient;
 
     public EdgeProxyController(
             @Value("${uacrf.edge.identity-base-url}") String identityBaseUrl,
@@ -55,6 +56,7 @@ public class EdgeProxyController {
             @Value("${uacrf.edge.recovery-base-url}") String recoveryBaseUrl,
             @Value("${uacrf.edge.knowledge-base-url}") String knowledgeBaseUrl,
             @Value("${uacrf.edge.advisory-base-url}") String advisoryBaseUrl,
+            @Value("${uacrf.edge.reporting-base-url:http://localhost:8093}") String reportingBaseUrl,
             @Value("${uacrf.edge.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${uacrf.edge.read-timeout-ms:10000}") int readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -71,6 +73,7 @@ public class EdgeProxyController {
         this.recoveryClient = RestClient.builder().baseUrl(recoveryBaseUrl).requestFactory(factory).build();
         this.knowledgeClient = RestClient.builder().baseUrl(knowledgeBaseUrl).requestFactory(factory).build();
         this.advisoryClient = RestClient.builder().baseUrl(advisoryBaseUrl).requestFactory(factory).build();
+        this.reportingClient = RestClient.builder().baseUrl(reportingBaseUrl).requestFactory(factory).build();
     }
 
     @RequestMapping({"/v1/tenants/**", "/v1/principals", "/v1/principals/**", "/v1/owner-candidates",
@@ -139,6 +142,12 @@ public class EdgeProxyController {
     public ResponseEntity<byte[]> routeToAdvisory(HttpServletRequest request,
                                                   @RequestBody(required = false) byte[] body) {
         return forward(advisoryClient, request, body, "ADVISORY_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/reporting/**", "/v1/assurance-rooms", "/v1/assurance-rooms/**"})
+    public ResponseEntity<byte[]> routeToReporting(HttpServletRequest request,
+                                                   @RequestBody(required = false) byte[] body) {
+        return forward(reportingClient, request, body, "REPORTING_UNAVAILABLE");
     }
 
     private ResponseEntity<byte[]> forward(RestClient client, HttpServletRequest request,

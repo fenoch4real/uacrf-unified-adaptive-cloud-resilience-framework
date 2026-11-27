@@ -3,6 +3,7 @@ package io.uacrf.discovery.service;
 import io.uacrf.contracts.graph.Neo4jOntology;
 import io.uacrf.crypto.CanonicalJson;
 import io.uacrf.discovery.adapter.SampleLocalScenarioGenerator;
+import io.uacrf.discovery.adapter.TelemetryAdapter;
 import io.uacrf.discovery.api.DiscoveryDtos.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -11,14 +12,19 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class DiscoveryIngestionService {
 
     private final DiscoveryRepository repository;
     private final SampleLocalScenarioGenerator sampleGenerator;
+    private final PiiPhiScrubber scrubber;
+    private final Map<String, TelemetryAdapter> adapters;
     private final RestClient evidenceClient;
     private final RestClient graphClient;
     private final boolean forwardDownstream;
@@ -26,11 +32,16 @@ public class DiscoveryIngestionService {
     public DiscoveryIngestionService(
             DiscoveryRepository repository,
             SampleLocalScenarioGenerator sampleGenerator,
+            PiiPhiScrubber scrubber,
+            List<TelemetryAdapter> adapterList,
             @Value("${uacrf.discovery.evidence-base-url}") String evidenceBaseUrl,
             @Value("${uacrf.discovery.graph-base-url}") String graphBaseUrl,
             @Value("${uacrf.discovery.forward-downstream:false}") boolean forwardDownstream) {
         this.repository = repository;
         this.sampleGenerator = sampleGenerator;
+        this.scrubber = scrubber;
+        this.adapters = adapterList.stream().collect(Collectors.toMap(
+                a -> a.providerKey().toUpperCase(Locale.ROOT), Function.identity(), (a, b) -> a));
         this.evidenceClient = RestClient.builder().baseUrl(evidenceBaseUrl).build();
         this.graphClient = RestClient.builder().baseUrl(graphBaseUrl).build();
         this.forwardDownstream = forwardDownstream;
@@ -64,11 +75,20 @@ public class DiscoveryIngestionService {
         Instant now = Instant.now();
         String sourceTag = req.telemetrySource() != null && !req.telemetrySource().isBlank()
                 ? req.telemetrySource() : "LIVE_ADAPTER";
-        String payloadJson = CanonicalJson.toJson(req);
-        String digest = CanonicalJson.digestObject(req);
+        var scrubbedDims = scrubber.scrubDimensions(req.dimensions());
+        var scrubbedReq = new TelemetryIngestRequest(
+                req.tenantId(), req.environmentId(), req.serviceId(),
+                scrubber.scrubText(req.subjectCanonicalId()).sanitizedText(),
+                req.provider(), req.signalType(),
+                scrubber.scrubText(req.metricName()).sanitizedText(),
+                req.value(), req.unit(), req.threshold(), req.severity(),
+                sourceTag, scrubbedDims
+        );
+        String payloadJson = scrubber.scrubText(CanonicalJson.toJson(scrubbedReq)).sanitizedText();
+        String digest = CanonicalJson.digestObject(scrubbedReq);
         ObservationDto obs = new ObservationDto(
                 UUID.randomUUID(), req.tenantId(), req.environmentId(), req.serviceId(),
-                req.subjectCanonicalId(), req.provider(), req.signalType(), req.metricName(),
+                scrubbedReq.subjectCanonicalId(), req.provider(), req.signalType(), scrubbedReq.metricName(),
                 req.value(), req.unit(), req.threshold(), req.severity(),
                 sourceTag, digest, "minio://uacrf-raw/" + digest.substring(0, 16),
                 now, now
@@ -78,6 +98,12 @@ public class DiscoveryIngestionService {
         repository.insertOutbox(req.tenantId(), req.environmentId(), "telemetry.observation.ingested",
                 "TelemetryObservation", obs.observationId().toString(), UUID.randomUUID(), CanonicalJson.toJson(obs));
         return obs;
+    }
+
+    public List<Map<String, String>> listRegisteredAdapters() {
+        return adapters.values().stream()
+                .map(a -> Map.of("providerKey", a.providerKey(), "telemetrySource", a.telemetrySource()))
+                .toList();
     }
 
     @Transactional

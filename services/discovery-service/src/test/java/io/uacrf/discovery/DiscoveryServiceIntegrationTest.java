@@ -1,7 +1,9 @@
 package io.uacrf.discovery;
 
 import io.uacrf.discovery.api.DiscoveryDtos.SampleScenarioRequest;
+import io.uacrf.discovery.api.DiscoveryDtos.TelemetryIngestRequest;
 import io.uacrf.discovery.service.DiscoveryIngestionService;
+import io.uacrf.discovery.service.PiiPhiScrubber;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,6 +12,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,6 +31,9 @@ class DiscoveryServiceIntegrationTest {
     @Autowired
     private DiscoveryIngestionService service;
 
+    @Autowired
+    private PiiPhiScrubber scrubber;
+
     @Test
     void listsSeededConnectionsAndLoadsSampleLocalMultiCloudAndAiTelemetry() {
         var connections = service.listConnections(TENANT_ID, ENV_ID);
@@ -45,5 +51,26 @@ class DiscoveryServiceIntegrationTest {
         assertEquals(12, edges.size());
         assertTrue(edges.stream().anyMatch(e -> "UNCERTAIN".equals(e.edgeState()) && "Payments gateway".equals(e.targetDisplay())));
         assertTrue(edges.stream().anyMatch(e -> "USES_FEATURES_FROM".equals(e.relationshipType())));
+    }
+
+    @Test
+    void registersAllMultiCloudAdaptersAndScrubsPiiSecretsBeforeStorage() {
+        var adapters = service.listRegisteredAdapters();
+        var keys = adapters.stream().map(m -> m.get("providerKey")).collect(java.util.stream.Collectors.toSet());
+        assertTrue(keys.containsAll(java.util.Set.of("AWS", "GCP", "AZURE", "OCI", "OTEL", "MULTI_CLOUD_SAMPLE")));
+
+        var scrubbed = scrubber.scrubText("user=alice@example.com ssn=123-45-6789 token=Bearer secret123");
+        assertEquals(3, scrubbed.redactionsApplied());
+        assertFalse(scrubbed.sanitizedText().contains("alice@example.com"));
+        assertFalse(scrubbed.sanitizedText().contains("123-45-6789"));
+        assertFalse(scrubbed.sanitizedText().contains("secret123"));
+
+        var obs = service.ingestObservation(new TelemetryIngestRequest(
+                TENANT_ID, ENV_ID, null, "urn:uacrf:svc:checkout:alice@example.com",
+                "OCI", "LOG", "auth_failure", 1.0, "count", 0.0, "HIGH",
+                "OCI_MONITORING_LIVE", Map.of("patientSsn", "123-45-6789")
+        ));
+        assertFalse(obs.subjectCanonicalId().contains("alice@example.com"));
+        assertTrue(obs.subjectCanonicalId().contains("[REDACTED_PII_EMAIL]"));
     }
 }

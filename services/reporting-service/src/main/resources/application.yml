@@ -1,0 +1,19 @@
+server:
+  port: 8093
+
+spring:
+  application:
+    name: reporting-service
+  datasource:
+    url: ${UACRF_REPORTING_DB_URL:jdbc:postgresql://localhost:5432/uacrf_reporting}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: reporting,integration
+    default-schema: reporting
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

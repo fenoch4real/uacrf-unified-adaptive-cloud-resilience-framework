@@ -21,10 +21,13 @@ public class AdvisoryAgentService {
 
     private final AdvisoryRepository repository;
     private final DeterministicArbiter arbiter;
+    private final EnterpriseLlmGateway llmGateway;
 
-    public AdvisoryAgentService(AdvisoryRepository repository, DeterministicArbiter arbiter) {
+    public AdvisoryAgentService(AdvisoryRepository repository, DeterministicArbiter arbiter,
+                                EnterpriseLlmGateway llmGateway) {
         this.repository = repository;
         this.arbiter = arbiter;
+        this.llmGateway = llmGateway;
     }
 
     public AdvisoryConfigDto getConfig(UUID tenantId, UUID environmentId) {
@@ -64,11 +67,12 @@ public class AdvisoryAgentService {
         }
         repository.addTokensUsed(req.tenantId(), req.environmentId(), estimatedTokens);
 
+        var synthesis = llmGateway.synthesize(req.queryPrompt(), req.contextRef());
         AdvisoryFindingDto dto = new AdvisoryFindingDto(
                 UUID.randomUUID(), req.tenantId(), req.environmentId(), req.caseCode(), req.contextRef(),
-                "Evidence assistant", "EA-1.3", "PA-0.7",
-                "Source-backed draft for: " + req.queryPrompt(),
-                "Advisory draft synthesized against approved runbooks and graph context " + req.contextRef() + ". Empirical probes remain required.",
+                "Evidence assistant (" + synthesis.engine() + ")", "EA-1.3", "PA-0.7",
+                synthesis.title(),
+                synthesis.body(),
                 List.of(new CitationDto("OPS-2210", "Runbook", "Rollback procedure for service v43")),
                 "Empirical verification still required",
                 "Advisory text cannot qualify missing operational probes or suppress blocking critic dissent.",

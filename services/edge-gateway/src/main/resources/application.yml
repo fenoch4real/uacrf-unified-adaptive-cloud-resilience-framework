@@ -18,6 +18,7 @@ uacrf:
     recovery-base-url: ${UACRF_RECOVERY_URL:http://localhost:8090}
     knowledge-base-url: ${UACRF_KNOWLEDGE_URL:http://localhost:8091}
     advisory-base-url: ${UACRF_ADVISORY_URL:http://localhost:8092}
+    reporting-base-url: ${UACRF_REPORTING_URL:http://localhost:8093}
     connect-timeout-ms: 2000
     read-timeout-ms: 10000
 

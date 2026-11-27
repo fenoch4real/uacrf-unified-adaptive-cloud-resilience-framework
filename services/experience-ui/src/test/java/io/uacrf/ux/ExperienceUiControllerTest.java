@@ -79,5 +79,9 @@ class ExperienceUiControllerTest {
         mockMvc.perform(get("/advisory"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("advisory"));
+
+        mockMvc.perform(get("/assurance"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("assurance"));
     }
 }

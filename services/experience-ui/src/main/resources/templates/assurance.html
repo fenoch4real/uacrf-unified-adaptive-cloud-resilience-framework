@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Assurance Rooms & Regulatory Crosswalk', 'Operations / Assurance & SOC 2', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">External Auditor Assurance Rooms &amp; Commercial Metering (S14)</h1>
+        <p class="text-secondary mb-0">Live control crosswalk across SOC 2, ISO 27001, ISO 42001, EU DORA, HIPAA, and FedRAMP with time-bound, cryptographically watermarked auditor rooms.</p>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Regulatory Compliance Crosswalk</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Framework</th><th>Control</th><th>UACRF Enforcement</th><th>Status</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(crosswalk)}"><td colspan="4" class="small text-secondary">No crosswalk records loaded.</td></tr>
+                    <tr th:each="c : ${crosswalk}">
+                        <td class="small fw-semibold" th:text="${c['framework']}"></td>
+                        <td class="small font-monospace" th:text="${c['controlId']}"></td>
+                        <td class="small" th:text="${c['uacrfEnforcementMechanism']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-success" th:text="${c['technicalStatus']}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Issue Watermarked Auditor Room</h2>
+                <form th:action="@{/assurance/rooms}" method="post" class="vstack gap-2 mb-3">
+                    <input name="auditorOrganization" class="form-control form-control-sm" placeholder="Auditor Org (e.g. Deloitte Assurance)" required>
+                    <input name="recipientEmail" class="form-control form-control-sm" placeholder="auditor@firm.example" required>
+                    <input name="frameworks" class="form-control form-control-sm" value="SOC 2,ISO 27001,EU DORA" required>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">TTL Hours</span>
+                        <input name="ttlHours" type="number" min="1" value="48" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary">Create Time-Bound Assurance Room</button>
+                </form>
+
+                <h3 class="h6 fw-bold mb-2">Active Assurance Rooms</h3>
+                <div th:if="${#lists.isEmpty(rooms)}" class="small text-secondary">No external rooms issued yet.</div>
+                <div th:each="r : ${rooms}" class="border rounded p-2 mb-2">
+                    <div class="fw-semibold small" th:text="${r['auditorOrganization']}"></div>
+                    <div class="small text-secondary font-monospace text-truncate" th:text="${r['bundleSha256']}"></div>
+                    <div class="small text-secondary" th:text="'Expires: ' + ${r['expiresAt']}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="uacrf-card">
+        <h2 class="h5 fw-bold mb-3">Commercial Asset &amp; Resilience Evaluation Metering</h2>
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Dimension</th><th>Cloud</th><th>Quantity</th><th>Unit</th><th>Digest</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(metering)}"><td colspan="5" class="small text-secondary">No metering events recorded.</td></tr>
+            <tr th:each="m : ${metering}">
+                <td class="small fw-semibold" th:text="${m['meterDimension']}"></td>
+                <td class="small font-monospace" th:text="${m['cloudProvider']}"></td>
+                <td class="small" th:text="${m['quantity']}"></td>
+                <td class="small" th:text="${m['unit']}"></td>
+                <td class="small font-monospace text-truncate" style="max-width: 16rem;" th:text="${m['eventDigest']}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</html>

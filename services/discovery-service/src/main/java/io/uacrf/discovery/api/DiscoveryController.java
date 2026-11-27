@@ -51,4 +51,9 @@ public class DiscoveryController {
     public SampleScenarioResult loadSampleScenario(@Valid @RequestBody SampleScenarioRequest request) {
         return service.loadSampleLocalScenario(request);
     }
+
+    @GetMapping("/telemetry/adapters")
+    public List<java.util.Map<String, String>> listAdapters() {
+        return service.listRegisteredAdapters();
+    }
 }

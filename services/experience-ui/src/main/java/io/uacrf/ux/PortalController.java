@@ -799,4 +799,40 @@ public class PortalController {
         }
         return "redirect:/advisory";
     }
+
+    @GetMapping("/assurance")
+    public String assurance(Model model,
+                            @ModelAttribute("tenantId") UUID tenantId,
+                            @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "assurance");
+        model.addAttribute("crosswalk", edge.getList("/v1/reporting/crosswalk", Map.class));
+        model.addAttribute("rooms", edge.getList("/v1/assurance-rooms?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("metering", edge.getList("/v1/reporting/metering?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "assurance";
+    }
+
+    @PostMapping("/assurance/rooms")
+    public String createAssuranceRoom(@ModelAttribute("tenantId") UUID tenantId,
+                                      @ModelAttribute("environmentId") UUID envId,
+                                      @ModelAttribute("actorId") UUID actorId,
+                                      @ModelAttribute("actorName") String actorName,
+                                      @RequestParam String auditorOrganization,
+                                      @RequestParam String recipientEmail,
+                                      @RequestParam String frameworks,
+                                      @RequestParam int ttlHours,
+                                      RedirectAttributes ra) {
+        try {
+            var fwList = java.util.Arrays.stream(frameworks.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+            var created = edge.postJson("/v1/assurance-rooms", actorId, UUID.randomUUID().toString(), Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "auditorOrganization", auditorOrganization, "recipientEmail", recipientEmail,
+                    "frameworks", fwList, "ttlHours", ttlHours, "createdBy", actorName
+            ));
+            ra.addFlashAttribute("flashSuccess", "Watermarked Assurance Room issued. Bundle SHA-256: "
+                    + created.getOrDefault("bundleSha256", "ok"));
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/assurance";
+    }
 }

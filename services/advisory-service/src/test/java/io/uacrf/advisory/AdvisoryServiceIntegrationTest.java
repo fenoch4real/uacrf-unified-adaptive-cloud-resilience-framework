@@ -5,6 +5,7 @@ import io.uacrf.advisory.api.AdvisoryDtos.AgentProposalInput;
 import io.uacrf.advisory.api.AdvisoryDtos.ReviewFindingRequest;
 import io.uacrf.advisory.api.AdvisoryDtos.RunAdvisoryRequest;
 import io.uacrf.advisory.service.AdvisoryAgentService;
+import io.uacrf.advisory.service.EnterpriseLlmGateway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,6 +33,9 @@ class AdvisoryServiceIntegrationTest {
 
     @Autowired
     private AdvisoryAgentService service;
+
+    @Autowired
+    private EnterpriseLlmGateway llmGateway;
 
     @Test
     void blocksPromptInjectionPreservesCriticDissentAndArbitratesDeterministicallyAcrossPermutations() {
@@ -61,5 +65,18 @@ class AdvisoryServiceIntegrationTest {
         assertFalse(forward.suppressedAnyDissent());
         assertEquals(List.of("critic-agent"), forward.preservedDissentAgentIds());
         assertTrue(forward.humanReviewRequired());
+
+        // 4. Enterprise LLM Gateway scrubs PII before outbound prompt & blocks SSRF metadata targets
+        var draft = service.runAdvisory(new RunAdvisoryRequest(
+                TENANT_ID, ENV_ID, "AR-106", "GR-1044",
+                "Summarize checkout outage for patient@example.com ssn 123-45-6789", "Daniel Reed"
+        ));
+        assertFalse(draft.headline().contains("patient@example.com"));
+        assertFalse(draft.headline().contains("123-45-6789"));
+        assertEquals("UNRESOLVED", draft.criticStatus());
+
+        AdvisoryDomainException ssrfEx = assertThrows(AdvisoryDomainException.class, () ->
+                llmGateway.validateSafeEndpoint("http://169.254.169.254/latest/meta-data/"));
+        assertEquals("SSRF_EGRESS_BLOCKED", ssrfEx.getCode());
     }
 }
