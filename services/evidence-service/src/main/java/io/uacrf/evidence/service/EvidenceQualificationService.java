@@ -19,10 +19,14 @@ public class EvidenceQualificationService {
 
     private final EvidenceRepository repository;
     private final QualificationEngine engine;
+    private final ObjectLockWormClient s3WormClient;
 
-    public EvidenceQualificationService(EvidenceRepository repository, QualificationEngine engine) {
+    public EvidenceQualificationService(EvidenceRepository repository,
+                                        QualificationEngine engine,
+                                        ObjectLockWormClient s3WormClient) {
         this.repository = repository;
         this.engine = engine;
+        this.s3WormClient = s3WormClient;
     }
 
     public List<EvidencePackageDto> listPackages(UUID tenantId, UUID environmentId) {
@@ -43,8 +47,10 @@ public class EvidenceQualificationService {
         );
 
         String payloadJson = CanonicalJson.toJson(req.rawPayload() != null ? req.rawPayload() : Map.of("detail", req.detailNote()));
-        String objectKey = "worm://" + req.tenantId() + "/evidence/" + packageId + "/" + req.itemKey() + "/" + verdict.sha256Digest().substring(0, 12);
+        String s3Key = req.tenantId() + "/evidence/" + packageId + "/" + req.itemKey() + "/" + verdict.sha256Digest().substring(0, 12) + ".json";
+        String objectKey = "worm://" + s3Key;
         repository.storeImmutableBlob(req.tenantId(), objectKey, verdict.sha256Digest(), payloadJson);
+        s3WormClient.storeWormObject(s3Key, payloadJson, verdict.sha256Digest());
 
         Instant now = Instant.now();
         int ttl = req.ttlSeconds() != null && req.ttlSeconds() > 0 ? req.ttlSeconds() : 3600;

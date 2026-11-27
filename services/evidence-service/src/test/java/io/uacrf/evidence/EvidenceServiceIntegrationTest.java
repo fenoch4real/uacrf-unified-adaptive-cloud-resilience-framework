@@ -7,7 +7,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -23,6 +27,19 @@ class EvidenceServiceIntegrationTest {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
+
+    @Container
+    static GenericContainer<?> s3 = new GenericContainer<>("localstack/localstack:3.8")
+            .withExposedPorts(4566)
+            .withEnv("SERVICES", "s3")
+            .waitingFor(Wait.forHttp("/_localstack/health").forPort(4566));
+
+    @DynamicPropertySource
+    static void registerS3Props(DynamicPropertyRegistry registry) {
+        registry.add("uacrf.evidence.s3.enabled", () -> "true");
+        registry.add("uacrf.evidence.s3.object-lock-enabled", () -> "true");
+        registry.add("uacrf.evidence.minio-endpoint", () -> "http://" + s3.getHost() + ":" + s3.getMappedPort(4566));
+    }
 
     private static final UUID TENANT_ID = UUID.fromString("11111111-1111-7111-8111-111111111111");
     private static final UUID ENV_ID = UUID.fromString("22222222-2222-7222-8222-222222222222");

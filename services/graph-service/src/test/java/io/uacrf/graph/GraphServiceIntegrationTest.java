@@ -2,6 +2,7 @@ package io.uacrf.graph;
 
 import io.uacrf.graph.api.GraphDtos.ProjectEdgeInput;
 import io.uacrf.graph.api.GraphDtos.ProjectEdgesRequest;
+import io.uacrf.graph.service.GraphDriftReconciler;
 import io.uacrf.graph.service.KnowledgeGraphService;
 import io.uacrf.graph.service.Neo4jGraphGateway;
 import org.junit.jupiter.api.Test;
@@ -49,6 +50,9 @@ class GraphServiceIntegrationTest {
     @Autowired
     private Neo4jGraphGateway neo4jGateway;
 
+    @Autowired
+    private GraphDriftReconciler driftReconciler;
+
     @Test
     void enforcesOntologyAndProjectsBoundedDependenciesAndAiLineageIntoRealNeo4j526() {
         // Invalid ontology label outside canonical 58 must be rejected
@@ -81,5 +85,9 @@ class GraphServiceIntegrationTest {
         var aiLineage = graphService.getAiLineage(TENANT_ID, ENV_ID, "urn:uacrf:svc:payment");
         assertTrue(aiLineage.nodes().stream().anyMatch(n -> "ModelEndpoint".equals(n.nodeLabel())));
         assertTrue(aiLineage.edges().stream().anyMatch(e -> "FALLBACK_TO".equals(e.relationshipType())));
+
+        // Drift scanner detects mismatch between full PG inventory (13 seeded) and partial Neo4j write (3) -> DRIFTED
+        var driftReport = driftReconciler.reconcile(TENANT_ID, ENV_ID);
+        assertEquals("DRIFTED", driftReport.status());
     }
 }

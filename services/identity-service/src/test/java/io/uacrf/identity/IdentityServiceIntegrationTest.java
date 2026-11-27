@@ -3,8 +3,11 @@ package io.uacrf.identity;
 import io.uacrf.identity.api.IdentityDomainException;
 import io.uacrf.identity.api.IdentityDtos.*;
 import io.uacrf.identity.service.IdentityAuthorityService;
+import io.uacrf.outbox.TenantRlsSession;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -27,6 +30,12 @@ class IdentityServiceIntegrationTest {
 
     @Autowired
     private IdentityAuthorityService service;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Autowired
+    private TransactionTemplate txTemplate;
 
     private static final UUID TENANT_ID = UUID.fromString("11111111-1111-7111-8111-111111111111");
     private static final UUID ENV_ID = UUID.fromString("22222222-2222-7222-8222-222222222222");
@@ -82,5 +91,21 @@ class IdentityServiceIntegrationTest {
         assertThrows(IdentityDomainException.class, () -> service.exchangeDelegation(
                 new DelegationExchangeRequest(TENANT_ID, ENV_ID, MAYA_ID, "uacrf-s02", "GLOBAL",
                         List.of("catalog.service.write"))));
+
+        // 5. PostgreSQL Row-Level Security blocks cross-tenant queries when running as non-superuser role
+        txTemplate.executeWithoutResult(status -> {
+            jdbc.execute("DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'uacrf_rls_app') THEN CREATE ROLE uacrf_rls_app NOINHERIT; END IF; END $$;");
+            jdbc.execute("GRANT USAGE ON SCHEMA foundation TO uacrf_rls_app;");
+            jdbc.execute("GRANT SELECT ON foundation.principal TO uacrf_rls_app;");
+            jdbc.execute("SET LOCAL ROLE uacrf_rls_app;");
+
+            TenantRlsSession.bindTenant(jdbc, TENANT_ID);
+            Integer ownCount = jdbc.queryForObject("SELECT count(*) FROM foundation.principal", Integer.class);
+            assertTrue(ownCount != null && ownCount >= 4);
+
+            TenantRlsSession.bindTenant(jdbc, UUID.fromString("99999999-9999-7999-8999-999999999999"));
+            Integer otherCount = jdbc.queryForObject("SELECT count(*) FROM foundation.principal", Integer.class);
+            assertEquals(0, otherCount);
+        });
     }
 }

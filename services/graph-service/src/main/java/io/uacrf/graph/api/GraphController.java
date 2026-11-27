@@ -1,6 +1,8 @@
 package io.uacrf.graph.api;
 
 import io.uacrf.graph.api.GraphDtos.*;
+import io.uacrf.graph.service.GraphDriftReconciler;
+import io.uacrf.graph.service.GraphDriftReconciler.ReconciliationReport;
 import io.uacrf.graph.service.KnowledgeGraphService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -13,9 +15,16 @@ import java.util.UUID;
 public class GraphController {
 
     private final KnowledgeGraphService service;
+    private final GraphDriftReconciler reconciler;
 
-    public GraphController(KnowledgeGraphService service) {
+    public GraphController(KnowledgeGraphService service, GraphDriftReconciler reconciler) {
         this.service = service;
+        this.reconciler = reconciler;
+    }
+
+    @GetMapping("/reconcile")
+    public ReconciliationReport reconcile(@RequestParam UUID tenantId, @RequestParam UUID environmentId) {
+        return reconciler.reconcile(tenantId, environmentId);
     }
 
     @GetMapping("/revisions/current")

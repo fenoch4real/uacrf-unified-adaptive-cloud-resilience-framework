@@ -8,9 +8,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.MountableFile;
 
 import java.util.UUID;
 
@@ -23,6 +28,20 @@ class PolicyServiceIntegrationTest {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine");
+
+    @Container
+    static GenericContainer<?> opa = new GenericContainer<>("openpolicyagent/opa:1.0.0")
+            .withCopyFileToContainer(MountableFile.forHostPath("../../policies/baseline.rego"), "/policies/baseline.rego")
+            .withCommand("run --server --addr=0.0.0.0:8181 /policies/baseline.rego")
+            .withExposedPorts(8181)
+            .waitingFor(Wait.forHttp("/health").forPort(8181));
+
+    @DynamicPropertySource
+    static void registerOpaProps(DynamicPropertyRegistry registry) {
+        registry.add("uacrf.policy.opa.enabled", () -> "true");
+        registry.add("uacrf.policy.opa.url",
+                () -> "http://" + opa.getHost() + ":" + opa.getMappedPort(8181) + "/v1/data/uacrf/authz/decision");
+    }
 
     private static final UUID TENANT_ID = UUID.fromString("11111111-1111-7111-8111-111111111111");
     private static final UUID ENV_ID = UUID.fromString("22222222-2222-7222-8222-222222222222");
@@ -67,5 +86,14 @@ class PolicyServiceIntegrationTest {
         PolicyDomainException replayEx = assertThrows(PolicyDomainException.class, () ->
                 service.consumeNonce(auth.nonce()));
         assertEquals("NONCE_REPLAY_OR_EXPIRED", replayEx.getCode());
+
+        // Live OPA Container evaluates baseline.rego for PREAUTHORIZED nonprod pattern
+        var opaProposal = service.createProposal(PROPOSER_ID, new io.uacrf.policy.api.PolicyDtos.CreateProposalRequest(
+                TENANT_ID, ENV_ID, "urn:uacrf:svc:checkout", "K8S_ROLLBACK_DEPLOYMENT",
+                "Rollback nonprod", "v42", true, 1, "nonproduction", "Luis Romero",
+                "rev-sample-local-0001", "sha256:sub-checkout-v43", "QUALIFIED", "Evaluated by live OPA"
+        ));
+        assertEquals("PREAUTHORIZED", opaProposal.policyOutcome());
+        assertTrue(opaProposal.policyReasons().contains("NONPROD_REVERSIBLE_CERTIFIED_PATTERN"));
     }
 }
