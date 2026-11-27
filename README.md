@@ -98,7 +98,13 @@ docker run --rm \
 
 ## Documentation & Design Diagrams
 
+- **End-to-End Sequence Diagrams (SD-01 through SD-08):** [SEQUENCE_DIAGRAMS.md](docs/diagrams/SEQUENCE_DIAGRAMS.md)
+- **End-to-End Activity Diagrams (AD-01 through AD-08):** [ACTIVITY_DIAGRAMS.md](docs/diagrams/ACTIVITY_DIAGRAMS.md)
 - System Overview & Storage Authority: [SYSTEM_OVERVIEW.md](docs/architecture/SYSTEM_OVERVIEW.md)
 - Infrastructure & Deployment Topology: [LOCAL_AND_TARGET_INFRA.md](docs/deployment/LOCAL_AND_TARGET_INFRA.md)
 - Identity & Catalog Flows (Mermaid): [M1_IDENTITY_AND_JOURNEY_FLOWS.md](docs/flows/M1_IDENTITY_AND_JOURNEY_FLOWS.md)
 - Telemetry, Qualification & Neo4j Flows (Mermaid): [M2_EVIDENCE_AND_GRAPH_FLOWS.md](docs/flows/M2_EVIDENCE_AND_GRAPH_FLOWS.md)
+- Assess, P5 Path Independence & P1 Envelopes: [M3_ASSESS_AND_ENVELOPE_FLOWS.md](docs/flows/M3_ASSESS_AND_ENVELOPE_FLOWS.md)
+- Control, OPA Policy, P2 Graph Delta & P3 Auth: [M4_CONTROL_AND_AUTHORITY_FLOWS.md](docs/flows/M4_CONTROL_AND_AUTHORITY_FLOWS.md)
+- Recovery Orchestration (P3) & P6 Validation: [M5_RECOVERY_AND_VALIDATION_FLOWS.md](docs/flows/M5_RECOVERY_AND_VALIDATION_FLOWS.md)
+- Knowledge, Learning, Experiments, P7 Advisors & Quantitative Model: [M6_M8_KNOWLEDGE_AGENTS_QUANT_FLOWS.md](docs/flows/M6_M8_KNOWLEDGE_AGENTS_QUANT_FLOWS.md)
