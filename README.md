@@ -76,6 +76,73 @@ This repository translates that peer-reviewed framework into working microservic
 
 ---
 
+## Full Technical Approach Requirements & Product Catalog SKUs (`Rev 23`)
+
+Everything in `UACRF_Technical_Approach_v1.0_rev23` (**`7`** Commercial Package SKUs, **`7`** Metering Units, **`4`** Deployment Editions, **`103`** Functional Requirements, **`28`** Non-Functional Requirements, **`14`** Failure Scenarios `F01–F14`, **`7`** Core Patents `P1–P7`, and **`13`** Regulatory Mandates) is mapped **1-to-1 row-by-row** in [REQUIREMENTS_TRACEABILITY_MATRIX.md](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md) and machine-readable [requirements_traceability.json](contracts/traceability/requirements_traceability.json).
+
+### Product & Commercial Catalog SKUs (`Section 25` & `Section 32`)
+
+| Catalog SKU | Commercial Offer | Code Status | What Is Implemented | What Is Left |
+|---|---|---|---|---|
+| **SKU-ASSESS** | *UACRF Assess (Critical Journey Assessment)* | `IMPLEMENTED` | S02, S03, S04, S06, S07, /journeys, /assess, /assess/{id}/report verified via Maven... | Live cloud collector credentials (AWS Config / GCP Asset / Azure Resource Graph / OCI... |
+| **SKU-CONTROL** | *UACRF Control (Foundation Subscription)* | `IMPLEMENTED` | S05, S10, /control, Section 8 multi-layer rules, ObjectiveImportService conflict preview,... | Live OTel collector streaming soak run against customer production traffic |
+| **SKU-RECOVER** | *UACRF Recover (Add-On)* | `IMPLEMENTED` | S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter,... | Live cloud IAM execution roles and live AWS FIS / Azure Chaos / GCP Fault Injection... |
+| **SKU-EVIDENCE** | *UACRF Evidence (Add-On)* | `IMPLEMENTED` | S04, S14, ObjectLockWormClient, ComplianceAssuranceService, /assurance,... | Live WORM S3/GCS/Blob/OCI Vault credentials and external CPA walkthrough in Phase E4 |
+| **SKU-ADAPTIVE** | *UACRF Adaptive Intelligence (Add-On)* | `IMPLEMENTED` | S08/S13 QuantitativeShadowEngine, MlPromotionService, S09 EnterpriseLlmGateway... | Customer LLM API keys (enabled=true) and offline/shadow calibration datasets per... |
+| **SKU-ENTERPRISE** | *UACRF Enterprise Platform Suite* | `IMPLEMENTED` | EDGE01 JWT/CSP, V2__enable_rls.sql across all 12 DBs, FipsCryptoProfile,... | Customer Kubernetes cluster deployment, hardware HSM/KMS key binding & enterprise... |
+| **SKU-SERVICES** | *Services & Managed Operations* | `PARTIAL / CONFIG_GATED` | Pilot locking, onboarding lead time & time-to-first-outcome metrics tracked in S14... | Organizational delivery team workflows, CRM/ERP invoicing integration & commercial... |
+
+### Metering SKUs (`32.1`) & Deployment Editions (`32.2`)
+
+| SKU / Edition ID | Specification Definition | Code Status | What Is Left |
+|---|---|---|---|
+| **MTR-SVC** | Protected service (PROTECTED_SERVICE_ASSET) | `IMPLEMENTED` | Automated nightly sync job exporting S02 active service counts to external billing |
+| **MTR-CON** | Provider connection (AWS, GCP, AZURE, OCI, OTEL) | `IMPLEMENTED` | Live cloud billing-tag reconciliation across customer accounts |
+| **MTR-ASS** | Assessment unit | `IMPLEMENTED` | Automated contract-amendment lock UI when assessment scope expands |
+| **MTR-WFL** | Certified recovery workflow execution | `IMPLEMENTED` | Live production billing invoice webhook trigger |
+| **MTR-RET** | Evidence WORM retention volume / tier | `IMPLEMENTED` | Scheduled S3 byte-size storage cron scanner |
+| **MTR-ARM** | External Assurance Room access grant | `IMPLEMENTED` | External auditor email / magic-link notification SMTP delivery |
+| **MTR-INT** | Advanced / Adaptive intelligence & token quota | `IMPLEMENTED` | Real-time provider LLM invoice reconciliation feed |
+| **ED-SAAS-MT** | Multi-tenant SaaS with PostgreSQL RLS isolation | `IMPLEMENTED` | Production cluster deployment using infra/helm/uacrf |
+| **ED-SAAS-DED** | Dedicated SaaS / isolated tenant stack | `IMPLEMENTED` | Customer-dedicated DNS & ingress certificate provisioning |
+| **ED-CUST-CLOUD** | Customer cloud deployment (GCP, AWS, Azure, OCI) | `IMPLEMENTED` | Running terraform apply and helm upgrade in target customer account |
+| **ED-REG-BOUNDARY** | Separated regulated boundary (FIPS 140-3 / FedRAMP / air-gapped) | `PARTIAL / CONFIG_GATED` | Phase E4 3PAO assessment, full SSP OSCAL package & hardware HSM FIPS validation |
+
+### Complete Requirements Rollup (`103` FRs + `28` NFRs = `131` Total Requirements)
+
+> Exact codebase accounting: **`96/103` FRs `IMPLEMENTED`** (`7` `PARTIAL / CONFIG_GATED`), **`22/28` NFRs `IMPLEMENTED`** (`5` `PARTIAL / CONFIG_GATED`, `1` `NOT_IMPLEMENTED / EXTERNAL_ORG`: `NFR-OPS-002`). See all **`131` individual rows** in [REQUIREMENTS_TRACEABILITY_MATRIX.md](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md).
+
+| Spec IDs (Count) | Area / Section | Status | What Is Left |
+|---|---|---|---|
+| **FR-CAT-001 .. FR-CAT-003** (`3`) | Catalog | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-GPH-001 .. FR-GPH-010** (`10`) | Dependency graph | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-ING-001 .. FR-ING-004** (`4`) | Telemetry | `IMPLEMENTED (3) / PARTIAL (1)` | Multi-partition Kafka streaming window-join tuning under certified production load |
+| **FR-RUL-001 .. FR-RUL-003** (`3`) | Rules | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-RSK-001 .. FR-RSK-002** (`2`) | Risk state | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-POL-001 .. FR-POL-002** (`2`) | Policy | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-APR-001 .. FR-APR-002** (`2`) | Approval | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-WFL-001 .. FR-WFL-002** (`2`) | Workflow | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-VAL-001 .. FR-VAL-002** (`2`) | Validation | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-EVD-001 .. FR-EVD-002** (`2`) | Evidence | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-LRN-001 .. FR-LRN-002** (`2`) | Learning | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-ONB-001 .. FR-ONB-002** (`2`) | Onboarding | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-PRD-001 .. FR-PRD-010** (`10`) | Product scope | `IMPLEMENTED (6) / PARTIAL (4)` | External CRM (Salesforce/HubSpot) opportunity & disqualifier workflow sync; Full multi-stage onboarding RACI gate sign-off UI workflow & CRM sync; Automated QVR scheduling, renewal reminders & customer offboarding workflow; External ERP labor timesheet, partner cost & contracted margin P&L ledger |
+| **FR-TST-001 .. FR-TST-002** (`2`) | Testing | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-UI-001 .. FR-UI-005** (`5`) | Portal and API | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-QNT-001 .. FR-QNT-002** (`2`) | Quantitative | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-ADP-001 .. FR-ADP-002** (`2`) | Adaptive | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-AGT-001 .. FR-AGT-010** (`10`) | Agent case context | `IMPLEMENTED (9) / PARTIAL (1)` | Automated CI benchmark harness executing curated adversarial/factuality golden LLM datasets |
+| **FR-IP-001 .. FR-IP-007** (`7`) | Decision reconstruction | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-KNO-001 .. FR-KNO-006** (`6`) | Knowledge | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-ORC-001 .. FR-ORC-006** (`6`) | Agent Runtime | `IMPLEMENTED (5) / PARTIAL (1)` | Automated regression suite re-running saved agent scenarios on prompt/model bump in CI |
+| **FR-AWL-001 .. FR-AWL-012** (`12`) | Protected Agents | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-JNY-001 .. FR-JNY-004** (`4`) | Journeys | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **FR-DEP-001** (`1`) | Deployment | `IMPLEMENTED` | Code complete; live cloud credentials / target wiring only at deploy time |
+| **NFR-AVL-001 .. NFR-OPS-002** (`28`) | Non-Functional (`Section 23.4`) | `IMPLEMENTED (22) / PARTIAL (5) / ORG (1)` | Cluster 99.9% SLA telemetry (`NFR-AVL-001`), live PITR restore drill (`NFR-RPO-001`), k6 load report (`NFR-PRF-001..002`), assistive AT audit (`NFR-ACC-001`), & named org owners/SLAs (`NFR-OPS-002`) |
+| **F01 .. F14** (`14`) | Failure Scenarios (`Appendix F`) | `IMPLEMENTED (14/14 rules & adapters)` | Live chaos drills against customer AWS FIS / Azure Chaos / GCP Fault Injection accounts |
+| **REG-SOC2 .. REG-SSDF** (`13`) | Regulatory Mandates (`Appendix AC`) | `SSDF IMPLEMENTED (1) / TECH CONTROLS READY (12)` | `Phase E4` corporate ISMS/IRP policies, BAAs, & external CPA / 3PAO / registrar certification |
+---
+
 ## Quick Start
 
 ### 1. Start Core Backing Infrastructure

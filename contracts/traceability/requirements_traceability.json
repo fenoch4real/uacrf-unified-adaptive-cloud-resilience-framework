@@ -1,69 +1,1562 @@
 {
-  "schemaVersion": "1.2.0",
+  "schemaVersion": "1.3.0",
   "project": "UACRF Unified Adaptive Cloud Resilience Framework",
+  "sourceDocument": "UACRF_Technical_Approach_v1.0_rev23.docx",
   "coreMilestones": {
     "M0_M8_local_verified": "COMPLETE",
     "E1_E3_enterprise_technical_scope": "COMPLETE",
     "E4_external_audits_and_org_certification": "PENDING_EXTERNAL_AUDIT"
   },
-  "requirements": [
-    {"id": "FR-IDN-001", "module": "identity-service", "status": "IMPLEMENTED"},
-    {"id": "FR-IDN-002", "module": "identity-service", "status": "IMPLEMENTED"},
-    {"id": "FR-IDN-003", "module": "identity-service,edge-gateway", "status": "IMPLEMENTED"},
-    {"id": "FR-CAT-001..003", "module": "catalog-service", "status": "IMPLEMENTED"},
-    {"id": "FR-AWL-001..012", "module": "catalog-service,evidence-service,advisory-service,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "FR-ORC-001..006", "module": "advisory-service,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "FR-JNY-001..003", "module": "catalog-service", "status": "IMPLEMENTED"},
-    {"id": "FR-ING-001", "module": "discovery-service", "status": "IMPLEMENTED"},
-    {"id": "FR-ING-002", "module": "discovery-service", "status": "IMPLEMENTED_CONFIG_GATED_EXTERNAL"},
-    {"id": "FR-EVD-001", "module": "evidence-service", "status": "IMPLEMENTED"},
-    {"id": "FR-EVD-002", "module": "evidence-service", "status": "IMPLEMENTED"},
-    {"id": "FR-EVD-003", "module": "evidence-service,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "FR-EVD-004", "module": "evidence-service", "status": "IMPLEMENTED"},
-    {"id": "FR-GPH-001..007", "module": "graph-service,uacrf-contracts", "status": "IMPLEMENTED"},
-    {"id": "FR-ASS-001..003", "module": "assessment-service", "status": "IMPLEMENTED"},
-    {"id": "FR-CTL-001..002", "module": "objectives-service", "status": "IMPLEMENTED"},
-    {"id": "FR-POL-001..002", "module": "policy-service", "status": "IMPLEMENTED"},
-    {"id": "FR-APR-001..002", "module": "policy-service", "status": "IMPLEMENTED"},
-    {"id": "FR-REC-001..003", "module": "recovery-service", "status": "IMPLEMENTED"},
-    {"id": "FR-LRN-001..002", "module": "knowledge-service", "status": "IMPLEMENTED"},
-    {"id": "FR-EXP-001", "module": "knowledge-service", "status": "IMPLEMENTED"},
-    {"id": "FR-KNO-001..006", "module": "knowledge-service", "status": "IMPLEMENTED"},
-    {"id": "FR-ADP-001..002", "module": "knowledge-service,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "FR-ADV-001..005", "module": "advisory-service", "status": "IMPLEMENTED_CONFIG_GATED_EXTERNAL"},
-    {"id": "FR-QNT-001", "module": "knowledge-service", "status": "IMPLEMENTED"},
-    {"id": "FR-REP-001..003", "module": "reporting-service,edge-gateway,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "FR-PRD-001..010", "module": "reporting-service,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "NFR-OUTBOX", "module": "uacrf-outbox", "status": "IMPLEMENTED"},
-    {"id": "NFR-TENANT", "module": "all-services", "status": "IMPLEMENTED"},
-    {"id": "NFR-UI-OPS", "module": "experience-ui", "status": "IMPLEMENTED"},
-    {"id": "NFR-CST-001", "module": "reporting-service,experience-ui", "status": "IMPLEMENTED"},
-    {"id": "NFR-COM-001", "module": "reporting-service", "status": "IMPLEMENTED"},
-    {"id": "NFR-CRYPTO", "module": "uacrf-crypto", "status": "IMPLEMENTED"},
-    {"id": "NFR-IAC", "module": "infra,ci", "status": "IMPLEMENTED"}
+  "counts": {
+    "catalogSkus": 7,
+    "meteringUnits": 7,
+    "deploymentEditions": 4,
+    "functionalRequirements": 103,
+    "functionalImplemented": 96,
+    "functionalPartialConfigGated": 7,
+    "nonFunctionalRequirements": 28,
+    "nonFunctionalImplemented": 22,
+    "nonFunctionalPartialConfigGated": 5,
+    "nonFunctionalExternalOrg": 1,
+    "patents": 7,
+    "failureScenarios": 14,
+    "regulatoryStandards": 13
+  },
+  "catalogSkus": [
+    {
+      "skuId": "SKU-ASSESS",
+      "name": "UACRF Assess (Critical Journey Assessment)",
+      "status": "IMPLEMENTED",
+      "implemented": "S02, S03, S04, S06, S07, /journeys, /assess, /assess/{id}/report verified via Maven integration tests",
+      "whatIsLeft": "Live cloud collector credentials (AWS Config / GCP Asset / Azure Resource Graph / OCI Search) at customer onboarding"
+    },
+    {
+      "skuId": "SKU-CONTROL",
+      "name": "UACRF Control (Foundation Subscription)",
+      "status": "IMPLEMENTED",
+      "implemented": "S05, S10, /control, Section 8 multi-layer rules, ObjectiveImportService conflict preview, live OPA container test",
+      "whatIsLeft": "Live OTel collector streaming soak run against customer production traffic"
+    },
+    {
+      "skuId": "SKU-RECOVER",
+      "name": "UACRF Recover (Add-On)",
+      "status": "IMPLEMENTED",
+      "implemented": "S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter, CloudTrafficFailoverAdapter, CloudComputeScalingAdapter",
+      "whatIsLeft": "Live cloud IAM execution roles and live AWS FIS / Azure Chaos / GCP Fault Injection mutations"
+    },
+    {
+      "skuId": "SKU-EVIDENCE",
+      "name": "UACRF Evidence (Add-On)",
+      "status": "IMPLEMENTED",
+      "implemented": "S04, S14, ObjectLockWormClient, ComplianceAssuranceService, /assurance, infra/scripts/collect-soc2-evidence.sh",
+      "whatIsLeft": "Live WORM S3/GCS/Blob/OCI Vault credentials and external CPA walkthrough in Phase E4"
+    },
+    {
+      "skuId": "SKU-ADAPTIVE",
+      "name": "UACRF Adaptive Intelligence (Add-On)",
+      "status": "IMPLEMENTED",
+      "implemented": "S08/S13 QuantitativeShadowEngine, MlPromotionService, S09 EnterpriseLlmGateway (OpenAI/Bedrock/Azure/Vertex/OCI), OrchestrationRunService, /models, /advisory, /orchestration",
+      "whatIsLeft": "Customer LLM API keys (enabled=true) and offline/shadow calibration datasets per customer workload"
+    },
+    {
+      "skuId": "SKU-ENTERPRISE",
+      "name": "UACRF Enterprise Platform Suite",
+      "status": "IMPLEMENTED",
+      "implemented": "EDGE01 JWT/CSP, V2__enable_rls.sql across all 12 DBs, FipsCryptoProfile, Dockerfile.service, Helm (NetworkPolicy + Istio STRICT mTLS), Terraform, .github/workflows/ci.yml",
+      "whatIsLeft": "Customer Kubernetes cluster deployment, hardware HSM/KMS key binding & enterprise GitHub branch protection"
+    },
+    {
+      "skuId": "SKU-SERVICES",
+      "name": "Services & Managed Operations",
+      "status": "PARTIAL / CONFIG_GATED",
+      "implemented": "Pilot locking, onboarding lead time & time-to-first-outcome metrics tracked in S14 (CommercialFinOpsService) + /settings/admin-suite",
+      "whatIsLeft": "Organizational delivery team workflows, CRM/ERP invoicing integration & commercial support SLA contracts"
+    }
+  ],
+  "meteringUnits": [
+    {
+      "meterId": "MTR-SVC",
+      "unit": "Protected service (PROTECTED_SERVICE_ASSET)",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S02 catalog.service + S14 reporting.metering_event",
+      "whatIsLeft": "Automated nightly sync job exporting S02 active service counts to external billing"
+    },
+    {
+      "meterId": "MTR-CON",
+      "unit": "Provider connection (AWS, GCP, AZURE, OCI, OTEL)",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S03 discovery connections + S14 metering & FinOps",
+      "whatIsLeft": "Live cloud billing-tag reconciliation across customer accounts"
+    },
+    {
+      "meterId": "MTR-ASS",
+      "unit": "Assessment unit",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S07 assessments + S14 reporting.commercial_pilot",
+      "whatIsLeft": "Automated contract-amendment lock UI when assessment scope expands"
+    },
+    {
+      "meterId": "MTR-WFL",
+      "unit": "Certified recovery workflow execution",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S11 recovery workflows + S14 BOUNDED_RECOVERY meter",
+      "whatIsLeft": "Live production billing invoice webhook trigger"
+    },
+    {
+      "meterId": "MTR-RET",
+      "unit": "Evidence WORM retention volume / tier",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S04 S3 WORM blobs + S14 finops_allocation (STORAGE)",
+      "whatIsLeft": "Scheduled S3 byte-size storage cron scanner"
+    },
+    {
+      "meterId": "MTR-ARM",
+      "unit": "External Assurance Room access grant",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S14 reporting.assurance_room + /assurance",
+      "whatIsLeft": "External auditor email / magic-link notification SMTP delivery"
+    },
+    {
+      "meterId": "MTR-INT",
+      "unit": "Advanced / Adaptive intelligence & token quota",
+      "status": "IMPLEMENTED",
+      "whereTracked": "S09 max_token_budget + advisory.orchestration_run + S14 finops_allocation (MODEL)",
+      "whatIsLeft": "Real-time provider LLM invoice reconciliation feed"
+    }
+  ],
+  "deploymentEditions": [
+    {
+      "editionId": "ED-SAAS-MT",
+      "placement": "Multi-tenant SaaS with PostgreSQL RLS isolation",
+      "status": "IMPLEMENTED",
+      "artifact": "V2__enable_rls.sql (12 DBs), TenantRlsSession, EDGE01 JWT/CSP",
+      "whatIsLeft": "Production cluster deployment using infra/helm/uacrf"
+    },
+    {
+      "editionId": "ED-SAAS-DED",
+      "placement": "Dedicated SaaS / isolated tenant stack",
+      "status": "IMPLEMENTED",
+      "artifact": "infra/helm/uacrf/values.yaml + infra/terraform/main.tf",
+      "whatIsLeft": "Customer-dedicated DNS & ingress certificate provisioning"
+    },
+    {
+      "editionId": "ED-CUST-CLOUD",
+      "placement": "Customer cloud deployment (GCP, AWS, Azure, OCI)",
+      "status": "IMPLEMENTED",
+      "artifact": "Dockerfile.service, infra/helm/uacrf, infra/terraform/main.tf",
+      "whatIsLeft": "Running terraform apply and helm upgrade in target customer account"
+    },
+    {
+      "editionId": "ED-REG-BOUNDARY",
+      "placement": "Separated regulated boundary (FIPS 140-3 / FedRAMP / air-gapped)",
+      "status": "PARTIAL / CONFIG_GATED",
+      "artifact": "FipsCryptoProfile (RSA >= 3072), offline DETERMINISTIC LLM mode, air-gappable Helm templates",
+      "whatIsLeft": "Phase E4 3PAO assessment, full SSP OSCAL package & hardware HSM FIPS validation"
+    }
+  ],
+  "functionalRequirements": [
+    {
+      "id": "FR-ADP-001",
+      "priority": "Could",
+      "domain": "Adaptive",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,advisory-service",
+      "implemented": "S08 Model Card registry + S09 AdvisoryAgentService operating strictly in advisory/shadow mode",
+      "whatIsLeft": "Live anomaly/prediction training pipelines on customer data"
+    },
+    {
+      "id": "FR-ADP-002",
+      "priority": "Could",
+      "domain": "Adaptive",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,experience-ui",
+      "implemented": "S08 MlPromotionService enforcing safety, utility, calibration, drift, explanation, rollback & dual-approval gates + /models",
+      "whatIsLeft": "Automated drift-triggered demotion webhook"
+    },
+    {
+      "id": "FR-AGT-001",
+      "priority": "Could",
+      "domain": "Agent case context",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "S09 sealed Agent Analysis Case manifest binding evidence, graph revision, policy & deadline before execution",
+      "whatIsLeft": "None (enforced in AdvisoryAgentService & OrchestrationRunService)"
+    },
+    {
+      "id": "FR-AGT-002",
+      "priority": "Could",
+      "domain": "Independent attribution",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "AdvisoryFindingDto & orchestration tables record producer, role, model, prompt, sources, grant & digest",
+      "whatIsLeft": "None (persisted on all findings)"
+    },
+    {
+      "id": "FR-AGT-003",
+      "priority": "Could",
+      "domain": "Dissent preservation",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "DeterministicArbiter preserves blocking dissent independently without coordinator suppression",
+      "whatIsLeft": "None (enforced in DeterministicArbiter)"
+    },
+    {
+      "id": "FR-AGT-004",
+      "priority": "Could",
+      "domain": "Deterministic arbitration",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "P7 DeterministicArbiter arbitrates proposals & escalates blocking dissent/ties to human review",
+      "whatIsLeft": "None (verified in AdvisoryServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-AGT-005",
+      "priority": "Could",
+      "domain": "Agent authority",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service,identity-service",
+      "implemented": "30s RS256 short-lived scoped tool grants; agents hold zero provider or approval authority",
+      "whatIsLeft": "None (enforced at EDGE01 & S09)"
+    },
+    {
+      "id": "FR-AGT-006",
+      "priority": "Could",
+      "domain": "Runtime safety",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "EnterpriseLlmGateway prompt-injection delimiter isolation, SSRF egress validation, PiiPhiScrubber & budget caps",
+      "whatIsLeft": "External enterprise DLP proxy integration if required"
+    },
+    {
+      "id": "FR-AGT-007",
+      "priority": "Could",
+      "domain": "Concurrency and idempotency",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "OrchestrationRunService enforcing deadlines, attempt identities, duplicate suppression & canonical ordering",
+      "whatIsLeft": "None (verified in S09)"
+    },
+    {
+      "id": "FR-AGT-008",
+      "priority": "Could",
+      "domain": "Evaluation and promotion",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "advisory-service,knowledge-service",
+      "implemented": "S08 MlPromotionService & S09 AdvisoryAgentService record offline/shadow promotion & safety gates",
+      "whatIsLeft": "Automated CI benchmark harness executing curated adversarial/factuality golden LLM datasets"
+    },
+    {
+      "id": "FR-AGT-009",
+      "priority": "Could",
+      "domain": "Human override",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service,experience-ui",
+      "implemented": "reviewFinding endpoint & /advisory UI allow authorized humans to reject, narrow, defer or replace with reason",
+      "whatIsLeft": "Bulk multi-finding disposition action in UI"
+    },
+    {
+      "id": "FR-AGT-010",
+      "priority": "Could",
+      "domain": "Agent provenance",
+      "status": "IMPLEMENTED",
+      "module": "assessment-service,advisory-service",
+      "implemented": "DecisionEnvelope binds sealed case, eligible/rejected agent outputs, dissent, arbitration & policy decisions",
+      "whatIsLeft": "None (persisted in DecisionEnvelope)"
+    },
+    {
+      "id": "FR-APR-001",
+      "priority": "Must",
+      "domain": "Approval",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,identity-service,catalog-service,assessment-service,knowledge-service",
+      "implemented": "Two-person approval workflows with expiry, rationale & SELF_APPROVAL_FORBIDDEN across S01, S02, S07, S08, S10",
+      "whatIsLeft": "External Slack/PagerDuty interactive approval webhooks"
+    },
+    {
+      "id": "FR-APR-002",
+      "priority": "Must",
+      "domain": "Approval",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,experience-ui",
+      "implemented": "BreakGlassService (S10) + POST /v1/policy/break-glass (MFA assurance, max TTL, post-incident review lock) + UI",
+      "whatIsLeft": "Live PagerDuty/Email notification webhook on break-glass trigger"
+    },
+    {
+      "id": "FR-AWL-001",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service",
+      "implemented": "S02 registers PROTECTED_AGENT_WORKLOAD distinctly from conventional services with owner & purpose",
+      "whatIsLeft": "External AI agent gateway auto-discovery"
+    },
+    {
+      "id": "FR-AWL-002",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,advisory-service",
+      "implemented": "Immutable SHA-256 workload versions binding model, instructions, knowledge, tools & eval contracts",
+      "whatIsLeft": "CI git-hook auto-publisher for agent manifests"
+    },
+    {
+      "id": "FR-AWL-003",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,graph-service",
+      "implemented": "Agent dependencies (tool, model, knowledge, memory, runtime, handoff) typed in Neo4j & S02",
+      "whatIsLeft": "Dynamic eBPF runtime tool-call trace verifier"
+    },
+    {
+      "id": "FR-AWL-004",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "S09 OrchestrationRunService authenticated admission, deadline & atomic step/token/cost caps incl. child attempts",
+      "whatIsLeft": "Distributed Redis/multi-region rate limiter for extreme concurrency"
+    },
+    {
+      "id": "FR-AWL-005",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "Append-only attributed event stream + idempotent source-key/digest receipt deduplication in V3 ledgers",
+      "whatIsLeft": "Long-term S3 cold archive tiering for billion-row event streams"
+    },
+    {
+      "id": "FR-AWL-006",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "Tenant/namespace-scoped checkpoint artifacts binding verified digest, version, sequence & expiry",
+      "whatIsLeft": "Customer CMK envelope encryption per checkpoint payload"
+    },
+    {
+      "id": "FR-AWL-007",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "Cancellation fencing at admission/dispatch preserving late output without promotion",
+      "whatIsLeft": "External tool-effect compensation connector plugins"
+    },
+    {
+      "id": "FR-AWL-008",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,recovery-service,advisory-service",
+      "implemented": "Consequential agent recovery routed through S10/S11 policy, P2/P3 authority & bound to source checkpoint/version",
+      "whatIsLeft": "Live production agent runtime adapter hooks (LangGraph/Temporal AI worker)"
+    },
+    {
+      "id": "FR-AWL-009",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "resumeFromCheckpoint creates linked execution with strictly <= remaining budget/deadline & rejects stale state",
+      "whatIsLeft": "None (verified in S09)"
+    },
+    {
+      "id": "FR-AWL-010",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,knowledge-service",
+      "implemented": "AI 6-aspect empirical checks + S08 eval contracts preserving UNKNOWN/FAIL when checks are absent",
+      "whatIsLeft": "External red-team automated evaluation pipeline on customer models"
+    },
+    {
+      "id": "FR-AWL-011",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service,evidence-service",
+      "implemented": "Full agent execution, tool effect, handoff & recovery lineage retained in evidence with human fallback route",
+      "whatIsLeft": "WORM ledger archival of agent event streams"
+    },
+    {
+      "id": "FR-AWL-012",
+      "priority": "Must",
+      "domain": "Protected Agents",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service,reporting-service",
+      "implemented": "Separates runtime reservations, provider token usage & customer charges while preserving safety on billing failure",
+      "whatIsLeft": "Real-time provider billing CSV/API reconciliation"
+    },
+    {
+      "id": "FR-CAT-001",
+      "priority": "Must",
+      "domain": "Catalog",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service",
+      "implemented": "S02 catalog.service & CatalogService storing owners, criticality, environment, lifecycle, essential functions",
+      "whatIsLeft": "External HR/IdP directory auto-sync for owner metadata"
+    },
+    {
+      "id": "FR-CAT-002",
+      "priority": "Must",
+      "domain": "Catalog",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,evidence-service,assessment-service",
+      "implemented": "S02 + S04/S07 qualification checks block certification when ownership/criticality missing or stale",
+      "whatIsLeft": "Scheduled background staleness escalation alerts"
+    },
+    {
+      "id": "FR-CAT-003",
+      "priority": "Must",
+      "domain": "Catalog",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service",
+      "implemented": "ComputeAndAliasService (provider_resource_alias) retaining source, confidence & ALIAS_CONFLICT guard",
+      "whatIsLeft": "Bulk CSV/API CMDB alias import bridge"
+    },
+    {
+      "id": "FR-DEP-001",
+      "priority": "Must",
+      "domain": "Deployment",
+      "status": "IMPLEMENTED",
+      "module": "infra,ci",
+      "implemented": "docker-compose, Dockerfile.service, Helm chart, Terraform & .github/workflows/ci.yml with signed artifacts & separate identities",
+      "whatIsLeft": "Promoting signed artifacts across live Dev -> Preprod -> Prod enterprise accounts"
+    },
+    {
+      "id": "FR-EVD-001",
+      "priority": "Must",
+      "domain": "Evidence",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,assessment-service,uacrf-crypto",
+      "implemented": "S04 S3 Object Lock WORM blobs + GET /v1/evidence/blobs/verify + S07 sealed DecisionEnvelope (P1)",
+      "whatIsLeft": "Live customer WORM bucket credentials at deployment"
+    },
+    {
+      "id": "FR-EVD-002",
+      "priority": "Must",
+      "domain": "Evidence",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,reporting-service",
+      "implemented": "Authorized search/export in S04 (FINAL / DRAFT_WITH_DISCLOSURES) + S14 Watermarked Assurance Rooms",
+      "whatIsLeft": "External CPA walkthrough & scheduled bulk archive export"
+    },
+    {
+      "id": "FR-GPH-001",
+      "priority": "Must",
+      "domain": "Dependency graph",
+      "status": "IMPLEMENTED",
+      "module": "graph-service,uacrf-contracts",
+      "implemented": "Neo4jOntology (58 labels, 55 relationship types) & Neo4jGraphGateway persisting services, AI, cloud & controls",
+      "whatIsLeft": "Live cloud topology full-account sweep cron"
+    },
+    {
+      "id": "FR-GPH-002",
+      "priority": "Must",
+      "domain": "Dependency graph",
+      "status": "IMPLEMENTED",
+      "module": "graph-service",
+      "implemented": "S06 projected_edge & Neo4j relationship properties storing direction, criticality, fallback, provenance & freshness",
+      "whatIsLeft": "Automated external APM trace edge confidence scoring"
+    },
+    {
+      "id": "FR-GPH-003",
+      "priority": "Must",
+      "domain": "Dependency graph",
+      "status": "IMPLEMENTED",
+      "module": "graph-service",
+      "implemented": "S06 GET /v1/graph/dependencies?depth=... bounded traversal pinned to graphRevision",
+      "whatIsLeft": "UI visual path filter controls for deep >4-hop graphs"
+    },
+    {
+      "id": "FR-GPH-004",
+      "priority": "Must",
+      "domain": "Dependency graph",
+      "status": "IMPLEMENTED",
+      "module": "graph-service,policy-service",
+      "implemented": "GraphDriftReconciler (PROJECTED vs DRIFTED) & P2 delta check failing closed on topology divergence",
+      "whatIsLeft": "Scheduled 24h drift reconciliation cron trigger"
+    },
+    {
+      "id": "FR-GPH-005",
+      "priority": "Must",
+      "domain": "Canonical ontology",
+      "status": "IMPLEMENTED",
+      "module": "graph-service,uacrf-contracts",
+      "implemented": "Strict 422 ONTOLOGY_VIOLATION rejection of unapproved labels, relationships & properties verified in Neo4j 5.26",
+      "whatIsLeft": "None (fully enforced at write gateway)"
+    },
+    {
+      "id": "FR-GPH-006",
+      "priority": "Must",
+      "domain": "Customer and impact graph",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,graph-service",
+      "implemented": "S02 + S06 PART_OF_JOURNEY, SUPPORTS_STEP, ENABLES_FUNCTION edges across services, journeys & segments",
+      "whatIsLeft": "Automated billing/segment volume import from analytics tools"
+    },
+    {
+      "id": "FR-GPH-007",
+      "priority": "Must",
+      "domain": "Impact analysis",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,assessment-service",
+      "implemented": "Provenance tagging (LIVE, SAMPLE_ONLY, SHADOW_NON_AUTHORITATIVE) separating observed vs estimated impacts",
+      "whatIsLeft": "Live customer traffic APM impact weights"
+    },
+    {
+      "id": "FR-GPH-008",
+      "priority": "Must",
+      "domain": "Recovery-path certification",
+      "status": "IMPLEMENTED",
+      "module": "assessment-service",
+      "implemented": "P5 PathIndependenceCertifier evaluating candidate paths across declared correlation domains & target health",
+      "whatIsLeft": "Live cloud quota API query inside path capacity check"
+    },
+    {
+      "id": "FR-GPH-009",
+      "priority": "Must",
+      "domain": "Revision-aware authority",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,evidence-service",
+      "implemented": "P2 MaterialGraphDeltaClassifier (S10) & QualificationEngine (S04) binding decisions to immutable graphRevision",
+      "whatIsLeft": "None (enforced on all consequential paths)"
+    },
+    {
+      "id": "FR-GPH-010",
+      "priority": "Must",
+      "domain": "Graph trust and replay",
+      "status": "IMPLEMENTED",
+      "module": "assessment-service,graph-service",
+      "implemented": "DecisionEnvelope & GraphRevision capturing provenance, query ID, subgraph digest & witness paths",
+      "whatIsLeft": "None (persisted on sealed assessments)"
+    },
+    {
+      "id": "FR-ING-001",
+      "priority": "Must",
+      "domain": "Telemetry",
+      "status": "IMPLEMENTED",
+      "module": "discovery-service",
+      "implemented": "S03 TelemetryAdapter SPI (AWS/GCP/Azure/OCI/OTel) + SAMPLE_LOCAL scenario ingestor",
+      "whatIsLeft": "Live cloud API polling with customer read-only IAM credentials"
+    },
+    {
+      "id": "FR-ING-002",
+      "priority": "Must",
+      "domain": "Telemetry",
+      "status": "IMPLEMENTED",
+      "module": "discovery-service",
+      "implemented": "S03 schema, tenant, environment & classification validation + PiiPhiScrubber pre-storage masking",
+      "whatIsLeft": "External SIEM forwarder sink configuration"
+    },
+    {
+      "id": "FR-ING-003",
+      "priority": "Must",
+      "domain": "Telemetry",
+      "status": "IMPLEMENTED",
+      "module": "discovery-service,uacrf-contracts",
+      "implemented": "CanonicalEvidenceEvent & ObservationDto preserving provider identifier, unit, value & rawReference",
+      "whatIsLeft": "Additional third-party SaaS webhook adapters as onboarded"
+    },
+    {
+      "id": "FR-ING-004",
+      "priority": "Must",
+      "domain": "Telemetry",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "discovery-service,uacrf-outbox",
+      "implemented": "Outbox correlation IDs & atomic PostgreSQL ingestion implemented with deduplication",
+      "whatIsLeft": "Multi-partition Kafka streaming window-join tuning under certified production load"
+    },
+    {
+      "id": "FR-IP-001",
+      "priority": "Must",
+      "domain": "Decision reconstruction",
+      "status": "IMPLEMENTED",
+      "module": "assessment-service,uacrf-crypto",
+      "implemented": "P1 DecisionEnvelope sealing with RFC 8785 SHA-256 canonical digest, RS256 JWS & deterministic replay",
+      "whatIsLeft": "None (verified in CanonicalJsonAndSignerTest & AssessmentServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-IP-002",
+      "priority": "Must",
+      "domain": "Graph-bound authorization",
+      "status": "IMPLEMENTED",
+      "module": "policy-service",
+      "implemented": "P2 MaterialGraphDeltaClassifier binding recovery authorization to exact graphRevision & narrowing/blocking on delta",
+      "whatIsLeft": "None (verified in PolicyServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-IP-003",
+      "priority": "Must",
+      "domain": "Bounded multi-cloud authorization",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,recovery-service,uacrf-contracts",
+      "implemented": "P3 BoundedRecoveryAuthorization signed, audience-bound & single-use nonce consumed atomically on execution",
+      "whatIsLeft": "None (verified in Policy/Recovery integration tests)"
+    },
+    {
+      "id": "FR-IP-004",
+      "priority": "Must",
+      "domain": "Evidence-qualified state",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service",
+      "implemented": "P4 QualificationEngine deterministically classifying Qualified, Provisional, Unknown & Disqualified states",
+      "whatIsLeft": "None (verified in EvidenceServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-IP-005",
+      "priority": "Must",
+      "domain": "Independent recovery paths",
+      "status": "IMPLEMENTED",
+      "module": "assessment-service",
+      "implemented": "P5 PathIndependenceCertifier proving primary/alternate paths share zero prohibited correlation domains",
+      "whatIsLeft": "None (verified in AssessmentServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-IP-006",
+      "priority": "Must",
+      "domain": "Cross-layer recovery validation",
+      "status": "IMPLEMENTED",
+      "module": "recovery-service",
+      "implemented": "P6 8-layer CrossLayerValidator DAG + automatic compensation on mandatory failure",
+      "whatIsLeft": "None (verified in TemporalRecoveryWorkflowTest)"
+    },
+    {
+      "id": "FR-IP-007",
+      "priority": "Could",
+      "domain": "Collaborative-agent arbitration",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "P7 Permutation-invariant DeterministicArbiter binding attributed proposals & dissent without authority elevation",
+      "whatIsLeft": "None (verified in AdvisoryServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-JNY-001",
+      "priority": "Must",
+      "domain": "Journeys",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,experience-ui",
+      "implemented": "S02 CatalogService & /journeys UI let accountable humans define & version journeys and ordered steps",
+      "whatIsLeft": "Journey template gallery library"
+    },
+    {
+      "id": "FR-JNY-002",
+      "priority": "Must",
+      "domain": "Journeys",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service",
+      "implemented": "Versioned owner-validated business impact profiles with population, impact dimensions & rationale",
+      "whatIsLeft": "Automated revenue-at-risk ERP import"
+    },
+    {
+      "id": "FR-JNY-003",
+      "priority": "Must",
+      "domain": "Journeys",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,experience-ui",
+      "implemented": "Typed SERVICE and PROTECTED_AGENT associations to journeys/steps with rationale in /journeys/{id}",
+      "whatIsLeft": "Visual step-by-step drag-and-drop canvas editor"
+    },
+    {
+      "id": "FR-JNY-004",
+      "priority": "Must",
+      "domain": "Journeys",
+      "status": "IMPLEMENTED",
+      "module": "assessment-service,catalog-service",
+      "implemented": "S07 assessments bind exact journey, impact-profile, objective, graph & method revisions and flag stale changes",
+      "whatIsLeft": "Automated stale-assessment notification digest"
+    },
+    {
+      "id": "FR-KNO-001",
+      "priority": "Could",
+      "domain": "Knowledge",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service",
+      "implemented": "S08 KnowledgeGovernanceService storing immutable knowledge versions with owner, digest, scope & expiry",
+      "whatIsLeft": "Automated review-due reminder cron emails"
+    },
+    {
+      "id": "FR-KNO-002",
+      "priority": "Could",
+      "domain": "Knowledge",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service",
+      "implemented": "Quarantined knowledge intake gating operational retrieval until approved & unexpired",
+      "whatIsLeft": "External threat-intel scanner plugin on file attachments"
+    },
+    {
+      "id": "FR-KNO-003",
+      "priority": "Could",
+      "domain": "Knowledge",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service",
+      "implemented": "Tenant, environment, classification & purpose authorization check prior to search/fetch",
+      "whatIsLeft": "Vector embedding index tenant-partition filter when pgvector RAG enabled"
+    },
+    {
+      "id": "FR-KNO-004",
+      "priority": "Could",
+      "domain": "Knowledge",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,advisory-service",
+      "implemented": "Retrieval manifests binding cited doc codes, excerpt digests, query & case context",
+      "whatIsLeft": "Byte-offset PDF locator highlighter in UI"
+    },
+    {
+      "id": "FR-KNO-005",
+      "priority": "Could",
+      "domain": "Knowledge",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,advisory-service",
+      "implemented": "Knowledge withdrawal / expiry status tracking and invalidation linkage for active recommendations",
+      "whatIsLeft": "Asynchronous webhook fanout invalidating cached external advisories"
+    },
+    {
+      "id": "FR-KNO-006",
+      "priority": "Could",
+      "domain": "Knowledge",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,knowledge-service",
+      "implemented": "Strict separation of knowledge articles from qualified operational evidence + explicit conflict disclosures",
+      "whatIsLeft": "None (enforced across S04 & S08)"
+    },
+    {
+      "id": "FR-LRN-001",
+      "priority": "Must",
+      "domain": "Learning",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,experience-ui",
+      "implemented": "S12 knowledge.learning_item linking incidents/experiments to findings, root causes, owners & dates + /knowledge",
+      "whatIsLeft": "Jira/ServiceNow bi-directional ticket sync"
+    },
+    {
+      "id": "FR-LRN-002",
+      "priority": "Must",
+      "domain": "Learning",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service",
+      "implemented": "409 VERIFICATION_REQUIRED blocking closure until verified rule/runbook/test SHA-256 digest is linked",
+      "whatIsLeft": "None (verified in KnowledgeServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-ONB-001",
+      "priority": "Must",
+      "domain": "Onboarding",
+      "status": "IMPLEMENTED",
+      "module": "catalog-service,discovery-service,graph-service,objectives-service,reporting-service,experience-ui",
+      "implemented": "/journeys, /compute, /settings/connections, /settings/admin-suite + S14 commercial_pilot gates",
+      "whatIsLeft": "Automated customer SSO self-serve provisioning wizard"
+    },
+    {
+      "id": "FR-ONB-002",
+      "priority": "Must",
+      "domain": "Onboarding",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,objectives-service,graph-service",
+      "implemented": "P2 MaterialGraphDeltaClassifier + S05 ObjectiveImportService delta detection + S06 GraphDriftReconciler",
+      "whatIsLeft": "Automated PR/CI baseline-delta comment bot"
+    },
+    {
+      "id": "FR-ORC-001",
+      "priority": "Could",
+      "domain": "Agent Runtime",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "S09 OrchestrationRunService (V3__orchestration_run_ledgers.sql) binding bounded workflow, sealed case, corpus & attempt IDs",
+      "whatIsLeft": "None (verified in AdvisoryServiceIntegrationTest)"
+    },
+    {
+      "id": "FR-ORC-002",
+      "priority": "Could",
+      "domain": "Agent Runtime",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "Atomic step, call, time, token & cost reservations across assignments and parallel children",
+      "whatIsLeft": "Live external billing webhook debit sync"
+    },
+    {
+      "id": "FR-ORC-003",
+      "priority": "Could",
+      "domain": "Agent Runtime",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "Restrictive preservation of required-role failure, dissent, cancellation & late outputs",
+      "whatIsLeft": "None (enforced in S09)"
+    },
+    {
+      "id": "FR-ORC-004",
+      "priority": "Could",
+      "domain": "Agent Runtime",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service",
+      "implemented": "A2 human review collection & A3 arbitration strictly separated from operational approval/execution",
+      "whatIsLeft": "None (enforced in S09/S10)"
+    },
+    {
+      "id": "FR-ORC-005",
+      "priority": "Could",
+      "domain": "Agent Runtime",
+      "status": "IMPLEMENTED",
+      "module": "advisory-service,experience-ui",
+      "implemented": "Scoped advisory kill switch (toggle endpoint + UI), grant revocation on cancel & human Core continuity",
+      "whatIsLeft": "None (verified in S09)"
+    },
+    {
+      "id": "FR-ORC-006",
+      "priority": "Could",
+      "domain": "Agent Runtime",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "advisory-service,knowledge-service",
+      "implemented": "Versioned prompt/corpus/workflow hashes & promotion gates stored across S08/S09",
+      "whatIsLeft": "Automated regression suite re-running saved agent scenarios on prompt/model bump in CI"
+    },
+    {
+      "id": "FR-POL-001",
+      "priority": "Must",
+      "domain": "Policy",
+      "status": "IMPLEMENTED",
+      "module": "policy-service",
+      "implemented": "S10 PolicyAuthorityService + policies/baseline.rego verified against live OPA container",
+      "whatIsLeft": "Customer-authored enterprise Rego extension packs"
+    },
+    {
+      "id": "FR-POL-002",
+      "priority": "Must",
+      "domain": "Policy",
+      "status": "IMPLEMENTED",
+      "module": "policy-service",
+      "implemented": "Deterministic 4-branch outcome (DENY, RECOMMEND, APPROVAL_REQUIRED, PREAUTHORIZED) unbypassable by ML/rules",
+      "whatIsLeft": "None (enforced in PolicyAuthorityService)"
+    },
+    {
+      "id": "FR-PRD-001",
+      "priority": "Must",
+      "domain": "Product scope",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service,experience-ui",
+      "implemented": "Critical Journey Assessment product boundary & capability gating in S14 & UX01",
+      "whatIsLeft": "License entitlement key signing server for external SaaS"
+    },
+    {
+      "id": "FR-PRD-002",
+      "priority": "Must",
+      "domain": "Market qualification",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "reporting-service",
+      "implemented": "S14 reporting.commercial_pilot captures funded problem, critical journey, target segment & success measures",
+      "whatIsLeft": "External CRM (Salesforce/HubSpot) opportunity & disqualifier workflow sync"
+    },
+    {
+      "id": "FR-PRD-003",
+      "priority": "Must",
+      "domain": "Pilot scope",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service",
+      "implemented": "S14 commercial_pilot locks pilot service population, provider boundary, scenarios & scope exclusions",
+      "whatIsLeft": "Signed Docusign/PDF pilot statement-of-work attachment webhook"
+    },
+    {
+      "id": "FR-PRD-004",
+      "priority": "Must",
+      "domain": "Value measurement",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service,assessment-service",
+      "implemented": "S14 + S07 record time-to-determine impact, time-to-authorize, dependency gaps & manual touch time",
+      "whatIsLeft": "Executive quarterly trend BI chart pack"
+    },
+    {
+      "id": "FR-PRD-005",
+      "priority": "Must",
+      "domain": "Commercial metering",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service",
+      "implemented": "S14 reporting.metering_event calculates all 7 non-duplicated meter dimensions (MTR-SVC..MTR-INT)",
+      "whatIsLeft": "Automated ERP invoice export job"
+    },
+    {
+      "id": "FR-PRD-006",
+      "priority": "Must",
+      "domain": "Onboarding accountability",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "reporting-service,experience-ui",
+      "implemented": "Pilot onboarding tracking & /settings/admin-suite implemented in S14 & UX01",
+      "whatIsLeft": "Full multi-stage onboarding RACI gate sign-off UI workflow & CRM sync"
+    },
+    {
+      "id": "FR-PRD-007",
+      "priority": "Must",
+      "domain": "Claims governance",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,reporting-service",
+      "implemented": "422 SYNTHETIC_FALLBACK_FORBIDDEN + Assurance Room explicit missing-disclosure banners",
+      "whatIsLeft": "Compliance marketing claim-registry UI module"
+    },
+    {
+      "id": "FR-PRD-008",
+      "priority": "Must",
+      "domain": "Customer lifecycle",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "reporting-service",
+      "implemented": "S14 pilot success measures, FinOps & renewal-ready evidence exports implemented",
+      "whatIsLeft": "Automated QVR scheduling, renewal reminders & customer offboarding workflow"
+    },
+    {
+      "id": "FR-PRD-009",
+      "priority": "Must",
+      "domain": "Decision gates",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service,knowledge-service,policy-service",
+      "implemented": "Gate criteria, approvers, evidence digests, decisions & expiries recorded across S07, S08, S10, S14",
+      "whatIsLeft": "Unified stage-gate executive ledger view across pilot->GA"
+    },
+    {
+      "id": "FR-PRD-010",
+      "priority": "Must",
+      "domain": "Economics",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "reporting-service",
+      "implemented": "S14 CommercialFinOpsService attributes platform consumption & tenant cost allocations",
+      "whatIsLeft": "External ERP labor timesheet, partner cost & contracted margin P&L ledger"
+    },
+    {
+      "id": "FR-QNT-001",
+      "priority": "Should",
+      "domain": "Quantitative",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service",
+      "implemented": "S13 QuantitativeShadowEngine computing r(t), S(t), RCI & ER mapped to Core states (SHADOW_NON_AUTHORITATIVE)",
+      "whatIsLeft": "Historical calibration fit pipeline against customer telemetry archives"
+    },
+    {
+      "id": "FR-QNT-002",
+      "priority": "Should",
+      "domain": "Quantitative",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service",
+      "implemented": "S13 benchmark & outcome storage without overriding OPA/Core deterministic gates",
+      "whatIsLeft": "Live Bayesian threshold parameter updater"
+    },
+    {
+      "id": "FR-RSK-001",
+      "priority": "Must",
+      "domain": "Risk state",
+      "status": "IMPLEMENTED",
+      "module": "objectives-service,experience-ui",
+      "implemented": "S05 risk_evaluation maintaining NORMAL, GUARDED, ELEVATED, CRITICAL & UNKNOWN states + /control UI badges",
+      "whatIsLeft": "Real-time SSE/WebSocket push for live dashboard auto-refresh"
+    },
+    {
+      "id": "FR-RSK-002",
+      "priority": "Must",
+      "domain": "Risk state",
+      "status": "IMPLEMENTED",
+      "module": "objectives-service,experience-ui",
+      "implemented": "TriggeredRuleDto & TimelineEventDto exposing rule IDs, versions, graph context & timeline in /control",
+      "whatIsLeft": "PDF snapshot export directly from /control timeline"
+    },
+    {
+      "id": "FR-RUL-001",
+      "priority": "Must",
+      "domain": "Rules",
+      "status": "IMPLEMENTED",
+      "module": "objectives-service",
+      "implemented": "S05 objectives.service_objective (rule_pack_version) & ObjectiveImportService with owner, scope & rationale",
+      "whatIsLeft": "GitOps YAML PR approval hook for rule packs"
+    },
+    {
+      "id": "FR-RUL-002",
+      "priority": "Must",
+      "domain": "Rules",
+      "status": "IMPLEMENTED",
+      "module": "objectives-service",
+      "implemented": "CoreRuleEvaluator evaluating Section 8 INF-CMP/STR/NET/SAT, PLT-QUE, DAT-DB, SEC, AI, APP, GOV rules",
+      "whatIsLeft": "Additional domain-specific rule packs as onboarded"
+    },
+    {
+      "id": "FR-RUL-003",
+      "priority": "Must",
+      "domain": "Rules",
+      "status": "IMPLEMENTED",
+      "module": "objectives-service",
+      "implemented": "GOV-TEL-001 fail-closed UNKNOWN on stale/conflicting evidence + ObjectiveImportService conflict preview",
+      "whatIsLeft": "None (deterministic precedence active)"
+    },
+    {
+      "id": "FR-TST-001",
+      "priority": "Must",
+      "domain": "Testing",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,recovery-service",
+      "implemented": "S13 fault experiment lifecycle (plan/authorize/execute/observe/abort/validate) + S11 chaos adapters",
+      "whatIsLeft": "Live cloud fault injection API runs in customer preprod/prod"
+    },
+    {
+      "id": "FR-TST-002",
+      "priority": "Must",
+      "domain": "Testing",
+      "status": "IMPLEMENTED",
+      "module": "knowledge-service,policy-service",
+      "implemented": "Blast-radius caps, stop conditions, target allowlists & ABORTED_BY_GUARDRAIL enforcement in S13",
+      "whatIsLeft": "Enterprise freeze-calendar integration (PagerDuty/Change Calendar)"
+    },
+    {
+      "id": "FR-UI-001",
+      "priority": "Must",
+      "domain": "Portal and API",
+      "status": "IMPLEMENTED",
+      "module": "experience-ui",
+      "implemented": "UX01 23 page views showing state, reasons, freshness, impact, actions, workflows & unresolved items",
+      "whatIsLeft": "Real-time streaming WebSocket refresh"
+    },
+    {
+      "id": "FR-UI-002",
+      "priority": "Must",
+      "domain": "Portal and API",
+      "status": "IMPLEMENTED",
+      "module": "contracts,edge-gateway,all-services",
+      "implemented": "Versioned OpenAPI 3.1 (9 specs) & AsyncAPI 3.0 contracts + REST APIs across S01-S14",
+      "whatIsLeft": "External customer webhook subscription self-service UI"
+    },
+    {
+      "id": "FR-UI-003",
+      "priority": "Must",
+      "domain": "Portal and API",
+      "status": "IMPLEMENTED",
+      "module": "experience-ui",
+      "implemented": "Direct role-authorized sidebar & workspace navigation across 23 non-locked Thymeleaf routes + ExperienceUiControllerTest",
+      "whatIsLeft": "Splitting 23 consolidated screens into full 58 fine-grained tech-doc wizard views if requested + Playwright E2E"
+    },
+    {
+      "id": "FR-UI-004",
+      "priority": "Must",
+      "domain": "Portal and API",
+      "status": "IMPLEMENTED",
+      "module": "experience-ui",
+      "implemented": "Cytoscape topology + keyboard-accessible selection, labeled forms, WCAG focus rings & non-color status badges",
+      "whatIsLeft": "External assistive screen-reader & color-contrast audit"
+    },
+    {
+      "id": "FR-UI-005",
+      "priority": "Must",
+      "domain": "Portal and API",
+      "status": "IMPLEMENTED",
+      "module": "experience-ui,identity-service",
+      "implemented": "/settings/admin-suite exposing org, access, connections, governance, integrations & usage while keeping platform ops separate",
+      "whatIsLeft": "Fine-grained delegated admin role presets in Keycloak"
+    },
+    {
+      "id": "FR-VAL-001",
+      "priority": "Must",
+      "domain": "Validation",
+      "status": "IMPLEMENTED",
+      "module": "recovery-service",
+      "implemented": "S11 8-layer CrossLayerValidator (P6) across Infra, Platform, App, Data, Security, AI, SLO & Journey",
+      "whatIsLeft": "Live synthetic checkout probe runners per customer endpoint"
+    },
+    {
+      "id": "FR-VAL-002",
+      "priority": "Must",
+      "domain": "Validation",
+      "status": "IMPLEMENTED",
+      "module": "recovery-service",
+      "implemented": "Automatic adapter.compensate(...) rollback & escalation -> COMPENSATED when mandatory validation fails",
+      "whatIsLeft": "None (verified in TemporalRecoveryWorkflowTest)"
+    },
+    {
+      "id": "FR-WFL-001",
+      "priority": "Must",
+      "domain": "Workflow",
+      "status": "IMPLEMENTED",
+      "module": "recovery-service",
+      "implemented": "S11 Temporal RecoveryWorkflowImpl (durable, idempotent, timeout-bounded, retry-aware, compensatable)",
+      "whatIsLeft": "High-scale Temporal worker horizontal cluster deployment"
+    },
+    {
+      "id": "FR-WFL-002",
+      "priority": "Must",
+      "domain": "Workflow",
+      "status": "IMPLEMENTED",
+      "module": "recovery-service",
+      "implemented": "ProviderActionAdapter allowlist SPI + TARGET_SUBSTITUTION_FORBIDDEN (403) blocking unapproved APIs/targets",
+      "whatIsLeft": "Live cloud SDK mutations behind customer IAM roles"
+    }
+  ],
+  "nonFunctionalRequirements": [
+    {
+      "id": "NFR-ACC-001",
+      "category": "Accessibility",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "experience-ui",
+      "implemented": "WCAG 2.2 AA layout landmarks, skip-to-content link, :focus-visible ring, labeled forms & pill text labels",
+      "whatIsLeft": "External axe-core / NVDA / JAWS assistive reader compliance audit"
+    },
+    {
+      "id": "NFR-AUD-001",
+      "category": "Auditability",
+      "status": "IMPLEMENTED",
+      "module": "all-services,uacrf-outbox,evidence-service",
+      "implemented": "Immutable audit & integration.outbox_event tables + WORM S3 + collect-soc2-evidence.sh",
+      "whatIsLeft": "Enterprise SIEM log shipping & NTP attestation in live cluster"
+    },
+    {
+      "id": "NFR-AVL-001",
+      "category": "Availability",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "infra,all-services",
+      "implemented": "Out-of-band architecture + Helm replicas: 2 + PodDisruptionBudgets",
+      "whatIsLeft": "Live multi-month production cluster 99.9% SLA telemetry verification"
+    },
+    {
+      "id": "NFR-CLM-001",
+      "category": "Claims integrity",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,reporting-service",
+      "implemented": "422 SYNTHETIC_FALLBACK_FORBIDDEN + Assurance Room strict missing-disclosure enforcement",
+      "whatIsLeft": "External legal/marketing review workflow"
+    },
+    {
+      "id": "NFR-COM-001",
+      "category": "Commercial isolation",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service",
+      "implemented": "CommercialFinOpsService.verifyBillingOutageIsolation guaranteeing DEGRADED_BILLING_SAFETY_PRESERVED",
+      "whatIsLeft": "None (enforced & unit/integration tested)"
+    },
+    {
+      "id": "NFR-CST-001",
+      "category": "Cost control",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service,experience-ui",
+      "implemented": "S14 CommercialFinOpsService attributing ingestion, storage, graph, workflow & model costs + quotas",
+      "whatIsLeft": "Live cloud billing export ingestion cron"
+    },
+    {
+      "id": "NFR-DAT-001",
+      "category": "Data quality",
+      "status": "IMPLEMENTED",
+      "module": "evidence-service,objectives-service",
+      "implemented": "QualificationEngine (S04) & CoreRuleEvaluator (S05) enforce freshness, completeness & UNKNOWN gating",
+      "whatIsLeft": "None (enforced across S04/S05)"
+    },
+    {
+      "id": "NFR-EXP-001",
+      "category": "Explainability",
+      "status": "IMPLEMENTED",
+      "module": "experience-ui,assessment-service,objectives-service,advisory-service",
+      "implemented": "UI & APIs surface decisive evidence, triggered rules, witness paths, policy & action effects",
+      "whatIsLeft": "None (verified across UI & APIs)"
+    },
+    {
+      "id": "NFR-GPH-001",
+      "category": "Graph freshness",
+      "status": "IMPLEMENTED",
+      "module": "graph-service,uacrf-outbox",
+      "implemented": "OutboxKafkaRelay & GraphDriftReconciler project catalog updates into Neo4j & detect lag",
+      "whatIsLeft": "Live production projection lag histogram tuning under scale"
+    },
+    {
+      "id": "NFR-GPH-002",
+      "category": "Graph completeness",
+      "status": "IMPLEMENTED",
+      "module": "graph-service,catalog-service",
+      "implemented": "Owner/criticality/provenance/confidence mandatory on mandatory production dependencies",
+      "whatIsLeft": "Customer estate dependency discovery onboarding campaign"
+    },
+    {
+      "id": "NFR-GPH-003",
+      "category": "Graph determinism",
+      "status": "IMPLEMENTED",
+      "module": "graph-service,assessment-service",
+      "implemented": "100% of consequential graph queries record graphRevision, subgraphDigest, queryId & witness paths",
+      "whatIsLeft": "None (enforced in S06/S07)"
+    },
+    {
+      "id": "NFR-GPH-004",
+      "category": "Graph availability and recovery",
+      "status": "IMPLEMENTED",
+      "module": "graph-service",
+      "implemented": "Neo4j availability alignment & reconciliation gate before consequential automation after restore",
+      "whatIsLeft": "Automated restore-replay smoke job in live cluster"
+    },
+    {
+      "id": "NFR-IMP-001",
+      "category": "Implementation efficiency",
+      "status": "IMPLEMENTED",
+      "module": "reporting-service,experience-ui",
+      "implemented": "S14 reporting.commercial_pilot tracking onboarding lead time, touch hours & time-to-first-outcome",
+      "whatIsLeft": "CRM automated funnel dashboard rollup"
+    },
+    {
+      "id": "NFR-INT-001",
+      "category": "Interoperability",
+      "status": "IMPLEMENTED",
+      "module": "contracts,discovery-service,recovery-service",
+      "implemented": "Versioned OpenAPI 3.1 (S01-S09), AsyncAPI 3.0, OTel, JSON Schema & stable adapter SPIs",
+      "whatIsLeft": "Generating OpenAPI YAML specs for S10-S14 if exposed externally"
+    },
+    {
+      "id": "NFR-MNT-001",
+      "category": "Maintainability",
+      "status": "IMPLEMENTED",
+      "module": "all-services,infra",
+      "implemented": "Spring Boot Actuator (/actuator/health,info,metrics), Helm liveness/readiness probes & runbooks",
+      "whatIsLeft": "Live Prometheus/Grafana runbook link alert templates"
+    },
+    {
+      "id": "NFR-OBS-001",
+      "category": "Observability",
+      "status": "IMPLEMENTED",
+      "module": "infra,discovery-service,all-services",
+      "implemented": "OTel Collector config + Actuator SLIs + queue/freshness/projection lag tracking",
+      "whatIsLeft": "Production Prometheus alertmanager rules & Grafana dashboards"
+    },
+    {
+      "id": "NFR-OPS-002",
+      "category": "Operability at scale",
+      "status": "NOT_IMPLEMENTED / EXTERNAL_ORG",
+      "module": "governance",
+      "implemented": "Engineering owner patterns, runbook structure & Helm deprecation hooks documented in repo",
+      "whatIsLeft": "Organizational named owners (Product/Eng/Ops/Sec/Support/Docs), SLA support desk & funded maintenance plan (Phase E4)"
+    },
+    {
+      "id": "NFR-POR-001",
+      "category": "Portability",
+      "status": "IMPLEMENTED",
+      "module": "discovery-service,recovery-service,infra",
+      "implemented": "Multi-cloud SPIs (AWS, GCP, Azure, OCI, K8s) + Terraform multi-cloud modules with core isolated",
+      "whatIsLeft": "None (all adapters isolated from decision core)"
+    },
+    {
+      "id": "NFR-PRF-001",
+      "category": "Performance",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "discovery-service,objectives-service",
+      "implemented": "Indexed PostgreSQL schemas & bounded Core rule evaluation completed",
+      "whatIsLeft": "Formal k6/JMeter load test proving <=10s p95 under certified streaming load"
+    },
+    {
+      "id": "NFR-PRF-002",
+      "category": "Performance",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "graph-service,experience-ui,edge-gateway",
+      "implemented": "Bounded Neo4j traversals (depth cap) & indexed UI API queries",
+      "whatIsLeft": "Formal concurrent-user p95 <=2s / graph <=5s load benchmark report"
+    },
+    {
+      "id": "NFR-PRI-001",
+      "category": "Privacy",
+      "status": "IMPLEMENTED",
+      "module": "uacrf-contracts,discovery-service,advisory-service,infra",
+      "implemented": "Neo4jOntology PII key block + PiiPhiScrubber (S03/S09) + Terraform regional WORM buckets",
+      "whatIsLeft": "Legal hold UI workflow & corporate GDPR/BAA sign-off (Phase E4)"
+    },
+    {
+      "id": "NFR-RES-001",
+      "category": "Resilience",
+      "status": "IMPLEMENTED",
+      "module": "policy-service,recovery-service,discovery-service",
+      "implemented": "Fail-closed policy & kill switches; control plane decoupled from protected workload traffic path",
+      "whatIsLeft": "Live multi-node cluster isolation chaos drill"
+    },
+    {
+      "id": "NFR-RPO-001",
+      "category": "Continuity",
+      "status": "PARTIAL / CONFIG_GATED",
+      "module": "infra",
+      "implemented": "infra/scripts/backup-and-pitr.sh + PostgreSQL PITR / WAL documentation",
+      "whatIsLeft": "Scheduled automated restore verification drill against production RDS/CloudSQL"
+    },
+    {
+      "id": "NFR-SCL-001",
+      "category": "Scalability",
+      "status": "IMPLEMENTED",
+      "module": "all-services,infra",
+      "implemented": "14 independent stateless Spring Boot services + Kafka partitions + Helm per-service replicas",
+      "whatIsLeft": "Verified HPA autoscale tuning under live multi-tenant load"
+    },
+    {
+      "id": "NFR-SEC-001",
+      "category": "Security",
+      "status": "IMPLEMENTED",
+      "module": "edge-gateway,identity-service,uacrf-outbox",
+      "implemented": "Keycloak OIDC + EDGE01 OAuth2/JWT + PostgreSQL FORCE ROW LEVEL SECURITY + deny-by-default rules",
+      "whatIsLeft": "Enterprise IdP federation & live penetration test (Phase E4)"
+    },
+    {
+      "id": "NFR-SEC-002",
+      "category": "Security",
+      "status": "IMPLEMENTED",
+      "module": "uacrf-crypto,infra",
+      "implemented": "TLS/Istio STRICT mTLS, S3 WORM encryption, FipsCryptoProfile, Gitleaks/Trivy & zero secrets in logs",
+      "whatIsLeft": "Hardware HSM / KMS key binding in target cloud account"
+    },
+    {
+      "id": "NFR-SEC-003",
+      "category": "Security",
+      "status": "IMPLEMENTED",
+      "module": "discovery-service,policy-service,recovery-service",
+      "implemented": "Read-only S03 discovery separated from P3 execution tokens; SELF_APPROVAL_FORBIDDEN enforced everywhere",
+      "whatIsLeft": "Separate live cloud IAM roles provisioned per customer account"
+    },
+    {
+      "id": "NFR-TST-001",
+      "category": "Testability",
+      "status": "IMPLEMENTED",
+      "module": "all-services,libs,ci",
+      "implemented": "20 JUnit test suites across 18/18 Maven modules (PostgreSQL 17 + Neo4j 5.26 Testcontainers) + CodeQL/Trivy/Gitleaks",
+      "whatIsLeft": "Automated multi-container Playwright browser E2E CI job"
+    }
   ],
   "patents": [
-    {"id": "P1", "name": "DecisionEnvelope Sealing & Replay", "status": "IMPLEMENTED"},
-    {"id": "P2", "name": "MaterialGraphDeltaClassifier", "status": "IMPLEMENTED"},
-    {"id": "P3", "name": "Single-Use BoundedRecoveryAuthorization", "status": "IMPLEMENTED"},
-    {"id": "P4", "name": "Deterministic Evidence Qualification", "status": "IMPLEMENTED"},
-    {"id": "P5", "name": "Correlation-Domain Path Independence", "status": "IMPLEMENTED"},
-    {"id": "P6", "name": "Cross-Layer Validation DAG & Compensation", "status": "IMPLEMENTED"},
-    {"id": "P7", "name": "Permutation-Invariant Arbiter & Dissent", "status": "IMPLEMENTED"}
+    {
+      "id": "P1",
+      "name": "DecisionEnvelope Sealing & Replay",
+      "module": "assessment-service,uacrf-crypto",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "P2",
+      "name": "MaterialGraphDeltaClassifier",
+      "module": "policy-service",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "P3",
+      "name": "Single-Use BoundedRecoveryAuthorization",
+      "module": "policy-service,recovery-service,uacrf-contracts",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "P4",
+      "name": "Deterministic Evidence Qualification",
+      "module": "evidence-service",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "P5",
+      "name": "Correlation-Domain Path Independence",
+      "module": "assessment-service",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "P6",
+      "name": "Cross-Layer Validation DAG & Compensation",
+      "module": "recovery-service",
+      "status": "IMPLEMENTED"
+    },
+    {
+      "id": "P7",
+      "name": "Permutation-Invariant Arbiter & Dissent",
+      "module": "advisory-service",
+      "status": "IMPLEMENTED"
+    }
+  ],
+  "failureScenarios": [
+    {
+      "id": "F01",
+      "name": "Compute loss",
+      "status": "IMPLEMENTED",
+      "implemented": "S05 INF-CMP rules + S03 AWS/GCP/Azure/OCI compute telemetry + S11 CloudComputeScalingAdapter",
+      "whatIsLeft": "Live instance stop drill against customer staging cluster"
+    },
+    {
+      "id": "F02",
+      "name": "Zone impairment",
+      "status": "IMPLEMENTED",
+      "implemented": "S07 P5 zonal independence certifier + S11 CloudTrafficFailoverAdapter",
+      "whatIsLeft": "Live AZ evacuation drill on customer cluster"
+    },
+    {
+      "id": "F03",
+      "name": "Dependency latency",
+      "status": "IMPLEMENTED",
+      "implemented": "S05 INF-NET/APP latency rules + S03 OTel/SAMPLE_LOCAL scenarios + S13 bounded latency experiment",
+      "whatIsLeft": "Live Istio/Envoy fault injection soak test"
+    },
+    {
+      "id": "F04",
+      "name": "Database failover",
+      "status": "IMPLEMENTED",
+      "implemented": "S05 DAT-DB replica/failover rules + P5 DATA_STORE independence + S11 P6 data integrity validation",
+      "whatIsLeft": "Live managed Postgres failover timing drill"
+    },
+    {
+      "id": "F05",
+      "name": "Bad deployment",
+      "status": "IMPLEMENTED",
+      "implemented": "S11 KubernetesLocalRollbackAdapter + Temporal compensate() + P6 canary validation",
+      "whatIsLeft": "Live GitOps canary rollback hook (ArgoCD/Flux)"
+    },
+    {
+      "id": "F06",
+      "name": "Queue backlog",
+      "status": "IMPLEMENTED",
+      "implemented": "S05 PLT-QUE queue depth/consumer lag rules + S11 CloudComputeScalingAdapter consumer scale-out",
+      "whatIsLeft": "Live Kafka consumer lag chaos drill"
+    },
+    {
+      "id": "F07",
+      "name": "Identity denial",
+      "status": "IMPLEMENTED",
+      "implemented": "S01/EDGE01 deny-by-default auth + S03 permission denial surfaced as UNKNOWN + escalation",
+      "whatIsLeft": "Live IAM permission revocation test"
+    },
+    {
+      "id": "F08",
+      "name": "Telemetry loss",
+      "status": "IMPLEMENTED",
+      "implemented": "S05 GOV-TEL-001 fail-closed UNKNOWN + S10 policy block on missing/stale evidence",
+      "whatIsLeft": "Live OTel Collector outage failover verification"
+    },
+    {
+      "id": "F09",
+      "name": "Model drift",
+      "status": "IMPLEMENTED",
+      "implemented": "S04 AI 6-aspect drift/quality checks + S08 MlPromotionService drift demotion rules",
+      "whatIsLeft": "Live customer inference feature-shift replay"
+    },
+    {
+      "id": "F10",
+      "name": "Unsafe model output",
+      "status": "IMPLEMENTED",
+      "implemented": "S09 EnterpriseLlmGateway prompt-injection firewall, P7 Critic dissent & human escalation + S04 AI safety gate",
+      "whatIsLeft": "Automated red-team prompt corpus regression pipeline"
+    },
+    {
+      "id": "F11",
+      "name": "Third party outage",
+      "status": "IMPLEMENTED",
+      "implemented": "S07 P5 VENDOR independence + S05 dependency rules + S13 vendor-timeout fault experiment",
+      "whatIsLeft": "Live third-party sandbox stub chaos test"
+    },
+    {
+      "id": "F12",
+      "name": "Approver unavailable",
+      "status": "IMPLEMENTED",
+      "implemented": "S10 approval TTL expiry + BreakGlassService escalation with post-incident review lock",
+      "whatIsLeft": "Live PagerDuty on-call escalation webhook"
+    },
+    {
+      "id": "F13",
+      "name": "Region recovery",
+      "status": "IMPLEMENTED",
+      "implemented": "S07 P5 REGION independence + S11 CloudTrafficFailoverAdapter multi-region drain/failover + P6 validation",
+      "whatIsLeft": "Full multi-region DR game-day on live cloud"
+    },
+    {
+      "id": "F14",
+      "name": "Backup restore",
+      "status": "IMPLEMENTED",
+      "implemented": "infra/scripts/backup-and-pitr.sh + NFR-GPH-004 Neo4j restore replay reconciliation",
+      "whatIsLeft": "Scheduled live isolated restore validation drill"
+    }
   ],
   "regulatoryStandards": [
-    {"id": "REG-SOC2", "name": "SOC 2 Type I & Type II (CC1-CC9)", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-ISO27001", "name": "ISO/IEC 27001 / 27017 / 27018", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-ISO22301", "name": "ISO/IEC 22301 Business Continuity", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-GDPR", "name": "GDPR / CCPA-CPRA / ISO 27701", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-DORA", "name": "EU DORA Digital Operational Resilience", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-PRA", "name": "UK PRA / FCA / FFIEC / NYDFS 23 NYCRR 500", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-PCI", "name": "PCI DSS v4.0", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-ISO42001", "name": "ISO/IEC 42001 AI Management System", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-NIST-AI", "name": "NIST AI RMF 1.0 & EU AI Act", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-HIPAA", "name": "HIPAA / HITECH / HITRUST CSF", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-FEDRAMP", "name": "FedRAMP (NIST 800-53 Rev 5) & FIPS 140-3", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-NIS2", "name": "EU NIS2 & NERC CIP", "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING", "targetPhase": "E4"},
-    {"id": "REG-SSDF", "name": "NIST SP 800-218 (SSDF) & SLSA", "status": "IMPLEMENTED", "targetPhase": "COMPLETE"}
+    {
+      "id": "REG-SOC2",
+      "name": "SOC 2 Type I & Type II (CC1-CC9)",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "S04 WORM, S10 Dual Approval, V2__enable_rls, collect-soc2-evidence.sh, CI gates",
+      "whatIsLeft": "Phase E4 external CPA Type I/II observation period & report",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-ISO27001",
+      "name": "ISO/IEC 27001 / 27017 / 27018",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "EDGE01 JWT, RLS, encryption, S14 crosswalk, CI vulnerability & secret gates",
+      "whatIsLeft": "Phase E4 ISMS corporate policies & registrar Stage 1/2 audit",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-ISO22301",
+      "name": "ISO/IEC 22301 Business Continuity",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "S07 P5 DR path certification, S11 Temporal DR workflows, S13 exercises, PITR script",
+      "whatIsLeft": "Phase E4 enterprise BCMS governance & external registrar audit",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-GDPR",
+      "name": "GDPR / CCPA-CPRA / ISO 27701",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "Neo4jOntology PII block, PiiPhiScrubber, Terraform regional buckets",
+      "whatIsLeft": "Phase E4 signed DPA/ROPA & legal counsel review",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-DORA",
+      "name": "EU DORA Digital Operational Resilience",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "ICT dependency mapping (S06), scenario testing (S13), third-party risk (P5), WORM bundles",
+      "whatIsLeft": "Phase E4 regulatory reporting submission templates",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-PRA",
+      "name": "UK PRA / FCA / FFIEC / NYDFS 23 NYCRR 500",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "Important business service impact tolerances (S02 FR-JNY), P5 failover testing, S14 crosswalk",
+      "whatIsLeft": "Phase E4 board attestation & regulatory mapping dossier",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-PCI",
+      "name": "PCI DSS v4.0",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "PAN redaction (PiiPhiScrubber), NetworkPolicy & Istio STRICT mTLS, least-privilege tokens, audit logs",
+      "whatIsLeft": "Phase E4 QSA cardholder scope boundary & AOC",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-ISO42001",
+      "name": "ISO/IEC 42001 AI Management System",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "AI 6-aspect evidence, Model Card registry & promotion gates (S08), AWL/ORC ledgers (S09)",
+      "whatIsLeft": "Phase E4 AI management system registrar audit",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-NIST-AI",
+      "name": "NIST AI RMF 1.0 & EU AI Act",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "P7 Critic dissent preservation, human oversight gates, bias/drift/safety checks & traceability",
+      "whatIsLeft": "Phase E4 conformity assessment documentation",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-HIPAA",
+      "name": "HIPAA / HITECH / HITRUST CSF",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "PHI scrubbing, RLS tenant isolation, short-lived RBAC/JWT & immutable audit trail",
+      "whatIsLeft": "Phase E4 executed BAA & HITRUST CSF assessor review",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-FEDRAMP",
+      "name": "FedRAMP (NIST 800-53 Rev 5) & FIPS 140-3",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "FipsCryptoProfile, distroless/Helm security policies, SBOM/Trivy/CodeQL gates, crosswalk",
+      "whatIsLeft": "Phase E4 3PAO readiness, OSCAL SSP & hardware FIPS 140-3 module validation",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-NIS2",
+      "name": "EU NIS2 & NERC CIP",
+      "status": "IMPLEMENTED_TECHNICAL_E4_AUDIT_PENDING",
+      "implementedControls": "Supply-chain dependency graph, incident learning closure gate (FR-LRN-002), immutable evidence",
+      "whatIsLeft": "Phase E4 sector authority notification workflows",
+      "targetPhase": "E4"
+    },
+    {
+      "id": "REG-SSDF",
+      "name": "NIST SP 800-218 (SSDF) & SLSA",
+      "status": "IMPLEMENTED",
+      "implementedControls": ".github/workflows/ci.yml with Maven verify, OWASP/CycloneDX SBOM, Trivy, Gitleaks & CodeQL",
+      "whatIsLeft": "Org-level branch protection rules & hardware signing key",
+      "targetPhase": "COMPLETE"
+    }
   ]
 }
