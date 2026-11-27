@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "UACRF Unified Adaptive Cloud Resilience Framework",
+  "coreMilestones": {
+    "M0_M8_local_verified": "COMPLETE",
+    "E1_E4_enterprise_compliance": "PLANNED"
+  },
+  "requirements": [
+    {"id": "FR-IDN-001", "module": "identity-service", "status": "IMPLEMENTED"},
+    {"id": "FR-IDN-002", "module": "identity-service", "status": "IMPLEMENTED"},
+    {"id": "FR-IDN-003", "module": "identity-service,edge-gateway", "status": "PARTIAL_LOCAL_SPI"},
+    {"id": "FR-CAT-001", "module": "catalog-service", "status": "IMPLEMENTED"},
+    {"id": "FR-JNY-001..003", "module": "catalog-service", "status": "IMPLEMENTED"},
+    {"id": "FR-ING-001", "module": "discovery-service", "status": "IMPLEMENTED"},
+    {"id": "FR-ING-002", "module": "discovery-service", "status": "PENDING"},
+    {"id": "FR-EVD-001", "module": "evidence-service", "status": "IMPLEMENTED"},
+    {"id": "FR-EVD-002", "module": "evidence-service", "status": "IMPLEMENTED"},
+    {"id": "FR-EVD-003", "module": "evidence-service,experience-ui", "status": "IMPLEMENTED"},
+    {"id": "FR-EVD-004", "module": "evidence-service", "status": "PARTIAL_LOCAL_SPI"},
+    {"id": "FR-GPH-001..006", "module": "graph-service,uacrf-contracts", "status": "IMPLEMENTED"},
+    {"id": "FR-GPH-007", "module": "graph-service", "status": "PENDING"},
+    {"id": "FR-ASS-001..003", "module": "assessment-service", "status": "IMPLEMENTED"},
+    {"id": "FR-CTL-001..002", "module": "objectives-service", "status": "IMPLEMENTED"},
+    {"id": "FR-POL-001..002", "module": "policy-service", "status": "PARTIAL_LOCAL_SPI"},
+    {"id": "FR-REC-001..003", "module": "recovery-service", "status": "PARTIAL_LOCAL_SPI"},
+    {"id": "FR-LRN-001..002", "module": "knowledge-service", "status": "IMPLEMENTED"},
+    {"id": "FR-EXP-001", "module": "knowledge-service", "status": "IMPLEMENTED"},
+    {"id": "FR-KNO-001..004", "module": "knowledge-service", "status": "IMPLEMENTED"},
+    {"id": "FR-ADV-001..005", "module": "advisory-service", "status": "PARTIAL_LOCAL_SPI"},
+    {"id": "FR-QNT-001", "module": "knowledge-service", "status": "IMPLEMENTED"},
+    {"id": "FR-REP-001..003", "module": "reporting-service", "status": "PENDING"}
+  ],
+  "patents": [
+    {"id": "P1", "name": "DecisionEnvelope Sealing & Replay", "status": "IMPLEMENTED"},
+    {"id": "P2", "name": "MaterialGraphDeltaClassifier", "status": "IMPLEMENTED"},
+    {"id": "P3", "name": "Single-Use BoundedRecoveryAuthorization", "status": "IMPLEMENTED"},
+    {"id": "P4", "name": "Deterministic Evidence Qualification", "status": "IMPLEMENTED"},
+    {"id": "P5", "name": "Correlation-Domain Path Independence", "status": "IMPLEMENTED"},
+    {"id": "P6", "name": "Cross-Layer Validation DAG & Compensation", "status": "IMPLEMENTED"},
+    {"id": "P7", "name": "Permutation-Invariant Arbiter & Dissent", "status": "IMPLEMENTED"}
+  ],
+  "regulatoryStandards": [
+    {"id": "REG-SOC2", "name": "SOC 2 Type I & Type II (CC1-CC9)", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E1,E3,E4"},
+    {"id": "REG-ISO27001", "name": "ISO/IEC 27001 / 27017 / 27018", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E1,E3,E4"},
+    {"id": "REG-ISO22301", "name": "ISO/IEC 22301 Business Continuity", "status": "IMPLEMENTED", "targetPhase": "E2.4"},
+    {"id": "REG-GDPR", "name": "GDPR / CCPA-CPRA / ISO 27701", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E2.2"},
+    {"id": "REG-DORA", "name": "EU DORA Digital Operational Resilience", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E2.4"},
+    {"id": "REG-PRA", "name": "UK PRA / FCA / FFIEC / NYDFS 23 NYCRR 500", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E1.1,E2.4"},
+    {"id": "REG-PCI", "name": "PCI DSS v4.0", "status": "PENDING", "targetPhase": "E3,E4"},
+    {"id": "REG-ISO42001", "name": "ISO/IEC 42001 AI Management System", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E2.3,E4"},
+    {"id": "REG-NIST-AI", "name": "NIST AI RMF 1.0 & EU AI Act", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E2.4,E4"},
+    {"id": "REG-HIPAA", "name": "HIPAA / HITECH / HITRUST CSF", "status": "PENDING", "targetPhase": "E2.2,E4"},
+    {"id": "REG-FEDRAMP", "name": "FedRAMP (NIST 800-53 Rev 5) & FIPS 140-3", "status": "PENDING", "targetPhase": "E3.2,E4"},
+    {"id": "REG-NIS2", "name": "EU NIS2 & NERC CIP", "status": "PARTIAL_LOCAL_SPI", "targetPhase": "E3.1,E3.3"},
+    {"id": "REG-SSDF", "name": "NIST SP 800-218 (SSDF) & SLSA", "status": "PENDING", "targetPhase": "E3.3"}
+  ]
+}
