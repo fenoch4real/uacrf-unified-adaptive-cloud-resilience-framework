@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Customer Admin Lifecycle Suite (UI-50..UI-58)', 'Settings / Admin Lifecycle', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Customer Administration, FinOps, Pilot Locking &amp; Objective Imports (UI-50..UI-58)</h1>
+        <p class="text-secondary mb-0">Unified customer admin lifecycle surface covering FinOps quota attribution, guided onboarding metrics, upstream SLO import conflicts, and billing-outage safety preservation.</p>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">FinOps Attribution &amp; Quotas (NFR-CST-001)</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Cloud</th><th>Category</th><th>Est. USD</th><th>Quota USD</th><th>Alert</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(finops)}"><td colspan="5" class="small text-secondary">No FinOps allocations recorded.</td></tr>
+                    <tr th:each="f : ${finops}">
+                        <td class="small fw-semibold" th:text="${f['cloudProvider']}"></td>
+                        <td class="small" th:text="${f['costCategory']}"></td>
+                        <td class="small" th:text="${f['estimatedUsd']}"></td>
+                        <td class="small" th:text="${f['monthlyQuotaUsd']}"></td>
+                        <td>
+                            <span class="uacrf-pill" th:classappend="${f['quotaExceeded']} ? 'uacrf-pill-danger' : 'uacrf-pill-success'"
+                                  th:text="${f['quotaExceeded']} ? 'OVER_QUOTA' : 'OK'"></span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Locked Commercial Pilots &amp; Onboarding Metrics (FR-PRD / NFR-IMP-001)</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Pilot</th><th>Scope</th><th>Lead (h)</th><th>First Outcome (h)</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(pilots)}"><td colspan="4" class="small text-secondary">No active pilots locked.</td></tr>
+                    <tr th:each="p : ${pilots}">
+                        <td class="small fw-semibold" th:text="${p['pilotName']}"></td>
+                        <td class="small font-monospace" th:text="${p['lockedProviderScope']}"></td>
+                        <td class="small" th:text="${p['onboardingLeadHours']}"></td>
+                        <td class="small" th:text="${p['timeToFirstOutcomeHours']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="uacrf-card">
+        <h2 class="h5 fw-bold mb-3">S05 Upstream SLO Import Conflict Queue (AB.3)</h2>
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Service</th><th>SLI</th><th>Local Target</th><th>Incoming Target</th><th>Resolution</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(conflicts)}"><td colspan="5" class="small text-secondary">No pending import conflicts.</td></tr>
+            <tr th:each="c : ${conflicts}">
+                <td class="small font-monospace" th:text="${c['serviceCanonicalId']}"></td>
+                <td class="small" th:text="${c['sliName']}"></td>
+                <td class="small" th:text="${c['localSloTarget']}"></td>
+                <td class="small" th:text="${c['incomingSloTarget']}"></td>
+                <td><span class="uacrf-pill uacrf-pill-warning" th:text="${c['resolutionStrategy']}"></span></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</html>

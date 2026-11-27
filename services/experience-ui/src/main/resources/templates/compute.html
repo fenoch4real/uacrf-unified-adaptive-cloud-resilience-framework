@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Multi-Cloud Compute Placement & Aliases', 'Catalog / Compute & Aliases', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Multi-Cloud Compute Placements &amp; Provider Aliases</h1>
+        <p class="text-secondary mb-0">Failure-domain placement, autoscaling headroom bounds, and cloud resource alias mappings across GCP, AWS, Azure, OCI, and Kubernetes.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Compute Placements &amp; Scaling Headroom</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Service</th><th>Cloud / Runtime</th><th>Region / FD</th><th>Capacity (Min/Cur/Max)</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(placements)}"><td colspan="4" class="small text-secondary">No placements registered.</td></tr>
+                    <tr th:each="p : ${placements}">
+                        <td class="small font-monospace fw-bold" th:text="${p['serviceCanonicalId']}"></td>
+                        <td class="small" th:text="${p['cloudProvider'] + ' / ' + p['runtimeKind']}"></td>
+                        <td class="small" th:text="${p['region'] + ' · ' + p['failureDomain']}"></td>
+                        <td class="small" th:text="${p['minCapacity'] + ' / ' + p['currentCapacity'] + ' / ' + p['maxCapacity']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Provider Resource Aliases (FR-CAT-003)</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Cloud</th><th>Provider ID</th><th>Canonical Service</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(aliases)}"><td colspan="3" class="small text-secondary">No provider aliases mapped yet.</td></tr>
+                    <tr th:each="a : ${aliases}">
+                        <td class="small fw-semibold" th:text="${a['cloudProvider']}"></td>
+                        <td class="small font-monospace text-truncate" style="max-width: 12rem;" th:text="${a['providerResourceId']}"></td>
+                        <td class="small font-monospace" th:text="${a['serviceCanonicalId']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

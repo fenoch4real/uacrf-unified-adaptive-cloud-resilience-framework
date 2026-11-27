@@ -5,6 +5,7 @@
 ---
 
 ## CD-01: Shared Contracts, FIPS Cryptographic Integrity & Transactional Outbox
+*Shows the core contract records, ontology validator, canonical hashing, FIPS 140-3 key compliance checks, and Postgres-to-Kafka outbox helper shared across all services.*
 
 ```mermaid
 classDiagram
@@ -78,6 +79,7 @@ classDiagram
 ---
 
 ## CD-02: Identity Authority & Catalog / Customer Journey Domain (`S01`, `S02`)
+*Illustrates `S01` identity/delegation controllers and `S02` service, agent workload, customer journey, compute placement, and provider alias components.*
 
 ```mermaid
 classDiagram
@@ -131,6 +133,7 @@ classDiagram
 ---
 
 ## CD-03: Multi-Cloud Discovery, PII Scrubbing, Evidence Qualification & Knowledge Graph (`S03`, `S04`, `S06`)
+*Captures read-only multi-cloud collectors, pre-storage PII/PHI scrubbing, S3 Object Lock evidence qualification, and Neo4j projection with drift reconciliation.*
 
 ```mermaid
 classDiagram
@@ -207,6 +210,7 @@ classDiagram
 ---
 
 ## CD-04: Objectives Rules, Path Independence & Sealed Decision Envelopes (`S05`, `S07`, `P1`, `P5`)
+*Depicts continuous SLO rule evaluation, upstream conflict checks, correlation-domain path certification, and RS256 decision sealing.*
 
 ```mermaid
 classDiagram
@@ -240,6 +244,7 @@ classDiagram
 ---
 
 ## CD-05: Policy Authority, Temporal Recovery Orchestrator & P6 Validation (`S10`, `S11`, `P2`, `P3`, `P6`)
+*Maps OPA policy gating, break-glass escalation, `P2` graph delta checks, durable Temporal workflows, multi-cloud compute/traffic adapters, and 8-layer validation.*
 
 ```mermaid
 classDiagram
@@ -312,6 +317,7 @@ classDiagram
 ---
 
 ## CD-06: Knowledge, Agent Advisors, Commercial Reporting & Edge/UI (`S08`, `S09`, `S12`, `S13`, `S14`, `EDGE01`, `UX01`)
+*Shows ML model promotion, quantitative benchmarking, multi-provider LLM advisors (`OpenAI`/`Bedrock`/`Azure`/`Vertex`/`OCI`), agent runtime ledgers, `S14` assurance/FinOps reporting, and edge/portal wiring.*
 
 ```mermaid
 classDiagram

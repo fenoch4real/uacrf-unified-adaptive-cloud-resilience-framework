@@ -5,6 +5,7 @@
 ---
 
 ## AD-01: Unified UACRF Lifecycle Activity (`Assess -> Control -> Recover -> Evidence -> Learn`)
+*End-to-end decision loop showing how telemetry moves from ingestion through topology projection, evidence qualification, SLO rules, policy gates, bounded recovery, and verified learning.*
 
 ```mermaid
 flowchart TD
@@ -30,6 +31,7 @@ flowchart TD
 ---
 
 ## AD-02: Deterministic Evidence Qualification & `No-Synthetic-Fallback` Activity (`S04`)
+*Illustrates how `S04` rejects documentation or LLM summaries as proof of operational readiness, locks empirical evidence into WORM storage, and leaves gaps explicitly `UNKNOWN`.*
 
 ```mermaid
 flowchart TD
@@ -51,6 +53,7 @@ flowchart TD
 ---
 
 ## AD-03: Neo4j 58-Label Ontology Validation & Dependency Inspection (`S06`)
+*Shows schema enforcement on every Neo4j write (`58` labels, `55` relationships, prohibited-key blocking) and how `UNCERTAIN` dependencies display dashed without implying causation.*
 
 ```mermaid
 flowchart TD
@@ -73,6 +76,7 @@ flowchart TD
 ---
 
 ## AD-04: Correlation-Domain Path Certification (`P5`) & Report Issuance (`S07`)
+*Checks whether primary and alternate failover paths share hidden single points of failure (`REGION`, `IDP`, `KMS_KEY`, `DNS`, `DATA_STORE`) and enforces dual independent human sign-off.*
 
 ```mermaid
 flowchart TD
@@ -95,6 +99,7 @@ flowchart TD
 ---
 
 ## AD-05: Continuous Core Control Rule Evaluation State Machine (`S05`)
+*Transitions service risk state cleanly across `UNKNOWN`, `CRITICAL`, `ELEVATED`, `GUARDED`, and `NORMAL` using multi-layer telemetry thresholds without failing open when data is stale.*
 
 ```mermaid
 flowchart TD
@@ -112,6 +117,7 @@ flowchart TD
 ---
 
 ## AD-06: Pre-Execution `MaterialGraphDelta` (`P2`) & Bounded Recovery Activity (`S10`, `S11`)
+*Verifies kill switches, live topology deltas, token bounds, and single-use nonces prior to execution, then runs the 8-layer P6 validation DAG with automatic rollback compensation on probe failure.*
 
 ```mermaid
 flowchart TD
@@ -134,6 +140,7 @@ flowchart TD
 ---
 
 ## AD-07: Controlled Experiment Guardrails & Learning Closure Activity (`S12`, `S13`)
+*Runs bounded fault injection inside nonproduction guardrails, automatically aborts if SLOs breach thresholds, and prevents post-incident learning items from closing without verified remediation artifacts.*
 
 ```mermaid
 flowchart TD
@@ -153,6 +160,7 @@ flowchart TD
 ---
 
 ## AD-08: Solution-Specific Agent Advisors (`S09`) & Quantitative Shadow Isolation
+*Demonstrates how AI advisors obey kill switches, prompt-injection firewalls, token caps, and blocking Critic dissent arbitration alongside the non-authoritative Section 10.5 quantitative shadow benchmark.*
 
 ```mermaid
 flowchart TD
@@ -178,6 +186,7 @@ flowchart TD
 ## Enterprise & Regulatory Compliance Activity Diagrams (`Phase E1–E4 Scope`)
 
 ## AD-09: PII/PHI/PAN Scrubbing, Data Residency Routing & WORM Retention (`REG-GDPR`, `REG-HIPAA`)
+*Enforces regional residency matching, pre-storage redaction of sensitive personal/payment data, Neo4j prohibited-key checks, and immutable cloud Object Lock retention.*
 
 ```mermaid
 flowchart TD
@@ -195,6 +204,7 @@ flowchart TD
 ---
 
 ## AD-10: Scheduled Neo4j Anti-Tamper Drift Reconciliation Activity (`FR-GPH-007`)
+*Continuously compares live Neo4j subgraph checksums against authoritative PostgreSQL revisions, halting automated recovery whenever unauthorized graph drift is detected.*
 
 ```mermaid
 flowchart TD
@@ -209,6 +219,7 @@ flowchart TD
 ---
 
 ## AD-11: CI/CD Supply-Chain Security & SSDF / SLSA Gate Activity (`REG-SSDF`, `REG-FEDRAMP`)
+*Enforces automated secret scanning, CodeQL SAST, CycloneDX SBOM generation, Trivy vulnerability checks, and Cosign provenance attestation on every build.*
 
 ```mermaid
 flowchart TD
@@ -224,6 +235,7 @@ flowchart TD
 ---
 
 ## AD-12: Multi-Framework Common Control Crosswalk & External Assurance Room Activity (`S14`)
+*Assembles cryptographically verified evidence across UACRF services, discloses any missing items explicitly, and publishes time-bound watermarked auditor bundles.*
 
 ```mermaid
 flowchart TD
@@ -240,6 +252,7 @@ flowchart TD
 ---
 
 ## AD-13: Four-Cloud Provider Onboarding, Workload Identity & Cross-Cloud Recovery Selection (`GCP`, `AWS`, `Azure`, `OCI`)
+*Binds read-only federated identities across GCP, AWS, Azure, and OCI, monitors connector freshness, and validates failover independence across shared IdP, DNS, and KMS domains.*
 
 ```mermaid
 flowchart TD

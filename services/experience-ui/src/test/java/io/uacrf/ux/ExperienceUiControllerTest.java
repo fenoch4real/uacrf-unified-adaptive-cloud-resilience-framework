@@ -83,5 +83,21 @@ class ExperienceUiControllerTest {
         mockMvc.perform(get("/assurance"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("assurance"));
+
+        mockMvc.perform(get("/compute"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("compute"));
+
+        mockMvc.perform(get("/models"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("models"));
+
+        mockMvc.perform(get("/orchestration"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("orchestration"));
+
+        mockMvc.perform(get("/settings/admin-suite"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("admin-suite"));
     }
 }

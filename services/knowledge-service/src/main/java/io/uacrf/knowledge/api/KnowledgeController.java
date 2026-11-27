@@ -2,6 +2,7 @@ package io.uacrf.knowledge.api;
 
 import io.uacrf.knowledge.api.KnowledgeDtos.*;
 import io.uacrf.knowledge.service.KnowledgeGovernanceService;
+import io.uacrf.knowledge.service.MlPromotionService;
 import io.uacrf.knowledge.service.QuantitativeShadowEngine;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,10 +17,14 @@ public class KnowledgeController {
 
     private final KnowledgeGovernanceService service;
     private final QuantitativeShadowEngine quantitative;
+    private final MlPromotionService mlPromotionService;
 
-    public KnowledgeController(KnowledgeGovernanceService service, QuantitativeShadowEngine quantitative) {
+    public KnowledgeController(KnowledgeGovernanceService service,
+                               QuantitativeShadowEngine quantitative,
+                               MlPromotionService mlPromotionService) {
         this.service = service;
         this.quantitative = quantitative;
+        this.mlPromotionService = mlPromotionService;
     }
 
     @GetMapping("/knowledge/articles")
@@ -65,5 +70,26 @@ public class KnowledgeController {
     @GetMapping("/quantitative/benchmarks")
     public PaperBenchmarkReport runQuantitativeBenchmarks() {
         return quantitative.runSection105Benchmark();
+    }
+
+    @GetMapping("/models")
+    public List<MlPromotionService.ModelCardDto> listModels(@RequestParam UUID tenantId, @RequestParam UUID environmentId) {
+        return mlPromotionService.listModelCards(tenantId, environmentId);
+    }
+
+    @PostMapping("/models")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MlPromotionService.ModelCardDto registerModel(
+            @RequestHeader("X-UACRF-Actor-Id") UUID ownerId,
+            @Valid @RequestBody MlPromotionService.RegisterModelCardRequest req) {
+        return mlPromotionService.registerModelCard(ownerId, req);
+    }
+
+    @PostMapping("/models/{modelCardId}/promote")
+    public MlPromotionService.ModelCardDto promoteModel(
+            @PathVariable UUID modelCardId,
+            @RequestHeader("X-UACRF-Actor-Id") UUID approverId,
+            @RequestParam String targetStage) {
+        return mlPromotionService.promoteModel(modelCardId, approverId, targetStage);
     }
 }

@@ -40,21 +40,14 @@ UACRF enforces one non-negotiable architectural boundary: **Advice is Not Author
 
 ## Published paper
 
-The paper proposes a unified approach to cloud and AI-agent resilience,
-connecting dependency-aware evidence and assessment with bounded actions,
-independent recovery validation, and learning from outcomes. Its central
-boundary is that advice is not authority: a recommendation does not authorize
-recovery, and a provider-reported success does not prove that recovery worked.
+The foundational research behind UACRF introduces a unified engineering and governance model for cloud and AI-agent resilience. Authored by **Olufemi O. Fabiyi** and **Michael M. Yeboah**, the paper connects dependency-aware evidence qualification and failure-domain assessment with bounded recovery actions, independent post-action validation, and verified learning from incidents. Its guiding architectural boundary is simple and strict: **advice is not authority** — neither an AI/human recommendation nor a cloud provider's `200 OK` control-plane acknowledgment proves that recovery actually restored customer service.
 
-The framework is described in:
-
+**Citation:**
 Fabiyi, O. O., & Yeboah, M. M. (2026). [*UACRF: A Unified Adaptive Framework
 for Resilient AI-Cloud Systems Supporting Critical Digital Infrastructure*](https://nahdapublications.org/nid/nid/njbei.2026.0001).
-NJBEI Review, 1.0, 1–29. Published September 18, 2026. NID:
-nid/njbei.2026.0001.
+*NJBEI Review*, 1.0, 1–29. Published September 18, 2026. NID: `nid/njbei.2026.0001`.
 
-This repository develops the product design and implementation that build on
-the paper's framework.
+This repository translates that peer-reviewed framework into working microservices, formal compliance controls, multi-cloud SPIs, and an interactive resilience portal.
 
 ---
 
@@ -75,10 +68,10 @@ the paper's framework.
 | `services/policy-service` (`S10`) | `8089` | OPA Rego evaluator, two-person recovery approvals, `P2` graph delta classifier, `P3` RS256 single-use authorizations |
 | `services/recovery-service` (`S11`) | `8090` | Recovery orchestrator, allowlisted `ProviderActionAdapter` SPI (`P3`), 8-layer `CrossLayerValidator` (`P6`), kill switch |
 | `services/knowledge-service` (`S08`/`S12`/`S13`) | `8091` | Governed knowledge base, closed-loop learning gate (`FR-LRN-002`), guarded fault experiments, Section 10.5 quantitative shadow model & benchmarks |
-| `services/advisory-service` (`S09`) | `8092` | Solution-specific agent advisors (`Evidence Assistant`, `Critic`), `EnterpriseLlmGateway` SPI, prompt-injection/SSRF firewall, `P7` arbitration |
-| `services/reporting-service` (`S14`) | `8093` | Commercial asset metering, multi-framework regulatory crosswalk (SOC 2, ISO, DORA, HIPAA, FedRAMP), watermarked external auditor Assurance Rooms |
+| `services/advisory-service` (`S09`) | `8092` | Solution-specific agent advisors (`Evidence Assistant`, `Critic`), OpenAI/Bedrock/Azure/Vertex/OCI LLM SPI, agent runtime ledgers (`FR-AWL`/`FR-ORC`), `P7` arbitration |
+| `services/reporting-service` (`S14`) | `8093` | Commercial asset metering, FinOps quotas, pilot locking, multi-framework crosswalk, watermarked External Assurance Rooms |
 | `services/edge-gateway` (`EDGE01`) | `8080` | Public API gateway forwarding to backend owners, OAuth2 Bearer JWT + CSP headers, `Cache-Control: no-store`, concealing internal delegation routes |
-| `services/experience-ui` (`UX01`) | `8081` | **Spring Boot + Thymeleaf + Bootstrap 5.3 + Cytoscape.js** web portal (`19` templates incl. `/assurance`) |
+| `services/experience-ui` (`UX01`) | `8081` | **Spring Boot + Thymeleaf + Bootstrap 5.3 + Cytoscape.js** web portal (`23` page templates incl. `/compute`, `/models`, `/orchestration`, `/assurance`, `/settings/admin-suite`) |
 | `contracts/`, `infra/`, `policies/` | — | OpenAPI 3.1, AsyncAPI 3.0, Neo4j constraints/catalog, Helm + K8s/Istio mTLS, multi-cloud Terraform, PITR & SOC 2 scripts, OPA baseline Rego |
 
 ---

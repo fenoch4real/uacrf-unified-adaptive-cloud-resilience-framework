@@ -835,4 +835,45 @@ public class PortalController {
         }
         return "redirect:/assurance";
     }
+
+    @GetMapping("/compute")
+    public String compute(Model model,
+                          @ModelAttribute("tenantId") UUID tenantId,
+                          @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "compute");
+        model.addAttribute("placements", edge.getList("/v1/compute-placements?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("aliases", edge.getList("/v1/provider-aliases?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "compute";
+    }
+
+    @GetMapping("/models")
+    public String models(Model model,
+                         @ModelAttribute("tenantId") UUID tenantId,
+                         @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "models");
+        model.addAttribute("models", edge.getList("/v1/models?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "models";
+    }
+
+    @GetMapping("/orchestration")
+    public String orchestration(Model model,
+                                @ModelAttribute("tenantId") UUID tenantId,
+                                @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "orchestration");
+        model.addAttribute("llmProviders", edge.getList("/v1/advisory/llm-providers", Map.class));
+        model.addAttribute("runs", edge.getList("/v1/orchestration-runs?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("breakGlassGrants", edge.getList("/v1/policy/break-glass?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "orchestration";
+    }
+
+    @GetMapping("/settings/admin-suite")
+    public String adminSuite(Model model,
+                             @ModelAttribute("tenantId") UUID tenantId,
+                             @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "admin-suite");
+        model.addAttribute("finops", edge.getList("/v1/reporting/finops?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("pilots", edge.getList("/v1/reporting/pilots?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("conflicts", edge.getList("/v1/objectives/import-conflicts?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "admin-suite";
+    }
 }

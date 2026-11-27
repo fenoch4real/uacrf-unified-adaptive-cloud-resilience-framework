@@ -36,6 +36,9 @@ class KnowledgeServiceIntegrationTest {
     @Autowired
     private QuantitativeShadowEngine quantitative;
 
+    @Autowired
+    private io.uacrf.knowledge.service.MlPromotionService mlPromotionService;
+
     @Test
     void enforcesKnowledgeQuarantineLearningClosureExperimentAbortAndQuantitativeBenchmarks() {
         // S08 Knowledge quarantine + separation of duties
@@ -74,5 +77,25 @@ class KnowledgeServiceIntegrationTest {
         assertEquals("SHADOW_NON_AUTHORITATIVE", bench.sampleShadowState().mode());
         assertEquals(4, bench.benchmarks().size());
         assertTrue(bench.benchmarks().getFirst().effectiveResilience() > bench.benchmarks().getLast().effectiveResilience());
+
+        // FR-ADP-001/002 AI Model Card & Gated Promotion
+        var badModel = mlPromotionService.registerModelCard(AUTHOR_ID,
+                new io.uacrf.knowledge.service.MlPromotionService.RegisterModelCardRequest(
+                        TENANT_ID, ENV_ID, "experimental-drift-model", "v0.9", "XGBoost",
+                        "Candidate anomaly predictor", "dataset://anom@v1",
+                        new java.math.BigDecimal("0.22"), new java.math.BigDecimal("0.08"),
+                        new java.math.BigDecimal("0.25"), "Static threshold fallback"));
+        KnowledgeDomainException gateEx = assertThrows(KnowledgeDomainException.class, () ->
+                mlPromotionService.promoteModel(badModel.modelCardId(), REVIEWER_ID, "BOUNDED_AUTOMATION"));
+        assertEquals("PROMOTION_GATE_FAILED", gateEx.getCode());
+
+        var goodModel = mlPromotionService.registerModelCard(AUTHOR_ID,
+                new io.uacrf.knowledge.service.MlPromotionService.RegisterModelCardRequest(
+                        TENANT_ID, ENV_ID, "calibrated-latency-predictor", "v2.0", "ONNX",
+                        "Predict checkout saturation safely", "dataset://perf@v2",
+                        new java.math.BigDecimal("0.04"), new java.math.BigDecimal("0.01"),
+                        new java.math.BigDecimal("0.02"), "Deterministic rule fallback"));
+        var promoted = mlPromotionService.promoteModel(goodModel.modelCardId(), REVIEWER_ID, "BOUNDED_AUTOMATION");
+        assertEquals("BOUNDED_AUTOMATION", promoted.promotionStage());
     }
 }

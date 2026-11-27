@@ -46,6 +46,29 @@ body {
   font-weight: 600;
 }
 
+.uacrf-nav-link:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.uacrf-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: #0b1e36;
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  z-index: 9999;
+}
+
+.uacrf-skip-link:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+}
+
 .uacrf-nav-link {
   display: flex;
   align-items: center;

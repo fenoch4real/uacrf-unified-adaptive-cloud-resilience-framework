@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('AI Model Cards & Adaptive Promotion', 'Governance / AI Model Cards', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">AI Model Card Inventory &amp; Gated ML Promotion (Section 5.8 / FR-ADP)</h1>
+        <p class="text-secondary mb-0">Models cannot promote from SHADOW to BOUNDED_AUTOMATION unless calibration Brier score, fairness gap, drift thresholds, fallback strategy, and dual-reviewer sign-off pass.</p>
+    </div>
+
+    <div class="uacrf-card">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Model</th><th>Version</th><th>Brier / Fairness / Drift</th><th>Stage</th><th>Digest</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(models)}"><td colspan="5" class="small text-secondary">No model cards registered.</td></tr>
+            <tr th:each="m : ${models}">
+                <td class="small fw-bold" th:text="${m['modelName']}"></td>
+                <td class="small font-monospace" th:text="${m['modelVersion']}"></td>
+                <td class="small" th:text="${m['calibrationBrier'] + ' / ' + m['fairnessGap'] + ' / ' + m['driftScore']}"></td>
+                <td><span class="uacrf-pill uacrf-pill-info" th:text="${m['promotionStage']}"></span></td>
+                <td class="small font-monospace text-truncate" style="max-width: 12rem;" th:text="${m['modelCardDigest']}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</html>

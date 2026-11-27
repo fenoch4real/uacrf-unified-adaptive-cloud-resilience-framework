@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Agent Runtime Ledgers & Break-Glass', 'Operations / Agent Runtime & Break-Glass', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Agent Orchestration Ledgers, Multi-LLM Providers &amp; Break-Glass (FR-AWL / FR-APR-002)</h1>
+        <p class="text-secondary mb-0">Inspect atomic agent budget reservations, cancellation fencing, supported LLM endpoints (OpenAI, Amazon Bedrock, Azure OpenAI, Google Vertex, OCI GenAI), and break-glass grants.</p>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Configured Enterprise LLM Provider Profiles</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Provider</th><th>Model</th><th>Auth Mode</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(llmProviders)}"><td colspan="3" class="small text-secondary">Deterministic fallback active.</td></tr>
+                    <tr th:each="p : ${llmProviders}">
+                        <td class="small fw-bold" th:text="${p['provider']}"></td>
+                        <td class="small font-monospace" th:text="${p['model']}"></td>
+                        <td class="small" th:text="${p['authMode']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Break-Glass Emergency Escalations (S10)</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Service</th><th>Action</th><th>Review Status</th><th>Expires</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(breakGlassGrants)}"><td colspan="4" class="small text-secondary">No break-glass grants active.</td></tr>
+                    <tr th:each="b : ${breakGlassGrants}">
+                        <td class="small font-monospace" th:text="${b['serviceCanonicalId']}"></td>
+                        <td class="small" th:text="${b['actionType']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-warning" th:text="${b['postIncidentReviewStatus']}"></span></td>
+                        <td class="small" th:text="${b['expiresAt']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="uacrf-card">
+        <h2 class="h5 fw-bold mb-3">Async Orchestration Runs (FR-AWL-004..009 / FR-ORC)</h2>
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Workload</th><th>Status</th><th>Steps Used/Max</th><th>Tokens Used/Max</th><th>Checkpoint SHA-256</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(runs)}"><td colspan="5" class="small text-secondary">No orchestration runs admitted.</td></tr>
+            <tr th:each="r : ${runs}">
+                <td class="small fw-semibold" th:text="${r['workloadId']}"></td>
+                <td><span class="uacrf-pill uacrf-pill-info" th:text="${r['status']}"></span></td>
+                <td class="small" th:text="${r['stepsUsed'] + ' / ' + r['maxSteps']}"></td>
+                <td class="small" th:text="${r['tokensUsed'] + ' / ' + r['maxTokens']}"></td>
+                <td class="small font-monospace text-truncate" style="max-width: 14rem;" th:text="${r['checkpointSha256']}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</html>

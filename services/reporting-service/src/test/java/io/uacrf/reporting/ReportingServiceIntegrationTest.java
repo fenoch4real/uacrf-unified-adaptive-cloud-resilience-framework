@@ -31,6 +31,9 @@ class ReportingServiceIntegrationTest {
     @Autowired
     private ComplianceAssuranceService service;
 
+    @Autowired
+    private io.uacrf.reporting.service.CommercialFinOpsService finOpsService;
+
     @Test
     void recordsCommercialMeteringCrosswalkAndWatermarkedAuditorAssuranceRooms() {
         var metered = service.recordMetering(new RecordMeteringRequest(
@@ -56,5 +59,18 @@ class ReportingServiceIntegrationTest {
         ReportingDomainException badTokenEx = assertThrows(ReportingDomainException.class, () ->
                 service.accessAssuranceBundle(room.roomId(), "wrong-token"));
         assertEquals("INVALID_ASSURANCE_TOKEN", badTokenEx.getCode());
+
+        // FinOps quota alert, pilot lock & NFR-COM-001 billing-outage safety invariant
+        var overQuota = finOpsService.recordFinOpsCost(
+                new io.uacrf.reporting.service.CommercialFinOpsService.RecordFinOpsRequest(
+                        TENANT_ID, ENV_ID, "AZURE", "MODEL",
+                        new java.math.BigDecimal("650.00"), new java.math.BigDecimal("500.00")));
+        assertTrue(overQuota.quotaExceeded());
+        assertFalse(finOpsService.listPilots(TENANT_ID, ENV_ID).isEmpty());
+
+        var outage = finOpsService.verifyBillingOutageIsolation(false);
+        assertEquals(true, outage.get("tenantIsolationEnforced"));
+        assertEquals(true, outage.get("opaFailClosedEnforced"));
+        assertEquals("DEGRADED_BILLING_SAFETY_PRESERVED", outage.get("status"));
     }
 }

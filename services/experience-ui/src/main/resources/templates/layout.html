@@ -9,6 +9,7 @@
     <link th:href="@{/css/uacrf.css}" rel="stylesheet">
 </head>
 <body>
+<a href="#main-content" class="uacrf-skip-link">Skip to main content</a>
 <div class="uacrf-shell">
     <aside class="uacrf-sidebar" aria-label="Primary navigation">
         <div class="uacrf-brand">UACRF</div>
@@ -63,6 +64,15 @@
         <a th:href="@{/assurance}" class="uacrf-nav-link" th:classappend="${activeNav == 'assurance'} ? ' active'">
             <i class="bi bi-award"></i> Assurance &amp; SOC 2
         </a>
+        <a th:href="@{/compute}" class="uacrf-nav-link" th:classappend="${activeNav == 'compute'} ? ' active'">
+            <i class="bi bi-cloud-check"></i> Compute &amp; Aliases
+        </a>
+        <a th:href="@{/models}" class="uacrf-nav-link" th:classappend="${activeNav == 'models'} ? ' active'">
+            <i class="bi bi-diagram-2"></i> AI Model Cards
+        </a>
+        <a th:href="@{/orchestration}" class="uacrf-nav-link" th:classappend="${activeNav == 'orchestration'} ? ' active'">
+            <i class="bi bi-lightning-charge"></i> Agent Runtime &amp; Break-Glass
+        </a>
 
         <div class="mt-auto pt-3 border-top border-secondary-subtle">
             <a th:href="@{/settings/connections}" class="uacrf-nav-link" th:classappend="${activeNav == 'connections'} ? ' active'">
@@ -70,6 +80,9 @@
             </a>
             <a th:href="@{/settings/access}" class="uacrf-nav-link" th:classappend="${activeNav == 'settings'} ? ' active'">
                 <i class="bi bi-gear"></i> Customer Admin
+            </a>
+            <a th:href="@{/settings/admin-suite}" class="uacrf-nav-link" th:classappend="${activeNav == 'admin-suite'} ? ' active'">
+                <i class="bi bi-sliders"></i> Admin Lifecycle (UI-50..58)
             </a>
         </div>
     </aside>
@@ -96,7 +109,7 @@
             </div>
         </header>
 
-        <main class="p-4 flex-grow-1">
+        <main id="main-content" class="p-4 flex-grow-1" tabindex="-1">
             <div th:if="${flashSuccess}" class="alert alert-success alert-dismissible fade show" role="alert">
                 <i class="bi bi-check-circle-fill me-2"></i><span th:text="${flashSuccess}"></span>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

@@ -84,7 +84,8 @@ public class EdgeProxyController {
     }
 
     @RequestMapping({"/v1/services", "/v1/services/**", "/v1/agent-workloads", "/v1/agent-workloads/**",
-            "/v1/customer-journeys", "/v1/customer-journeys/**", "/v1/shared-resources", "/v1/shared-resources/**"})
+            "/v1/customer-journeys", "/v1/customer-journeys/**", "/v1/shared-resources", "/v1/shared-resources/**",
+            "/v1/compute-placements", "/v1/compute-placements/**", "/v1/provider-aliases", "/v1/provider-aliases/**"})
     public ResponseEntity<byte[]> routeToCatalog(HttpServletRequest request,
                                                  @RequestBody(required = false) byte[] body) {
         return forward(catalogClient, request, body, "CATALOG_UNAVAILABLE");
@@ -132,13 +133,13 @@ public class EdgeProxyController {
         return forward(recoveryClient, request, body, "RECOVERY_UNAVAILABLE");
     }
 
-    @RequestMapping({"/v1/knowledge/**", "/v1/learning/**", "/v1/experiments", "/v1/experiments/**", "/v1/quantitative/**"})
+    @RequestMapping({"/v1/knowledge/**", "/v1/learning/**", "/v1/experiments", "/v1/experiments/**", "/v1/quantitative/**", "/v1/models", "/v1/models/**"})
     public ResponseEntity<byte[]> routeToKnowledge(HttpServletRequest request,
                                                    @RequestBody(required = false) byte[] body) {
         return forward(knowledgeClient, request, body, "KNOWLEDGE_UNAVAILABLE");
     }
 
-    @RequestMapping({"/v1/advisory", "/v1/advisory/**"})
+    @RequestMapping({"/v1/advisory", "/v1/advisory/**", "/v1/orchestration-runs", "/v1/orchestration-runs/**"})
     public ResponseEntity<byte[]> routeToAdvisory(HttpServletRequest request,
                                                   @RequestBody(required = false) byte[] body) {
         return forward(advisoryClient, request, body, "ADVISORY_UNAVAILABLE");
