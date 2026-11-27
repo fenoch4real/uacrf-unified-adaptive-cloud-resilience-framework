@@ -36,6 +36,7 @@
 | `services/assessment-service` (`S07`) | `8087` | Correlation-domain path certification (`P5`), journey resilience assessments, independent review, sealed `DecisionEnvelope`s (`P1`) |
 | `services/objectives-service` (`S05`) | `8088` | SLI/SLO/RTO/RPO objectives, Appendix I Core rule engine, continuous `RiskState` evaluations |
 | `services/policy-service` (`S10`) | `8089` | OPA Rego evaluator, two-person recovery approvals, `P2` graph delta classifier, `P3` RS256 single-use authorizations |
+| `services/recovery-service` (`S11`) | `8090` | Temporal recovery orchestrator, allowlisted `ProviderActionAdapter` SPI (`P3`), 8-layer `CrossLayerValidator` (`P6`), kill switch |
 | `services/edge-gateway` (`EDGE01`) | `8080` | Public API gateway forwarding to backend owners, `Cache-Control: no-store`, concealing internal delegation routes |
 | `services/experience-ui` (`UX01`) | `8081` | **Spring Boot + Thymeleaf + Bootstrap 5.3 + Cytoscape.js** web UI |
 | `contracts/` | — | OpenAPI 3.1 specs, AsyncAPI 3.0 event schemas, Neo4j Cypher constraints & `ontology_catalog.json` |
@@ -86,7 +87,7 @@ docker run --rm \
 | **M2** | `S03` Discovery & `SAMPLE_LOCAL`, `S04` WORM Evidence Engine, `S06` Neo4j Projector & Cytoscape UI | Complete |
 | **M3** | `S07` Assess Engine, Correlation-Domain Certification (`P5`), Sealed `DecisionEnvelope` (`P1`), Report UI | Complete |
 | **M4** | `S05` Continuous Rule Engine & `S10` OPA Policy / Bounded Recovery Authority (`P2`, `P3`) | Complete |
-| **M5** | `S11` Temporal Recovery Orchestrator, Allowlisted Adapters & Cross-Layer Validation (`P6`) | Planned |
+| **M5** | `S11` Temporal Recovery Orchestrator, Allowlisted Adapters & Cross-Layer Validation (`P6`) | Complete |
 | **M6** | `S12` Learning Closures, `S13` Fault Experiments, Live Cloud Collectors & `S14` Assurance Rooms | Planned |
 | **M7** | Paper Section 10.5 Quantitative Shadow Model ($r(t)$, $S(t)$, $RCI$, $ER$) & Ablation Benchmarks | Planned |
 | **M8** | `S08` Governed Knowledge, `S09` Advisory Agents & Non-Majority Arbitration (`P7`), Adaptive ML | Planned |

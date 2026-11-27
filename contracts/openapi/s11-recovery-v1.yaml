@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: UACRF S11 Recovery Orchestrator & P6 Cross-Layer Validation API
+  version: 1.0.0
+paths:
+  /v1/recovery/kill-switch:
+    get: { summary: Get current recovery kill switch status, responses: { '200': { description: KillSwitchDto } } }
+    post: { summary: Activate or deactivate fail-closed recovery kill switch, responses: { '200': { description: KillSwitchDto } } }
+  /v1/recovery/executions:
+    get: { summary: List recovery workflow executions, responses: { '200': { description: Execution list } } }
+    post: { summary: Execute recovery via P3 adapter with P6 cross-layer validation DAG and compensation, responses: { '200': { description: SUCCEEDED or COMPENSATED }, '403': { description: Bounds or target check failed }, '409': { description: Kill switch or nonce replay } } }

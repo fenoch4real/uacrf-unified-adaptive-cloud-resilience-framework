@@ -1,0 +1,19 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: recovery-service
+  datasource:
+    url: ${UACRF_RECOVERY_DB_URL:jdbc:postgresql://localhost:5432/uacrf_recovery}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: recovery,integration
+    default-schema: recovery
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

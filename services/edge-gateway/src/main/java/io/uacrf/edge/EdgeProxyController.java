@@ -39,6 +39,7 @@ public class EdgeProxyController {
     private final RestClient assessmentClient;
     private final RestClient objectivesClient;
     private final RestClient policyClient;
+    private final RestClient recoveryClient;
 
     public EdgeProxyController(
             @Value("${uacrf.edge.identity-base-url}") String identityBaseUrl,
@@ -49,6 +50,7 @@ public class EdgeProxyController {
             @Value("${uacrf.edge.assessment-base-url}") String assessmentBaseUrl,
             @Value("${uacrf.edge.objectives-base-url}") String objectivesBaseUrl,
             @Value("${uacrf.edge.policy-base-url}") String policyBaseUrl,
+            @Value("${uacrf.edge.recovery-base-url}") String recoveryBaseUrl,
             @Value("${uacrf.edge.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${uacrf.edge.read-timeout-ms:10000}") int readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -62,6 +64,7 @@ public class EdgeProxyController {
         this.assessmentClient = RestClient.builder().baseUrl(assessmentBaseUrl).requestFactory(factory).build();
         this.objectivesClient = RestClient.builder().baseUrl(objectivesBaseUrl).requestFactory(factory).build();
         this.policyClient = RestClient.builder().baseUrl(policyBaseUrl).requestFactory(factory).build();
+        this.recoveryClient = RestClient.builder().baseUrl(recoveryBaseUrl).requestFactory(factory).build();
     }
 
     @RequestMapping({"/v1/tenants/**", "/v1/principals", "/v1/principals/**", "/v1/owner-candidates",
@@ -112,6 +115,12 @@ public class EdgeProxyController {
     public ResponseEntity<byte[]> routeToPolicy(HttpServletRequest request,
                                                 @RequestBody(required = false) byte[] body) {
         return forward(policyClient, request, body, "POLICY_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/recovery", "/v1/recovery/**"})
+    public ResponseEntity<byte[]> routeToRecovery(HttpServletRequest request,
+                                                  @RequestBody(required = false) byte[] body) {
+        return forward(recoveryClient, request, body, "RECOVERY_UNAVAILABLE");
     }
 
     private ResponseEntity<byte[]> forward(RestClient client, HttpServletRequest request,

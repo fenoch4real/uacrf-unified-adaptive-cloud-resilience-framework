@@ -695,7 +695,38 @@ public class PortalController {
         return "redirect:/control";
     }
 
-    @GetMapping({"/recover", "/knowledge", "/advisory"})
+    @GetMapping("/recover")
+    public String recover(Model model,
+                          @ModelAttribute("tenantId") UUID tenantId,
+                          @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "recover");
+        model.addAttribute("killSwitch", edge.getObjectOrEmpty("/v1/recovery/kill-switch?tenantId=" + tenantId + "&environmentId=" + envId));
+        model.addAttribute("executions", edge.getList("/v1/recovery/executions?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "recover";
+    }
+
+    @PostMapping("/recover/kill-switch")
+    public String toggleKillSwitch(@ModelAttribute("tenantId") UUID tenantId,
+                                   @ModelAttribute("environmentId") UUID envId,
+                                   @ModelAttribute("actorId") UUID actorId,
+                                   @ModelAttribute("actorName") String actorName,
+                                   @RequestParam boolean active,
+                                   RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/recovery/kill-switch", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "active", active,
+                    "reason", active ? "Operator activated kill switch from UI" : "Operator resumed execution readiness",
+                    "updatedBy", actorName
+            ));
+            ra.addFlashAttribute("flashSuccess", "Recovery kill switch state updated: active=" + active);
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/recover";
+    }
+
+    @GetMapping({"/knowledge", "/advisory"})
     public String upcomingMilestonePlaceholder(Model model, jakarta.servlet.http.HttpServletRequest request) {
         String path = request.getRequestURI().replace("/", "");
         model.addAttribute("activeNav", path);
