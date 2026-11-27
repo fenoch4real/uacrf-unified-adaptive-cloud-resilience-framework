@@ -621,7 +621,81 @@ public class PortalController {
         return "redirect:/assess/" + assessmentId + "/report";
     }
 
-    @GetMapping({"/control", "/recover", "/knowledge", "/advisory"})
+    @GetMapping("/control")
+    public String control(Model model,
+                          @ModelAttribute("tenantId") UUID tenantId,
+                          @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "control");
+        var evals = edge.getList("/v1/control/evaluations?tenantId=" + tenantId + "&environmentId=" + envId, Map.class);
+        model.addAttribute("evaluation", evals.isEmpty() ? Map.of() : evals.getFirst());
+        model.addAttribute("proposals", edge.getList("/v1/policy/proposals?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("authorizations", edge.getList("/v1/policy/authorizations?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "control";
+    }
+
+    @PostMapping("/control/evaluate")
+    public String evaluateControl(@ModelAttribute("tenantId") UUID tenantId,
+                                  @ModelAttribute("environmentId") UUID envId,
+                                  @ModelAttribute("actorId") UUID actorId,
+                                  @RequestParam Double orderSuccessRatePct,
+                                  RedirectAttributes ra) {
+        try {
+            var res = edge.postJson("/v1/control/evaluate", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "serviceCanonicalId", "urn:uacrf:svc:checkout",
+                    "serviceName", "Checkout service", "journeyName", "Place Order",
+                    "ownerName", "Maya Chen", "orderSuccessRatePct", orderSuccessRatePct
+            ));
+            ra.addFlashAttribute("flashSuccess", "Rule evaluation completed -> RiskState: " + res.get("riskState"));
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/control";
+    }
+
+    @PostMapping("/control/proposals/{proposalId}/approve")
+    public String approveProposal(@PathVariable UUID proposalId,
+                                  @ModelAttribute("tenantId") UUID tenantId,
+                                  @ModelAttribute("environmentId") UUID envId,
+                                  @ModelAttribute("actorId") UUID actorId,
+                                  @ModelAttribute("actorName") String actorName,
+                                  @RequestParam String decision,
+                                  RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/policy/proposals/" + proposalId + "/approve", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "approverName", actorName, "decision", decision
+            ));
+            ra.addFlashAttribute("flashSuccess", "Proposal approval decision recorded.");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/control";
+    }
+
+    @PostMapping("/control/proposals/{proposalId}/authorize")
+    public String authorizeProposal(@PathVariable UUID proposalId,
+                                    @ModelAttribute("tenantId") UUID tenantId,
+                                    @ModelAttribute("environmentId") UUID envId,
+                                    @ModelAttribute("actorId") UUID actorId,
+                                    @RequestParam String graphRevision,
+                                    @RequestParam String subgraphDigest,
+                                    RedirectAttributes ra) {
+        try {
+            var res = edge.postJson("/v1/policy/proposals/" + proposalId + "/authorizations", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "currentGraphRevision", graphRevision, "currentSubgraphDigest", subgraphDigest,
+                    "currentBlastRadiusCount", 1, "fallbackChanged", false, "audience", "k8s-rollback-adapter"
+            ));
+            ra.addFlashAttribute("flashSuccess",
+                    "Bounded RS256 Authorization issued (" + res.get("deltaClassification") + ", nonce=" + res.get("nonce") + ").");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/control";
+    }
+
+    @GetMapping({"/recover", "/knowledge", "/advisory"})
     public String upcomingMilestonePlaceholder(Model model, jakarta.servlet.http.HttpServletRequest request) {
         String path = request.getRequestURI().replace("/", "");
         model.addAttribute("activeNav", path);

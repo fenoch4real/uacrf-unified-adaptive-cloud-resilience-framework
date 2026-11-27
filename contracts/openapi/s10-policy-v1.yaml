@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info:
+  title: UACRF S10 OPA Policy & Bounded Recovery Authority API
+  version: 1.0.0
+paths:
+  /v1/policy/proposals:
+    get: { summary: List recovery proposals, responses: { '200': { description: Proposals } } }
+    post: { summary: Create proposal evaluated against OPA baseline Rego, responses: { '201': { description: Created } } }
+  /v1/policy/proposals/{proposalId}/approve:
+    post: { summary: Approve or reject proposal with separation-of-duties check, responses: { '200': { description: Updated }, '403': { description: SELF_APPROVAL_FORBIDDEN } } }
+  /v1/policy/proposals/{proposalId}/authorizations:
+    post: { summary: Run P2 MaterialGraphDelta check and issue single-use RS256 BoundedRecoveryAuthorization (P3), responses: { '201': { description: Issued }, '409': { description: MATERIAL_GRAPH_DELTA_INVALIDATED } } }
+  /v1/policy/authorizations/consume:
+    post: { summary: Atomically consume single-use nonce, responses: { '200': { description: Consumed }, '409': { description: NONCE_REPLAY_OR_EXPIRED } } }

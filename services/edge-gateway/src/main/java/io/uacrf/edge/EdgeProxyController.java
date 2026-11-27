@@ -37,6 +37,8 @@ public class EdgeProxyController {
     private final RestClient evidenceClient;
     private final RestClient graphClient;
     private final RestClient assessmentClient;
+    private final RestClient objectivesClient;
+    private final RestClient policyClient;
 
     public EdgeProxyController(
             @Value("${uacrf.edge.identity-base-url}") String identityBaseUrl,
@@ -45,6 +47,8 @@ public class EdgeProxyController {
             @Value("${uacrf.edge.evidence-base-url}") String evidenceBaseUrl,
             @Value("${uacrf.edge.graph-base-url}") String graphBaseUrl,
             @Value("${uacrf.edge.assessment-base-url}") String assessmentBaseUrl,
+            @Value("${uacrf.edge.objectives-base-url}") String objectivesBaseUrl,
+            @Value("${uacrf.edge.policy-base-url}") String policyBaseUrl,
             @Value("${uacrf.edge.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${uacrf.edge.read-timeout-ms:10000}") int readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -56,6 +60,8 @@ public class EdgeProxyController {
         this.evidenceClient = RestClient.builder().baseUrl(evidenceBaseUrl).requestFactory(factory).build();
         this.graphClient = RestClient.builder().baseUrl(graphBaseUrl).requestFactory(factory).build();
         this.assessmentClient = RestClient.builder().baseUrl(assessmentBaseUrl).requestFactory(factory).build();
+        this.objectivesClient = RestClient.builder().baseUrl(objectivesBaseUrl).requestFactory(factory).build();
+        this.policyClient = RestClient.builder().baseUrl(policyBaseUrl).requestFactory(factory).build();
     }
 
     @RequestMapping({"/v1/tenants/**", "/v1/principals", "/v1/principals/**", "/v1/owner-candidates",
@@ -94,6 +100,18 @@ public class EdgeProxyController {
     public ResponseEntity<byte[]> routeToAssessment(HttpServletRequest request,
                                                     @RequestBody(required = false) byte[] body) {
         return forward(assessmentClient, request, body, "ASSESSMENT_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/objectives", "/v1/objectives/**", "/v1/control/**"})
+    public ResponseEntity<byte[]> routeToObjectives(HttpServletRequest request,
+                                                    @RequestBody(required = false) byte[] body) {
+        return forward(objectivesClient, request, body, "OBJECTIVES_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/policy", "/v1/policy/**"})
+    public ResponseEntity<byte[]> routeToPolicy(HttpServletRequest request,
+                                                @RequestBody(required = false) byte[] body) {
+        return forward(policyClient, request, body, "POLICY_UNAVAILABLE");
     }
 
     private ResponseEntity<byte[]> forward(RestClient client, HttpServletRequest request,

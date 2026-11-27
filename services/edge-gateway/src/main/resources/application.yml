@@ -13,6 +13,8 @@ uacrf:
     evidence-base-url: ${UACRF_EVIDENCE_URL:http://localhost:8085}
     graph-base-url: ${UACRF_GRAPH_URL:http://localhost:8086}
     assessment-base-url: ${UACRF_ASSESSMENT_URL:http://localhost:8087}
+    objectives-base-url: ${UACRF_OBJECTIVES_URL:http://localhost:8088}
+    policy-base-url: ${UACRF_POLICY_URL:http://localhost:8089}
     connect-timeout-ms: 2000
     read-timeout-ms: 10000
 

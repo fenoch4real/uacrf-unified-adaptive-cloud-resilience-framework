@@ -63,5 +63,9 @@ class ExperienceUiControllerTest {
         mockMvc.perform(get("/assess/aaaa1111-1111-7111-8111-111111111101/report"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("assess-report"));
+
+        mockMvc.perform(get("/control"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("control"));
     }
 }

@@ -1,0 +1,19 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: objectives-service
+  datasource:
+    url: ${UACRF_OBJECTIVES_DB_URL:jdbc:postgresql://localhost:5432/uacrf_objectives}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: objectives,integration
+    default-schema: objectives
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

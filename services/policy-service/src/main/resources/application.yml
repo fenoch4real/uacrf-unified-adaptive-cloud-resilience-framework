@@ -1,0 +1,26 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: policy-service
+  datasource:
+    url: ${UACRF_POLICY_DB_URL:jdbc:postgresql://localhost:5432/uacrf_policy}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: policy,integration
+    default-schema: policy
+
+uacrf:
+  policy:
+    opa:
+      enabled: ${UACRF_OPA_ENABLED:false}
+      url: ${UACRF_OPA_URL:http://localhost:8181/v1/data/uacrf/authz/decision}
+    max-blast-radius: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

@@ -1,0 +1,20 @@
+openapi: 3.1.0
+info:
+  title: UACRF S05 Objectives & Control Rule Engine API
+  version: 1.0.0
+paths:
+  /v1/objectives:
+    get:
+      summary: List SLI/SLO/RTO/RPO objectives
+      responses:
+        '200': { description: Objectives list }
+  /v1/control/evaluations:
+    get:
+      summary: List recent continuous rule evaluations and RiskState history
+      responses:
+        '200': { description: Evaluations list }
+  /v1/control/evaluate:
+    post:
+      summary: Execute Appendix I rule pack evaluation into RiskState
+      responses:
+        '200': { description: RiskEvaluationDto }
