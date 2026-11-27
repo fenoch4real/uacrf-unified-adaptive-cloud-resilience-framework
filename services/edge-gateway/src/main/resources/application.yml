@@ -9,6 +9,9 @@ uacrf:
   edge:
     identity-base-url: ${UACRF_IDENTITY_URL:http://localhost:8082}
     catalog-base-url: ${UACRF_CATALOG_URL:http://localhost:8083}
+    discovery-base-url: ${UACRF_DISCOVERY_URL:http://localhost:8084}
+    evidence-base-url: ${UACRF_EVIDENCE_URL:http://localhost:8085}
+    graph-base-url: ${UACRF_GRAPH_URL:http://localhost:8086}
     connect-timeout-ms: 2000
     read-timeout-ms: 10000
 

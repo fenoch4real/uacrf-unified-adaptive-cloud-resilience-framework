@@ -26,6 +26,7 @@ class ExperienceUiControllerTest {
     @Test
     void rendersOverviewAndDirectNavigationRoutes() throws Exception {
         when(edgeClient.getList(anyString(), any())).thenReturn(List.of());
+        when(edgeClient.getObjectOrEmpty(anyString())).thenReturn(java.util.Map.of());
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
@@ -38,5 +39,21 @@ class ExperienceUiControllerTest {
         mockMvc.perform(get("/agents"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("agents"));
+
+        mockMvc.perform(get("/dependencies"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("dependencies"));
+
+        mockMvc.perform(get("/ai-dependencies"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ai-dependencies"));
+
+        mockMvc.perform(get("/evidence"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("evidence"));
+
+        mockMvc.perform(get("/settings/connections"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("connections"));
     }
 }

@@ -30,6 +30,9 @@
         <module>libs/uacrf-outbox</module>
         <module>services/identity-service</module>
         <module>services/catalog-service</module>
+        <module>services/discovery-service</module>
+        <module>services/evidence-service</module>
+        <module>services/graph-service</module>
         <module>services/edge-gateway</module>
         <module>services/experience-ui</module>
     </modules>

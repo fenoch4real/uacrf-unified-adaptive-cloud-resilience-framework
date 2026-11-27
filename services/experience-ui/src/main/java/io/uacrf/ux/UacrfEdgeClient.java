@@ -50,6 +50,15 @@ public class UacrfEdgeClient {
                 .body(new ParameterizedTypeReference<>() {});
     }
 
+    public Map<String, Object> getObjectOrEmpty(String path) {
+        try {
+            Map<String, Object> obj = getObject(path);
+            return obj != null ? obj : Collections.emptyMap();
+        } catch (Exception ex) {
+            return Collections.emptyMap();
+        }
+    }
+
     public Map<String, Object> postJson(String path, UUID actorId, String idempotencyKey, Object payload) {
         var spec = client.post().uri(path)
                 .contentType(MediaType.APPLICATION_JSON)

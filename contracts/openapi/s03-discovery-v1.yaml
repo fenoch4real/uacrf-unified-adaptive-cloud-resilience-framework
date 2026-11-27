@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: UACRF S03 Discovery & Telemetry Adapter API
+  version: 1.0.0
+paths:
+  /v1/connections:
+    get:
+      summary: List configured telemetry and cloud inventory connections
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: environmentId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: List of connections }
+    post:
+      summary: Register a new cloud or telemetry connection
+      responses:
+        '201': { description: Connection created }
+  /v1/telemetry/events:
+    get:
+      summary: List normalized telemetry observations
+      responses:
+        '200': { description: Recent observations }
+    post:
+      summary: Ingest a normalized telemetry event
+      responses:
+        '202': { description: Observation accepted and written to outbox }
+  /v1/telemetry/sample-scenario:
+    post:
+      summary: Load illustrative SAMPLE_LOCAL multi-cloud and AI lineage scenario fixture
+      responses:
+        '201': { description: Sample scenario loaded with provenanceClass=SAMPLE_ONLY }
+  /v1/discovery/edges:
+    get:
+      summary: List discovered dependency edges
+      responses:
+        '200': { description: List of discovered edges }

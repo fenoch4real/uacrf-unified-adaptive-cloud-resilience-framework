@@ -32,6 +32,9 @@
         <a th:href="@{/dependencies}" class="uacrf-nav-link" th:classappend="${activeNav == 'dependencies'} ? ' active'">
             <i class="bi bi-diagram-3"></i> Dependencies
         </a>
+        <a th:href="@{/ai-dependencies}" class="uacrf-nav-link" th:classappend="${activeNav == 'ai-dependencies'} ? ' active'">
+            <i class="bi bi-cpu"></i> AI Dependencies
+        </a>
 
         <div class="uacrf-nav-group">Operations</div>
         <a th:href="@{/assess}" class="uacrf-nav-link" th:classappend="${activeNav == 'assess'} ? ' active'">
@@ -59,6 +62,9 @@
         </a>
 
         <div class="mt-auto pt-3 border-top border-secondary-subtle">
+            <a th:href="@{/settings/connections}" class="uacrf-nav-link" th:classappend="${activeNav == 'connections'} ? ' active'">
+                <i class="bi bi-plug"></i> Connections
+            </a>
             <a th:href="@{/settings/access}" class="uacrf-nav-link" th:classappend="${activeNav == 'settings'} ? ' active'">
                 <i class="bi bi-gear"></i> Customer Admin
             </a>

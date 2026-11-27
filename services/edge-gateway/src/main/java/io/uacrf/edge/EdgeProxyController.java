@@ -33,10 +33,16 @@ public class EdgeProxyController {
 
     private final RestClient identityClient;
     private final RestClient catalogClient;
+    private final RestClient discoveryClient;
+    private final RestClient evidenceClient;
+    private final RestClient graphClient;
 
     public EdgeProxyController(
             @Value("${uacrf.edge.identity-base-url}") String identityBaseUrl,
             @Value("${uacrf.edge.catalog-base-url}") String catalogBaseUrl,
+            @Value("${uacrf.edge.discovery-base-url}") String discoveryBaseUrl,
+            @Value("${uacrf.edge.evidence-base-url}") String evidenceBaseUrl,
+            @Value("${uacrf.edge.graph-base-url}") String graphBaseUrl,
             @Value("${uacrf.edge.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${uacrf.edge.read-timeout-ms:10000}") int readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -44,6 +50,9 @@ public class EdgeProxyController {
         factory.setReadTimeout(readTimeoutMs);
         this.identityClient = RestClient.builder().baseUrl(identityBaseUrl).requestFactory(factory).build();
         this.catalogClient = RestClient.builder().baseUrl(catalogBaseUrl).requestFactory(factory).build();
+        this.discoveryClient = RestClient.builder().baseUrl(discoveryBaseUrl).requestFactory(factory).build();
+        this.evidenceClient = RestClient.builder().baseUrl(evidenceBaseUrl).requestFactory(factory).build();
+        this.graphClient = RestClient.builder().baseUrl(graphBaseUrl).requestFactory(factory).build();
     }
 
     @RequestMapping({"/v1/tenants/**", "/v1/principals", "/v1/principals/**", "/v1/owner-candidates",
@@ -58,6 +67,24 @@ public class EdgeProxyController {
     public ResponseEntity<byte[]> routeToCatalog(HttpServletRequest request,
                                                  @RequestBody(required = false) byte[] body) {
         return forward(catalogClient, request, body, "CATALOG_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/connections", "/v1/connections/**", "/v1/telemetry/**", "/v1/discovery/**"})
+    public ResponseEntity<byte[]> routeToDiscovery(HttpServletRequest request,
+                                                   @RequestBody(required = false) byte[] body) {
+        return forward(discoveryClient, request, body, "DISCOVERY_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/evidence", "/v1/evidence/**"})
+    public ResponseEntity<byte[]> routeToEvidence(HttpServletRequest request,
+                                                  @RequestBody(required = false) byte[] body) {
+        return forward(evidenceClient, request, body, "EVIDENCE_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/graph", "/v1/graph/**"})
+    public ResponseEntity<byte[]> routeToGraph(HttpServletRequest request,
+                                               @RequestBody(required = false) byte[] body) {
+        return forward(graphClient, request, body, "GRAPH_UNAVAILABLE");
     }
 
     private ResponseEntity<byte[]> forward(RestClient client, HttpServletRequest request,

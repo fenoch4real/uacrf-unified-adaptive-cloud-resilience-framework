@@ -1,0 +1,25 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: evidence-service
+  datasource:
+    url: ${UACRF_EVIDENCE_DB_URL:jdbc:postgresql://localhost:5432/uacrf_evidence}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: evidence,integration
+    default-schema: evidence
+
+uacrf:
+  evidence:
+    default-freshness-seconds: 3600
+    minio-endpoint: ${UACRF_MINIO_ENDPOINT:http://localhost:9000}
+    minio-bucket: ${UACRF_MINIO_BUCKET:uacrf-evidence}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

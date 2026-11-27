@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: UACRF S04 Evidence Qualification & Storage API
+  version: 1.0.0
+paths:
+  /v1/evidence/packages:
+    get:
+      summary: List decision evidence packages for a tenant and environment
+      responses:
+        '200': { description: Evidence packages }
+  /v1/evidence/packages/{packageId}:
+    get:
+      summary: Get an evidence package and its required evidence items
+      responses:
+        '200': { description: Package details }
+  /v1/evidence/packages/{packageId}/items:
+    post:
+      summary: Qualify and attach evidence item with WORM lock and digest verification
+      responses:
+        '200': { description: Updated package with re-evaluated completeness }
+        '422': { description: Rejected by No-Synthetic-Fallback rule }
+  /v1/evidence/packages/{packageId}/export:
+    get:
+      summary: Export checksummed evidence package JSON including missing-record disclosures
+      responses:
+        '200': { description: Exported draft or final qualified bundle }
+  /v1/evidence/ai-dependencies:
+    get:
+      summary: List AI dependency evidence aspects (Protected Agent Workloads)
+      responses:
+        '200': { description: 6 AI evidence aspects }
+    post:
+      summary: Attach empirical AI quality, safety, or fallback verification
+      responses:
+        '200': { description: Updated AI dependency evidence aspects }

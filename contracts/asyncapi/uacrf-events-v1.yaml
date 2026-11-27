@@ -1,0 +1,35 @@
+asyncapi: 3.0.0
+info:
+  title: UACRF Platform Domain Events
+  version: 1.0.0
+  description: Canonical outbox domain events emitted across UACRF services
+channels:
+  telemetryObservationIngested:
+    address: uacrf.discovery.telemetry.ingested.v1
+    messages:
+      TelemetryObservationIngested:
+        $ref: '#/components/messages/TelemetryObservationIngested'
+  evidenceItemQualified:
+    address: uacrf.evidence.item.qualified.v1
+    messages:
+      EvidenceItemQualified:
+        $ref: '#/components/messages/EvidenceItemQualified'
+  graphRevisionPublished:
+    address: uacrf.graph.revision.published.v1
+    messages:
+      GraphRevisionPublished:
+        $ref: '#/components/messages/GraphRevisionPublished'
+components:
+  messages:
+    TelemetryObservationIngested:
+      payload:
+        type: object
+        required: [observationId, tenantId, environmentId, subjectCanonicalId, telemetrySource, rawDigest]
+    EvidenceItemQualified:
+      payload:
+        type: object
+        required: [packageId, completenessStatus, recoveryReadiness, graphRevision]
+    GraphRevisionPublished:
+      payload:
+        type: object
+        required: [revisionId, tenantId, environmentId, revisionDigest, nodeCount, edgeCount]

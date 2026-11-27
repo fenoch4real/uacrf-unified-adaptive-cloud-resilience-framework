@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Connection Health', 'Customer Admin / Connections', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Connection health</h1>
+            <p class="text-secondary mb-0">See what is connected, what is collected, and where evidence may be incomplete.</p>
+        </div>
+        <form th:action="@{/settings/connections/sample-scenario}" method="post">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-cloud-download me-1"></i> Load SAMPLE_LOCAL Multi-Cloud &amp; AI Fixture
+            </button>
+        </form>
+    </div>
+
+    <div class="uacrf-card mb-4">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr><th>Connection</th><th>Provider</th><th>Status</th><th>Access level</th><th>Provenance</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(connections)}"><td colspan="6" class="text-secondary small">No connectors registered yet.</td></tr>
+            <tr th:each="c : ${connections}">
+                <td class="fw-semibold" th:text="${c['connectionName']}"></td>
+                <td class="small" th:text="${c['provider']}"></td>
+                <td>
+                    <span class="uacrf-pill"
+                          th:classappend="${c['status'] == 'CONNECTED'} ? 'uacrf-pill-success' : (${c['status'] == 'ATTENTION_NEEDED'} ? 'uacrf-pill-warning' : 'uacrf-pill-danger')"
+                          th:text="${c['status']}"></span>
+                </td>
+                <td class="small" th:text="${c['accessLevel']}"></td>
+                <td><span class="badge text-bg-light border font-monospace" th:text="${c['telemetrySource']}"></span></td>
+                <td class="small text-secondary" th:text="${c['impactNote'] ?: 'Read-only collection active'}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="uacrf-card">
+        <h2 class="h5 fw-bold mb-3">Recent normalized telemetry observations</h2>
+        <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Subject</th><th>Provider</th><th>Signal</th><th>Value</th><th>Severity</th><th>Source Tag</th></tr></thead>
+            <tbody>
+            <tr th:if="${#lists.isEmpty(observations)}"><td colspan="6" class="text-secondary small">Click "Load SAMPLE_LOCAL Multi-Cloud &amp; AI Fixture" above to generate illustrative observations.</td></tr>
+            <tr th:each="o : ${observations}">
+                <td class="small font-monospace" th:text="${o['subjectCanonicalId']}"></td>
+                <td class="small" th:text="${o['provider']}"></td>
+                <td class="small" th:text="${o['signalType'] + ' · ' + o['metricName']}"></td>
+                <td class="small fw-semibold" th:text="${o['metricValue'] + ' ' + (o['unit'] ?: '')}"></td>
+                <td class="small" th:text="${o['severity']}"></td>
+                <td><span class="badge text-bg-warning" th:text="${o['telemetrySource']}"></span></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</html>

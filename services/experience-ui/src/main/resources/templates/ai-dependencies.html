@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Review an AI Dependency', 'Services / AI Dependencies', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h1 class="h3 fw-bold mb-0">Review an AI dependency</h1>
+                <span class="uacrf-pill uacrf-pill-warning">Protected AI Workload Scenario</span>
+            </div>
+            <p class="text-secondary mb-0">Availability, model quality, subgroup safety, feature freshness, and fallback readiness require separate evidence.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Dependency lineage</h2>
+                <div id="cy-ai" style="height: 250px; width: 100%; border: 1px solid var(--uacrf-border); border-radius: 10px;"></div>
+            </div>
+
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Evidence status (6 required aspects)</h2>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr><th>Aspect</th><th>Observed</th><th>Current</th><th>Qualification</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(aspects)}"><td colspan="4" class="text-secondary small">No AI dependency aspects loaded yet.</td></tr>
+                    <tr th:each="a : ${aspects}">
+                        <td class="fw-semibold" th:text="${a['aspectLabel']}"></td>
+                        <td>
+                            <span class="uacrf-pill"
+                                  th:classappend="${a['observedStatus'] == 'OBSERVED'} ? 'uacrf-pill-success' : (${a['observedStatus'] == 'NEEDS_REVIEW'} ? 'uacrf-pill-warning' : 'uacrf-pill-danger')"
+                                  th:text="${a['observedStatus']}"></span>
+                        </td>
+                        <td class="small" th:text="${a['currentValue']}"></td>
+                        <td class="small fw-semibold" th:text="${a['qualificationState']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Before switching traffic</h2>
+                <ul class="list-group list-group-flush small mb-3">
+                    <li class="list-group-item px-0"><i class="bi bi-file-earmark-check text-success me-2"></i>Model version &amp; intended use confirmed</li>
+                    <li class="list-group-item px-0"><i class="bi bi-exclamation-circle text-warning me-2"></i>Quality &amp; subgroup safety evidence required</li>
+                    <li class="list-group-item px-0"><i class="bi bi-shield-lock text-warning me-2"></i>Service owner approval required</li>
+                    <li class="list-group-item px-0"><i class="bi bi-circle text-secondary me-2"></i>Fallback validation plan pending</li>
+                </ul>
+                <form th:action="@{/ai-dependencies/aspects}" method="post" class="d-grid gap-2">
+                    <input type="hidden" name="serviceCanonicalId" th:value="${serviceCanonicalId}">
+                    <select name="aspectKey" class="form-select form-select-sm">
+                        <option value="model_quality">Model quality</option>
+                        <option value="subgroup_safety">Subgroup safety</option>
+                        <option value="fallback_capacity">Fallback capacity</option>
+                        <option value="feature_freshness">Feature freshness</option>
+                    </select>
+                    <input name="currentValue" class="form-control form-control-sm" placeholder="Observed metric (e.g., F1 0.94, parity delta 0.02)" required>
+                    <select name="sourceKind" class="form-select form-select-sm">
+                        <option value="EMPIRICAL_TEST">Empirical verification / test</option>
+                        <option value="KNOWLEDGE_DOC">Knowledge doc (No-Synthetic-Fallback test)</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Attach empirical quality evidence</button>
+                </form>
+                <div class="small text-secondary mt-3">
+                    Protected-service AI workloads and UACRF Core agent advisors maintain separate evidence, access, and approval controls.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+    <script th:inline="javascript">
+        const aiNodes = /*[[${graph['nodes']}]]*/ [];
+        const aiEdges = /*[[${graph['edges']}]]*/ [];
+        const els = [];
+        if (Array.isArray(aiNodes)) aiNodes.forEach(n => els.push({ data: { id: n.canonicalId, label: n.displayName + '\n[' + n.nodeLabel + ']' } }));
+        if (Array.isArray(aiEdges)) aiEdges.forEach(e => els.push({ data: { id: e.edgeId, source: e.sourceCanonicalId, target: e.targetCanonicalId, rel: e.relationshipType, state: e.edgeState } }));
+        cytoscape({
+            container: document.getElementById('cy-ai'),
+            elements: els,
+            layout: { name: 'breadthfirst', directed: true, padding: 18 },
+            style: [
+                { selector: 'node', style: { 'shape': 'round-rectangle', 'width': 'label', 'height': 'label', 'padding': '10px', 'background-color': '#f8fafc', 'border-width': 1.5, 'border-color': '#64748b', 'label': 'data(label)', 'text-wrap': 'wrap', 'text-valign': 'center', 'text-halign': 'center', 'font-size': 11 } },
+                { selector: 'edge', style: { 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'label': 'data(rel)', 'font-size': 9, 'line-style': ele => ele.data('state') === 'UNCERTAIN' ? 'dashed' : 'solid', 'line-color': '#475569', 'target-arrow-color': '#475569' } }
+            ]
+        });
+    </script>
+</section>
+</html>

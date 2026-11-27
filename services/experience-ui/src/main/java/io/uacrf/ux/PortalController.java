@@ -408,7 +408,142 @@ public class PortalController {
         return "redirect:/settings/access";
     }
 
-    @GetMapping({"/dependencies", "/assess", "/control", "/recover", "/evidence", "/knowledge", "/advisory"})
+    @GetMapping("/dependencies")
+    public String dependencies(Model model,
+                               @ModelAttribute("tenantId") UUID tenantId,
+                               @ModelAttribute("environmentId") UUID envId,
+                               @RequestParam(defaultValue = "urn:uacrf:svc:checkout") String focus,
+                               @RequestParam(defaultValue = "2") int depth,
+                               @RequestParam(defaultValue = "true") boolean includeUncertain) {
+        model.addAttribute("activeNav", "dependencies");
+        model.addAttribute("focus", focus);
+        model.addAttribute("depth", depth);
+        model.addAttribute("includeUncertain", includeUncertain);
+        var graph = edge.getObjectOrEmpty(
+                "/v1/graph/dependencies?tenantId=" + tenantId + "&environmentId=" + envId
+                        + "&focusCanonicalId=" + focus + "&depth=" + depth + "&includeUncertain=" + includeUncertain);
+        model.addAttribute("graph", graph);
+        return "dependencies";
+    }
+
+    @PostMapping("/dependencies/edges/{edgeId}/confirm")
+    public String confirmEdge(@PathVariable UUID edgeId,
+                              @ModelAttribute("tenantId") UUID tenantId,
+                              @ModelAttribute("environmentId") UUID envId,
+                              @ModelAttribute("actorId") UUID actorId,
+                              RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/graph/edges/" + edgeId + "/confirm?tenantId=" + tenantId + "&environmentId=" + envId,
+                    actorId, null, Map.of());
+            ra.addFlashAttribute("flashSuccess", "Dependency edge owner-confirmed and promoted to CONFIRMED.");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/dependencies";
+    }
+
+    @GetMapping("/ai-dependencies")
+    public String aiDependencies(Model model,
+                                 @ModelAttribute("tenantId") UUID tenantId,
+                                 @ModelAttribute("environmentId") UUID envId,
+                                 @RequestParam(defaultValue = "urn:uacrf:svc:payment") String serviceCanonicalId) {
+        model.addAttribute("activeNav", "ai-dependencies");
+        model.addAttribute("serviceCanonicalId", serviceCanonicalId);
+        model.addAttribute("graph", edge.getObjectOrEmpty(
+                "/v1/graph/ai-lineage?tenantId=" + tenantId + "&environmentId=" + envId + "&serviceCanonicalId=" + serviceCanonicalId));
+        model.addAttribute("aspects", edge.getList(
+                "/v1/evidence/ai-dependencies?tenantId=" + tenantId + "&environmentId=" + envId + "&serviceCanonicalId=" + serviceCanonicalId,
+                Map.class));
+        return "ai-dependencies";
+    }
+
+    @PostMapping("/ai-dependencies/aspects")
+    public String qualifyAiAspect(@ModelAttribute("tenantId") UUID tenantId,
+                                  @ModelAttribute("environmentId") UUID envId,
+                                  @ModelAttribute("actorId") UUID actorId,
+                                  @RequestParam String serviceCanonicalId,
+                                  @RequestParam String aspectKey,
+                                  @RequestParam String currentValue,
+                                  @RequestParam(defaultValue = "EMPIRICAL_TEST") String sourceKind,
+                                  RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/evidence/ai-dependencies", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "serviceCanonicalId", serviceCanonicalId,
+                    "aspectKey", aspectKey, "currentValue", currentValue, "sourceKind", sourceKind
+            ));
+            ra.addFlashAttribute("flashSuccess", "AI dependency evidence updated for " + aspectKey + ".");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/ai-dependencies?serviceCanonicalId=" + serviceCanonicalId;
+    }
+
+    @GetMapping("/evidence")
+    public String evidence(Model model,
+                           @ModelAttribute("tenantId") UUID tenantId,
+                           @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "evidence");
+        var packages = edge.getList("/v1/evidence/packages?tenantId=" + tenantId + "&environmentId=" + envId, Map.class);
+        model.addAttribute("packages", packages);
+        model.addAttribute("activePackage", packages.isEmpty() ? Map.of() : packages.getFirst());
+        return "evidence";
+    }
+
+    @PostMapping("/evidence/packages/{packageId}/items")
+    public String submitEvidenceItem(@PathVariable UUID packageId,
+                                     @ModelAttribute("tenantId") UUID tenantId,
+                                     @ModelAttribute("environmentId") UUID envId,
+                                     @ModelAttribute("actorId") UUID actorId,
+                                     @RequestParam String itemKey,
+                                     @RequestParam String sourceKind,
+                                     @RequestParam String detailNote,
+                                     @RequestParam String graphRevision,
+                                     RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/evidence/packages/" + packageId + "/items", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "itemKey", itemKey, "sourceKind", sourceKind,
+                    "detailNote", detailNote, "graphRevision", graphRevision,
+                    "ttlSeconds", 3600,
+                    "rawPayload", Map.of("submittedBy", actorId.toString(), "detail", detailNote)
+            ));
+            ra.addFlashAttribute("flashSuccess", "Evidence qualified and stored cleanly with WORM lock.");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/evidence";
+    }
+
+    @GetMapping("/settings/connections")
+    public String connections(Model model,
+                              @ModelAttribute("tenantId") UUID tenantId,
+                              @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "connections");
+        model.addAttribute("connections", edge.getList("/v1/connections?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("observations", edge.getList("/v1/telemetry/events?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "connections";
+    }
+
+    @PostMapping("/settings/connections/sample-scenario")
+    public String loadSampleScenario(@ModelAttribute("tenantId") UUID tenantId,
+                                     @ModelAttribute("environmentId") UUID envId,
+                                     @ModelAttribute("actorId") UUID actorId,
+                                     RedirectAttributes ra) {
+        try {
+            var res = edge.postJson("/v1/telemetry/sample-scenario", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId, "scenarioKey", "checkout-defective-deployment-v43"
+            ));
+            ra.addFlashAttribute("flashSuccess",
+                    "Loaded SAMPLE_LOCAL fixture (" + res.get("observationsCreated") + " observations, "
+                            + res.get("edgesDiscovered") + " graph edges).");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/settings/connections";
+    }
+
+    @GetMapping({"/assess", "/control", "/recover", "/knowledge", "/advisory"})
     public String upcomingMilestonePlaceholder(Model model, jakarta.servlet.http.HttpServletRequest request) {
         String path = request.getRequestURI().replace("/", "");
         model.addAttribute("activeNav", path);

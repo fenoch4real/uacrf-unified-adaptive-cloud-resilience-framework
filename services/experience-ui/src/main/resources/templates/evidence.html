@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Decision Evidence & Quality', 'Operations / Evidence', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h1 class="h3 fw-bold mb-0">Decision evidence &amp; quality review</h1>
+                <span class="uacrf-pill"
+                      th:classappend="${activePackage['completenessStatus'] == 'COMPLETE'} ? 'uacrf-pill-success' : 'uacrf-pill-warning'"
+                      th:text="${activePackage['completenessStatus'] == 'COMPLETE'} ? 'Complete' : 'Draft · Incomplete'"></span>
+            </div>
+            <p class="text-secondary mb-0">A healthy metric is not enough to confirm recovery. Missing probes stay UNKNOWN per No-Synthetic-Fallback.</p>
+        </div>
+        <div class="alert alert-info py-2 px-3 small mb-0">
+            <i class="bi bi-info-circle me-1"></i> Approved knowledge is reference material — runbooks cannot replace a missing transaction probe.
+        </div>
+    </div>
+
+    <div th:if="${#maps.isEmpty(activePackage)}" class="uacrf-card">
+        <p class="mb-0 text-secondary">No evidence packages available yet. Start S04 Evidence Service or load telemetry.</p>
+    </div>
+
+    <div th:unless="${#maps.isEmpty(activePackage)}" class="row g-4">
+        <div class="col-lg-8">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4"><div class="uacrf-card h-100"><div class="small text-secondary">Source evidence</div><div class="h5 fw-bold mt-1 mb-0" th:text="${activePackage['availableCount'] + ' of ' + activePackage['totalRequiredCount'] + ' items available'}"></div></div></div>
+                <div class="col-md-4"><div class="uacrf-card h-100"><div class="small text-secondary">Recovery readiness</div><div class="h5 fw-bold mt-1 mb-0" th:text="${activePackage['recoveryReadiness']}"></div></div></div>
+                <div class="col-md-4"><div class="uacrf-card h-100"><div class="small text-secondary">Observed service state</div><div class="h5 fw-bold mt-1 mb-0" th:text="${activePackage['observedState']}"></div></div></div>
+            </div>
+
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Required evidence items</h2>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Evidence item</th><th>Freshness</th><th>Qualification</th><th>Notes</th></tr></thead>
+                    <tbody>
+                    <tr th:each="item : ${activePackage['items']}">
+                        <td class="fw-semibold" th:text="${item['itemLabel']}"></td>
+                        <td class="small" th:text="${item['freshnessState']}"></td>
+                        <td>
+                            <span class="uacrf-pill"
+                                  th:classappend="${item['qualificationState'] == 'QUALIFIED'} ? 'uacrf-pill-success' : 'uacrf-pill-warning'"
+                                  th:text="${item['qualificationState']}"></span>
+                        </td>
+                        <td class="small text-secondary" th:text="${item['detailNote']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Attach or verify evidence</h2>
+                <form th:action="@{'/evidence/packages/' + ${activePackage['packageId']} + '/items'}" method="post" class="d-grid gap-2">
+                    <input type="hidden" name="graphRevision" th:value="${activePackage['graphRevision']}">
+                    <label class="small fw-semibold">Evidence item</label>
+                    <select name="itemKey" class="form-select form-select-sm">
+                        <option value="e2e_transaction_probe">End-to-end transaction probe</option>
+                        <option value="rollback_compatibility">Rollback compatibility check</option>
+                    </select>
+                    <label class="small fw-semibold">Source kind</label>
+                    <select name="sourceKind" class="form-select form-select-sm">
+                        <option value="TRANSACTION_PROBE">Empirical Transaction Probe (Qualifies)</option>
+                        <option value="COMPATIBILITY_CHECK">Owner Compatibility Check (Qualifies)</option>
+                        <option value="KNOWLEDGE_DOC">Runbook / Advisory Summary (Rejected by No-Synthetic-Fallback)</option>
+                    </select>
+                    <textarea name="detailNote" rows="2" class="form-control form-control-sm" placeholder="Observed probe pass rate or check details" required></textarea>
+                    <button type="submit" class="btn btn-primary btn-sm mt-1">Qualify &amp; seal with WORM lock</button>
+                </form>
+            </div>
+
+            <div class="uacrf-card">
+                <h2 class="h6 fw-bold mb-2">Package completeness &amp; export</h2>
+                <p class="small text-secondary">Draft exports explicitly disclose missing records and limitations.</p>
+                <a class="btn btn-outline-dark btn-sm w-100"
+                   th:href="@{'/evidence'}" onclick="alert('Use GET /v1/evidence/packages/' + '[[${activePackage[\"packageId\"]}]]' + '/export via EDGE01 for SHA-256 WORM bundle JSON.')">
+                    Inspect SHA-256 export contract
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

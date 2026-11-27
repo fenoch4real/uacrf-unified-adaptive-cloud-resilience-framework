@@ -1,0 +1,26 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: discovery-service
+  datasource:
+    url: ${UACRF_DISCOVERY_DB_URL:jdbc:postgresql://localhost:5432/uacrf_discovery}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: discovery,integration
+    default-schema: discovery
+
+uacrf:
+  discovery:
+    evidence-base-url: ${UACRF_EVIDENCE_URL:http://localhost:8085}
+    graph-base-url: ${UACRF_GRAPH_URL:http://localhost:8086}
+    catalog-base-url: ${UACRF_CATALOG_URL:http://localhost:8083}
+    forward-downstream: ${UACRF_DISCOVERY_FORWARD:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

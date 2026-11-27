@@ -1,0 +1,27 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: graph-service
+  datasource:
+    url: ${UACRF_GRAPH_DB_URL:jdbc:postgresql://localhost:5432/uacrf_graph}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: graph,integration
+    default-schema: graph
+
+uacrf:
+  graph:
+    neo4j:
+      enabled: ${UACRF_NEO4J_ENABLED:true}
+      uri: ${UACRF_NEO4J_URI:bolt://localhost:7687}
+      username: ${UACRF_NEO4J_USER:neo4j}
+      password: ${UACRF_NEO4J_PASSWORD:uacrf_neo4j_pass}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Explore Dependencies', 'Services / Explore Dependencies', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h1 class="h3 fw-bold mb-0">Explore dependencies</h1>
+                <span class="uacrf-pill uacrf-pill-warning">Nonproduction</span>
+                <span class="badge text-bg-light border font-monospace"
+                      th:text="${graph['revisionDigest'] ?: 'Current reconciled view'}"></span>
+            </div>
+            <p class="text-secondary mb-0">Follow a service dependency to the customer journey it supports. Uncertain or excluded paths stay visible.</p>
+        </div>
+        <div class="alert alert-info py-2 px-3 small mb-0">
+            <i class="bi bi-info-circle me-1"></i> Advisory explanations use this retained revision; suggestions do not mutate Neo4j topology.
+        </div>
+    </div>
+
+    <form method="get" th:action="@{/dependencies}" class="uacrf-card mb-4 py-3">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold mb-1">Focus service</label>
+                <select name="focus" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="urn:uacrf:svc:checkout" th:selected="${focus == 'urn:uacrf:svc:checkout'}">Checkout</option>
+                    <option value="urn:uacrf:svc:payment" th:selected="${focus == 'urn:uacrf:svc:payment'}">Payment</option>
+                    <option value="" th:selected="${focus == ''}">All Services</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">Traversal depth</label>
+                <select name="depth" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="1" th:selected="${depth == 1}">Depth 1</option>
+                    <option value="2" th:selected="${depth == 2}">Depth 2</option>
+                    <option value="3" th:selected="${depth == 3}">Depth 3</option>
+                </select>
+            </div>
+            <div class="col-md-5 d-flex justify-content-md-end align-items-center">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="uncertainToggle"
+                           name="includeUncertain" value="true" th:checked="${includeUncertain}" onchange="this.form.submit()">
+                    <label class="form-check-label small fw-semibold" for="uncertainToggle">Show uncertain links</label>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card">
+                <div id="cy-dependencies" style="height: 440px; width: 100%; border: 1px solid var(--uacrf-border); border-radius: 10px;"></div>
+                <div class="d-flex flex-wrap gap-4 small text-secondary mt-3 pt-2 border-top">
+                    <span><strong class="text-primary">— Requires</strong> Service relies on another service</span>
+                    <span><strong class="text-success">— Supports</strong> Service enables a journey step</span>
+                    <span><strong class="text-dark">— Part of</strong> Journey step belongs to a journey</span>
+                    <span><strong class="text-muted">- - Uncertain</strong> Observed trace, not yet owner-confirmed</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card h-100 d-flex flex-column">
+                <div class="small text-secondary text-uppercase fw-semibold mb-1">Selected relationship</div>
+                <h2 class="h5 fw-bold mb-3" id="inspectorTitle">Click any edge to inspect</h2>
+
+                <dl class="row small mb-3" id="inspectorMeta">
+                    <dt class="col-5 text-secondary">Importance</dt>
+                    <dd class="col-7 fw-semibold" id="metaImportance">—</dd>
+                    <dt class="col-5 text-secondary">Source</dt>
+                    <dd class="col-7" id="metaSource">—</dd>
+                    <dt class="col-5 text-secondary">State</dt>
+                    <dd class="col-7" id="metaState">—</dd>
+                    <dt class="col-5 text-secondary">Owner confirmation</dt>
+                    <dd class="col-7" id="metaOwner">—</dd>
+                </dl>
+
+                <form id="confirmEdgeForm" method="post" action="#" class="d-none mb-3">
+                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Confirm dependency as owner</button>
+                </form>
+
+                <div class="alert alert-warning small mt-auto mb-0">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    <span th:text="${graph['nonCausationNotice'] ?: 'Dependency shows reliance. It does not prove the cause of this incident.'}"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+    <script th:inline="javascript">
+        const graphNodes = /*[[${graph['nodes']}]]*/ [];
+        const graphEdges = /*[[${graph['edges']}]]*/ [];
+        const elements = [];
+
+        if (Array.isArray(graphNodes)) {
+            graphNodes.forEach(n => elements.push({
+                data: { id: n.canonicalId, label: n.displayName + '\n[' + n.nodeLabel + ']', health: n.healthState }
+            }));
+        }
+        if (Array.isArray(graphEdges)) {
+            graphEdges.forEach(e => elements.push({
+                data: {
+                    id: e.edgeId,
+                    source: e.sourceCanonicalId,
+                    target: e.targetCanonicalId,
+                    rel: e.relationshipType,
+                    importance: e.importance,
+                    edgeState: e.edgeState,
+                    obsSource: e.observationSource,
+                    ownerConfirmed: e.ownerConfirmed
+                }
+            }));
+        }
+
+        const cy = cytoscape({
+            container: document.getElementById('cy-dependencies'),
+            elements: elements,
+            layout: { name: 'breadthfirst', directed: true, padding: 24, spacingFactor: 1.2 },
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'shape': 'round-rectangle', 'width': 'label', 'height': 'label', 'padding': '12px',
+                        'background-color': ele => ele.data('health') === 'DEGRADED' ? '#fff7ed' : '#f8fafc',
+                        'border-width': 2,
+                        'border-color': ele => ele.data('health') === 'DEGRADED' ? '#ea580c' : '#94a3b8',
+                        'label': 'data(label)', 'text-wrap': 'wrap', 'text-valign': 'center', 'text-halign': 'center',
+                        'font-size': 11, 'color': '#0f172a'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'width': 2,
+                        'label': 'data(rel)', 'font-size': 9, 'text-background-color': '#fff', 'text-background-opacity': 0.9,
+                        'line-style': ele => ele.data('edgeState') === 'UNCERTAIN' ? 'dashed' : 'solid',
+                        'line-color': ele => ele.data('rel') === 'SUPPORTS_STEP' ? '#0f766e'
+                            : (ele.data('edgeState') === 'UNCERTAIN' ? '#94a3b8' : '#2563eb'),
+                        'target-arrow-color': ele => ele.data('rel') === 'SUPPORTS_STEP' ? '#0f766e'
+                            : (ele.data('edgeState') === 'UNCERTAIN' ? '#94a3b8' : '#2563eb')
+                    }
+                }
+            ]
+        });
+
+        cy.on('tap', 'edge', function (evt) {
+            const d = evt.target.data();
+            document.getElementById('inspectorTitle').innerText = evt.target.source().data('label').split('\n')[0] + ' -> ' + evt.target.target().data('label').split('\n')[0];
+            document.getElementById('metaImportance').innerText = d.importance;
+            document.getElementById('metaSource').innerText = d.obsSource;
+            document.getElementById('metaState').innerText = d.edgeState;
+            document.getElementById('metaOwner').innerText = d.ownerConfirmed ? 'Confirmed' : 'Pending';
+            const form = document.getElementById('confirmEdgeForm');
+            form.action = '/dependencies/edges/' + d.id + '/confirm';
+            form.classList.toggle('d-none', !!d.ownerConfirmed);
+        });
+    </script>
+</section>
+</html>
