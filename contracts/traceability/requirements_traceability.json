@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "project": "UACRF Unified Adaptive Cloud Resilience Framework",
   "coreMilestones": {
     "M0_M8_local_verified": "COMPLETE",
@@ -11,6 +11,7 @@
     {"id": "FR-IDN-002", "module": "identity-service", "status": "IMPLEMENTED"},
     {"id": "FR-IDN-003", "module": "identity-service,edge-gateway", "status": "IMPLEMENTED"},
     {"id": "FR-CAT-001", "module": "catalog-service", "status": "IMPLEMENTED"},
+    {"id": "FR-AWL-001..012", "module": "catalog-service,evidence-service,experience-ui", "status": "IMPLEMENTED"},
     {"id": "FR-JNY-001..003", "module": "catalog-service", "status": "IMPLEMENTED"},
     {"id": "FR-ING-001", "module": "discovery-service", "status": "IMPLEMENTED"},
     {"id": "FR-ING-002", "module": "discovery-service", "status": "IMPLEMENTED_CONFIG_GATED_EXTERNAL"},
@@ -28,7 +29,12 @@
     {"id": "FR-KNO-001..004", "module": "knowledge-service", "status": "IMPLEMENTED"},
     {"id": "FR-ADV-001..005", "module": "advisory-service", "status": "IMPLEMENTED_CONFIG_GATED_EXTERNAL"},
     {"id": "FR-QNT-001", "module": "knowledge-service", "status": "IMPLEMENTED"},
-    {"id": "FR-REP-001..003", "module": "reporting-service,edge-gateway,experience-ui", "status": "IMPLEMENTED"}
+    {"id": "FR-REP-001..003", "module": "reporting-service,edge-gateway,experience-ui", "status": "IMPLEMENTED"},
+    {"id": "NFR-OUTBOX", "module": "uacrf-outbox", "status": "IMPLEMENTED"},
+    {"id": "NFR-TENANT", "module": "all-services", "status": "IMPLEMENTED"},
+    {"id": "NFR-UI-OPS", "module": "experience-ui", "status": "IMPLEMENTED"},
+    {"id": "NFR-CRYPTO", "module": "uacrf-crypto", "status": "IMPLEMENTED"},
+    {"id": "NFR-IAC", "module": "infra,ci", "status": "IMPLEMENTED"}
   ],
   "patents": [
     {"id": "P1", "name": "DecisionEnvelope Sealing & Replay", "status": "IMPLEMENTED"},

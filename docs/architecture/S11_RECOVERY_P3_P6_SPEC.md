@@ -1,4 +1,9 @@
-# S11 Temporal Recovery Orchestrator, P3 Adapters & P6 Validation Spec
+# S11 Temporal Recovery Orchestrator, P3 Adapters & P6 Validation Specification
 
-- **P3 Allowlisted Adapter Runtime (`ProviderActionAdapter`)**: Validates Kill Switch state, RS256 expiration, tenant/environment match, exact adapter audience binding, strict target canonical ID allowlist (`TARGET_SUBSTITUTION_FORBIDDEN`), and atomic single-use nonce consumption (`NONCE_REPLAY_DETECTED`) prior to dispatching workload rollbacks.
-- **P6 Cross-Layer Validation DAG (`CrossLayerValidator`)**: Runs ordered verification across Infrastructure, Platform, Application, Data, Security, AI Workload, SLO, and Synthetic Customer Journey Probe (`JOURNEY_PROBE`). Mandatory failure triggers bounded `adapter.compensate(...)` -> `COMPENSATED`.
+## Overview
+`recovery-service` (`S11`, port `8090`, database `uacrf_recovery`) executes policy-authorized recovery actions durably and refuses to mark any recovery successful based solely on cloud control-plane acknowledgments.
+
+## Simple Requirements & Invariants
+1. **Operator Kill Switch & Authorization Validation (`P3`):** Rejects execution immediately when the tenant/environment kill switch is active (`409 KILL_SWITCH_ACTIVE`), validates RS256 expiration, tenant/environment scope, exact adapter audience binding, and target canonical ID allowlists (`403 TARGET_SUBSTITUTION_FORBIDDEN`), and consumes single-use nonces atomically (`409 NONCE_REPLAY_DETECTED`).
+2. **Durable Temporal Orchestration:** Executes bounded remediation workflows (`RecoveryWorkflow` / `RecoveryWorkflowImpl`) through allowlisted `ProviderActionAdapter` implementations (`KubernetesLocalRollbackAdapter`, `CloudTrafficFailoverAdapter`) spanning Kubernetes, AWS, GCP, Azure, and OCI.
+3. **8-Layer Cross-Layer Validation & Auto-Compensation (`P6`):** Validates recovery sequentially through `CrossLayerValidator` across Infrastructure, Platform, Application, Data, Security, AI Workload, SLO, and Synthetic Customer Journey Probe (`JOURNEY_PROBE`). Any mandatory layer failure triggers automatic `adapter.compensate(...)` (`COMPENSATED`).

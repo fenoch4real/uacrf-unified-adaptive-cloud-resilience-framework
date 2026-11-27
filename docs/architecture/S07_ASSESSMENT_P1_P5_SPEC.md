@@ -1,14 +1,9 @@
 # S07 Assessment, Path Independence Certification (P5) & Decision Envelopes (P1)
 
-## 1. Purpose & Separation Guarantees
-`assessment-service` (`S07`, port `8087`) implements the UACRF **Assess** pillar:
-- Evaluates critical customer journey resilience under explicit failure scenarios without authorizing live recovery mutations (*Read-only assessment*).
-- Enforces strict separation of duties between **Assessor**, **Service Owner / Technical Reviewer**, and **Independent Reviewer** (`403 SELF_REVIEW_FORBIDDEN`).
+## Overview
+`assessment-service` (`S07`, port `8087`, database `uacrf_assessment`) implements the UACRF **Assess** pillar. It evaluates whether critical Customer Journeys can survive failure scenarios and seals verifiable proof of every conclusion without mutating production workloads.
 
-## 2. Core Engines
-1. **Correlation-Domain Taxonomy (`P5` — `PathIndependenceCertifier`)**:
-   - Inspects primary vs alternate recovery paths across `REGION`, `ZONE`, `CLUSTER`, `IDP`, `KMS_KEY`, `DNS`, `DATA_STORE`, `RELEASE`, and `VENDOR`.
-   - Shared critical domains (`REGION`, `IDP`, `KMS_KEY`, `DNS`, `DATA_STORE`) return `NOT_INDEPENDENT` with explicit witness paths.
-2. **Cryptographic Decision Envelope & Replay (`P1`)**:
-   - Computes RFC 8785 canonical SHA-256 digests (`CanonicalJson`) and seals envelopes with **RS256 JWS** (`EnvelopeSigner`).
-   - `POST /v1/decision-replays` re-verifies signature validity and digest equality (`VERIFIED` vs `TAMPER_DETECTED`).
+## Simple Requirements & Invariants
+1. **Read-Only Assessment & Dual Independent Review:** Evaluates journey resilience and enforces strict separation between the assessor, technical reviewer, and independent reviewer (`403 SELF_REVIEW_FORBIDDEN`) prior to marking reports `ISSUED`.
+2. **Correlation-Domain Path Independence (`P5`):** `PathIndependenceCertifier` compares primary and alternate recovery paths across `REGION`, `ZONE`, `CLUSTER`, `IDP`, `KMS_KEY`, `DNS`, `DATA_STORE`, `RELEASE`, and `VENDOR`. Shared critical dependencies return `NOT_INDEPENDENT` alongside explicit witness paths rather than falsely claiming redundancy.
+3. **Cryptographic Decision Sealing & Replay (`P1`):** Computes canonical RFC 8785 SHA-256 digests (`CanonicalJson`) and signs reports into RS256 JWS `DecisionEnvelope`s (`EnvelopeSigner` / `FipsCryptoProfile`). Historical replay (`POST /v1/decision-replays`) re-verifies signatures and digests (`VERIFIED` vs. `TAMPER_DETECTED`).

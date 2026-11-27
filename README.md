@@ -110,9 +110,10 @@ docker run --rm \
 
 ## Requirements Tracking, Enterprise Compliance & Documentation
 
-- **Full Requirements & Implementation Status Tracker:** [REQUIREMENTS_TRACEABILITY_MATRIX.md](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md) (`IMPLEMENTED`, `PARTIAL / LOCAL_SPI`, `PENDING / NOT_IMPLEMENTED`)
-- **Updated Technical Approach & Regulatory Scope:** [TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md](docs/architecture/TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md)
-- **Enterprise Production & Compliance Roadmap (`E1`–`E4`):** [ENTERPRISE_COMPLIANCE_AND_ROADMAP.md](docs/compliance/ENTERPRISE_COMPLIANCE_AND_ROADMAP.md)
-- **End-to-End Sequence Diagrams (`SD-01`–`SD-08`):** [SEQUENCE_DIAGRAMS.md](docs/diagrams/SEQUENCE_DIAGRAMS.md)
-- **End-to-End Activity Diagrams (`AD-01`–`AD-08`):** [ACTIVITY_DIAGRAMS.md](docs/diagrams/ACTIVITY_DIAGRAMS.md)
-- **System Overview & Architecture Specs:** [SYSTEM_OVERVIEW.md](docs/architecture/SYSTEM_OVERVIEW.md) | [LOCAL_AND_TARGET_INFRA.md](docs/deployment/LOCAL_AND_TARGET_INFRA.md)
+- **Full Requirements & Implementation Status Tracker:** [REQUIREMENTS_TRACEABILITY_MATRIX.md](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md)
+- **Updated Technical Approach & Regulatory Scope (`Rev 23`):** [TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md](docs/architecture/TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md)
+- **Enterprise Compliance & Certification Progression (`E1`–`E4`):** [ENTERPRISE_COMPLIANCE_AND_ROADMAP.md](docs/compliance/ENTERPRISE_COMPLIANCE_AND_ROADMAP.md)
+- **Architectural Decision Records (`ADR-001`–`ADR-005`):** [ADR-001](docs/adr/ADR-001-polyglot-authority.md) · [ADR-002](docs/adr/ADR-002-advice-not-authority.md) · [ADR-003](docs/adr/ADR-003-multicloud-spi-isolation.md) · [ADR-004](docs/adr/ADR-004-zero-trust-edge-and-rls.md) · [ADR-005](docs/adr/ADR-005-common-controls-fips-assurance.md)
+- **Implemented Class Diagrams (`CD-01`–`CD-06`):** [CLASS_DIAGRAMS.md](docs/diagrams/CLASS_DIAGRAMS.md)
+- **End-to-End Sequence & Activity Diagrams:** [SEQUENCE_DIAGRAMS.md](docs/diagrams/SEQUENCE_DIAGRAMS.md) | [ACTIVITY_DIAGRAMS.md](docs/diagrams/ACTIVITY_DIAGRAMS.md)
+- **System Overview & Target Multi-Cloud Infrastructure:** [SYSTEM_OVERVIEW.md](docs/architecture/SYSTEM_OVERVIEW.md) | [LOCAL_AND_TARGET_INFRA.md](docs/deployment/LOCAL_AND_TARGET_INFRA.md)

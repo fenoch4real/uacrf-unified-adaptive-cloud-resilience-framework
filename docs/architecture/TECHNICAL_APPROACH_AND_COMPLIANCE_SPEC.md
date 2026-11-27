@@ -1,42 +1,51 @@
-# UACRF Technical Approach & Enterprise Regulatory Compliance Specification (Rev 23 Update)
+# UACRF Technical Approach & Enterprise Regulatory Compliance Specification (Rev 23 Alignment)
 
-> **Scope Extension:** Synchronized with `UACRF_Technical_Approach_v1.0_rev23` (`rev23`), incorporating enterprise multi-framework regulatory compliance controls alongside the implemented platform (`S01`–`S14`, `P1`–`P7`, Phases `E1`–`E3`).
+> **Purpose:** Translates the end-to-end capabilities of `UACRF_Technical_Approach_v1.0_rev23` into clear architectural specifications, simple verifiable requirements, and a unified Common Control Framework spanning `S01`–`S14` and `P1`–`P7`.
 
 ---
 
-## 1. Unified Common Control Framework (CCF)
+## 1. End-to-End Platform Capabilities & Requirements Summary
 
-Rather than engineering isolated compliance silos, UACRF adopts a single **Common Control Framework (CCF)** mapped across universal baseline standards, sector mandates, AI governance frameworks, and supply-chain integrity requirements:
+The UACRF Technical Approach organizes resilience engineering and enterprise assurance into nine cohesive capability pillars. Every capability below maps directly to concrete microservices, automated tests, and regulatory controls.
 
-| Adoption Wave | Standards & Frameworks | Primary Architectural Impact on UACRF |
+1. **Identity, Segregation of Duties & Bounded Authority (`S01`, `S10`, `P3`):**
+   - *Requirement:* Every user, workload, and agent identity is explicitly typed (`HUMAN`, `SYSTEM`, `AGENT`), zero runtime permissions are granted on initial admission, privilege grants require independent human two-person approval, and consequential execution uses short-lived, single-use, audience-bound RS256 envelopes (`BoundedRecoveryAuthorization`) backed by an atomic nonce ledger.
+2. **Customer Journeys, Service Catalog & Protected Agent Workloads (`S02`, `FR-AWL-001..012`):**
+   - *Requirement:* Conventional services and Protected Customer Agent Workloads (`SINGLE_AGENT`, `MULTI_AGENT`) are inventoried separately. Business-critical Customer Journeys bind ordered steps, capability criticality (`REQUIRED`, `OPTIONAL`, `UNKNOWN`), shared resources (`MODEL`, `KNOWLEDGE`, `TOOL`, `MEMORY`, `IDENTITY`, `RUNTIME`), and versioned `JourneyImpactProfile` revisions reviewed by an independent approver.
+3. **Multi-Cloud Discovery, Privacy Scrubbing & WORM Evidence Qualification (`S03`, `S04`, `P4`):**
+   - *Requirement:* Cloud and OpenTelemetry signals across `GCP`, `AWS`, `Azure`, `OCI`, and `OTel` ingest through the `TelemetryAdapter` SPI while stripping PII, PHI, PCI PANs, and secrets (`PiiPhiScrubber`) before storage. Deterministic `QualificationEngine` enforces freshness TTLs, graph-revision binding, 6-aspect empirical checks on customer AI models (`endpoint_availability`, `latency_p95`, `model_quality`, `subgroup_safety`, `feature_freshness`, `fallback_capacity`), immutable S3 Object Lock persistence, and **No-Synthetic-Fallback** (unverified operational probes remain `UNKNOWN`).
+4. **Canonical Knowledge Graph & Anti-Tamper Projection (`S06`):**
+   - *Requirement:* `S06` is the sole Neo4j writer, enforcing the strict `58`-node-label and `55`-relationship-type ontology (`Neo4jOntology`) plus prohibited-property blocking (never storing raw logs, SSNs, cards, or credentials). `UNCERTAIN` edges remain visible with explicit non-causation warnings, and `GraphDriftReconciler` continuously detects divergence between authoritative PostgreSQL revisions and Neo4j state.
+5. **Journey Assessment, Path Independence & Decision Sealing (`S07`, `P1`, `P5`):**
+   - *Requirement:* Read-only journey assessments verify primary vs. alternate failover independence across correlation domains (`REGION`, `ZONE`, `CLUSTER`, `IDP`, `KMS_KEY`, `DNS`, `DATA_STORE`, `VENDOR`), enforce independent review, seal results into canonical RFC 8785 SHA-256 + RS256 JWS `DecisionEnvelope`s, and verify historical replay integrity (`VERIFIED` vs. `TAMPER_DETECTED`).
+6. **Continuous SLO Objectives, Policy Gate & Pre-Execution Delta Check (`S05`, `S10`, `P2`):**
+   - *Requirement:* Versioned SLI/SLO/RTO/RPO rules evaluate resilience risk continuously and fail closed to `UNKNOWN` when telemetry is missing or stale. `S10` evaluates OPA Rego policies (`DENY`, `RECOMMEND`, `APPROVAL_REQUIRED`, `PREAUTHORIZED`), blocks self-approval, and runs `MaterialGraphDeltaClassifier` (`P2`) immediately before execution to invalidate widened or target-mutated proposals.
+7. **Durable Recovery Orchestration, Validation DAG & Compensation (`S11`, `P6`):**
+   - *Requirement:* Temporal workflows (`RecoveryWorkflow`) enforce kill-switch state, token expiry, tenant/audience match, target allowlists, and single-use nonce consumption before calling allowlisted `ProviderActionAdapter`s (`KubernetesLocalRollbackAdapter`, `CloudTrafficFailoverAdapter`). Completion requires passing all mandatory layers of the 8-layer Cross-Layer Validation DAG (through end-to-end synthetic customer-journey probes); failure triggers automatic bounded compensation.
+8. **Governed Knowledge, Learning Closures, Fault Experiments & Advisory Dissent (`S08`, `S09`, `S12`, `S13`, `P7`):**
+   - *Requirement:* Approved runbooks remain reference-only (`S08`); postmortem learning items cannot close without verified artifact digests (`S12`); chaos experiments halt automatically when SLO guardrails breach (`S13`); the Paper §10.5 quantitative shadow model ($r(t)$, $S(t)$, $RCI$, $ER$) benchmarks performance non-authoritatively; and Solution-Specific Agent Advisors (`S09`) run behind a prompt-injection and SSRF firewall, token budgets, kill switches, and permutation-invariant arbitration (`P7`) that never suppresses blocking Critic dissent.
+9. **Commercial Metering, External Assurance Rooms & Multi-Cloud DevSecOps (`S14`, `uacrf-crypto`, `EDGE01`, `UX01`, CI/IaC):**
+   - *Requirement:* `S14` (`reporting-service`) meters protected assets/evaluations, generates live compliance crosswalks, and serves time-bound watermarked External Assurance Rooms. Infrastructure deployment enforces non-root distroless containers, Kubernetes `NetworkPolicy`, Istio `STRICT` mTLS, multi-cloud Terraform KMS/WORM storage, FIPS 140-3 minimum key sizes, PITR snapshots, and automated SSDF CI gates (`Gitleaks`, `Trivy`, `CodeQL`, `CycloneDX SBOM`, `Cosign`).
+
+---
+
+## 2. Unified Common Control Framework (CCF)
+
+Rather than building fragmented compliance silos, UACRF implements a unified **Common Control Framework (CCF)** mapped across three enterprise adoption waves:
+
+| Adoption Wave | Standards & Frameworks | UACRF Technical Enforcement |
 |---|---|---|
-| **Wave 1: Enterprise Baseline & Supply Chain** | **SOC 2 Type I & II** (`CC1`–`CC9`), **ISO/IEC 27001** (`27017`/`27018`), **ISO/IEC 22301**, **GDPR / CCPA-CPRA / ISO 27701**, **NIST SP 800-218 (SSDF)** & **SLSA** | OIDC/PKCE SSO + RBAC (`S01`), PostgreSQL Row-Level Security (RLS), WORM immutable logging (`S04`), SBOM + CVE gating + Cosign signed container images, EU/US data residency & tenant erasure |
-| **Wave 2: Financial & Regulated AI** | **EU DORA**, **UK PRA/FCA Operational Resilience**, **US FFIEC / NYDFS 23 NYCRR 500**, **PCI DSS v4.0**, **ISO/IEC 42001**, **NIST AI RMF 1.0 + GenAI Profile**, **EU AI Act** | Journey impact tolerances (`S02`), `P5` cross-cloud ICT concentration/path independence across `AWS`/`GCP`/`Azure`/`OCI` (`S07`), fault resilience testing (`S13`), `P1` signed envelopes, Cardholder Data Environment segmentation + key rotation, 6-aspect AI evidence (`S04`), `S09` human oversight + Critic Dissent + kill switches |
-| **Wave 3: Healthcare, Energy & Public Sector** | **HIPAA / HITECH + HITRUST CSF**, **FedRAMP (NIST SP 800-53 Rev 5) / StateRAMP**, **EU NIS2**, **NERC CIP** | Strict PHI/PII telemetry/prompt redaction (`S03`/`S06`/`S09`), BAA tenancy boundaries, **FIPS 140-3 validated cryptography** in `uacrf-crypto`/TLS/KMS, continuous monitoring (`ConMon`), zero standing privileged OT access (`P3`) |
+| **Wave 1: Enterprise Baseline & Supply Chain** | **SOC 2 Type I & II** (`CC1`–`CC9`), **ISO/IEC 27001** (`27017`/`27018`), **ISO/IEC 22301**, **GDPR / CCPA-CPRA / ISO 27701**, **NIST SP 800-218 (SSDF)** & **SLSA** | `EDGE01` OAuth2 JWT + CSP headers, PostgreSQL `FORCE ROW LEVEL SECURITY`, Kafka outbox relay, S3 Object Lock WORM storage, pre-storage PII scrubbing, CycloneDX SBOM, Trivy/Gitleaks/CodeQL gates, PITR scripts, and `S14` Assurance Rooms |
+| **Wave 2: Financial & Regulated AI** | **EU DORA**, **UK PRA/FCA Operational Resilience**, **US FFIEC / NYDFS 23 NYCRR 500**, **PCI DSS v4.0**, **ISO/IEC 42001**, **NIST AI RMF 1.0 + GenAI Profile**, **EU AI Act** | `CustomerJourney` impact tolerances (`S02`), `P5` cross-cloud path independence across `AWS`/`GCP`/`Azure`/`OCI` (`S07`), fault drills (`S13`), `P1` signed envelopes, PCI PAN redaction + CDE segmentation, 6-aspect customer AI verification (`S04`), and `S09` human oversight + Critic dissent |
+| **Wave 3: Healthcare, Energy & Public Sector** | **HIPAA / HITECH + HITRUST CSF**, **FedRAMP (NIST SP 800-53 Rev 5) / StateRAMP**, **EU NIS2**, **NERC CIP** | Pre-storage PHI/SSN redaction (`S03`/`S09`), sovereign multi-cloud Terraform regions, `FipsCryptoProfile` (`RSA >= 3072` + KMS abstraction), zero standing execution privilege (`P3`), and hardened non-root Helm/Istio mTLS deployments |
 
 ---
 
-## 2. How Core UACRF Capabilities Map Directly to Regulatory Mandates
+## 3. Product Suite Alignment (`Assess`, `Control`, `Recover`, `Evidence`)
 
-1. **Access Control & Separation of Duties (`S01`, `S10` -> SOC 2 CC6, ISO 27001 A.5/A.8, PCI DSS, NYDFS):**
-   - Two-person independent grant approvals, `SELF_APPROVAL_FORBIDDEN` enforcement, short-lived audience-bound RS256 delegation & recovery tokens (`P3`), and single-use nonce consumption eliminate standing privilege abuse.
-2. **Operational Resilience & Concentration Risk (`S02`, `S06`, `S07`, `S13` -> EU DORA Ch. II/IV/V, UK PRA, ISO 22301):**
-   - `CustomerJourney` + `JourneyImpactProfile` map directly to Critical Economic Functions / Important Business Services.
-   - `PathIndependenceCertifier` (`P5`) detects single points of failure across `REGION`, `ZONE`, `CLUSTER`, `IDP`, `KMS_KEY`, `DNS`, `DATA_STORE`, `VENDOR`.
-   - `S13` guarded fault injection verifies restoration within RTO/RPO impact tolerances.
-3. **Evidence Integrity & Change Control (`S04`, `S10`, `S11`, `P1`, `P2`, `P6` -> SOC 2 CC7/CC8, Processing Integrity, DORA):**
-   - `No-Synthetic-Fallback` prevents unverified claims; `P2` halts execution if topology drifted; `P6` validates 8 layers before completion; `P1` seals cryptographic chain-of-custody envelopes replayable independently.
-4. **AI Trustworthiness & Oversight (`S04`, `S09`, `P7` -> ISO/IEC 42001, NIST AI RMF, EU AI Act):**
-   - Strictly separates **Protected Customer AI Workloads** (requiring `endpoint_availability`, `latency_p95`, `model_quality`, `subgroup_safety`, `feature_freshness`, `fallback_capacity`) from **UACRF Solution-Specific Agent Advisors** (bounded cases, prompt-injection guard, citation locking, `BLOCKING_CONCERN` dissent preservation, advisory kill switch).
-5. **Privacy & Data Minimization (`S03`, `S06`, `S09` -> GDPR, ISO 27701, HIPAA):**
-   - Enforces `Neo4jOntology.validatePropertyKeys` blocking raw logs, unrestricted prompts, secrets, SSNs, and credit cards from ever entering graph storage; requires tenant-scoped KMS/Vault encryption and redaction pipelines before ingestion.
-
----
-
-## 3. Mandatory Enterprise Architecture Additions Required for Production Sign-Off
-
-1. **FIPS 140-3 & Envelope Key Management (`uacrf-crypto`, TLS, KMS):** Replace ephemeral JVM RSA keypairs with Cloud KMS / HSM / Vault Transit backed FIPS 140-3 providers and mTLS mesh (Istio/Linkerd) across all inter-service traffic.
-2. **Database-Layer Tenant Isolation:** Enforce PostgreSQL Row-Level Security (`CREATE POLICY tenant_iso`) paired with `SET LOCAL app.tenant_id` in addition to application query filters.
-3. **Async Kafka/Redpanda Outbox + Durable Temporal + Live OPA:** Replace synchronous HTTP relays and in-process mocks with durable partitioned transport, Temporal workflow clusters, and live signed OPA policy bundles.
-4. **S3/MinIO WORM SDK & PII/PHI Scrubber Pipeline (`S03`/`S04`):** Connect S3 Object Lock Compliance/Governance mode natively and sanitize raw payloads prior to WORM archival.
-5. **CI/CD Supply Chain (`SSDF`/`SLSA`) & `S14` Assurance Rooms:** Generate CycloneDX SBOMs, enforce Trivy CVE + Gitleaks secret policies, sign images with Cosign, and deploy `S14` watermarked Assurance Rooms for third-party auditors.
+| UACRF Product Pillar | Primary Services & UI Routes | Core Customer Outcome |
+|---|---|---|
+| **Assess** | `S02`, `S06`, `S07` (`/journeys`, `/agents`, `/dependencies`, `/ai-dependencies`, `/assess`) | Discovers true multi-cloud and AI blast radius, flags unconfirmed links without implying causation, certifies failover path independence (`P5`), and seals review-verified reports (`P1`). |
+| **Control** | `S05`, `S10` (`/control`, `/settings/access`) | Continuously evaluates versioned SLO/RTO/RPO and Appendix I rules, enforces fail-closed `UNKNOWN` handling, runs live OPA Rego policy gates, and prevents stale-topology actions (`P2`). |
+| **Recover** | `S11` (`/recover`) | Executes bounded, single-use Temporal workflows (`P3`) behind an instant kill switch and confirms restoration via the 8-layer P6 Validation DAG before declaring recovery complete. |
+| **Evidence & Assurance** | `S04`, `S08`, `S09`, `S12`, `S13`, `S14` (`/evidence`, `/knowledge`, `/advisory`, `/assurance`) | Blocks synthetic fallback claims, locks empirical records into WORM storage, preserves advisory Critic dissent (`P7`), enforces verified learning closure, and exposes watermarked auditor Assurance Rooms. |

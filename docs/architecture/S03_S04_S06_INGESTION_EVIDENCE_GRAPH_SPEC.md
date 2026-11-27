@@ -1,23 +1,17 @@
-# S03, S04, and S06 Technical Design Specification (Milestone 2)
+# S03, S04, and S06 Ingestion, Evidence & Knowledge Graph Specification
 
-## 1. Component Responsibilities & Authority Boundaries
+## Overview
+Resilient decisions depend on trustworthy signals, tamper-evident proof, and an accurate structural map of dependencies across **GCP, AWS, Azure, OCI, and Kubernetes**. Together, `S03`, `S04`, and `S06` convert raw operational telemetry into qualified evidence and a canonical Neo4j dependency graph while preserving strict authority boundaries.
 
 | Service | Module | Port | Owned Stores | Exclusive Write Authority |
 |---|---|---|---|---|
-| **S03** Discovery & Telemetry Adapter | `services/discovery-service` | `8084` | `uacrf_discovery` (`discovery`, `integration`) | Connector health, normalized telemetry observations, discovered topology edges |
-| **S04** Evidence Qualification & Storage | `services/evidence-service` | `8085` | `uacrf_evidence` (`evidence`, `integration`) + Object Lock store | Qualification verdicts, WORM object blobs, package completeness, AI aspect checks |
-| **S06** Knowledge Graph Projection & Query | `services/graph-service` | `8086` | `uacrf_graph` (`graph`, `integration`) + **Neo4j 5.26** | **Sole Neo4j writer**, 58-label / 55-relationship ontology enforcement, revision digests |
+| **S03** Discovery & Telemetry Adapter | `services/discovery-service` | `8084` | `uacrf_discovery` | Connector health, PII-scrubbed observations, discovered edges |
+| **S04** Evidence Qualification & Storage | `services/evidence-service` | `8085` | `uacrf_evidence` + S3 Object Lock | Qualification verdicts, WORM object blobs, package readiness, AI checks |
+| **S06** Knowledge Graph Projection & Query | `services/graph-service` | `8086` | `uacrf_graph` + **Neo4j 5.26** | Sole Neo4j writer, `58`-label / `55`-relationship enforcement, drift detection |
 
-## 2. Core Invariants Enforced
-
-1. **Adapter SPI + Explicit Synthetic Isolation (`S03`)**:
-   - External cloud/OTel adapters implement `TelemetryAdapter`.
-   - Local simulation fixtures are isolated in `SampleLocalScenarioGenerator` and stamped with `telemetrySource = SAMPLE_LOCAL` and `provenanceClass = SAMPLE_ONLY`.
-2. **No-Synthetic-Fallback (`S04`)**:
-   - `QualificationEngine` rejects `KNOWLEDGE_DOC`, `ADVISORY_DRAFT`, `LLM_SUMMARY`, and `RUNBOOK` source kinds with HTTP `422 SYNTHETIC_FALLBACK_FORBIDDEN` when submitted as empirical probe or compatibility evidence.
-   - Missing operational probes keep the package at `MISSING_REQUIRED` and recovery readiness at `UNKNOWN`.
-3. **Sole Graph Writer & Non-Causation Discipline (`S06`)**:
-   - Every node label and relationship type passes `Neo4jOntology.requireNodeLabel` (58 labels) and `Neo4jOntology.requireRelationshipType` (55 types) plus `validatePropertyKeys` before Cypher `MERGE` or Postgres persistence.
-   - `UNCERTAIN` edges remain visible when `includeUncertain=true`, rendered dashed in Cytoscape.js with explicit notice: *"Dependency shows reliance. It does not prove the cause of this incident."*
-4. **AI Workload vs Core Advisory Separation**:
-   - Customer AI dependencies (`ModelEndpoint`, `ModelVersion`, `FeatureStore`, `ModelFallback`) require 6 distinct evidence aspects (`endpoint_availability`, `latency_p95`, `model_quality`, `subgroup_safety`, `feature_freshness`, `fallback_capacity`).
+## Simple Requirements & Invariants
+1. **Multi-Cloud Discovery SPI & Synthetic Isolation (`S03`):** Cloud collectors (`AwsTelemetryAdapter`, `GcpTelemetryAdapter`, `AzureTelemetryAdapter`, `OciTelemetryAdapter`, `OtelReceiverAdapter`) implement `TelemetryAdapter`. Local lab simulations live exclusively in `SampleLocalScenarioGenerator` tagged `SAMPLE_LOCAL` / `SAMPLE_ONLY`.
+2. **Pre-Storage PII/PHI Sanitization (`S03`):** `PiiPhiScrubber` redacts email addresses, SSNs, PCI card numbers, Bearer tokens, and cloud access keys before observations enter PostgreSQL or the outbox bus.
+3. **No-Synthetic-Fallback & WORM Storage (`S04`):** `QualificationEngine` enforces freshness TTLs and graph-revision bindings, locks qualified payloads into S3 Object Lock (`ObjectLockWormClient`), and rejects `KNOWLEDGE_DOC`, `ADVISORY_DRAFT`, `LLM_SUMMARY`, or `RUNBOOK` evidence with `422 SYNTHETIC_FALLBACK_FORBIDDEN`. Missing probes keep readiness explicitly `UNKNOWN`.
+4. **Customer AI Empirical Checks (`S04`):** Protected AI dependencies require 6 verified checks: `endpoint_availability`, `latency_p95`, `model_quality`, `subgroup_safety`, `feature_freshness`, and `fallback_capacity`.
+5. **Sole Neo4j Writer, Non-Causation & Drift Detection (`S06`):** All graph mutations validate `58` node labels, `55` relationship types, and prohibited property keys (`Neo4jOntology`). `UNCERTAIN` edges display dashed with non-causation notices, and `GraphDriftReconciler` compares Neo4j projections against sealed PostgreSQL revisions (`PROJECTED` vs. `DRIFTED`).

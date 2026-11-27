@@ -93,5 +93,8 @@ flowchart LR
 4. **Canonical Ontology & Data Minimization**: Every Neo4j node/edge must pass `Neo4jOntology` (`58` labels, `55` relationships) and prohibited-key checks (`secret`, `password`, `ssn`, `credit_card`, `raw_log_body`).
 5. **Protected AI vs. Advisory Isolation**: Customer AI workloads require empirical quality/safety/fallback checks (`S04`); solution-specific advisors (`S09`) preserve blocking critic dissent and obey kill switches.
 
-## 5. Enterprise Compliance & Traceability Extension
-See [TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md](TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md), [ENTERPRISE_COMPLIANCE_AND_ROADMAP.md](../compliance/ENTERPRISE_COMPLIANCE_AND_ROADMAP.md), and [REQUIREMENTS_TRACEABILITY_MATRIX.md](../traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md).
+## 5. Architecture Decisions, Diagrams & Compliance Traceability
+- **Implemented Solution Class Diagrams (`CD-01`–`CD-06`):** [CLASS_DIAGRAMS.md](../diagrams/CLASS_DIAGRAMS.md)
+- **Sequence & Activity Diagrams:** [SEQUENCE_DIAGRAMS.md](../diagrams/SEQUENCE_DIAGRAMS.md) | [ACTIVITY_DIAGRAMS.md](../diagrams/ACTIVITY_DIAGRAMS.md)
+- **Architecture Decision Records:** [ADR-001](../adr/ADR-001-polyglot-authority.md) (Polyglot Authority), [ADR-002](../adr/ADR-002-advice-not-authority.md) (Advice != Authority), [ADR-003](../adr/ADR-003-multicloud-spi-isolation.md) (Multi-Cloud SPI), [ADR-004](../adr/ADR-004-zero-trust-edge-and-rls.md) (Zero-Trust Edge & RLS), [ADR-005](../adr/ADR-005-common-controls-fips-assurance.md) (Common Controls & FIPS)
+- **Specs & Traceability:** [TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md](TECHNICAL_APPROACH_AND_COMPLIANCE_SPEC.md) | [ENTERPRISE_COMPLIANCE_AND_ROADMAP.md](../compliance/ENTERPRISE_COMPLIANCE_AND_ROADMAP.md) | [REQUIREMENTS_TRACEABILITY_MATRIX.md](../traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md)
