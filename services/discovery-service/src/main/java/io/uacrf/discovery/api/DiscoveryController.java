@@ -56,4 +56,24 @@ public class DiscoveryController {
     public List<java.util.Map<String, String>> listAdapters() {
         return service.listRegisteredAdapters();
     }
+
+    @GetMapping("/inventory/profiles")
+    public List<CloudInventoryProfile> listInventoryProfiles() {
+        return service.listInventoryProfiles();
+    }
+
+    @GetMapping("/inventory/resource-families")
+    public List<ResourceFamilyDescriptor> listResourceFamilies() {
+        return service.listResourceFamilies();
+    }
+
+    @PostMapping("/inventory/normalize")
+    public InventoryNormalizationResult normalizeInventory(@Valid @RequestBody InventoryNormalizeRequest request) {
+        return service.normalizeInventory(request);
+    }
+
+    @PostMapping("/inventory/poll")
+    public InventoryNormalizationResult pollInventory(@Valid @RequestBody InventoryPollRequest request) {
+        return service.pollCloudInventory(request);
+    }
 }

@@ -40,3 +40,24 @@ paths:
       summary: List discovered dependency edges
       responses:
         '200': { description: List of discovered edges }
+  /v1/inventory/profiles:
+    get:
+      summary: List read-only multi-cloud inventory poller profiles (AWS, GCP, Azure, OCI)
+      responses:
+        '200': { description: List of cloud inventory adapter profiles and auth modes }
+  /v1/inventory/resource-families:
+    get:
+      summary: List the 20 canonical multi-cloud infrastructure & AI resource families
+      responses:
+        '200': { description: Multi-cloud resource family catalog }
+  /v1/inventory/normalize:
+    post:
+      summary: Normalize raw cloud inventory assets into canonical observations, Neo4j-validated edges, compute placement & aliases
+      responses:
+        '200': { description: Normalized cloud catalog batch }
+  /v1/inventory/poll:
+    post:
+      summary: Poll live read-only cloud inventory API when enabled=true and read-only credentials are configured
+      responses:
+        '200': { description: Live cloud inventory batch normalized and persisted }
+        '412': { description: Fail-closed when adapter enabled=false or read-only credentials missing }

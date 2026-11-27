@@ -18,6 +18,36 @@ uacrf:
     graph-base-url: ${UACRF_GRAPH_URL:http://localhost:8086}
     catalog-base-url: ${UACRF_CATALOG_URL:http://localhost:8083}
     forward-downstream: ${UACRF_DISCOVERY_FORWARD:false}
+    adapters:
+      aws:
+        enabled: ${UACRF_DISCOVERY_AWS_ENABLED:false}
+        region: ${UACRF_DISCOVERY_AWS_REGION:us-east-1}
+        auth-mode: ${UACRF_DISCOVERY_AWS_AUTH_MODE:IAM_ASSUME_ROLE}
+        role-arn: ${UACRF_DISCOVERY_AWS_ROLE_ARN:}
+        endpoint-url: ${UACRF_DISCOVERY_AWS_ENDPOINT:}
+        bearer-token: ${UACRF_DISCOVERY_AWS_TOKEN:}
+      gcp:
+        enabled: ${UACRF_DISCOVERY_GCP_ENABLED:false}
+        project-id: ${UACRF_DISCOVERY_GCP_PROJECT:uacrf-unconfigured}
+        auth-mode: ${UACRF_DISCOVERY_GCP_AUTH_MODE:WORKLOAD_IDENTITY}
+        endpoint-url: ${UACRF_DISCOVERY_GCP_ENDPOINT:}
+        bearer-token: ${UACRF_DISCOVERY_GCP_TOKEN:}
+      azure:
+        enabled: ${UACRF_DISCOVERY_AZURE_ENABLED:false}
+        subscription-id: ${UACRF_DISCOVERY_AZURE_SUB:unconfigured}
+        auth-mode: ${UACRF_DISCOVERY_AZURE_AUTH_MODE:MANAGED_IDENTITY}
+        endpoint-url: ${UACRF_DISCOVERY_AZURE_ENDPOINT:}
+        bearer-token: ${UACRF_DISCOVERY_AZURE_TOKEN:}
+      oci:
+        enabled: ${UACRF_DISCOVERY_OCI_ENABLED:false}
+        tenancy-ocid: ${UACRF_DISCOVERY_OCI_TENANCY:unconfigured}
+        region: ${UACRF_DISCOVERY_OCI_REGION:us-ashburn-1}
+        auth-mode: ${UACRF_DISCOVERY_OCI_AUTH_MODE:INSTANCE_PRINCIPAL}
+        endpoint-url: ${UACRF_DISCOVERY_OCI_ENDPOINT:}
+        bearer-token: ${UACRF_DISCOVERY_OCI_TOKEN:}
+      otel:
+        enabled: ${UACRF_DISCOVERY_OTEL_ENABLED:true}
+        endpoint: ${UACRF_DISCOVERY_OTEL_ENDPOINT:http://otel-collector:4318}
 
 management:
   endpoints:

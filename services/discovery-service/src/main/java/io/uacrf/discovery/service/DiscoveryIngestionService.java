@@ -2,6 +2,7 @@ package io.uacrf.discovery.service;
 
 import io.uacrf.contracts.graph.Neo4jOntology;
 import io.uacrf.crypto.CanonicalJson;
+import io.uacrf.discovery.adapter.CloudInventoryPollerGateway;
 import io.uacrf.discovery.adapter.SampleLocalScenarioGenerator;
 import io.uacrf.discovery.adapter.TelemetryAdapter;
 import io.uacrf.discovery.api.DiscoveryDtos.*;
@@ -23,6 +24,7 @@ public class DiscoveryIngestionService {
 
     private final DiscoveryRepository repository;
     private final SampleLocalScenarioGenerator sampleGenerator;
+    private final CloudInventoryPollerGateway inventoryGateway;
     private final PiiPhiScrubber scrubber;
     private final Map<String, TelemetryAdapter> adapters;
     private final RestClient evidenceClient;
@@ -32,6 +34,7 @@ public class DiscoveryIngestionService {
     public DiscoveryIngestionService(
             DiscoveryRepository repository,
             SampleLocalScenarioGenerator sampleGenerator,
+            CloudInventoryPollerGateway inventoryGateway,
             PiiPhiScrubber scrubber,
             List<TelemetryAdapter> adapterList,
             @Value("${uacrf.discovery.evidence-base-url}") String evidenceBaseUrl,
@@ -39,6 +42,7 @@ public class DiscoveryIngestionService {
             @Value("${uacrf.discovery.forward-downstream:false}") boolean forwardDownstream) {
         this.repository = repository;
         this.sampleGenerator = sampleGenerator;
+        this.inventoryGateway = inventoryGateway;
         this.scrubber = scrubber;
         this.adapters = adapterList.stream().collect(Collectors.toMap(
                 a -> a.providerKey().toUpperCase(Locale.ROOT), Function.identity(), (a, b) -> a));
@@ -133,26 +137,7 @@ public class DiscoveryIngestionService {
                 ))
         );
 
-        if (forwardDownstream) {
-            try {
-                graphClient.post().uri("/v1/graph/project-edges")
-                        .body(Map.of(
-                                "tenantId", req.tenantId(),
-                                "environmentId", req.environmentId(),
-                                "edges", batch.edges()
-                        ))
-                        .retrieve().toBodilessEntity();
-                evidenceClient.post().uri("/v1/evidence/ingest-observations")
-                        .body(Map.of(
-                                "tenantId", req.tenantId(),
-                                "environmentId", req.environmentId(),
-                                "observations", batch.observations()
-                        ))
-                        .retrieve().toBodilessEntity();
-            } catch (Exception ignored) {
-                // Outbox record preserves durability if downstream is temporarily unavailable
-            }
-        }
+        forwardBatchDownstream(req.tenantId(), req.environmentId(), batch.observations(), batch.edges());
 
         return new SampleScenarioResult(
                 key,
@@ -164,6 +149,74 @@ public class DiscoveryIngestionService {
                 batch.edges(),
                 "Illustrative SAMPLE_LOCAL multi-cloud and AI lineage fixture loaded; missing probe evidence remains UNKNOWN per No-Synthetic-Fallback."
         );
+    }
+
+    public List<CloudInventoryProfile> listInventoryProfiles() {
+        return inventoryGateway.listProfiles();
+    }
+
+    public List<ResourceFamilyDescriptor> listResourceFamilies() {
+        return inventoryGateway.listResourceFamilies();
+    }
+
+    @Transactional
+    public InventoryNormalizationResult normalizeInventory(InventoryNormalizeRequest req) {
+        var result = inventoryGateway.normalizeBatch(
+                req.tenantId(), req.environmentId(), req.provider(), req.telemetrySource(), req.assets());
+        if (req.persist()) {
+            persistNormalizedBatch(req.tenantId(), req.environmentId(), result);
+        }
+        return result;
+    }
+
+    @Transactional
+    public InventoryNormalizationResult pollCloudInventory(InventoryPollRequest req) {
+        var result = inventoryGateway.pollAndNormalize(
+                req.tenantId(), req.environmentId(), req.provider(), req.scopeFilter());
+        persistNormalizedBatch(req.tenantId(), req.environmentId(), result);
+        return result;
+    }
+
+    private void persistNormalizedBatch(UUID tenantId, UUID environmentId, InventoryNormalizationResult result) {
+        for (ObservationDto obs : result.observations()) {
+            repository.insertObservation(obs, CanonicalJson.toJson(obs));
+        }
+        for (DiscoveredEdgeDto edge : result.edges()) {
+            Neo4jOntology.requireNodeLabel(edge.sourceLabel());
+            Neo4jOntology.requireNodeLabel(edge.targetLabel());
+            Neo4jOntology.requireRelationshipType(edge.relationshipType());
+            repository.upsertDiscoveredEdge(edge);
+        }
+        repository.updateConnectionCollection(tenantId, environmentId, result.provider(), Instant.now());
+        repository.insertOutbox(
+                tenantId, environmentId,
+                "discovery.cloud_inventory.normalized", "CollectionRun", UUID.randomUUID().toString(),
+                UUID.randomUUID(), CanonicalJson.toJson(Map.of(
+                        "provider", result.provider(),
+                        "telemetrySource", result.telemetrySource(),
+                        "assetsNormalized", result.assetsNormalized(),
+                        "edgesCount", result.edges().size(),
+                        "computePlacementsCount", result.computePlacements().size()
+                ))
+        );
+        forwardBatchDownstream(tenantId, environmentId, result.observations(), result.edges());
+    }
+
+    private void forwardBatchDownstream(UUID tenantId, UUID environmentId,
+                                        List<ObservationDto> observations, List<DiscoveredEdgeDto> edges) {
+        if (!forwardDownstream) {
+            return;
+        }
+        try {
+            graphClient.post().uri("/v1/graph/project-edges")
+                    .body(Map.of("tenantId", tenantId, "environmentId", environmentId, "edges", edges))
+                    .retrieve().toBodilessEntity();
+            evidenceClient.post().uri("/v1/evidence/ingest-observations")
+                    .body(Map.of("tenantId", tenantId, "environmentId", environmentId, "observations", observations))
+                    .retrieve().toBodilessEntity();
+        } catch (Exception ignored) {
+            // Outbox record preserves durability if downstream is temporarily unavailable
+        }
     }
 
     public List<ObservationDto> listObservations(UUID tenantId, UUID environmentId) {

@@ -78,30 +78,6 @@ This repository translates that peer-reviewed framework into working microservic
 
 ## Full Technical Approach Requirements & Product Catalog SKUs (`Rev 23`)
 
-Everything in `UACRF_Technical_Approach_v1.0_rev23` is mapped 100% transparently across implemented code vs. remaining operational/external certification work in [REQUIREMENTS_TRACEABILITY_MATRIX.md](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md).
-
-### Product & Commercial Catalog SKUs (`Section 25` & `Section 32`)
-
-| Catalog SKU / Edition | Capabilities Covered | Code Status | What Is Left |
-|---|---|---|---|
-| **SKU-ASSESS** *(Assess Engagement)* | Customer journeys, `S02`/`S06` Neo4j 58/55 graph, `S04` evidence qualification, `P5` path independence, `P1` sealed report & replay | `IMPLEMENTED` | Live customer cloud credentials at deployment |
-| **SKU-CONTROL** *(Control Foundation)* | Continuous Section 8 SLO/infra/AI rules, `UNKNOWN` fail-closed state machine, `S05` import conflict preview, live OPA Rego evaluation | `IMPLEMENTED` | Live customer telemetry streams |
-| **SKU-RECOVER** *(Recover Add-On)* | Dual approvals, `FR-APR-002` break-glass escalation, `P2` graph delta guard, `P3` tokens, Temporal workflows, multi-cloud compute/traffic adapters, `P6` validation & auto-compensation | `IMPLEMENTED` | Live cloud IAM execution roles & FIS/Chaos API keys |
-| **SKU-EVIDENCE** *(Evidence & Assurance Add-On)* | `No-Synthetic-Fallback`, S3 Object Lock WORM, compliance crosswalk (`SOC 2`..`FedRAMP`), Watermarked External Assurance Rooms, `collect-soc2-evidence.sh` | `IMPLEMENTED` | Live WORM bucket credentials & external CPA walkthrough (`E4`) |
-| **SKU-ADAPTIVE** *(Adaptive Intelligence Add-On)* | Paper §10.5 quantitative shadow benchmarks, AI Model Cards & gated ML promotion, multi-provider `S09` LLM Gateway (`OpenAI`, `Amazon Bedrock`, `Azure OpenAI`, `Google Vertex`, `OCI GenAI`) + runtime ledgers | `IMPLEMENTED` | External LLM API keys when leaving `DETERMINISTIC` mode |
-| **SKU-ENTERPRISE** *(Enterprise Platform Suite)* | Full suite + `EDGE01` OAuth2/JWT + CSP, PostgreSQL `FORCE ROW LEVEL SECURITY` (`12` DBs), `FipsCryptoProfile`, distroless Docker, Helm (`NetworkPolicy` + Istio mTLS), multi-cloud Terraform, SSDF CI gates | `IMPLEMENTED` | Cluster apply, HSM KMS keys & GitHub org rules |
-| **ED-REG-BOUNDARY / SKU-SERVICES** | Separated FedRAMP/FIPS boundary & managed delivery onboarding | `PARTIAL / CONFIG_GATED` | Corporate ISMS/IRP policies, BAAs & external `Phase E4` CPA / 3PAO audits |
-
-### Summary Rollup: Implemented vs. Left
-- **Implemented & Verified (`18/18` Maven Modules Green):** All `7` Patents (`P1`–`P7`), `14` microservices (`S01`–`S14`) + `EDGE01` + `UX01` (`23` page views + WCAG focus/skip links), `7` metering dimensions, Sections 23/X11/Z.6 functional core (`FR-CAT`, `FR-GPH`, `FR-ING`, `FR-RUL`, `FR-RSK`, `FR-POL`, `FR-APR`, `FR-WFL`, `FR-VAL`, `FR-EVD`, `FR-LRN`, `FR-ONB`, `FR-TST`, `FR-QNT`, `FR-ADP`, `FR-AGT`, `FR-IP`, `FR-KNO`, `FR-ORC`, `FR-AWL`, `FR-JNY`, `FR-DEP`), Section 8 compute/storage/network/queue/DB rules, and `E1`–`E3` security/IaC/CI gates.
-- **Remaining Operational / Config-Gated Items:** Providing live customer cloud/LLM/KMS credentials behind config flags, executing multi-container Docker Compose E2E / formal load (`k6`) & WCAG assistive reader audits on a live cluster, live CRM invoicing integrations, and `Phase E4` external CPA / 3PAO / registrar certification.
-
-For the **row-by-row table of all `92` FR IDs, `28` NFR IDs, all `7` Metering SKUs, `4` Deployment Editions, `14` Failure Scenarios (`F01`–`F14`), and `13` Regulatory Mandates**, see [**REQUIREMENTS_TRACEABILITY_MATRIX.md**](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md).
-
----
-
-## Full Technical Approach Requirements & Product Catalog SKUs (`Rev 23`)
-
 Everything in `UACRF_Technical_Approach_v1.0_rev23` (**`7`** Commercial Package SKUs, **`7`** Metering Units, **`4`** Deployment Editions, **`103`** Functional Requirements, **`28`** Non-Functional Requirements, **`14`** Failure Scenarios `F01–F14`, **`7`** Core Patents `P1–P7`, and **`13`** Regulatory Mandates) is mapped **1-to-1 row-by-row** in [REQUIREMENTS_TRACEABILITY_MATRIX.md](docs/traceability/REQUIREMENTS_TRACEABILITY_MATRIX.md) and machine-readable [requirements_traceability.json](contracts/traceability/requirements_traceability.json).
 
 ### Product & Commercial Catalog SKUs (`Section 25` & `Section 32`)
@@ -165,6 +141,14 @@ Everything in `UACRF_Technical_Approach_v1.0_rev23` (**`7`** Commercial Package 
 | **NFR-AVL-001 .. NFR-OPS-002** (`28`) | Non-Functional (`Section 23.4`) | `IMPLEMENTED (22) / PARTIAL (5) / ORG (1)` | Cluster 99.9% SLA telemetry (`NFR-AVL-001`), live PITR restore drill (`NFR-RPO-001`), k6 load report (`NFR-PRF-001..002`), assistive AT audit (`NFR-ACC-001`), & named org owners/SLAs (`NFR-OPS-002`) |
 | **F01 .. F14** (`14`) | Failure Scenarios (`Appendix F`) | `IMPLEMENTED (14/14 rules & adapters)` | Live chaos drills against customer AWS FIS / Azure Chaos / GCP Fault Injection accounts |
 | **REG-SOC2 .. REG-SSDF** (`13`) | Regulatory Mandates (`Appendix AC`) | `SSDF IMPLEMENTED (1) / TECH CONTROLS READY (12)` | `Phase E4` corporate ISMS/IRP policies, BAAs, & external CPA / 3PAO / registrar certification |
+
+### Cloud Catalog & Multi-Cloud Resource Inventory (`58` Node Labels · `20` Resource Families)
+
+| Inventory Layer | Coverage Scope | Code Status | What Is Implemented | What Is Left |
+|---|---|---|---|---|
+| **Canonical Neo4j Inventory Ontology** (`Section 5.2.7` / `Appendix M`) | `58` Node Labels (`10` domain groups) + `55` Relationships | `IMPLEMENTED` | Enforced in `Neo4jOntology`, `ontology_catalog.json`, `GraphServiceIntegrationTest` | Live continuous cloud topology refresh crons |
+| **PostgreSQL Catalog & Compute Inventory** (`S02`) | `service`, `agent_workload_profile`, `customer_journey`, `compute_placement`, `provider_resource_alias` | `IMPLEMENTED` | Flyway `V1`–`V3` + `ComputeAndAliasService` (`GCP`/`AWS`/`AZURE`/`OCI`/`K8S`) + `CatalogServiceIntegrationTest` | External CMDB / HR directory auto-sync |
+| **Multi-Cloud Resource Families & Asset Pollers** (`S03`, `TBL134`) | All **`20`** infrastructure, storage, DB, queue, network, IAM & AI resource families across `AWS`, `Azure`, `GCP`, `OCI` | `IMPLEMENTED_STANDBY` | `CloudInventoryPollerGateway` (`enabled=false` fail-closed standby), `POST /v1/inventory/normalize`, `POST /v1/inventory/poll`, `CloudInventoryPollerTests` | Step `#3`: live read-only cloud IAM / WIF / Managed Identity / Instance Principal bindings & `enabled=true` per environment |
 ---
 
 ## Quick Start

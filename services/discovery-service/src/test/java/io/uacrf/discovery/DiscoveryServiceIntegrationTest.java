@@ -73,4 +73,34 @@ class DiscoveryServiceIntegrationTest {
         assertFalse(obs.subjectCanonicalId().contains("alice@example.com"));
         assertTrue(obs.subjectCanonicalId().contains("[REDACTED_PII_EMAIL]"));
     }
+
+    @Test
+    void normalizesAndPersistsMultiCloudInventoryToPostgresAndFailsClosedOnDisabledLivePoll() {
+        var profiles = service.listInventoryProfiles();
+        assertEquals(4, profiles.size());
+        assertEquals(20, service.listResourceFamilies().size());
+
+        var normalized = service.normalizeInventory(new io.uacrf.discovery.api.DiscoveryDtos.InventoryNormalizeRequest(
+                TENANT_ID, ENV_ID, "GCP", "CLOUD_ASSET_FIXTURE", true,
+                java.util.List.of(new io.uacrf.discovery.api.DiscoveryDtos.RawCloudAssetRecord(
+                        "//sqladmin.googleapis.com/projects/uacrf-demo/instances/orders-pg",
+                        "sqladmin.googleapis.com/Instance",
+                        "orders-pg",
+                        "urn:uacrf:svc:order-service",
+                        "us-central1",
+                        "us-central1-a",
+                        "fd-gcp-us-central1",
+                        null, null, null, null, Map.of()
+                ))
+        ));
+        assertEquals(1, normalized.assetsNormalized());
+        assertEquals("Database", normalized.edges().getFirst().targetLabel());
+        assertTrue(service.listDiscoveredEdges(TENANT_ID, ENV_ID).stream()
+                .anyMatch(e -> "orders-pg".equals(e.targetDisplay()) && "READS_FROM".equals(e.relationshipType())));
+
+        var pollEx = assertThrows(io.uacrf.discovery.api.DiscoveryDomainException.class,
+                () -> service.pollCloudInventory(new io.uacrf.discovery.api.DiscoveryDtos.InventoryPollRequest(
+                        TENANT_ID, ENV_ID, "AZURE", "*")));
+        assertEquals("PROVIDER_ADAPTER_DISABLED", pollEx.getCode());
+    }
 }

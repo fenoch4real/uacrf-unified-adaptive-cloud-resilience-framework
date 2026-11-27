@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.3.0",
+  "schemaVersion": "1.4.0",
   "project": "UACRF Unified Adaptive Cloud Resilience Framework",
   "sourceDocument": "UACRF_Technical_Approach_v1.0_rev23.docx",
   "coreMilestones": {
@@ -20,7 +20,10 @@
     "nonFunctionalExternalOrg": 1,
     "patents": 7,
     "failureScenarios": 14,
-    "regulatoryStandards": 13
+    "regulatoryStandards": 13,
+    "cloudResourceFamilies": 20,
+    "canonicalNodeLabels": 58,
+    "canonicalRelationshipTypes": 55
   },
   "catalogSkus": [
     {
@@ -412,9 +415,9 @@
       "priority": "Must",
       "domain": "Catalog",
       "status": "IMPLEMENTED",
-      "module": "catalog-service",
-      "implemented": "ComputeAndAliasService (provider_resource_alias) retaining source, confidence & ALIAS_CONFLICT guard",
-      "whatIsLeft": "Bulk CSV/API CMDB alias import bridge"
+      "module": "catalog-service,discovery-service",
+      "implemented": "ComputeAndAliasService (provider_resource_alias) + ALIAS_CONFLICT guard + CloudInventoryPollerGateway normalizer",
+      "whatIsLeft": "Live CMDB / cloud auto-reconciliation cron with customer credentials"
     },
     {
       "id": "FR-DEP-001",
@@ -539,8 +542,8 @@
       "domain": "Telemetry",
       "status": "IMPLEMENTED",
       "module": "discovery-service",
-      "implemented": "S03 TelemetryAdapter SPI (AWS/GCP/Azure/OCI/OTel) + SAMPLE_LOCAL scenario ingestor",
-      "whatIsLeft": "Live cloud API polling with customer read-only IAM credentials"
+      "implemented": "S03 TelemetryAdapter SPI + CloudInventoryPollerGateway (AWS/GCP/Azure/OCI REST pollers) + OTel/SAMPLE_LOCAL",
+      "whatIsLeft": "Live read-only cloud IAM/WIF credentials & enabling adapters (enabled=true)"
     },
     {
       "id": "FR-ING-002",
@@ -548,7 +551,7 @@
       "domain": "Telemetry",
       "status": "IMPLEMENTED",
       "module": "discovery-service",
-      "implemented": "S03 schema, tenant, environment & classification validation + PiiPhiScrubber pre-storage masking",
+      "implemented": "S03 schema, tenant, environment & SSRF egress checks + PiiPhiScrubber pre-storage masking",
       "whatIsLeft": "External SIEM forwarder sink configuration"
     },
     {
@@ -557,7 +560,7 @@
       "domain": "Telemetry",
       "status": "IMPLEMENTED",
       "module": "discovery-service,uacrf-contracts",
-      "implemented": "CanonicalEvidenceEvent & ObservationDto preserving provider identifier, unit, value & rawReference",
+      "implemented": "CanonicalEvidenceEvent + CloudInventoryPollerGateway mapping AWS/GCP/Azure/OCI native types to Neo4jOntology",
       "whatIsLeft": "Additional third-party SaaS webhook adapters as onboarded"
     },
     {
@@ -1557,6 +1560,320 @@
       "implementedControls": ".github/workflows/ci.yml with Maven verify, OWASP/CycloneDX SBOM, Trivy, Gitleaks & CodeQL",
       "whatIsLeft": "Org-level branch protection rules & hardware signing key",
       "targetPhase": "COMPLETE"
+    }
+  ],
+  "cloudResourceFamilies": [
+    {
+      "ruleFamily": "INF-CMP",
+      "domain": "Compute & Autoscaling",
+      "canonicalLabel": "ComputeNode",
+      "aws": "EC2 Auto Scaling / AWS Config",
+      "azure": "VM / VM Scale Sets",
+      "gcp": "GCE / Managed Instance Groups",
+      "oci": "OCI Compute / Instance Pools",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S02 catalog.compute_placement + S03 CloudInventoryPollerGateway + CloudInventoryPollerTests",
+      "whatIsLeft": "Enable uacrf.discovery.adapters.<provider>.enabled=true with read-only IAM/WIF credentials"
+    },
+    {
+      "ruleFamily": "PLT-K8S",
+      "domain": "Kubernetes Control & Workloads",
+      "canonicalLabel": "Cluster",
+      "aws": "Amazon EKS",
+      "azure": "Azure AKS",
+      "gcp": "Google GKE",
+      "oci": "OCI OKE",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S02 compute_placement (EKS/AKS/GKE/OKE) + S03 poller/normalizer + S11 KubernetesLocalRollbackAdapter",
+      "whatIsLeft": "Live cluster read-only kubeconfig / cloud IAM bindings"
+    },
+    {
+      "ruleFamily": "APP-SLO",
+      "domain": "Serverless & App Runtimes",
+      "canonicalLabel": "ApplicationComponent",
+      "aws": "AWS Lambda / App Mesh",
+      "azure": "Azure Functions / Container Apps",
+      "gcp": "Cloud Run / Cloud Functions",
+      "oci": "OCI Functions",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S02 CLOUD_RUN support + S03 native type normalizers + S05 APP-SLO rules",
+      "whatIsLeft": "Live serverless invocation metric streams"
+    },
+    {
+      "ruleFamily": "INF-NET",
+      "domain": "Network, Load Balancing & DNS",
+      "canonicalLabel": "Network / DNSService",
+      "aws": "VPC / ELB / Route 53",
+      "azure": "VNet / Front Door / Traffic Manager / Azure DNS",
+      "gcp": "VPC / Cloud LB / Cloud DNS",
+      "oci": "VCN / OCI LB / OCI DNS",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "Neo4jOntology Network/DNSService + S03 normalizers + S11 CloudTrafficFailoverAdapter",
+      "whatIsLeft": "Live cloud Route53/TrafficManager/CloudDNS API credentials"
+    },
+    {
+      "ruleFamily": "INF-STO-OBJ",
+      "domain": "Object Storage & Immutability",
+      "canonicalLabel": "DataStore",
+      "aws": "Amazon S3 + Object Lock",
+      "azure": "Azure Blob + Immutability",
+      "gcp": "Cloud Storage + Bucket Lock",
+      "oci": "OCI Object Storage + Retention",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S04 ObjectLockWormClient + S03 S3/Blob/GCS/OSS normalizers + Terraform WORM buckets",
+      "whatIsLeft": "Live customer WORM bucket credentials & retention lock"
+    },
+    {
+      "ruleFamily": "INF-STO-BLK",
+      "domain": "Block & File Storage",
+      "canonicalLabel": "DataStore",
+      "aws": "EBS / EFS / FSx",
+      "azure": "Managed Disks / Azure Files",
+      "gcp": "Persistent Disk / Filestore",
+      "oci": "OCI Block Volumes / FSS",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S03 DataStore normalizer + S05 INF-STO rules + PITR backup script",
+      "whatIsLeft": "Live snapshot inventory poll credentials"
+    },
+    {
+      "ruleFamily": "INF-DB-REL",
+      "domain": "Relational Databases",
+      "canonicalLabel": "Database",
+      "aws": "Amazon RDS / Aurora",
+      "azure": "Azure SQL / Managed PostgreSQL",
+      "gcp": "Cloud SQL / AlloyDB / Spanner",
+      "oci": "OCI Autonomous DB / MySQL",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S03 RDS/CloudSQL/AzureSQL/ADB normalizers + S05 INF-DB/DAT-DB rules + P5 DATA_STORE check",
+      "whatIsLeft": "Live managed database replica/backup metrics"
+    },
+    {
+      "ruleFamily": "INF-DB-NOSQL",
+      "domain": "NoSQL & Distributed Stores",
+      "canonicalLabel": "Database",
+      "aws": "Amazon DynamoDB",
+      "azure": "Azure Cosmos DB",
+      "gcp": "Firestore / Bigtable",
+      "oci": "OCI NoSQL Database",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S03 DynamoDB/CosmosDB normalizers + S05 DAT-DB rules",
+      "whatIsLeft": "Live NoSQL table replication telemetry"
+    },
+    {
+      "ruleFamily": "PLT-MSG",
+      "domain": "Queues & Event Streams",
+      "canonicalLabel": "Queue",
+      "aws": "SQS / SNS / Kinesis / MSK",
+      "azure": "Service Bus / Event Hubs",
+      "gcp": "Pub/Sub / Managed Kafka",
+      "oci": "OCI Streaming / Queue",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S03 SQS/ServiceBus/PubSub/OCI Streaming normalizers + S05 PLT-QUE rules",
+      "whatIsLeft": "Live queue depth / DLQ metric stream"
+    },
+    {
+      "ruleFamily": "PLT-MSH",
+      "domain": "API Gateways & Ingress Mesh",
+      "canonicalLabel": "API",
+      "aws": "API Gateway / ALB / NLB",
+      "azure": "API Management / App Gateway",
+      "gcp": "Apigee / API Gateway / Service Mesh",
+      "oci": "OCI API Gateway",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S03 APIGW normalizers + EDGE01 gateway patterns",
+      "whatIsLeft": "Live ingress gateway telemetry"
+    },
+    {
+      "ruleFamily": "PLT-CICD",
+      "domain": "CI/CD & Artifact Deployment",
+      "canonicalLabel": "Deployment",
+      "aws": "CodePipeline / CodeDeploy",
+      "azure": "Azure DevOps / GitHub Actions",
+      "gcp": "Cloud Build / Cloud Deploy",
+      "oci": "OCI DevOps",
+      "status": "IMPLEMENTED",
+      "implemented": "GitHub Actions SSDF CI pipeline + S03 Deployment change ingestion + S11 rollback",
+      "whatIsLeft": "Live external CodeDeploy/CloudDeploy webhook integration"
+    },
+    {
+      "ruleFamily": "PLT-OBS-INV",
+      "domain": "Cloud Asset Inventory & Change",
+      "canonicalLabel": "EvidenceSource",
+      "aws": "AWS Config / Resource Explorer",
+      "azure": "Azure Resource Graph / Activity Log",
+      "gcp": "Cloud Asset Inventory",
+      "oci": "OCI Resource Search / Audit",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S03 CloudInventoryPollerGateway HTTPS pollers + /v1/inventory/* APIs + MockRestServiceServer tests",
+      "whatIsLeft": "Enabling live cloud read-only credentials (IAM/WIF/MI/IP)"
+    },
+    {
+      "ruleFamily": "PLT-OBS-TEL",
+      "domain": "Metrics, Logs & Traces",
+      "canonicalLabel": "EvidenceSource",
+      "aws": "CloudWatch / X-Ray / OTel",
+      "azure": "Azure Monitor / Log Analytics",
+      "gcp": "Cloud Monitoring / Logging / Trace",
+      "oci": "OCI Monitoring / Logging",
+      "status": "IMPLEMENTED",
+      "implemented": "S03 OtelReceiverAdapter + PiiPhiScrubber + infra/otel/otel-collector-config.yaml",
+      "whatIsLeft": "Live OTel Collector export from customer clusters"
+    },
+    {
+      "ruleFamily": "SEC-IAM",
+      "domain": "Identity, KMS & Secrets",
+      "canonicalLabel": "Identity / EncryptionKey",
+      "aws": "IAM / KMS / Secrets Manager",
+      "azure": "Entra ID / Key Vault / Managed Identity",
+      "gcp": "Cloud IAM / KMS / Secret Manager",
+      "oci": "OCI IAM / Vault",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S01 Keycloak/OAuth2 + uacrf-crypto FipsCryptoProfile + S03 KMS normalizer",
+      "whatIsLeft": "Customer HSM/KMS key ARNs & federated OIDC bindings"
+    },
+    {
+      "ruleFamily": "SEC-POSTURE",
+      "domain": "Security Posture & WAF",
+      "canonicalLabel": "Control",
+      "aws": "Security Hub / GuardDuty / WAF",
+      "azure": "Defender for Cloud / Sentinel",
+      "gcp": "Security Command Center / Cloud Armor",
+      "oci": "OCI Cloud Guard / WAF",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S05 SEC rules + S14 compliance crosswalk + EDGE01 security headers",
+      "whatIsLeft": "Live posture finding ingestion webhooks"
+    },
+    {
+      "ruleFamily": "GOV-RUN",
+      "domain": "Backup & Disaster Recovery",
+      "canonicalLabel": "RecoveryPath",
+      "aws": "AWS Backup / Elastic DR / ARC",
+      "azure": "Azure Backup / Site Recovery",
+      "gcp": "Backup and DR Service",
+      "oci": "OCI Full Stack DR",
+      "status": "IMPLEMENTED",
+      "implemented": "S07 P5 PathIndependenceCertifier + S11 CloudTrafficFailoverAdapter + PITR script",
+      "whatIsLeft": "Live multi-region DR game-day execution"
+    },
+    {
+      "ruleFamily": "AI-MODEL",
+      "domain": "AI Models, Endpoints & Feature Stores",
+      "canonicalLabel": "ModelEndpoint / AIModel / FeatureStore",
+      "aws": "SageMaker / Bedrock",
+      "azure": "Azure ML / Azure OpenAI",
+      "gcp": "Vertex AI / Feature Store",
+      "oci": "OCI Data Science / GenAI",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S02 agent_workload_profile + S03 AI-MODEL normalizers + S04 6-aspect AI checks + S08 Model Cards + S09 5-provider LLM gateway",
+      "whatIsLeft": "Customer AI endpoint credentials & live inference telemetry"
+    },
+    {
+      "ruleFamily": "GOV-CMP",
+      "domain": "Cloud Governance Policy",
+      "canonicalLabel": "Policy",
+      "aws": "AWS Config Conformance / SCP",
+      "azure": "Azure Policy Initiatives",
+      "gcp": "Organization Policy / OPA",
+      "oci": "OCI Security Zones",
+      "status": "IMPLEMENTED",
+      "implemented": "S10 PolicyAuthorityService + policies/baseline.rego verified on live OPA",
+      "whatIsLeft": "Customer org-level SCP/AzurePolicy/OrgPolicy sync"
+    },
+    {
+      "ruleFamily": "GOV-WFL",
+      "domain": "Durable Recovery Orchestration",
+      "canonicalLabel": "Runbook",
+      "aws": "Temporal on EKS / SSM / Step Functions",
+      "azure": "Temporal on AKS / Durable Functions",
+      "gcp": "Temporal on GKE / Cloud Workflows",
+      "oci": "Temporal on OKE / OCI Functions",
+      "status": "IMPLEMENTED",
+      "implemented": "S11 Temporal RecoveryWorkflowImpl + Helm chart + P6 validation/compensation",
+      "whatIsLeft": "Live cloud workflow runner IAM roles"
+    },
+    {
+      "ruleFamily": "GOV-TST",
+      "domain": "Controlled Fault Simulation",
+      "canonicalLabel": "ValidationPlan",
+      "aws": "AWS Fault Injection Service (FIS)",
+      "azure": "Azure Chaos Studio",
+      "gcp": "GCP Fault Injection / Chaos Mesh",
+      "oci": "Chaos Mesh on OKE",
+      "status": "IMPLEMENTED_STANDBY",
+      "implemented": "S13 fault experiment guardrails + S11 chaos adapter hooks (FIS/ChaosStudio/GCP)",
+      "whatIsLeft": "Live FIS / Chaos Studio / Fault Injection API execution"
+    }
+  ],
+  "canonicalNodeInventory": [
+    {
+      "domainGroup": "Evidence & Tenancy (5)",
+      "labels": "Tenant, Environment, EvidenceSource, EvidenceEvent, EvidenceQualification",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S01/S04 + Neo4jOntologyTest + GraphServiceIntegrationTest",
+      "whatIsLeft": "Live high-volume telemetry projection"
+    },
+    {
+      "domainGroup": "Cloud & Infrastructure (10)",
+      "labels": "CloudProvider, Account, Region, AvailabilityZone, FailureDomain, Cluster, ComputeNode, CloudResource, Network, DNSService",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S02 catalog.compute_placement + S03 CloudInventoryPollerGateway",
+      "whatIsLeft": "Live cloud asset poller credentials"
+    },
+    {
+      "domainGroup": "Service & Runtime (8)",
+      "labels": "Service, ApplicationComponent, Deployment, API, Queue, Database, DataStore, ExternalDependency",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S02 catalog.service + S03 normalizers + S06 Neo4jGraphGateway",
+      "whatIsLeft": "Live cloud service discovery credentials"
+    },
+    {
+      "domainGroup": "Identity, Ownership & Control (7)",
+      "labels": "Team, Identity, IdentityProvider, EncryptionKey, Control, Policy, SLO",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S01/S05/S10 + S14 compliance crosswalk",
+      "whatIsLeft": "Customer IdP/KMS directory sync"
+    },
+    {
+      "domainGroup": "AI & Data (6)",
+      "labels": "AIModel, ModelVersion, ModelEndpoint, FeatureStore, Dataset, ModelFallback",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S02 agent_workload_profile + S03 AI-MODEL normalizers + S04/S08/S09",
+      "whatIsLeft": "Customer ML registry webhook sync"
+    },
+    {
+      "domainGroup": "External Context (2)",
+      "labels": "ExternalProvider, Location",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + P5 VENDOR/REGION path independence checks",
+      "whatIsLeft": "External SaaS vendor feed"
+    },
+    {
+      "domainGroup": "Customer & Business (6)",
+      "labels": "CustomerJourney, JourneyStep, CustomerSegment, EssentialFunction, Impact, Outcome",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S02 customer_journey / journey_impact_profile + /journeys UI",
+      "whatIsLeft": "Customer ERP business-impact sync"
+    },
+    {
+      "domainGroup": "Recovery & Action (7)",
+      "labels": "Runbook, RecoveryPath, CandidateAction, Authorization, Execution, ValidationPlan, ValidationResult",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S10 P2/P3 + S11 Temporal + P6 8-layer validator",
+      "whatIsLeft": "Live cloud remediation IAM execution"
+    },
+    {
+      "domainGroup": "Decision Provenance (2)",
+      "labels": "GraphRevision, DecisionEnvelope",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S06 revision digests + S07 P1 signed DecisionEnvelope",
+      "whatIsLeft": "None (enforced in core)"
+    },
+    {
+      "domainGroup": "Collaborative Agents (5)",
+      "labels": "AgentAnalysisCase, AgentAssignment, AgentProposal, AgentDissentRecord, ArbitrationRecord",
+      "status": "IMPLEMENTED",
+      "implemented": "Neo4jOntology + S09 OrchestrationRunService + P7 DeterministicArbiter",
+      "whatIsLeft": "CI golden LLM regression harness"
     }
   ]
 }

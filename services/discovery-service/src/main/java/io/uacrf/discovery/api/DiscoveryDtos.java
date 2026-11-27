@@ -117,4 +117,95 @@ public final class DiscoveryDtos {
             String note
     ) {
     }
+
+    public record CloudInventoryProfile(
+            String provider,
+            boolean enabled,
+            String authMode,
+            String endpointUrl,
+            String sourceName,
+            Map<String, String> scopeMetadata
+    ) {
+    }
+
+    public record ResourceFamilyDescriptor(
+            String ruleFamily,
+            String domainName,
+            String canonicalNodeLabel,
+            String awsServices,
+            String azureServices,
+            String gcpServices,
+            String ociServices
+    ) {
+    }
+
+    public record RawCloudAssetRecord(
+            @NotBlank String resourceId,
+            @NotBlank String nativeType,
+            String displayName,
+            String serviceCanonicalId,
+            String region,
+            String availabilityZone,
+            String failureDomain,
+            String runtimeKind,
+            Integer minCapacity,
+            Integer maxCapacity,
+            Integer currentCapacity,
+            Map<String, String> tags
+    ) {
+    }
+
+    public record InventoryNormalizeRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID environmentId,
+            @NotBlank String provider,
+            String telemetrySource,
+            boolean persist,
+            @NotNull List<RawCloudAssetRecord> assets
+    ) {
+    }
+
+    public record InventoryPollRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID environmentId,
+            @NotBlank String provider,
+            String scopeFilter
+    ) {
+    }
+
+    public record NormalizedComputePlacementDto(
+            String serviceCanonicalId,
+            String cloudProvider,
+            String runtimeKind,
+            String region,
+            String availabilityZone,
+            String failureDomain,
+            String clusterOrPool,
+            int minCapacity,
+            int maxCapacity,
+            int currentCapacity,
+            boolean autoscalingEnabled
+    ) {
+    }
+
+    public record NormalizedAliasDto(
+            String serviceCanonicalId,
+            String cloudProvider,
+            String providerResourceId,
+            double confidence,
+            String sourceSystem,
+            Instant observedAt
+    ) {
+    }
+
+    public record InventoryNormalizationResult(
+            String provider,
+            String telemetrySource,
+            int assetsNormalized,
+            List<ObservationDto> observations,
+            List<DiscoveredEdgeDto> edges,
+            List<NormalizedComputePlacementDto> computePlacements,
+            List<NormalizedAliasDto> aliases
+    ) {
+    }
 }
