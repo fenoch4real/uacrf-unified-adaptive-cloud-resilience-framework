@@ -1,0 +1,124 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: uacrf-postgres
+    environment:
+      POSTGRES_USER: uacrf_admin
+      POSTGRES_PASSWORD: uacrf_dev_password
+      POSTGRES_DB: uacrf
+    ports:
+      - "5432:5432"
+    volumes:
+      - uacrf_pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uacrf_admin -d uacrf"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: uacrf-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/uacrf_neo4j_dev
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - uacrf_neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p uacrf_neo4j_dev 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: minio/minio:latest
+    container_name: uacrf-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: uacrf_minio
+      MINIO_ROOT_PASSWORD: uacrf_minio_dev_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - uacrf_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: uacrf-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 uacrf_minio uacrf_minio_dev_secret &&
+      mc mb -p --with-lock local/uacrf-evidence || true &&
+      mc mb -p local/uacrf-knowledge || true &&
+      exit 0
+      "
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: uacrf-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./infra/keycloak/uacrf-realm.json:/opt/keycloak/data/import/uacrf-realm.json:ro
+
+  opa:
+    image: openpolicyagent/opa:1.0.0
+    container_name: uacrf-opa
+    command:
+      - "run"
+      - "--server"
+      - "--addr=0.0.0.0:8181"
+      - "/policies"
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./policies:/policies:ro
+
+  temporal:
+    image: temporalio/auto-setup:1.25
+    container_name: uacrf-temporal
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: uacrf_admin
+      POSTGRES_PWD: uacrf_dev_password
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "7233:7233"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    container_name: uacrf-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./infra/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+
+volumes:
+  uacrf_pg_data:
+  uacrf_neo4j_data:
+  uacrf_minio_data:

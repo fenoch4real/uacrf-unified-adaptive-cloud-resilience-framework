@@ -1,0 +1,34 @@
+# Build outputs
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE & OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs & temp
+*.log
+logs/
+tmp/
+
+# Local secrets & private keys (never commit credentials)
+*.pem
+*.key
+*.p12
+*.jks
+.env
+.env.*
+!.env.example
+private-docs/
+
+# Node / Playwright artifacts
+node_modules/
+e2e/test-results/
+e2e/playwright-report/

@@ -1,0 +1,53 @@
+{
+  "realm": "uacrf",
+  "enabled": true,
+  "displayName": "UACRF Local Development Realm",
+  "clients": [
+    {
+      "clientId": "uacrf-ux",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "uacrf-ux-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:8080/*", "http://localhost:8081/*"],
+      "webOrigins": ["http://localhost:8080", "http://localhost:8081"]
+    },
+    {
+      "clientId": "uacrf-service-client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "uacrf-service-dev-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "maya.chen",
+      "email": "maya.chen@northstar.example",
+      "firstName": "Maya",
+      "lastName": "Chen",
+      "enabled": true,
+      "credentials": [{"type": "password", "value": "uacrf-dev-pass", "temporary": false}]
+    },
+    {
+      "username": "luis.romero",
+      "email": "luis.romero@northstar.example",
+      "firstName": "Luis",
+      "lastName": "Romero",
+      "enabled": true,
+      "credentials": [{"type": "password", "value": "uacrf-dev-pass", "temporary": false}]
+    },
+    {
+      "username": "daniel.reed",
+      "email": "daniel.reed@northstar.example",
+      "firstName": "Daniel",
+      "lastName": "Reed",
+      "enabled": true,
+      "credentials": [{"type": "password", "value": "uacrf-dev-pass", "temporary": false}]
+    }
+  ]
+}

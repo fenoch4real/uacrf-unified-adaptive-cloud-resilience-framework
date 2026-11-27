@@ -1,0 +1,36 @@
+name: UACRF CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  verify-ontology-and-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Neo4j ontology counts & JSON validity
+        run: |
+          node -e "
+          const fs = require('fs');
+          const cat = JSON.parse(fs.readFileSync('contracts/neo4j/ontology_catalog.json', 'utf8'));
+          if (cat.nodeLabels.length !== 58 || cat.relationshipTypes.length !== 55) {
+            throw new Error('Ontology mismatch: ' + cat.nodeLabels.length + ' / ' + cat.relationshipTypes.length);
+          }
+          console.log('Verified 58 Neo4j node labels and 55 relationship types');
+          "
+
+  maven-build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build and verify all Maven modules
+        run: mvn -B verify

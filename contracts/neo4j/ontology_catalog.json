@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0.0",
+  "alignmentRevision": 7,
+  "nodeLabels": [
+    "Tenant", "Environment", "EvidenceSource", "EvidenceEvent", "EvidenceQualification",
+    "CloudProvider", "Account", "Region", "AvailabilityZone", "FailureDomain",
+    "Cluster", "ComputeNode", "CloudResource", "Network", "DNSService",
+    "Service", "ApplicationComponent", "Deployment", "API", "Queue",
+    "Database", "DataStore", "ExternalDependency",
+    "Team", "Identity", "IdentityProvider", "EncryptionKey", "Control", "Policy", "SLO",
+    "AIModel", "ModelVersion", "ModelEndpoint", "FeatureStore", "Dataset", "ModelFallback",
+    "ExternalProvider", "Location",
+    "CustomerJourney", "JourneyStep", "CustomerSegment", "EssentialFunction", "Impact", "Outcome",
+    "Runbook", "RecoveryPath", "CandidateAction", "Authorization", "Execution", "ValidationPlan", "ValidationResult",
+    "GraphRevision", "DecisionEnvelope",
+    "AgentAnalysisCase", "AgentAssignment", "AgentProposal", "AgentDissentRecord", "ArbitrationRecord"
+  ],
+  "relationshipTypes": [
+    "EMITS", "DESCRIBES_STATE_OF", "QUALIFIED_BY", "CORRELATED_WITH", "SUPPORTED_BY_EVIDENCE", "CONTRADICTED_BY",
+    "SUPERSEDES",
+    "DEPENDS_ON", "ROUTES_TO", "CALLS",
+    "READS_FROM", "WRITES_TO",
+    "PUBLISHES_TO", "CONSUMES_FROM",
+    "RUNS_ON", "DEPLOYED_IN", "LOCATED_IN", "INSTANCE_OF", "IMPLEMENTS",
+    "PART_OF",
+    "MEMBER_OF_FAILURE_DOMAIN",
+    "REPLICATES_TO", "FALLBACK_TO",
+    "USES_MODEL", "SERVES_MODEL", "USES_FEATURES_FROM", "TRAINED_FROM", "USES_DATASET",
+    "USES_IDENTITY", "USES_KEY", "USES_DNS",
+    "OWNED_BY", "PROTECTED_BY",
+    "PROVIDED_BY",
+    "SUPPORTS_STEP", "PART_OF_JOURNEY", "ENABLES_FUNCTION", "SERVES_SEGMENT",
+    "GOVERNED_BY_SLO",
+    "AFFECTS", "CONTRIBUTES_TO", "MEASURED_BY",
+    "FAILURE_PROPAGATES_TO",
+    "TARGETED_BY_ACTION", "AUTHORIZED_BY", "EXECUTES", "USES_RUNBOOK", "USES_RECOVERY_PATH",
+    "VALIDATED_BY",
+    "BOUND_TO_REVISION", "RECORDED_IN",
+    "ASSIGNED_TO", "PRODUCES_PROPOSAL", "RAISES_DISSENT", "ARBITRATED_BY"
+  ],
+  "requiredCommonNodeProperties": [
+    "tenant_id", "canonical_id", "source_kind", "source_id", "provenance",
+    "confidence", "first_observed_at", "last_observed_at", "expires_at",
+    "lifecycle", "schema_version"
+  ],
+  "requiredCommonRelationshipProperties": [
+    "tenant_id", "relationship_id", "source_kind", "source_id", "provenance",
+    "confidence", "valid_from", "valid_to", "observed_at", "expires_at",
+    "graph_revision", "schema_version"
+  ]
+}
