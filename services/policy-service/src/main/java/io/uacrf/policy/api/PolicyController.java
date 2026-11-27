@@ -1,6 +1,7 @@
 package io.uacrf.policy.api;
 
 import io.uacrf.policy.api.PolicyDtos.*;
+import io.uacrf.policy.service.BreakGlassService;
 import io.uacrf.policy.service.PolicyAuthorityService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,9 +16,11 @@ import java.util.UUID;
 public class PolicyController {
 
     private final PolicyAuthorityService service;
+    private final BreakGlassService breakGlassService;
 
-    public PolicyController(PolicyAuthorityService service) {
+    public PolicyController(PolicyAuthorityService service, BreakGlassService breakGlassService) {
         this.service = service;
+        this.breakGlassService = breakGlassService;
     }
 
     @GetMapping("/proposals")
@@ -55,5 +58,16 @@ public class PolicyController {
     public Map<String, Object> consumeNonce(@RequestParam String nonce) {
         service.consumeNonce(nonce);
         return Map.of("nonce", nonce, "consumed", true);
+    }
+
+    @GetMapping("/break-glass")
+    public List<BreakGlassService.BreakGlassGrantDto> listBreakGlass(@RequestParam UUID tenantId, @RequestParam UUID environmentId) {
+        return breakGlassService.listGrants(tenantId, environmentId);
+    }
+
+    @PostMapping("/break-glass")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BreakGlassService.BreakGlassGrantDto issueBreakGlass(@Valid @RequestBody BreakGlassService.BreakGlassRequest request) {
+        return breakGlassService.issueBreakGlass(request);
     }
 }

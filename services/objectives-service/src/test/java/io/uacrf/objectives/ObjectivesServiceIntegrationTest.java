@@ -1,6 +1,7 @@
 package io.uacrf.objectives;
 
 import io.uacrf.objectives.api.ObjectivesDtos.EvaluateRiskRequest;
+import io.uacrf.objectives.service.ObjectiveImportService;
 import io.uacrf.objectives.service.ObjectivesControlService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,6 +29,9 @@ class ObjectivesServiceIntegrationTest {
 
     @Autowired
     private ObjectivesControlService service;
+
+    @Autowired
+    private ObjectiveImportService importService;
 
     @Test
     void evaluatesMultiLayerRulesIntoRiskStatesAndFailClosedUnknownOnStaleTelemetry() {
@@ -48,5 +53,24 @@ class ObjectivesServiceIntegrationTest {
                 99.9, 10.0, false, false, true
         ));
         assertEquals("UNKNOWN", unknown.riskState());
+
+        // Section 8 full layer rules (INF-CMP-001, INF-STR-001, INF-NET-001, PLT-QUE-001, DAT-DB-001)
+        var layerEval = service.evaluateRisk(new EvaluateRiskRequest(
+                TENANT_ID, ENV_ID, "urn:uacrf:svc:checkout", "Checkout service", "Place Order", "Maya Chen",
+                99.8, 40.0, false, false, false,
+                8.0, 88.0, 2.5, 120, 94.0
+        ));
+        assertEquals("CRITICAL", layerEval.riskState());
+        var ids = layerEval.triggeredRules().stream().map(r -> r.ruleId()).toList();
+        assertTrue(ids.containsAll(java.util.List.of("INF-CMP-001", "INF-STR-001", "INF-NET-001", "PLT-QUE-001", "DAT-DB-001")));
+
+        // S05 import preview & conflict resolution
+        var conflict = importService.previewImport(new ObjectiveImportService.ImportPreviewRequest(
+                TENANT_ID, ENV_ID, "urn:uacrf:svc:checkout", "http.availability",
+                new BigDecimal("99.95"), new BigDecimal("99.50")));
+        assertEquals("CONFLICT_DETECTED", conflict.resolutionStrategy());
+        var resolved = importService.resolveConflict(conflict.conflictId(),
+                new ObjectiveImportService.ResolveConflictRequest(TENANT_ID, ENV_ID, "KEEP_STRICT_LOCAL", "Maya Chen"));
+        assertEquals("KEEP_STRICT_LOCAL", resolved.resolutionStrategy());
     }
 }

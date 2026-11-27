@@ -2,6 +2,7 @@ package io.uacrf.catalog.api;
 
 import io.uacrf.catalog.api.CatalogDtos.*;
 import io.uacrf.catalog.service.CatalogService;
+import io.uacrf.catalog.service.ComputeAndAliasService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,9 +15,11 @@ import java.util.UUID;
 public class CatalogController {
 
     private final CatalogService service;
+    private final ComputeAndAliasService computeAliasService;
 
-    public CatalogController(CatalogService service) {
+    public CatalogController(CatalogService service, ComputeAndAliasService computeAliasService) {
         this.service = service;
+        this.computeAliasService = computeAliasService;
     }
 
     @GetMapping("/v1/services")
@@ -153,5 +156,31 @@ public class CatalogController {
             @Valid @RequestBody LinkSharedResourceConsumerRequest request) {
         service.linkSharedResourceConsumer(actorId, sharedAssetId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/v1/compute-placements")
+    public List<ComputeAndAliasService.ComputePlacementDto> listComputePlacements(
+            @RequestParam UUID tenantId, @RequestParam UUID environmentId) {
+        return computeAliasService.listPlacements(tenantId, environmentId);
+    }
+
+    @PostMapping("/v1/compute-placements")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ComputeAndAliasService.ComputePlacementDto registerComputePlacement(
+            @Valid @RequestBody ComputeAndAliasService.RegisterComputePlacementRequest request) {
+        return computeAliasService.registerPlacement(request);
+    }
+
+    @GetMapping("/v1/provider-aliases")
+    public List<ComputeAndAliasService.ProviderAliasDto> listProviderAliases(
+            @RequestParam UUID tenantId, @RequestParam UUID environmentId) {
+        return computeAliasService.listAliases(tenantId, environmentId);
+    }
+
+    @PostMapping("/v1/provider-aliases")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ComputeAndAliasService.ProviderAliasDto registerProviderAlias(
+            @Valid @RequestBody ComputeAndAliasService.RegisterProviderAliasRequest request) {
+        return computeAliasService.registerAlias(request);
     }
 }

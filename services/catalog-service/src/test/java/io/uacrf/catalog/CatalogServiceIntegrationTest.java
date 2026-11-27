@@ -29,6 +29,9 @@ class CatalogServiceIntegrationTest {
     @Autowired
     private CatalogService catalogService;
 
+    @Autowired
+    private io.uacrf.catalog.service.ComputeAndAliasService computeAliasService;
+
     private static final UUID TENANT_ID = UUID.fromString("11111111-1111-7111-8111-111111111111");
     private static final UUID ENV_ID = UUID.fromString("22222222-2222-7222-8222-222222222222");
     private static final UUID OWNER_ID = UUID.fromString("33333333-3333-7333-8333-333333333303");
@@ -95,5 +98,25 @@ class CatalogServiceIntegrationTest {
         assertEquals(1, detail.steps().size());
         assertEquals(1, detail.capabilities().size());
         assertEquals("APPROVED", detail.latestImpactProfile().assessmentStatus());
+
+        // 3. Multi-cloud compute placement & FR-CAT-003 provider alias conflict detection
+        var placements = computeAliasService.listPlacements(TENANT_ID, ENV_ID);
+        assertEquals(3, placements.size());
+        assertTrue(placements.stream().anyMatch(p -> "OCI".equals(p.cloudProvider()) && "OKE".equals(p.runtimeKind())));
+
+        var azurePlacement = computeAliasService.registerPlacement(
+                new io.uacrf.catalog.service.ComputeAndAliasService.RegisterComputePlacementRequest(
+                        TENANT_ID, ENV_ID, "urn:uacrf:svc:fraud-api", "AZURE", "AKS",
+                        "eastus2", "eastus2-1", "fd-azure-eastus2", "aks-fraud-pool", 2, 16, 4, true));
+        assertEquals("AZURE", azurePlacement.cloudProvider());
+
+        computeAliasService.registerAlias(new io.uacrf.catalog.service.ComputeAndAliasService.RegisterProviderAliasRequest(
+                TENANT_ID, ENV_ID, "urn:uacrf:svc:payment", "AWS", "arn:aws:eks:us-east-1:123:cluster/pay",
+                new BigDecimal("0.99"), "AWS_CONFIG"));
+        CatalogDomainException aliasConflict = assertThrows(CatalogDomainException.class, () ->
+                computeAliasService.registerAlias(new io.uacrf.catalog.service.ComputeAndAliasService.RegisterProviderAliasRequest(
+                        TENANT_ID, ENV_ID, "urn:uacrf:svc:other", "AWS", "arn:aws:eks:us-east-1:123:cluster/pay",
+                        new BigDecimal("0.95"), "MANUAL")));
+        assertEquals("ALIAS_CONFLICT", aliasConflict.getCode());
     }
 }

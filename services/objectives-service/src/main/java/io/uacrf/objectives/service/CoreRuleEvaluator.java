@@ -59,6 +59,42 @@ public class CoreRuleEvaluator {
             }
         }
 
+        if (req.computeHeadroomPct() != null && req.computeHeadroomPct() < 15.0) {
+            triggered.add(new TriggeredRuleDto("INF-CMP-001", "INFRASTRUCTURE", "ELEVATED",
+                    "Compute autoscaling headroom fell to " + req.computeHeadroomPct() + "% (minimum 15%)."));
+            if ("NORMAL".equals(state) || "GUARDED".equals(state)) {
+                state = "ELEVATED";
+            }
+        }
+
+        if (req.storageIopsSaturationPct() != null && req.storageIopsSaturationPct() > 80.0) {
+            triggered.add(new TriggeredRuleDto("INF-STR-001", "INFRASTRUCTURE", "ELEVATED",
+                    "Storage IOPS saturation reached " + req.storageIopsSaturationPct() + "%."));
+            if ("NORMAL".equals(state) || "GUARDED".equals(state)) {
+                state = "ELEVATED";
+            }
+        }
+
+        if (req.networkPacketLossPct() != null && req.networkPacketLossPct() > 1.0) {
+            triggered.add(new TriggeredRuleDto("INF-NET-001", "INFRASTRUCTURE", "CRITICAL",
+                    "Network packet loss breached 1.0% threshold (" + req.networkPacketLossPct() + "%)."));
+            state = "CRITICAL";
+        }
+
+        if (req.queueDeadLetterCount() != null && req.queueDeadLetterCount() > 50) {
+            triggered.add(new TriggeredRuleDto("PLT-QUE-001", "PLATFORM", "ELEVATED",
+                    "Async queue DLQ backlog accumulated " + req.queueDeadLetterCount() + " messages."));
+            if ("NORMAL".equals(state) || "GUARDED".equals(state)) {
+                state = "ELEVATED";
+            }
+        }
+
+        if (req.dbConnectionPoolPct() != null && req.dbConnectionPoolPct() > 90.0) {
+            triggered.add(new TriggeredRuleDto("DAT-DB-001", "DATA", "CRITICAL",
+                    "Database connection pool exhaustion reached " + req.dbConnectionPoolPct() + "%."));
+            state = "CRITICAL";
+        }
+
         if (Boolean.TRUE.equals(req.aiSafetyDriftDetected())) {
             triggered.add(new TriggeredRuleDto("AI-SAF-001", "AI_DATA", "ELEVATED",
                     "Protected AI dependency subgroup safety or feature drift flagged."));

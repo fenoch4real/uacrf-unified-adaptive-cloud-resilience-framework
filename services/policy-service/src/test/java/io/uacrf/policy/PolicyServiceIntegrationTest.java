@@ -52,6 +52,9 @@ class PolicyServiceIntegrationTest {
     @Autowired
     private PolicyAuthorityService service;
 
+    @Autowired
+    private io.uacrf.policy.service.BreakGlassService breakGlassService;
+
     @Test
     void enforcesSeparationOfDutiesP2GraphDeltaInvalidationAndP3SingleUseNonce() {
         // Proposer cannot approve own proposal
@@ -95,5 +98,18 @@ class PolicyServiceIntegrationTest {
         ));
         assertEquals("PREAUTHORIZED", opaProposal.policyOutcome());
         assertTrue(opaProposal.policyReasons().contains("NONPROD_REVERSIBLE_CERTIFIED_PATTERN"));
+
+        // FR-APR-002 Break-Glass requires MFA step-up & locks post-incident review
+        PolicyDomainException mfaEx = assertThrows(PolicyDomainException.class, () ->
+                breakGlassService.issueBreakGlass(new io.uacrf.policy.service.BreakGlassService.BreakGlassRequest(
+                        TENANT_ID, ENV_ID, "urn:uacrf:svc:checkout", "K8S_ROLLBACK_DEPLOYMENT",
+                        "Maya Chen", "Emergency Sev1 checkout outage", false, 30)));
+        assertEquals("MFA_STEP_UP_REQUIRED", mfaEx.getCode());
+
+        var bg = breakGlassService.issueBreakGlass(new io.uacrf.policy.service.BreakGlassService.BreakGlassRequest(
+                TENANT_ID, ENV_ID, "urn:uacrf:svc:checkout", "K8S_ROLLBACK_DEPLOYMENT",
+                "Maya Chen", "Emergency Sev1 checkout outage", true, 30));
+        assertEquals("REQUIRED_OPEN", bg.postIncidentReviewStatus());
+        assertNotNull(bg.signedJwsGrant());
     }
 }

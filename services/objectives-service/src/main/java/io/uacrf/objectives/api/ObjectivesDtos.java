@@ -71,7 +71,21 @@ public final class ObjectivesDtos {
             Double cpuSaturationPct,
             Boolean securityAlertActive,
             Boolean aiSafetyDriftDetected,
-            Boolean telemetryStale
+            Boolean telemetryStale,
+            Double computeHeadroomPct,
+            Double storageIopsSaturationPct,
+            Double networkPacketLossPct,
+            Integer queueDeadLetterCount,
+            Double dbConnectionPoolPct
     ) {
+        public EvaluateRiskRequest(UUID tenantId, UUID environmentId, String serviceCanonicalId,
+                                   String serviceName, String journeyName, String ownerName,
+                                   Double orderSuccessRatePct, Double cpuSaturationPct,
+                                   Boolean securityAlertActive, Boolean aiSafetyDriftDetected,
+                                   Boolean telemetryStale) {
+            this(tenantId, environmentId, serviceCanonicalId, serviceName, journeyName, ownerName,
+                    orderSuccessRatePct, cpuSaturationPct, securityAlertActive, aiSafetyDriftDetected,
+                    telemetryStale, null, null, null, null, null);
+        }
     }
 }

@@ -39,6 +39,12 @@ public class EvidenceQualificationService {
                         HttpStatus.NOT_FOUND, "EVIDENCE_PACKAGE_NOT_FOUND", "Evidence package not found"));
     }
 
+    public Map<String, Object> verifyBlobMetadata(UUID tenantId, String objectKey) {
+        return repository.findImmutableBlob(tenantId, objectKey)
+                .orElseThrow(() -> new EvidenceDomainException(
+                        HttpStatus.NOT_FOUND, "WORM_BLOB_NOT_FOUND", "Immutable evidence blob not found: " + objectKey));
+    }
+
     @Transactional
     public EvidencePackageDto submitEvidence(UUID packageId, SubmitEvidenceRequest req) {
         EvidencePackageDto pkg = getPackage(req.tenantId(), req.environmentId(), packageId);

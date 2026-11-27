@@ -12,6 +12,35 @@ spring:
     schemas: advisory,integration
     default-schema: advisory
 
+uacrf:
+  advisory:
+    llm:
+      enabled: ${UACRF_LLM_ENABLED:false}
+      # Select provider: DETERMINISTIC | OPENAI | AMAZON_BEDROCK | AZURE_OPENAI | GOOGLE_VERTEX | OCI_GENAI
+      provider: ${UACRF_LLM_PROVIDER:DETERMINISTIC}
+      api-key: ${UACRF_LLM_API_KEY:}
+      openai:
+        endpoint-url: ${UACRF_OPENAI_URL:https://api.openai.com/v1/chat/completions}
+        model: ${UACRF_OPENAI_MODEL:gpt-4o-mini}
+      bedrock:
+        region: ${UACRF_BEDROCK_REGION:us-east-1}
+        model-id: ${UACRF_BEDROCK_MODEL_ID:anthropic.claude-3-5-sonnet-20240620-v1:0}
+        endpoint-url: ${UACRF_BEDROCK_URL:}
+      azure:
+        endpoint-url: ${UACRF_AZURE_OPENAI_URL:https://example.openai.azure.com/openai/deployments/uacrf-gpt4o/chat/completions}
+        api-version: ${UACRF_AZURE_OPENAI_API_VERSION:2024-10-21}
+        deployment: ${UACRF_AZURE_OPENAI_DEPLOYMENT:uacrf-gpt4o}
+      google:
+        project-id: ${UACRF_GCP_VERTEX_PROJECT:uacrf-project}
+        location: ${UACRF_GCP_VERTEX_LOCATION:us-central1}
+        model: ${UACRF_GCP_VERTEX_MODEL:gemini-2.0-flash}
+        endpoint-url: ${UACRF_GCP_VERTEX_URL:}
+      oci:
+        region: ${UACRF_OCI_GENAI_REGION:us-chicago-1}
+        compartment-ocid: ${UACRF_OCI_COMPARTMENT_OCID:}
+        model-id: ${UACRF_OCI_GENAI_MODEL_ID:cohere.command-r-plus}
+        endpoint-url: ${UACRF_OCI_GENAI_URL:}
+
 management:
   endpoints:
     web:

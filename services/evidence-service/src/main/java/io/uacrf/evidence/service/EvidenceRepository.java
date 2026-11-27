@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -88,6 +89,15 @@ public class EvidenceRepository {
                 VALUES (?, ?, ?, ?, 'application/json', TRUE, ?::jsonb)
                 ON CONFLICT (object_key) DO NOTHING
                 """, UUID.randomUUID(), tenantId, objectKey, sha256Digest, payloadJson);
+    }
+
+    public Optional<Map<String, Object>> findImmutableBlob(UUID tenantId, String objectKey) {
+        var rows = jdbc.queryForList("""
+                SELECT blob_id, object_key, sha256_digest, worm_locked, octet_length(payload_json::text) AS byte_length
+                FROM evidence.object_blob
+                WHERE tenant_id = ? AND object_key = ?
+                """, tenantId, objectKey);
+        return rows.stream().findFirst();
     }
 
     public List<AiDependencyEvidenceDto> listAiEvidence(UUID tenantId, UUID environmentId, String serviceCanonicalId) {

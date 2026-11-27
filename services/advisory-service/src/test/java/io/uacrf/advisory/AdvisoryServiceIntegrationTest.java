@@ -6,6 +6,7 @@ import io.uacrf.advisory.api.AdvisoryDtos.ReviewFindingRequest;
 import io.uacrf.advisory.api.AdvisoryDtos.RunAdvisoryRequest;
 import io.uacrf.advisory.service.AdvisoryAgentService;
 import io.uacrf.advisory.service.EnterpriseLlmGateway;
+import io.uacrf.advisory.service.OrchestrationRunService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -36,6 +38,9 @@ class AdvisoryServiceIntegrationTest {
 
     @Autowired
     private EnterpriseLlmGateway llmGateway;
+
+    @Autowired
+    private OrchestrationRunService orchestrationService;
 
     @Test
     void blocksPromptInjectionPreservesCriticDissentAndArbitratesDeterministicallyAcrossPermutations() {
@@ -78,5 +83,39 @@ class AdvisoryServiceIntegrationTest {
         AdvisoryDomainException ssrfEx = assertThrows(AdvisoryDomainException.class, () ->
                 llmGateway.validateSafeEndpoint("http://169.254.169.254/latest/meta-data/"));
         assertEquals("SSRF_EGRESS_BLOCKED", ssrfEx.getCode());
+
+        // 5. Multi-Provider LLM Profiles cover OpenAI, Amazon Bedrock, Azure OpenAI, Google Vertex, and OCI GenAI
+        var providers = llmGateway.listProviderProfiles().stream()
+                .map(EnterpriseLlmGateway.LlmProviderProfile::provider)
+                .toList();
+        assertTrue(providers.containsAll(List.of("OPENAI", "AMAZON_BEDROCK", "AZURE_OPENAI", "GOOGLE_VERTEX", "OCI_GENAI")));
+        assertTrue(llmGateway.buildProviderPayload("AMAZON_BEDROCK", "hi", "ctx").containsKey("system"));
+        assertTrue(llmGateway.buildProviderPayload("GOOGLE_VERTEX", "hi", "ctx").containsKey("contents"));
+        assertTrue(llmGateway.buildProviderPayload("AZURE_OPENAI", "hi", "ctx").containsKey("messages"));
+        assertTrue(llmGateway.buildProviderPayload("OCI_GENAI", "hi", "ctx").containsKey("chatRequest"));
+
+        // 6. Async Orchestration Run Ledger: idempotent admission, checkpoint digest, cancellation fencing & bounded resume
+        var admitted = orchestrationService.admitRun(new OrchestrationRunService.AdmitRunRequest(
+                TENANT_ID, ENV_ID, "fraud-support-agent", "run-idem-1", 4, 1000, 50, 30, "Daniel Reed"));
+        var duplicate = orchestrationService.admitRun(new OrchestrationRunService.AdmitRunRequest(
+                TENANT_ID, ENV_ID, "fraud-support-agent", "run-idem-1", 4, 1000, 50, 30, "Daniel Reed"));
+        assertEquals(admitted.runId(), duplicate.runId());
+
+        var stepped = orchestrationService.recordStepCheckpoint(admitted.runId(),
+                new OrchestrationRunService.StepCheckpointRequest(250, 10, Map.of("step", 1, "state", "ok")));
+        assertEquals(1, stepped.stepsUsed());
+        assertNotNull(stepped.checkpointSha256());
+
+        var resumed = orchestrationService.resumeFromCheckpoint(stepped.runId(),
+                new OrchestrationRunService.ResumeRunRequest("resume-idem-1", stepped.checkpointSha256(), "Daniel Reed"));
+        assertEquals(stepped.runId(), resumed.parentRunId());
+        assertEquals(3, resumed.maxSteps());
+        assertEquals(750, resumed.maxTokens());
+
+        orchestrationService.cancelRun(resumed.runId(), "Operator abort");
+        AdvisoryDomainException fencedEx = assertThrows(AdvisoryDomainException.class, () ->
+                orchestrationService.recordStepCheckpoint(resumed.runId(),
+                        new OrchestrationRunService.StepCheckpointRequest(50, 2, Map.of("step", 2))));
+        assertEquals("RUN_FENCED", fencedEx.getCode());
     }
 }

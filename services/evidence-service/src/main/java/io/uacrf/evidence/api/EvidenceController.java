@@ -54,4 +54,9 @@ public class EvidenceController {
     public List<AiDependencyEvidenceDto> qualifyAiAspect(@Valid @RequestBody UpdateAiEvidenceRequest request) {
         return service.qualifyAiAspect(request);
     }
+
+    @GetMapping("/blobs/verify")
+    public java.util.Map<String, Object> verifyBlob(@RequestParam UUID tenantId, @RequestParam String objectKey) {
+        return service.verifyBlobMetadata(tenantId, objectKey);
+    }
 }
