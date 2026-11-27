@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: UACRF S09 Solution-Specific Agent Advisors & Deterministic Arbitration API
+  version: 1.0.0
+paths:
+  /v1/advisory/config:
+    get: { summary: Get advisory budget & kill switch config, responses: { '200': { description: Config } } }
+  /v1/advisory/config/toggle:
+    post: { summary: Toggle advisory kill switch, responses: { '200': { description: Updated config } } }
+  /v1/advisory/findings:
+    get: { summary: List advisory findings with critic dissent, responses: { '200': { description: Findings } } }
+  /v1/advisory/runs:
+    post: { summary: Run bounded solution-specific advisor case with prompt-injection firewall, responses: { '200': { description: Draft finding }, '422': { description: PROMPT_INJECTION_BLOCKED } } }
+  /v1/advisory/findings/{findingId}/review:
+    post: { summary: Record human review while preserving unresolved blocking dissent, responses: { '200': { description: Updated findings } } }
+  /v1/advisory/arbitrate:
+    post: { summary: Run P7 permutation-invariant deterministic non-majority arbiter, responses: { '200': { description: ArbitratedOutcome } } }

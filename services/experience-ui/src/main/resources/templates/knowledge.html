@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Knowledge, Learning & Paper Benchmarks', 'Resources & Advisory / Knowledge', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Governed knowledge, learning closures &amp; quantitative benchmarks</h1>
+        <p class="text-secondary mb-0">Approved runbooks/ADRs are reference-only (never substitute missing evidence). Learning items require verified artifact digests before closing.</p>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Governed knowledge corpus (S08)</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Code</th><th>Kind</th><th>Title</th><th>Status</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(articles)}"><td colspan="4" class="small text-secondary">No knowledge articles loaded.</td></tr>
+                    <tr th:each="a : ${articles}">
+                        <td class="small font-monospace fw-bold" th:text="${a['docCode']}"></td>
+                        <td class="small" th:text="${a['docKind']}"></td>
+                        <td class="small" th:text="${a['title']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-success" th:text="${a['status']}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="uacrf-card h-100">
+                <h2 class="h5 fw-bold mb-3">Closed-loop learning items (S12)</h2>
+                <div th:if="${#lists.isEmpty(learningItems)}" class="small text-secondary">No learning items open.</div>
+                <div th:each="l : ${learningItems}" class="border rounded p-2 mb-2">
+                    <div class="fw-semibold small" th:text="${l['incidentRef'] + ' · ' + l['title']}"></div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <span class="small text-secondary" th:text="'Target: ' + ${l['targetArtifactType']}"></span>
+                        <span class="uacrf-pill"
+                              th:classappend="${l['status'] == 'CLOSED'} ? 'uacrf-pill-success' : 'uacrf-pill-warning'"
+                              th:text="${l['status']}"></span>
+                    </div>
+                    <form th:if="${l['status'] != 'CLOSED'}" th:action="@{'/knowledge/learning/' + ${l['learningId']} + '/close'}" method="post" class="d-flex gap-2 mt-2">
+                        <input name="verificationDigest" class="form-control form-control-sm" placeholder="Verified artifact SHA-256 (required)">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Close</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="uacrf-card" th:if="${!#maps.isEmpty(benchmarks)}">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h2 class="h5 fw-bold mb-0">Academic Paper Section 10.5 Quantitative Shadow Model &amp; Ablations</h2>
+                <div class="small text-secondary" th:text="${benchmarks['citation']}"></div>
+            </div>
+            <span class="badge text-bg-dark font-monospace"
+                  th:if="${benchmarks['sampleShadowState'] != null}"
+                  th:text="'Shadow ER(t) = ' + ${benchmarks['sampleShadowState']['effectiveResilience']} + ' | S(t) = ' + ${benchmarks['sampleShadowState']['systemicRiskScore']}"></span>
+        </div>
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light"><tr><th>Experiment Variant</th><th>MTTD (s)</th><th>Cascade Nodes</th><th>MTTR (min)</th><th>Effective Resilience ER</th><th>Harmful Action Rate</th></tr></thead>
+            <tbody>
+            <tr th:each="b : ${benchmarks['benchmarks']}">
+                <td class="fw-semibold small" th:text="${b['variant']}"></td>
+                <td class="small" th:text="${b['mttdSeconds']}"></td>
+                <td class="small" th:text="${b['cascadeSizeNodes']}"></td>
+                <td class="small" th:text="${b['mttrMinutes']}"></td>
+                <td class="small fw-bold text-primary" th:text="${b['effectiveResilience']}"></td>
+                <td class="small" th:text="${b['harmfulActionRate']}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+</html>

@@ -16,6 +16,8 @@ uacrf:
     objectives-base-url: ${UACRF_OBJECTIVES_URL:http://localhost:8088}
     policy-base-url: ${UACRF_POLICY_URL:http://localhost:8089}
     recovery-base-url: ${UACRF_RECOVERY_URL:http://localhost:8090}
+    knowledge-base-url: ${UACRF_KNOWLEDGE_URL:http://localhost:8091}
+    advisory-base-url: ${UACRF_ADVISORY_URL:http://localhost:8092}
     connect-timeout-ms: 2000
     read-timeout-ms: 10000
 

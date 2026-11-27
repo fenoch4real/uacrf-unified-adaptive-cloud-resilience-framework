@@ -726,11 +726,77 @@ public class PortalController {
         return "redirect:/recover";
     }
 
-    @GetMapping({"/knowledge", "/advisory"})
-    public String upcomingMilestonePlaceholder(Model model, jakarta.servlet.http.HttpServletRequest request) {
-        String path = request.getRequestURI().replace("/", "");
-        model.addAttribute("activeNav", path);
-        model.addAttribute("moduleTitle", path.substring(0, 1).toUpperCase() + path.substring(1));
-        return "milestone-placeholder";
+    @GetMapping("/knowledge")
+    public String knowledge(Model model,
+                            @ModelAttribute("tenantId") UUID tenantId,
+                            @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "knowledge");
+        model.addAttribute("articles", edge.getList("/v1/knowledge/articles?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("learningItems", edge.getList("/v1/learning/items?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("benchmarks", edge.getObjectOrEmpty("/v1/quantitative/benchmarks"));
+        return "knowledge";
+    }
+
+    @PostMapping("/knowledge/learning/{learningId}/close")
+    public String closeLearning(@PathVariable UUID learningId,
+                                @ModelAttribute("tenantId") UUID tenantId,
+                                @ModelAttribute("environmentId") UUID envId,
+                                @ModelAttribute("actorId") UUID actorId,
+                                @RequestParam(required = false) String verificationDigest,
+                                RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/learning/items/" + learningId + "/close", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "verificationDigest", verificationDigest != null ? verificationDigest : ""
+            ));
+            ra.addFlashAttribute("flashSuccess", "Learning item verified and closed.");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/knowledge";
+    }
+
+    @GetMapping("/advisory")
+    public String advisory(Model model,
+                           @ModelAttribute("tenantId") UUID tenantId,
+                           @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "advisory");
+        model.addAttribute("config", edge.getObjectOrEmpty("/v1/advisory/config?tenantId=" + tenantId + "&environmentId=" + envId));
+        model.addAttribute("findings", edge.getList("/v1/advisory/findings?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        return "advisory";
+    }
+
+    @PostMapping("/advisory/toggle")
+    public String toggleAdvisory(@ModelAttribute("tenantId") UUID tenantId,
+                                 @ModelAttribute("environmentId") UUID envId,
+                                 @ModelAttribute("actorId") UUID actorId,
+                                 @RequestParam boolean enabled,
+                                 RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/advisory/config/toggle?tenantId=" + tenantId + "&environmentId=" + envId + "&enabled=" + enabled,
+                    actorId, null, Map.of());
+            ra.addFlashAttribute("flashSuccess", "Solution-specific agent advisors enabled=" + enabled);
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/advisory";
+    }
+
+    @PostMapping("/advisory/findings/{findingId}/review")
+    public String reviewAdvisoryFinding(@PathVariable UUID findingId,
+                                        @ModelAttribute("tenantId") UUID tenantId,
+                                        @ModelAttribute("environmentId") UUID envId,
+                                        @ModelAttribute("actorId") UUID actorId,
+                                        @RequestParam String decision,
+                                        RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/advisory/findings/" + findingId + "/review", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId, "decision", decision
+            ));
+            ra.addFlashAttribute("flashSuccess", "Advisory review decision recorded (" + decision + "); blocking dissent preserved.");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/advisory";
     }
 }

@@ -1,0 +1,19 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: advisory-service
+  datasource:
+    url: ${UACRF_ADVISORY_DB_URL:jdbc:postgresql://localhost:5432/uacrf_advisory}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: advisory,integration
+    default-schema: advisory
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

@@ -40,6 +40,8 @@ public class EdgeProxyController {
     private final RestClient objectivesClient;
     private final RestClient policyClient;
     private final RestClient recoveryClient;
+    private final RestClient knowledgeClient;
+    private final RestClient advisoryClient;
 
     public EdgeProxyController(
             @Value("${uacrf.edge.identity-base-url}") String identityBaseUrl,
@@ -51,6 +53,8 @@ public class EdgeProxyController {
             @Value("${uacrf.edge.objectives-base-url}") String objectivesBaseUrl,
             @Value("${uacrf.edge.policy-base-url}") String policyBaseUrl,
             @Value("${uacrf.edge.recovery-base-url}") String recoveryBaseUrl,
+            @Value("${uacrf.edge.knowledge-base-url}") String knowledgeBaseUrl,
+            @Value("${uacrf.edge.advisory-base-url}") String advisoryBaseUrl,
             @Value("${uacrf.edge.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${uacrf.edge.read-timeout-ms:10000}") int readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -65,6 +69,8 @@ public class EdgeProxyController {
         this.objectivesClient = RestClient.builder().baseUrl(objectivesBaseUrl).requestFactory(factory).build();
         this.policyClient = RestClient.builder().baseUrl(policyBaseUrl).requestFactory(factory).build();
         this.recoveryClient = RestClient.builder().baseUrl(recoveryBaseUrl).requestFactory(factory).build();
+        this.knowledgeClient = RestClient.builder().baseUrl(knowledgeBaseUrl).requestFactory(factory).build();
+        this.advisoryClient = RestClient.builder().baseUrl(advisoryBaseUrl).requestFactory(factory).build();
     }
 
     @RequestMapping({"/v1/tenants/**", "/v1/principals", "/v1/principals/**", "/v1/owner-candidates",
@@ -121,6 +127,18 @@ public class EdgeProxyController {
     public ResponseEntity<byte[]> routeToRecovery(HttpServletRequest request,
                                                   @RequestBody(required = false) byte[] body) {
         return forward(recoveryClient, request, body, "RECOVERY_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/knowledge/**", "/v1/learning/**", "/v1/experiments", "/v1/experiments/**", "/v1/quantitative/**"})
+    public ResponseEntity<byte[]> routeToKnowledge(HttpServletRequest request,
+                                                   @RequestBody(required = false) byte[] body) {
+        return forward(knowledgeClient, request, body, "KNOWLEDGE_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/advisory", "/v1/advisory/**"})
+    public ResponseEntity<byte[]> routeToAdvisory(HttpServletRequest request,
+                                                  @RequestBody(required = false) byte[] body) {
+        return forward(advisoryClient, request, body, "ADVISORY_UNAVAILABLE");
     }
 
     private ResponseEntity<byte[]> forward(RestClient client, HttpServletRequest request,

@@ -37,6 +37,8 @@
         <module>services/objectives-service</module>
         <module>services/policy-service</module>
         <module>services/recovery-service</module>
+        <module>services/knowledge-service</module>
+        <module>services/advisory-service</module>
         <module>services/edge-gateway</module>
         <module>services/experience-ui</module>
     </modules>

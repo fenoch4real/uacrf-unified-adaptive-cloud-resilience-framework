@@ -1,0 +1,19 @@
+openapi: 3.1.0
+info:
+  title: UACRF S08/S12/S13 Knowledge, Learning, Experiments & Quantitative API
+  version: 1.0.0
+paths:
+  /v1/knowledge/articles:
+    get: { summary: List governed knowledge articles, responses: { '200': { description: Articles } } }
+    post: { summary: Submit article into quarantine, responses: { '201': { description: Quarantined article } } }
+  /v1/knowledge/articles/{articleId}/review:
+    post: { summary: Independently approve or withdraw article, responses: { '200': { description: Updated }, '403': { description: SELF_APPROVAL_FORBIDDEN } } }
+  /v1/learning/items:
+    get: { summary: List closed-loop learning items, responses: { '200': { description: Items } } }
+  /v1/learning/items/{learningId}/close:
+    post: { summary: Close learning item with verified digest, responses: { '200': { description: Closed }, '409': { description: VERIFICATION_REQUIRED } } }
+  /v1/experiments:
+    get: { summary: List controlled fault experiments, responses: { '200': { description: Experiments } } }
+    post: { summary: Run experiment with automatic SLO abort trigger, responses: { '200': { description: COMPLETED or ABORTED_BY_GUARDRAIL } } }
+  /v1/quantitative/benchmarks:
+    get: { summary: Run Paper Section 10.5 shadow state & ablation benchmark suite, responses: { '200': { description: PaperBenchmarkReport } } }

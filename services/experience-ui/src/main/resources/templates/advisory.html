@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Review Advisory Findings (P7)', 'Resources & Advisory / Advisory Tools', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h1 class="h3 fw-bold mb-0">Review advisory findings</h1>
+                <span class="uacrf-pill uacrf-pill-warning">Human review required</span>
+            </div>
+            <p class="text-secondary mb-0">Solution-specific agent advisors assist with analysis; critic dissent is preserved and never auto-cleared.</p>
+        </div>
+        <form th:action="@{/advisory/toggle}" method="post" class="d-flex align-items-center gap-2">
+            <span class="uacrf-pill"
+                  th:classappend="${config['advisoryEnabled'] == true} ? 'uacrf-pill-success' : 'uacrf-pill-danger'"
+                  th:text="${config['advisoryEnabled'] == true} ? 'Advisors Active' : 'Advisory Kill Switch ON'"></span>
+            <input type="hidden" name="enabled" th:value="${config['advisoryEnabled'] == true ? 'false' : 'true'}">
+            <button type="submit" class="btn btn-sm btn-outline-dark"
+                    th:text="${config['advisoryEnabled'] == true ? 'Disable Advisors' : 'Enable Advisors'}"></button>
+        </form>
+    </div>
+
+    <div th:if="${#lists.isEmpty(findings)}" class="uacrf-card">
+        <p class="mb-0 text-secondary">No advisory findings active yet.</p>
+    </div>
+
+    <div th:each="f : ${findings}" class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="uacrf-card h-100">
+                <div class="small text-secondary text-uppercase fw-bold mb-1">Finding</div>
+                <h2 class="h4 fw-bold mb-2" th:text="${f['headline']}"></h2>
+                <p class="text-secondary" th:text="${f['findingBody']}"></p>
+
+                <dl class="row small mb-3">
+                    <dt class="col-4 text-secondary">Producer role</dt><dd class="col-8 fw-semibold" th:text="${f['producerRole']}"></dd>
+                    <dt class="col-4 text-secondary">Case &amp; context</dt><dd class="col-8 font-monospace" th:text="${f['caseCode'] + ' · ' + f['contextRef']}"></dd>
+                    <dt class="col-4 text-secondary">Model / prompt</dt><dd class="col-8 font-monospace" th:text="${f['modelVersion'] + ' / ' + f['promptVersion']}"></dd>
+                    <dt class="col-4 text-secondary">Review decision</dt><dd class="col-8 fw-semibold" th:text="${f['reviewDecision']}"></dd>
+                </dl>
+
+                <h3 class="h6 fw-bold mb-2">Source citations</h3>
+                <div th:each="c : ${f['citations']}" class="border rounded p-2 mb-2 bg-light small">
+                    <strong class="font-monospace" th:text="${c['docCode']}"></strong>
+                    <span class="text-secondary" th:text="' · ' + ${c['docKind']} + ' — ' + ${c['title']}"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="uacrf-card border-warning mb-3" style="background: #fffbeb;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-warning-emphasis"><i class="bi bi-exclamation-triangle-fill me-1"></i>Critic dissent</span>
+                    <span class="uacrf-pill uacrf-pill-danger" th:text="${f['criticStatus'] + ' · ' + f['criticSeverity']}"></span>
+                </div>
+                <div class="fw-semibold small mb-1" th:text="${f['criticDissentHeadline']}"></div>
+                <p class="small text-secondary mb-2" th:text="${f['criticDissentBody']}"></p>
+                <div class="small text-secondary">Human reviewer: <strong th:text="${f['humanReviewer']}"></strong></div>
+            </div>
+
+            <div class="uacrf-card">
+                <h3 class="h6 fw-bold mb-2">Review options</h3>
+                <form th:action="@{'/advisory/findings/' + ${f['findingId']} + '/review'}" method="post" class="d-grid gap-2">
+                    <button type="submit" name="decision" value="REJECT_DRAFT" class="btn btn-outline-danger btn-sm">Reject draft</button>
+                    <button type="submit" name="decision" value="KEEP_FOR_REVIEW" class="btn btn-outline-dark btn-sm">Keep draft &amp; unresolved dissent for review</button>
+                </form>
+                <div class="small text-secondary mt-3">
+                    Accepting or editing draft wording does not qualify missing evidence, approve recovery, or suppress blocking critic dissent.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+</html>
