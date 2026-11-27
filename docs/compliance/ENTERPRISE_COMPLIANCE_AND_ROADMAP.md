@@ -20,8 +20,8 @@ flowchart LR
 
 ## Phase E2: Durable Workflows, Live Cloud/AI Adapters & `S14` Assurance (Est. 3–5 Days Engineering)
 - **E2.1 Temporal Java SDK Integration (`S11`):** Register durable Temporal workflows/activities for the recovery state machine (`PROPOSED -> EXECUTING -> VALIDATING -> SUCCEEDED/COMPENSATED`) with heartbeat, retry, and observation-window timers.
-- **E2.2 Live Multi-Cloud, K8s & OTel Adapters (`S03`, `S11`):** Implement `LiveK8sClusterAdapter` (tested via KinD), AWS/GCP/Azure read-only `TelemetryAdapter` beans, OTLP ingestion consumer, and mandatory PII/PHI scrubbing pipeline prior to raw payload archival.
-- **E2.3 Sandboxed LLM Provider Integration (`S09`):** Connect `AdvisoryAgentService` to configurable enterprise model endpoints (Azure OpenAI / Vertex / Bedrock) with strict schema validation and SHA-256 citation grounding against `S08`.
+- **E2.2 Live Multi-Cloud, K8s & OTel Adapters (`S03`, `S11`):** Implement `LiveK8sClusterAdapter` (tested via KinD), AWS/GCP/Azure/OCI read-only `TelemetryAdapter` beans (`AWS Config`, `GCP Asset Inventory`, `Azure Resource Graph`, `OCI Resource Search`), OTLP ingestion consumer, and mandatory PII/PHI scrubbing pipeline prior to raw payload archival.
+- **E2.3 Sandboxed LLM Provider Integration (`S09`):** Connect `AdvisoryAgentService` to configurable enterprise model endpoints (Azure OpenAI / Vertex / Bedrock / OCI GenAI) with strict schema validation and SHA-256 citation grounding against `S08`.
 - **E2.4 `S14` Commercial Metering & External Assurance Rooms (`reporting-service`):** Build `uacrf_reporting` service for protected asset metering, compliance crosswalk exports (**DORA / PRA / ISO 22301 / ISO 42001 / NIST AI RMF**), and watermarked time-bound auditor portals.
 
 ## Phase E3: Supply-Chain Integrity, Production IaC & Compliance Automation (Est. 2–4 Days Engineering)

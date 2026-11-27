@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-    Clouds["GCP / AWS / Azure / OTel / SAMPLE_LOCAL"] --> S03["S03 Discovery & Adapter SPI (:8084)"]
+    Clouds["GCP / AWS / Azure / OCI / OTel / SAMPLE_LOCAL"] --> S03["S03 Discovery & Adapter SPI (:8084)"]
     S03 -->|"Normalized Observations + Edges"| S04["S04 Evidence Qualification (:8085)"]
     S03 -->|"Ontology-Checked Topology"| S06["S06 Sole Neo4j Writer (:8086)"]
     S04 -->|"WORM Object Blobs + Verdicts"| PG_EV[("PostgreSQL evidence / MinIO")]

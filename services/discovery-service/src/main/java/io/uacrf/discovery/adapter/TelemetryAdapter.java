@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /**
  * Pluggable ingestion SPI for cloud inventory, distributed tracing, and synthetic lab fixtures.
- * Real cloud adapters (AWS, GCP, Azure, OTel) implement this interface without coupling S03 core
+ * Real cloud adapters (AWS, GCP, Azure, OCI, OTel) implement this interface without coupling S03 core
  * persistence or S04 qualification rules to provider SDKs.
  */
 public interface TelemetryAdapter {

@@ -1,6 +1,6 @@
 # UACRF — Unified Adaptive Cloud Resilience Framework
 
-> **Unified Cloud, Customer-Journey & AI-Agent Resilience Platform** implementing **Assess**, **Control**, **Recover**, **Evidence**, and **Learn** across heterogeneous cloud infrastructure (`GCP`, `AWS`, `Azure`, `Kubernetes`) and protected AI workloads.
+> **Unified Cloud, Customer-Journey & AI-Agent Resilience Platform** implementing **Assess**, **Control**, **Recover**, **Evidence**, and **Learn** across heterogeneous cloud infrastructure (`GCP`, `AWS`, `Azure`, `OCI`, `Kubernetes`) and protected AI workloads.
 
 ---
 

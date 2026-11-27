@@ -331,7 +331,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Cloud as AWS / GCP / Azure / OTel Collector
+    participant Cloud as AWS / GCP / Azure / OCI / OTel Collector
     participant SCRUB as PII/PHI/PAN Scrubber
     participant S03 as S03 Discovery Service
     participant RELAY as Outbox Relay Worker -> Kafka/Redpanda
@@ -398,4 +398,37 @@ sequenceDiagram
     S14->>S07: Fetch sealed DecisionEnvelopes & P5 path proofs
     S14->>S04: Fetch WORM qualification bundles & AI 6-aspect evidence
     S14-->>Auditor: Watermarked SOC 2 (CC1-CC9) / DORA / ISO 42001 / HIPAA Crosswalk Pack
+```
+
+
+---
+
+## SD-13: Four-Cloud Federated Discovery, Cross-Cloud Dependency Projection & Bounded Recovery (`GCP`, `AWS`, `Azure`, `OCI`)
+
+```mermaid
+sequenceDiagram
+    participant GCP as GCP (Asset Inv + GKE)
+    participant AWS as AWS (Config + EKS/ECS)
+    participant AZ as Azure (Resource Graph + AKS)
+    participant OCI as OCI (Resource Search + OKE + Vault)
+    participant S03 as S03 Multi-Cloud Discovery SPI
+    participant S04 as S04 Evidence + Cloud WORM Lock
+    participant S06 as S06 Neo4j + P5 Certifier
+    participant S11 as S11 Recovery Orchestrator (P3/P6)
+
+    par Federated Read-Only OIDC Discovery
+        S03->>GCP: Poll Cloud Asset Inventory & GKE Monitoring
+        S03->>AWS: AssumeRole -> Poll AWS Config & CloudWatch
+        S03->>AZ: Entra Token -> Poll Azure Resource Graph & Monitor
+        S03->>OCI: Instance/Workload Principal -> Poll OCI Resource Search & APM
+    end
+
+    S03->>S03: Normalize events + scrub PII/PHI/secrets
+    S03->>S04: Qualify operational & AI evidence + lock in WORM (S3 / GCS / Azure / OCI Retention)
+    S03->>S06: Project cross-cloud edges (Service -> CloudResource -> Region -> Provider -> FailureDomain)
+    S06->>S06: Validate P5 independence (ensure alternate path in OCI/AWS avoids failed GCP domain)
+
+    Note over S11,OCI: Bounded recovery executes on target cloud only after S10 approval & P2 delta check
+    S11->>GCP: (Example) Roll back defective GKE deployment OR shift traffic to healthy AWS/OCI endpoint
+    S11->>S11: Run P6 8-layer validation DAG & cross-cloud synthetic journey probe
 ```

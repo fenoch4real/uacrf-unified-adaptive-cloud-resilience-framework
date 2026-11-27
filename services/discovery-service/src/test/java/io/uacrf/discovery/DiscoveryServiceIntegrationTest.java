@@ -31,8 +31,9 @@ class DiscoveryServiceIntegrationTest {
     @Test
     void listsSeededConnectionsAndLoadsSampleLocalMultiCloudAndAiTelemetry() {
         var connections = service.listConnections(TENANT_ID, ENV_ID);
-        assertEquals(5, connections.size());
+        assertEquals(6, connections.size());
         assertTrue(connections.stream().anyMatch(c -> "AZURE".equals(c.provider()) && "ATTENTION_NEEDED".equals(c.status())));
+        assertTrue(connections.stream().anyMatch(c -> "OCI".equals(c.provider()) && "CONNECTED".equals(c.status())));
 
         var result = service.loadSampleLocalScenario(new SampleScenarioRequest(TENANT_ID, ENV_ID, "checkout-v43"));
         assertEquals("SAMPLE_LOCAL", result.telemetrySource());

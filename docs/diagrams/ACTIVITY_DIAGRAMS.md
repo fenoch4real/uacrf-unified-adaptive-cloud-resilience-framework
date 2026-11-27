@@ -9,7 +9,7 @@
 ```mermaid
 flowchart TD
     Start([Ingest Telemetry & Topology]) --> Mode{"Telemetry Provenance?"}
-    Mode -- "LIVE_ADAPTER" --> CollectLive["Collect AWS / GCP / Azure / OTel"]
+    Mode -- "LIVE_ADAPTER" --> CollectLive["Collect AWS / GCP / Azure / OCI / OTel"]
     Mode -- "SAMPLE_LOCAL" --> CollectSample["Generate SAMPLE_ONLY Lab Scenario"]
     CollectLive --> Project["S06 Validate 58 Labels / 55 Rels & Project to Neo4j"]
     CollectSample --> Project
@@ -234,4 +234,26 @@ flowchart TD
     Verify -- "Yes" --> Watermark["Bind Read-Only Watermarked Time-Limited Assurance Room"]
     Disclose --> Watermark
     Watermark --> AuditLog["Record Immutable Auditor Access Trail"]
+```
+
+
+---
+
+## AD-13: Four-Cloud Provider Onboarding, Workload Identity & Cross-Cloud Recovery Selection (`GCP`, `AWS`, `Azure`, `OCI`)
+
+```mermaid
+flowchart TD
+    Connect([Register Cloud Provider Connection in S03]) --> Provider{"Select Provider"}
+    Provider -- "GCP" --> BindGCP["Bind Read-Only GCP Service Account & Asset Inventory API"]
+    Provider -- "AWS" --> BindAWS["Bind Cross-Account Read-Only IAM Role (Config / CloudWatch)"]
+    Provider -- "Azure" --> BindAZ["Bind Read-Only Entra Managed Identity (Resource Graph / Monitor)"]
+    Provider -- "OCI" --> BindOCI["Bind Read-Only OCI IAM Dynamic Group / Policy (Search / APM / Cloud Guard)"]
+
+    BindGCP & BindAWS & BindAZ & BindOCI --> Health{"Collection Fresh & Healthy?"}
+    Health -- "No" --> Delayed["Flag Connector ATTENTION_NEEDED (Keep Missing Probes UNKNOWN)"]
+    Health -- "Yes" --> Graph["Project Nodes & Correlation Domains to Neo4j (58 Labels)"]
+    Graph --> PathCheck["Evaluate P5 Primary vs Alternate Cloud Recovery Path"]
+    PathCheck --> SharedDom{"Alternate Cloud Shares IdP, DNS, or KMS Domain?"}
+    SharedDom -- "Yes" --> NotIndep["Classify NOT_INDEPENDENT (Require Mitigation Plan)"]
+    SharedDom -- "No" --> Certified["Certify Cross-Cloud Failover (e.g. GCP <-> AWS <-> OCI <-> Azure)"]
 ```
