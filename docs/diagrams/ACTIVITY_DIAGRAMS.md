@@ -171,3 +171,67 @@ flowchart TD
     QuantStart([Paper Section 10.5 Quantitative Shadow Model]) --> Compute["Compute r(t+1), systemicRisk S(t), RCI(t), EffectiveResilience ER(t)"]
     Compute --> ShadowTag["Publish as SHADOW_NON_AUTHORITATIVE (Never overrides Core Safety Gates)"]
 ```
+
+
+---
+
+## Enterprise & Regulatory Compliance Activity Diagrams (`Phase E1–E4 Scope`)
+
+## AD-09: PII/PHI/PAN Scrubbing, Data Residency Routing & WORM Retention (`REG-GDPR`, `REG-HIPAA`)
+
+```mermaid
+flowchart TD
+    Ingest([Raw Telemetry or Trace Span Received]) --> RegionCheck{"Matches Tenant Residency Region?"}
+    RegionCheck -- "No" --> DropCross["Reject Cross-Region Egress (GDPR Residency)"]
+    RegionCheck -- "Yes" --> Scrub["Run PII / PHI / PAN / Secret Scrubber"]
+    Scrub --> GraphGuard{"Any Prohibited Key Remaining?"}
+    GraphGuard -- "Yes" --> BlockGraph["Block Neo4j Write + Log Violation"]
+    GraphGuard -- "No" --> StoreS3["Write Payload to In-Region S3 Object Lock (WORM)"]
+    StoreS3 --> EraseCheck{"GDPR Deletion Request?"}
+    EraseCheck -- "Yes" --> CryptoShred["Destroy Tenant KMS Data Key (Crypto-Shredding)"]
+    EraseCheck -- "No" --> Retain["Retain Immutable Audit Window"]
+```
+
+---
+
+## AD-10: Scheduled Neo4j Anti-Tamper Drift Reconciliation Activity (`FR-GPH-007`)
+
+```mermaid
+flowchart TD
+    Cron([Scheduled Reconciliation Tick in S06]) --> LoadPG["Load Active Subgraph Manifest Digest from PostgreSQL"]
+    LoadPG --> QueryNeo["Query Live Node & Edge Digest from Neo4j Cluster"]
+    QueryNeo --> Compare{"Digests Match?"}
+    Compare -- "Yes" --> Projected["Mark Revision State = PROJECTED"]
+    Compare -- "No" --> Drifted["Mark Revision State = DRIFTED & Emit Security Alert"]
+    Drifted --> Freeze["Block P2 Graph Delta Approval & S11 Executions Until Re-Reconciled"]
+```
+
+---
+
+## AD-11: CI/CD Supply-Chain Security & SSDF / SLSA Gate Activity (`REG-SSDF`, `REG-FEDRAMP`)
+
+```mermaid
+flowchart TD
+    Push([Commit / PR to main]) --> Tests["Run Maven Reactor + PG17 & Neo4j 5.26 Testcontainers"]
+    Tests --> Secrets["Run Gitleaks Secret Scan"]
+    Secrets --> SAST["Run CodeQL Static Analysis"]
+    SAST --> SBOM["Generate CycloneDX SBOM & Run Trivy Container CVE Scan"]
+    SBOM --> HighCVE{"Critical or High Unpatched CVE Found?"}
+    HighCVE -- "Yes" --> FailBuild["Block Pipeline & Open Remediation Ticket"]
+    HighCVE -- "No" --> Cosign["Sign Container Image Digest with Cosign & Push Provenance"]
+```
+
+---
+
+## AD-12: Multi-Framework Common Control Crosswalk & External Assurance Room Activity (`S14`)
+
+```mermaid
+flowchart TD
+    Request([Generate Customer / Auditor Compliance Pack]) --> Select["Select Crosswalk (SOC 2 / ISO 27001 / DORA / ISO 42001 / HIPAA / FedRAMP)"]
+    Select --> Gather["Collect Immutable Artifacts from S01, S04, S07 (P1), S09 (P7), S12, CI SSDF"]
+    Gather --> Verify{"All Mandatory Signatures & Freshness Valid?"}
+    Verify -- "No" --> Disclose["Include Explicit Missing-Control Disclosures (No Synthetic Fallback)"]
+    Verify -- "Yes" --> Watermark["Bind Read-Only Watermarked Time-Limited Assurance Room"]
+    Disclose --> Watermark
+    Watermark --> AuditLog["Record Immutable Auditor Access Trail"]
+```

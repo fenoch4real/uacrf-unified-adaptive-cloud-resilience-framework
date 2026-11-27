@@ -297,3 +297,105 @@ sequenceDiagram
     Reviewer->>S09: POST /v1/advisory/findings/{id}/review (KEEP_FOR_REVIEW / EDIT_DRAFT / REJECT_DRAFT)
     Note over S09,UX: criticStatus stays UNRESOLVED — blocking dissent is never silently cleared
 ```
+
+
+---
+
+## Enterprise & Regulatory Compliance Sequence Diagrams (`Phase E1–E4 Scope`)
+
+## SD-09: Enterprise Zero-Trust OIDC Login, Delegation Exchange & PostgreSQL RLS (`REG-SOC2`, `REG-ISO27001`, `REG-PRA`)
+
+```mermaid
+sequenceDiagram
+    actor User as Enterprise Operator
+    participant IDP as Keycloak OIDC / MFA
+    participant UX as UX01 Portal
+    participant EDGE as EDGE01 JWT Resource Server
+    participant S01 as S01 Identity & Delegation
+    participant DB as PostgreSQL (RLS Enabled)
+
+    User->>UX: Initiate login
+    UX->>IDP: OIDC Authorization Code + PKCE + MFA challenge
+    IDP-->>UX: Signed ID Token & Access JWT (tenant, env, roles)
+    UX->>EDGE: Request with Bearer JWT + tenant context
+    EDGE->>EDGE: Verify JWT signature & issuer against JWKS
+    EDGE->>S01: POST /v1/delegations/exchange (Internal-Only)
+    S01-->>EDGE: Short-lived (30s) audience-bound RS256 delegation JWT
+    EDGE->>DB: Forward request -> SET LOCAL app.tenant_id = :tenant
+    DB-->>EDGE: RLS policy restricts rows strictly to tenant/env
+```
+
+---
+
+## SD-10: Async Kafka Outbox Relay, PII/PHI Scrubbing & S3 Object Lock WORM (`REG-GDPR`, `REG-HIPAA`, `REG-DORA`)
+
+```mermaid
+sequenceDiagram
+    participant Cloud as AWS / GCP / Azure / OTel Collector
+    participant SCRUB as PII/PHI/PAN Scrubber
+    participant S03 as S03 Discovery Service
+    participant RELAY as Outbox Relay Worker -> Kafka/Redpanda
+    participant S04 as S04 Evidence Service
+    participant S3 as MinIO / S3 Object Lock (WORM)
+    participant S06 as S06 Graph Projector & Drift Scanner
+
+    Cloud->>SCRUB: Stream raw telemetry & spans
+    SCRUB->>SCRUB: Redact SSN, Credit Card, PHI & Secrets before storage
+    SCRUB->>S03: Normalized anonymized observation batch
+    S03->>S03: Persist observation + integration.outbox_event (Atomic TX)
+    RELAY->>S03: Poll / CDC unread outbox rows -> Publish CloudEvents to Kafka
+    Kafka-->>S04: Consume telemetry event
+    S04->>S3: PutObject (Object Lock COMPLIANCE mode + SHA-256)
+    Kafka-->>S06: Consume topology edge event
+    S06->>S06: Neo4j MERGE + verify checksum vs Postgres (PROJECTED vs DRIFTED)
+```
+
+---
+
+## SD-11: Temporal Durable Recovery Worker, Live OPA Bundle, KMS/FIPS Signing & Live Cluster (`REG-FEDRAMP`, `REG-PCI`, `REG-NERC`)
+
+```mermaid
+sequenceDiagram
+    actor Approver as Independent Owner
+    participant S10 as S10 Policy Authority
+    participant OPA as Live OPA Server (baseline.rego)
+    participant KMS as Vault / HSM (FIPS 140-3)
+    participant TEMP as Temporal Workflow Engine
+    participant S11 as S11 Recovery Activity Worker
+    participant K8S as Live Kubernetes / Cloud API
+
+    Approver->>S10: Request authorization for approved rollback
+    S10->>OPA: POST /v1/data/uacrf/authz/decision
+    OPA-->>S10: APPROVAL_REQUIRED + policyHash
+    S10->>KMS: Sign P3 BoundedRecoveryAuthorization via FIPS 140-3 key
+    S10-->>TEMP: Start RecoveryExecutionWorkflow with single-use token
+    TEMP->>S11: Dispatch bounded rollback activity (with heartbeat)
+    S11->>K8S: Execute exact revision rollback on allowlisted target only
+    TEMP->>S11: Run P6 8-Layer Validation DAG over stability window
+    alt Mandatory layer fails
+        TEMP->>S11: Trigger durable Compensation Activity -> COMPENSATED
+    else All layers healthy
+        TEMP-->>S10: Seal final outcome & notify S12 Learning
+    end
+```
+
+---
+
+## SD-12: External Auditor Assurance Room, Regulatory Crosswalk Export (`S14`) & SSDF Provenance
+
+```mermaid
+sequenceDiagram
+    actor Auditor as External CPA / Regulator
+    participant CI as GitHub CI (SSDF / SLSA)
+    participant S14 as S14 Reporting & Assurance Rooms
+    participant S07 as S07 DecisionEnvelopes (P1)
+    participant S04 as S04 WORM Evidence
+
+    CI->>CI: Generate CycloneDX SBOM, Trivy CVE scan, CodeQL & Cosign sig
+    CI->>S14: Register release provenance artifact
+
+    Auditor->>S14: Access time-bound Watermarked Assurance Room (Read-Only)
+    S14->>S07: Fetch sealed DecisionEnvelopes & P5 path proofs
+    S14->>S04: Fetch WORM qualification bundles & AI 6-aspect evidence
+    S14-->>Auditor: Watermarked SOC 2 (CC1-CC9) / DORA / ISO 42001 / HIPAA Crosswalk Pack
+```
