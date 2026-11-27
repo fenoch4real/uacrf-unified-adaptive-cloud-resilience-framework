@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info:
+  title: UACRF S02 Catalog & Customer Journey API
+  version: 1.0.0
+paths:
+  /v1/services:
+    get:
+      summary: List conventional services (excludes internal agent anchors)
+      responses:
+        "200": { description: Conventional services }
+    post:
+      summary: Register a conventional service
+      responses:
+        "201": { description: Service registered }
+  /v1/agent-workloads:
+    get:
+      summary: List protected agent workloads (standalone or service-bound)
+      responses:
+        "200": { description: Protected agent workloads }
+    post:
+      summary: Register a protected agent workload
+      responses:
+        "201": { description: Workload registered }
+  /v1/customer-journeys:
+    get:
+      summary: List customer journeys
+      responses:
+        "200": { description: Customer journeys }
+    post:
+      summary: Register a customer journey
+      responses:
+        "201": { description: Customer journey registered }
+  /v1/customer-journeys/{journeyId}:
+    get:
+      summary: Get customer journey detail with steps, capabilities, and impact profile
+      responses:
+        "200": { description: Journey detail }
+  /v1/customer-journeys/{journeyId}/impact-profile:
+    put:
+      summary: Create a new draft impact profile revision
+      responses:
+        "200": { description: Draft impact profile saved }
+  /v1/customer-journeys/{journeyId}/impact-profiles/{revision}:submit:
+    post:
+      summary: Submit draft impact profile for independent review
+      responses:
+        "200": { description: Submitted }
+  /v1/customer-journeys/{journeyId}/impact-profiles/{revision}:review:
+    post:
+      summary: Independently approve or reject a submitted impact profile
+      responses:
+        "200": { description: Reviewed }
+        "403": { description: Self-review prohibited }
+  /v1/shared-resources:
+    get:
+      summary: List shared models, knowledge bases, tools, and stores
+      responses:
+        "200": { description: Shared resources }
+    post:
+      summary: Register a shared resource
+      responses:
+        "201": { description: Shared resource registered }

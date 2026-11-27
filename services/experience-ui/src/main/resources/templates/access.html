@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Access and Responsibilities', 'Customer Admin / Access', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Access and responsibilities</h1>
+        <p class="text-secondary mb-0">Separation of duties, accountable human owner eligibility, and two-person grant approvals.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8 d-grid gap-4">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Admitted principals</h2>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Person / Principal</th><th>Type</th><th>Principal ID</th><th>Status</th></tr></thead>
+                    <tbody>
+                    <tr th:each="p : ${principals}">
+                        <td>
+                            <div class="fw-semibold" th:text="${p['displayName']}"></div>
+                            <div class="small text-secondary" th:text="${p['email']}"></div>
+                        </td>
+                        <td><span class="badge text-bg-light border" th:text="${p['principalType']}"></span></td>
+                        <td class="small font-monospace" th:text="${p['principalId']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-success" th:text="${p['status']}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Active &amp; historical capability memberships</h2>
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Principal ID</th><th>Capability</th><th>Scope</th><th>Expires</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(memberships)}"><td colspan="4" class="text-secondary small">No memberships granted yet.</td></tr>
+                    <tr th:each="m : ${memberships}">
+                        <td class="small font-monospace" th:text="${m['principalId']}"></td>
+                        <td><code th:text="${m['capability']}"></code></td>
+                        <td class="small" th:text="${m['serviceScope']}"></td>
+                        <td class="small" th:text="${m['expiresAt']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-4 d-grid gap-3">
+            <div class="uacrf-card">
+                <h2 class="h6 fw-bold mb-2"><i class="bi bi-shield-lock me-1"></i> Separation of duties</h2>
+                <p class="small text-secondary mb-0">An approver cannot grant to themselves, and the membership manager must be distinct from both approver and recipient.</p>
+            </div>
+
+            <div class="uacrf-card">
+                <h2 class="h6 fw-bold mb-3">Step 1 · Independent grant approval</h2>
+                <form th:action="@{/settings/access/decisions}" method="post" class="d-grid gap-2">
+                    <select name="targetPrincipalId" class="form-select form-select-sm" required>
+                        <option th:each="p : ${principals}" th:value="${p['principalId']}" th:text="${p['displayName']}"></option>
+                    </select>
+                    <input name="capability" class="form-control form-control-sm" value="owner.eligible" required>
+                    <input name="serviceScope" class="form-control form-control-sm" value="GLOBAL" required>
+                    <input name="rationale" class="form-control form-control-sm" placeholder="Approval rationale" required>
+                    <button class="btn btn-sm btn-primary" type="submit">Record approval decision</button>
+                </form>
+            </div>
+
+            <div class="uacrf-card">
+                <h2 class="h6 fw-bold mb-3">Step 2 · Apply approved membership</h2>
+                <form th:action="@{/settings/access/memberships}" method="post" class="d-grid gap-2">
+                    <select name="principalId" class="form-select form-select-sm" required>
+                        <option th:each="p : ${principals}" th:value="${p['principalId']}" th:text="${p['displayName']}"></option>
+                    </select>
+                    <input name="capability" class="form-control form-control-sm" value="owner.eligible" required>
+                    <input name="serviceScope" class="form-control form-control-sm" value="GLOBAL" required>
+                    <input name="grantDecisionId" class="form-control form-control-sm font-monospace" placeholder="Grant Decision UUID" required>
+                    <button class="btn btn-sm btn-outline-primary" type="submit">Apply membership</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

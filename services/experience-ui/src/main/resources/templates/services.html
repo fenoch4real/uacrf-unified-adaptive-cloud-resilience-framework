@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Services Inventory', 'Work / Services', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Services</h1>
+        <p class="text-secondary mb-0">Conventional services only; internal agent governance anchors are excluded from this count.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Name</th><th>Domain</th><th>Criticality</th><th>Canonical ID</th><th>Status</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(services)}"><td colspan="5" class="text-secondary small">No conventional services registered.</td></tr>
+                    <tr th:each="s : ${services}">
+                        <td class="fw-semibold" th:text="${s['name']}"></td>
+                        <td class="small" th:text="${s['domain']}"></td>
+                        <td><span class="badge text-bg-dark" th:text="${s['criticality']}"></span></td>
+                        <td class="small font-monospace" th:text="${s['canonicalId']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-success" th:text="${s['lifecycle']}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Register service</h2>
+                <form th:action="@{/services}" method="post" class="d-grid gap-2">
+                    <input name="name" class="form-control" placeholder="Service name (e.g., checkout)" required>
+                    <input name="domain" class="form-control" placeholder="Domain (e.g., payments)" required>
+                    <select name="criticality" class="form-select">
+                        <option value="P0">P0</option><option value="P1">P1</option><option value="P2">P2</option><option value="P3">P3</option>
+                    </select>
+                    <select name="ownerId" class="form-select" required>
+                        <option th:each="o : ${owners}" th:value="${o['principalId']}" th:text="${o['displayName']}"></option>
+                        <option th:if="${#lists.isEmpty(owners)}" th:value="${actorId}" th:text="${actorName}"></option>
+                    </select>
+                    <textarea name="description" rows="2" class="form-control" placeholder="Service purpose"></textarea>
+                    <button class="btn btn-primary mt-1" type="submit">Register service</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

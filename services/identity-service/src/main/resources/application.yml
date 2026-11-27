@@ -1,0 +1,19 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: ${UACRF_IDENTITY_DB_URL:jdbc:postgresql://localhost:5432/uacrf_identity}
+    username: ${UACRF_IDENTITY_DB_USER:uacrf_admin}
+    password: ${UACRF_IDENTITY_DB_PASSWORD:uacrf_dev_password}
+  flyway:
+    enabled: true
+    schemas: foundation,integration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

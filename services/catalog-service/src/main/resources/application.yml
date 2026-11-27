@@ -1,0 +1,19 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: catalog-service
+  datasource:
+    url: ${UACRF_CATALOG_DB_URL:jdbc:postgresql://localhost:5432/uacrf_catalog}
+    username: ${UACRF_CATALOG_DB_USER:uacrf_admin}
+    password: ${UACRF_CATALOG_DB_PASSWORD:uacrf_dev_password}
+  flyway:
+    enabled: true
+    schemas: catalog,integration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

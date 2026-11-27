@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Shared Resources', 'Resources / Shared Resources', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Shared resources</h1>
+        <p class="text-secondary mb-0">Reusable models, knowledge bases, tools, and data stores shared across services and agents.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Name</th><th>Kind</th><th>Classification</th><th>Lifecycle</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(resources)}"><td colspan="4" class="text-secondary small">No shared resources registered.</td></tr>
+                    <tr th:each="r : ${resources}">
+                        <td class="fw-semibold" th:text="${r['name']}"></td>
+                        <td><span class="badge text-bg-light border" th:text="${r['assetKind']}"></span></td>
+                        <td class="small" th:text="${r['classification']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-success" th:text="${r['lifecycle']}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Register shared resource</h2>
+                <form th:action="@{/resources}" method="post" class="d-grid gap-2">
+                    <input name="name" class="form-control" placeholder="Resource name" required>
+                    <select name="assetKind" class="form-select">
+                        <option value="MODEL">MODEL</option>
+                        <option value="KNOWLEDGE_BASE">KNOWLEDGE_BASE</option>
+                        <option value="TOOL">TOOL</option>
+                        <option value="DATA_STORE">DATA_STORE</option>
+                        <option value="IDENTITY">IDENTITY</option>
+                        <option value="RUNTIME">RUNTIME</option>
+                    </select>
+                    <select name="classification" class="form-select">
+                        <option value="INTERNAL">INTERNAL</option>
+                        <option value="PUBLIC">PUBLIC</option>
+                        <option value="RESTRICTED">RESTRICTED</option>
+                    </select>
+                    <select name="ownerId" class="form-select" required>
+                        <option th:each="o : ${owners}" th:value="${o['principalId']}" th:text="${o['displayName']}"></option>
+                        <option th:if="${#lists.isEmpty(owners)}" th:value="${actorId}" th:text="${actorName}"></option>
+                    </select>
+                    <button class="btn btn-primary mt-1" type="submit">Register resource</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

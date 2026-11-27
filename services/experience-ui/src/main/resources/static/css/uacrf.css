@@ -1,0 +1,136 @@
+:root {
+  --uacrf-sidebar-bg: #0b1e36;
+  --uacrf-sidebar-active: linear-gradient(90deg, #16548a 0%, #0f3c68 100%);
+  --uacrf-canvas-bg: #f5f7fb;
+  --uacrf-card-border: #e2e8f0;
+  --uacrf-text-primary: #0f172a;
+  --uacrf-text-muted: #64748b;
+  --uacrf-accent: #0f4c81;
+}
+
+body {
+  background-color: var(--uacrf-canvas-bg);
+  color: var(--uacrf-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.uacrf-shell {
+  min-height: 100vh;
+  display: flex;
+}
+
+.uacrf-sidebar {
+  width: 248px;
+  min-width: 248px;
+  background-color: var(--uacrf-sidebar-bg);
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 0.75rem;
+}
+
+.uacrf-brand {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 1.2rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.uacrf-nav-group {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  padding: 0.85rem 0.75rem 0.35rem;
+  font-weight: 600;
+}
+
+.uacrf-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 0.52rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.uacrf-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.uacrf-nav-link.active {
+  background: var(--uacrf-sidebar-active);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.uacrf-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.uacrf-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--uacrf-card-border);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.uacrf-card {
+  background: #ffffff;
+  border: 1px solid var(--uacrf-card-border);
+  border-radius: 10px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.uacrf-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.uacrf-pill-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.uacrf-pill-success {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.uacrf-pill-unknown {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.uacrf-pill-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.uacrf-epistemic-banner {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.86rem;
+  color: #1e3a8a;
+}

@@ -56,6 +56,22 @@ public final class CanonicalJson {
         return sha256Hex(canonicalizeBytes(value));
     }
 
+    public static String toJson(Object value) {
+        try {
+            return MAPPER.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize JSON", e);
+        }
+    }
+
+    public static <T> T fromJson(String json, Class<T> type) {
+        try {
+            return MAPPER.readValue(json, type);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to deserialize JSON into " + type.getSimpleName(), e);
+        }
+    }
+
     private static JsonNode sortRecursively(JsonNode node) {
         if (node == null || node.isNull() || node.isValueNode()) {
             return node;

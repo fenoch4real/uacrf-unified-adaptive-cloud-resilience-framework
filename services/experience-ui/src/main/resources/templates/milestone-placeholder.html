@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell(${moduleTitle}, 'Upcoming Milestone / ' + ${moduleTitle}, ~{::section})}">
+<section>
+    <div class="uacrf-card">
+        <span class="uacrf-pill uacrf-pill-unknown mb-2"><i class="bi bi-hourglass-split"></i> Scheduled in M2–M8</span>
+        <h1 class="h4 fw-bold mb-2" th:text="${moduleTitle}">Module</h1>
+        <p class="text-secondary mb-0">
+            This workspace destination is wired into the direct navigation shell and will connect to its domain service as Milestones 2 through 8 are delivered.
+        </p>
+    </div>
+</section>
+</html>

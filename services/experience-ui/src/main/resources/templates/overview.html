@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Workspace Overview', 'Work / Overview', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Workspace overview</h1>
+            <p class="text-secondary mb-0">Customer journeys, separate service and agent inventories, and governed readiness posture.</p>
+        </div>
+        <span class="uacrf-pill uacrf-pill-unknown"><i class="bi bi-question-circle"></i> Readiness Unknown until Assessed</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="uacrf-card h-100">
+                <div class="small text-secondary mb-1">Customer Journeys</div>
+                <div class="h2 fw-bold mb-1" th:text="${#lists.size(journeys)}">0</div>
+                <a th:href="@{/journeys}" class="small text-decoration-none">Manage journeys &amp; impact <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="uacrf-card h-100">
+                <div class="small text-secondary mb-1">Conventional Services</div>
+                <div class="h2 fw-bold mb-1" th:text="${#lists.size(services)}">0</div>
+                <a th:href="@{/services}" class="small text-decoration-none">View service inventory <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="uacrf-card h-100">
+                <div class="small text-secondary mb-1">Protected Agent Workloads</div>
+                <div class="h2 fw-bold mb-1" th:text="${#lists.size(agents)}">0</div>
+                <a th:href="@{/agents}" class="small text-decoration-none">View agent inventory <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="uacrf-card h-100">
+                <div class="small text-secondary mb-1">Shared Resources</div>
+                <div class="h2 fw-bold mb-1" th:text="${#lists.size(resources)}">0</div>
+                <a th:href="@{/resources}" class="small text-decoration-none">Models, KBs &amp; tools <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Registered customer journeys</h2>
+                <div th:if="${#lists.isEmpty(journeys)}" class="text-secondary small">
+                    No customer journeys registered yet. <a th:href="@{/journeys}">Register your first journey</a>.
+                </div>
+                <div class="table-responsive" th:unless="${#lists.isEmpty(journeys)}">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr><th>Journey</th><th>Purpose</th><th>Window</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="j : ${journeys}">
+                            <td class="fw-semibold" th:text="${j['name']}"></td>
+                            <td class="small text-secondary" th:text="${j['purpose']}"></td>
+                            <td class="small" th:text="${j['operatingWindow']}"></td>
+                            <td><span class="uacrf-pill uacrf-pill-success" th:text="${j['lifecycle']}">ACTIVE</span></td>
+                            <td class="text-end"><a th:href="@{/journeys/{id}(id=${j['journeyId']})}" class="btn btn-sm btn-outline-primary">Open</a></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-2">Non-locking onboarding guidance</h2>
+                <p class="small text-secondary">Recommended order; no workspace is locked behind checklist completion.</p>
+                <ul class="list-unstyled small mb-0 d-grid gap-2">
+                    <li><i class="bi bi-1-circle me-1 text-primary"></i> <a th:href="@{/settings/access}">Grant eligible human owners</a></li>
+                    <li><i class="bi bi-2-circle me-1 text-primary"></i> <a th:href="@{/journeys}">Define journey steps &amp; impact profile</a></li>
+                    <li><i class="bi bi-3-circle me-1 text-primary"></i> <a th:href="@{/services}">Register services</a> &amp; <a th:href="@{/agents}">agents</a></li>
+                    <li><i class="bi bi-4-circle me-1 text-primary"></i> <a th:href="@{/resources}">Link shared models, KBs &amp; tools</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Customer Journeys', 'Work / Customer Journeys', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Customer journeys</h1>
+            <p class="text-secondary mb-0">Business-owned outcomes, ordered steps, and validated impact profiles.</p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Journey inventory</h2>
+                <div th:if="${#lists.isEmpty(journeys)}" class="text-secondary small">No customer journeys registered in this environment.</div>
+                <div class="table-responsive" th:unless="${#lists.isEmpty(journeys)}">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr><th>Name</th><th>Outcome / Purpose</th><th>Window</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="j : ${journeys}">
+                            <td class="fw-semibold" th:text="${j['name']}"></td>
+                            <td class="small text-secondary" th:text="${j['purpose']}"></td>
+                            <td class="small" th:text="${j['operatingWindow']}"></td>
+                            <td><span class="uacrf-pill uacrf-pill-success" th:text="${j['lifecycle']}">ACTIVE</span></td>
+                            <td class="text-end"><a th:href="@{/journeys/{id}(id=${j['journeyId']})}" class="btn btn-sm btn-primary">Steps &amp; Impact</a></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Register customer journey</h2>
+                <form th:action="@{/journeys}" method="post" class="d-grid gap-3">
+                    <div>
+                        <label for="jName" class="form-label small fw-semibold">Journey name</label>
+                        <input id="jName" name="name" class="form-control" required placeholder="e.g., Place Order">
+                    </div>
+                    <div>
+                        <label for="jPurpose" class="form-label small fw-semibold">Customer outcome</label>
+                        <textarea id="jPurpose" name="purpose" rows="2" class="form-control" required placeholder="Complete and confirm a customer order"></textarea>
+                    </div>
+                    <div>
+                        <label for="jOwner" class="form-label small fw-semibold">Eligible accountable owner</label>
+                        <select id="jOwner" name="ownerId" class="form-select" required>
+                            <option th:each="o : ${owners}" th:value="${o['principalId']}" th:text="${o['displayName']}"></option>
+                            <option th:if="${#lists.isEmpty(owners)}" th:value="${actorId}" th:text="'No eligible owners granted yet (' + ${actorName} + ')'"></option>
+                        </select>
+                        <div class="form-text">Requires an enabled HUMAN principal with <code>owner.eligible</code>.</div>
+                    </div>
+                    <div>
+                        <label for="jWin" class="form-label small fw-semibold">Operating window</label>
+                        <input id="jWin" name="operatingWindow" class="form-control" value="24x7">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Register journey</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

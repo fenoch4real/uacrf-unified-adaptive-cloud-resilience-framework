@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: edge-gateway
+
+uacrf:
+  edge:
+    identity-base-url: ${UACRF_IDENTITY_URL:http://localhost:8082}
+    catalog-base-url: ${UACRF_CATALOG_URL:http://localhost:8083}
+    connect-timeout-ms: 2000
+    read-timeout-ms: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

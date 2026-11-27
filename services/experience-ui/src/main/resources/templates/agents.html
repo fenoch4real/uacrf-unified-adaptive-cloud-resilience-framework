@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Protected Agent Workloads', 'Work / Agents', ~{::section})}">
+<section>
+    <div class="mb-4">
+        <h1 class="h3 fw-bold mb-1">Protected agent workloads</h1>
+        <p class="text-secondary mb-0">Standalone or service-associated customer agent capabilities protected by UACRF (distinct from UACRF advisory assistants).</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Name</th><th>Kind</th><th>Criticality</th><th>Runtime Principal</th><th>Lifecycle</th></tr></thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(agents)}"><td colspan="5" class="text-secondary small">No protected agent workloads registered.</td></tr>
+                    <tr th:each="a : ${agents}">
+                        <td class="fw-semibold" th:text="${a['name']}"></td>
+                        <td><span class="badge text-bg-light border" th:text="${a['workloadKind']}"></span></td>
+                        <td><span class="badge text-bg-dark" th:text="${a['criticality']}"></span></td>
+                        <td class="small font-monospace" th:text="${a['runtimePrincipalId']}"></td>
+                        <td><span class="uacrf-pill uacrf-pill-warning" th:text="${a['lifecycle']}"></span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Register protected agent</h2>
+                <form th:action="@{/agents}" method="post" class="d-grid gap-2">
+                    <input name="name" class="form-control" placeholder="Agent name" required>
+                    <select name="workloadKind" class="form-select">
+                        <option value="SINGLE_AGENT">SINGLE_AGENT</option>
+                        <option value="MULTI_AGENT">MULTI_AGENT</option>
+                    </select>
+                    <input name="intendedPurpose" class="form-control" placeholder="Intended purpose" required>
+                    <select name="criticality" class="form-select">
+                        <option value="P1">P1</option><option value="P0">P0</option><option value="P2">P2</option>
+                    </select>
+                    <label class="small text-secondary mb-0">Accountable human owner</label>
+                    <select name="ownerId" class="form-select" required>
+                        <option th:each="o : ${owners}" th:value="${o['principalId']}" th:text="${o['displayName']}"></option>
+                        <option th:if="${#lists.isEmpty(owners)}" th:value="${actorId}" th:text="${actorName}"></option>
+                    </select>
+                    <label class="small text-secondary mb-0">Separate runtime principal ID</label>
+                    <input name="runtimePrincipalId" class="form-control font-monospace" value="44444444-4444-7444-8444-444444444401" required>
+                    <label class="small text-secondary mb-0">Optional parent service</label>
+                    <select name="parentServiceId" class="form-select">
+                        <option value="">Standalone (no parent service)</option>
+                        <option th:each="s : ${services}" th:value="${s['serviceId']}" th:text="${s['name']}"></option>
+                    </select>
+                    <button class="btn btn-primary mt-1" type="submit">Register agent workload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

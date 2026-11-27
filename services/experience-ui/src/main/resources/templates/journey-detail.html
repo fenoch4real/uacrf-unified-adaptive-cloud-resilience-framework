@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Journey Detail', 'Work / Customer Journeys / Detail', ~{::section})}">
+<section>
+    <div th:if="${loadError}" class="alert alert-warning" th:text="${loadError}"></div>
+    <div th:if="${detail != null}">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+            <div>
+                <h1 class="h3 fw-bold mb-1" th:text="${detail['journey']['name']}">Journey</h1>
+                <p class="text-secondary mb-0" th:text="${detail['journey']['purpose']}">Purpose</p>
+            </div>
+            <span class="uacrf-pill uacrf-pill-warning" th:if="${detail['latestImpactProfile'] == null}">
+                <i class="bi bi-question-circle"></i> Impact Profile Missing (Unknown Criticality)
+            </span>
+            <span class="uacrf-pill" th:if="${detail['latestImpactProfile'] != null}"
+                  th:classappend="${detail['latestImpactProfile']['assessmentStatus'] == 'APPROVED'} ? ' uacrf-pill-success' : ' uacrf-pill-warning'">
+                <i class="bi bi-shield-check"></i>
+                <span th:text="'Impact Profile: ' + ${detail['latestImpactProfile']['assessmentStatus']} + ' (' + ${detail['latestImpactProfile']['criticalityAssessment']} + ')'"></span>
+            </span>
+        </div>
+
+        <div class="uacrf-epistemic-banner mb-4">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            <strong>Boundary rule:</strong> Journey membership explains which service or agent supports a customer step. It does not assert a technical dependency, grant runtime access, or replace technical RTO/RPO with business tolerance.
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-7 d-grid gap-4">
+                <div class="uacrf-card">
+                    <h2 class="h5 fw-bold mb-3">Ordered journey steps</h2>
+                    <table class="table table-sm align-middle mb-3" th:unless="${#lists.isEmpty(detail['steps'])}">
+                        <thead class="table-light"><tr><th>#</th><th>Step</th><th>Success condition</th><th>Timeout</th></tr></thead>
+                        <tbody>
+                        <tr th:each="s : ${detail['steps']}">
+                            <td th:text="${s['sequenceNum']}"></td>
+                            <td class="fw-semibold" th:text="${s['name']}"></td>
+                            <td class="small text-secondary" th:text="${s['successCondition']}"></td>
+                            <td class="small" th:text="${s['timeoutSeconds']} + 's'"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <form th:action="@{/journeys/{id}/steps(id=${detail['journey']['journeyId']})}" method="post" class="row g-2">
+                        <div class="col-2"><input name="sequenceNum" type="number" min="1" class="form-control form-control-sm" placeholder="#" required></div>
+                        <div class="col-4"><input name="name" class="form-control form-control-sm" placeholder="Step name" required></div>
+                        <div class="col-4"><input name="successCondition" class="form-control form-control-sm" placeholder="Success condition" required></div>
+                        <div class="col-2"><button class="btn btn-sm btn-outline-primary w-100" type="submit">Add step</button></div>
+                    </form>
+                </div>
+
+                <div class="uacrf-card">
+                    <h2 class="h5 fw-bold mb-3">Supporting services &amp; agents</h2>
+                    <table class="table table-sm align-middle mb-3" th:unless="${#lists.isEmpty(detail['capabilities'])}">
+                        <thead class="table-light"><tr><th>Kind</th><th>Target ID</th><th>Participation</th><th>Owner Rationale</th></tr></thead>
+                        <tbody>
+                        <tr th:each="c : ${detail['capabilities']}">
+                            <td><span class="badge text-bg-light border" th:text="${c['capabilityKind']}"></span></td>
+                            <td class="small font-monospace" th:text="${c['targetId']}"></td>
+                            <td><span class="uacrf-pill uacrf-pill-unknown" th:text="${c['participationCriticality']}"></span></td>
+                            <td class="small text-secondary" th:text="${c['rationale']}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <form th:action="@{/journeys/{id}/capabilities(id=${detail['journey']['journeyId']})}" method="post" class="row g-2">
+                        <div class="col-md-3">
+                            <select name="capabilityKind" class="form-select form-select-sm">
+                                <option value="SERVICE">SERVICE</option>
+                                <option value="AGENT">AGENT</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select name="targetId" class="form-select form-select-sm" required>
+                                <optgroup label="Services">
+                                    <option th:each="svc : ${services}" th:value="${svc['serviceId']}" th:text="${svc['name']}"></option>
+                                </optgroup>
+                                <optgroup label="Agents">
+                                    <option th:each="ag : ${agents}" th:value="${ag['workloadProfileId']}" th:text="${ag['name']}"></option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select name="participationCriticality" class="form-select form-select-sm">
+                                <option value="REQUIRED">REQUIRED</option>
+                                <option value="OPTIONAL">OPTIONAL</option>
+                                <option value="UNKNOWN">UNKNOWN</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input name="rationale" class="form-control form-control-sm" placeholder="Rationale" required>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button class="btn btn-sm btn-outline-primary" type="submit">Link capability</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="uacrf-card">
+                    <h2 class="h5 fw-bold mb-3">Business impact profile</h2>
+                    <form th:action="@{/journeys/{id}/impact-profile(id=${detail['journey']['journeyId']})}" method="post" class="d-grid gap-2 mb-3">
+                        <input name="impactIfUnavailable" class="form-control form-control-sm" placeholder="Impact if unavailable" required
+                               th:value="${detail['latestImpactProfile'] != null ? detail['latestImpactProfile']['impactIfUnavailable'] : ''}">
+                        <input name="affectedPopulation" class="form-control form-control-sm" placeholder="Affected customer segment" required
+                               th:value="${detail['latestImpactProfile'] != null ? detail['latestImpactProfile']['affectedPopulation'] : ''}">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <select name="criticalityAssessment" class="form-select form-select-sm">
+                                    <option value="P0">P0</option><option value="P1">P1</option>
+                                    <option value="P2">P2</option><option value="P3">P3</option>
+                                    <option value="UNKNOWN">UNKNOWN</option>
+                                </select>
+                            </div>
+                            <div class="col-3"><input name="businessToleranceValue" type="number" class="form-control form-control-sm" placeholder="Tolerance"></div>
+                            <div class="col-4"><input name="businessToleranceUnit" class="form-control form-control-sm" placeholder="MINUTES"></div>
+                        </div>
+                        <input name="businessToleranceBasis" class="form-control form-control-sm" placeholder="Tolerance basis">
+                        <input name="rationale" class="form-control form-control-sm" placeholder="Owner rationale" required>
+                        <button class="btn btn-sm btn-primary" type="submit">Save new profile draft</button>
+                    </form>
+
+                    <div th:if="${detail['latestImpactProfile'] != null}" class="border-top pt-3">
+                        <div class="small mb-2">
+                            <strong>Revision <span th:text="${detail['latestImpactProfile']['revision']}"></span></strong> ·
+                            Digest <code class="small" th:text="${#strings.abbreviate(detail['latestImpactProfile']['contentDigest'], 22)}"></code>
+                        </div>
+                        <form th:if="${detail['latestImpactProfile']['assessmentStatus'] == 'DRAFT'}"
+                              th:action="@{/journeys/{id}/impact-profiles/{rev}/submit(id=${detail['journey']['journeyId']},rev=${detail['latestImpactProfile']['revision']})}"
+                              method="post" class="mb-2">
+                            <button class="btn btn-sm btn-warning w-100" type="submit">Submit for independent review</button>
+                        </form>
+                        <form th:if="${detail['latestImpactProfile']['assessmentStatus'] == 'SUBMITTED'}"
+                              th:action="@{/journeys/{id}/impact-profiles/{rev}/review(id=${detail['journey']['journeyId']},rev=${detail['latestImpactProfile']['revision']})}"
+                              method="post" class="d-grid gap-2">
+                            <input name="reason" class="form-control form-control-sm" placeholder="Independent reviewer rationale" required>
+                            <div class="d-flex gap-2">
+                                <button name="decision" value="APPROVE" class="btn btn-sm btn-success flex-grow-1" type="submit">Approve (distinct reviewer)</button>
+                                <button name="decision" value="REJECT" class="btn btn-sm btn-outline-danger" type="submit">Reject</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

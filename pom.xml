@@ -28,6 +28,10 @@
         <module>libs/uacrf-contracts</module>
         <module>libs/uacrf-crypto</module>
         <module>libs/uacrf-outbox</module>
+        <module>services/identity-service</module>
+        <module>services/catalog-service</module>
+        <module>services/edge-gateway</module>
+        <module>services/experience-ui</module>
     </modules>
 
     <dependencyManagement>
@@ -83,6 +87,11 @@
                             </goals>
                         </execution>
                     </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
