@@ -63,8 +63,8 @@ the paper's framework.
 | Module / Directory | Port | Ownership / Role |
 |---|---|---|
 | `libs/uacrf-contracts` | — | Shared enums, `CanonicalEvidenceEvent`, `BoundedRecoveryAuthorization`, 58-label/55-relationship `Neo4jOntology` validator |
-| `libs/uacrf-crypto` | — | Deterministic RFC 8785 JSON canonicalization, SHA-256 digests, RS256 JWS `EnvelopeSigner` |
-| `libs/uacrf-outbox` | — | Transactional outbox records, lease fencing policy, DDL template |
+| `libs/uacrf-crypto` | — | Deterministic RFC 8785 JSON canonicalization, SHA-256 digests, RS256 JWS `EnvelopeSigner`, FIPS 140-3 / KMS profile |
+| `libs/uacrf-outbox` | — | Transactional outbox records, lease fencing, Kafka `OutboxKafkaRelay`, PostgreSQL `TenantRlsSession` |
 | `services/identity-service` (`S01`) | `8082` | Tenant/environment isolation, principals, independent two-person grants, 30s RS256 delegation tokens |
 | `services/catalog-service` (`S02`) | `8083` | Conventional services, Protected Agent Workloads, shared resources, customer journeys & impact profiles |
 | `services/discovery-service` (`S03`) | `8084` | Multi-cloud/OTel `TelemetryAdapter` SPI & `SAMPLE_LOCAL` fixture generator |
@@ -75,10 +75,11 @@ the paper's framework.
 | `services/policy-service` (`S10`) | `8089` | OPA Rego evaluator, two-person recovery approvals, `P2` graph delta classifier, `P3` RS256 single-use authorizations |
 | `services/recovery-service` (`S11`) | `8090` | Recovery orchestrator, allowlisted `ProviderActionAdapter` SPI (`P3`), 8-layer `CrossLayerValidator` (`P6`), kill switch |
 | `services/knowledge-service` (`S08`/`S12`/`S13`) | `8091` | Governed knowledge base, closed-loop learning gate (`FR-LRN-002`), guarded fault experiments, Section 10.5 quantitative shadow model & benchmarks |
-| `services/advisory-service` (`S09`) | `8092` | Solution-specific agent advisors (`Evidence Assistant`, `Critic`), prompt-injection guard, `P7` permutation-invariant arbitration |
-| `services/edge-gateway` (`EDGE01`) | `8080` | Public API gateway forwarding to backend owners, `Cache-Control: no-store`, concealing internal delegation routes |
-| `services/experience-ui` (`UX01`) | `8081` | **Spring Boot + Thymeleaf + Bootstrap 5.3 + Cytoscape.js** web portal (`18` templates) |
-| `contracts/` & `infra/` & `policies/` | — | OpenAPI 3.1, AsyncAPI 3.0, Neo4j constraints/catalog, traceability JSON, Keycloak realm, OPA baseline Rego, Postgres init |
+| `services/advisory-service` (`S09`) | `8092` | Solution-specific agent advisors (`Evidence Assistant`, `Critic`), `EnterpriseLlmGateway` SPI, prompt-injection/SSRF firewall, `P7` arbitration |
+| `services/reporting-service` (`S14`) | `8093` | Commercial asset metering, multi-framework regulatory crosswalk (SOC 2, ISO, DORA, HIPAA, FedRAMP), watermarked external auditor Assurance Rooms |
+| `services/edge-gateway` (`EDGE01`) | `8080` | Public API gateway forwarding to backend owners, OAuth2 Bearer JWT + CSP headers, `Cache-Control: no-store`, concealing internal delegation routes |
+| `services/experience-ui` (`UX01`) | `8081` | **Spring Boot + Thymeleaf + Bootstrap 5.3 + Cytoscape.js** web portal (`19` templates incl. `/assurance`) |
+| `contracts/`, `infra/`, `policies/` | — | OpenAPI 3.1, AsyncAPI 3.0, Neo4j constraints/catalog, Helm + K8s/Istio mTLS, multi-cloud Terraform, PITR & SOC 2 scripts, OPA baseline Rego |
 
 ---
 

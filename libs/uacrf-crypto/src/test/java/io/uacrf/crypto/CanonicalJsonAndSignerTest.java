@@ -47,4 +47,20 @@ class CanonicalJsonAndSignerTest {
         assertThrows(SecurityException.class,
                 () -> laterVerifier.verify(token, key.toPublicJWK(), "k8s-rollback-adapter"));
     }
+
+    @Test
+    void enforcesFips1403MinimumKeyStrengthAndKmsProviderProfile() {
+        RSAKey nonFips2048 = FipsCryptoProfile.generateKey("dev-2048", false);
+        assertThrows(SecurityException.class, () -> FipsCryptoProfile.assertKeyCompliant(nonFips2048, true));
+
+        var kms = new FipsCryptoProfile.VaultOrCloudKmsProvider("AWS_KMS_FIPS", true);
+        RSAKey fipsKey = kms.resolveSigningKey("prod-fips-3072");
+        assertTrue(kms.fipsValidated());
+        assertTrue(fipsKey.size() >= FipsCryptoProfile.FIPS_MIN_RSA_KEY_BITS);
+
+        EnvelopeSigner signer = new EnvelopeSigner(fipsKey, Clock.systemUTC());
+        String jws = signer.sign("uacrf-s10", "multi-cloud-traffic-adapter", "recovery-99",
+                "nonce-fips-1", Instant.now().plusSeconds(120), Map.of("fips", true));
+        assertNotNull(signer.verify(jws, fipsKey.toPublicJWK(), "multi-cloud-traffic-adapter"));
+    }
 }

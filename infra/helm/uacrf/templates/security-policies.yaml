@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: uacrf-default-deny-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: uacrf
+  policyTypes:
+    - Ingress
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: uacrf-strict-mtls
+spec:
+  mtls:
+    mode: {{ if .Values.global.mtlsStrict }}STRICT{{ else }}PERMISSIVE{{ end }}

@@ -1,10 +1,15 @@
-name: UACRF CI
+name: UACRF CI & SSDF Supply-Chain Gate
 
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
 
 jobs:
   verify-ontology-and-contracts:
@@ -22,7 +27,40 @@ jobs:
           console.log('Verified 58 Neo4j node labels and 55 relationship types');
           "
 
-  maven-build-and-test:
+  secret-and-iac-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Trivy Filesystem & IaC Misconfiguration Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+
+  codeql-sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Compile for CodeQL SAST
+        run: mvn -B test-compile -DskipTests
+      - uses: github/codeql-action/analyze@v3
+
+  maven-build-verify-and-sbom:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,5 +70,17 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: Build and verify all Maven modules
+      - name: Build and verify all Maven modules (with Testcontainers)
         run: mvn -B verify
+      - name: Generate CycloneDX SBOM (SSDF / EO 14028)
+        run: mvn -B org.cyclonedx:cyclonedx-maven-plugin:2.8.2:makeAggregateBom
+      - name: Upload CycloneDX SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uacrf-cyclonedx-sbom
+          path: target/bom.*
+      - name: Install Cosign for keyless artifact attestation
+        if: github.ref == 'refs/heads/main'
+        uses: sigstore/cosign-installer@v3.7.0
+      - name: Collect SOC 2 technical evidence bundle
+        run: bash infra/scripts/collect-soc2-evidence.sh

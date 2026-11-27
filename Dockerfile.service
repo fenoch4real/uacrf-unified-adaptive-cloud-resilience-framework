@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1.7
+FROM maven:3.9-eclipse-temurin-25 AS build
+WORKDIR /src
+ARG SERVICE_PATH=services/edge-gateway
+COPY pom.xml .
+COPY libs ./libs
+COPY services ./services
+RUN mvn -B -pl "${SERVICE_PATH}" -am package -DskipTests
+
+FROM gcr.io/distroless/java25-debian12:nonroot
+ARG SERVICE_PATH=services/edge-gateway
+ARG SERVER_PORT=8080
+USER nonroot:nonroot
+WORKDIR /app
+COPY --from=build /src/${SERVICE_PATH}/target/*.jar /app/app.jar
+EXPOSE ${SERVER_PORT}
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

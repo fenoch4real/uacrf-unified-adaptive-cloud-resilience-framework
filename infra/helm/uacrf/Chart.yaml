@@ -1,0 +1,6 @@
+apiVersion: v2
+name: uacrf
+description: Unified Adaptive Cloud Resilience Framework (Assess, Control, Recover, Evidence, Reporting)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

@@ -1,0 +1,26 @@
+global:
+  imageRegistry: ghcr.io/fenoch4real/uacrf
+  imageTag: "1.0.0"
+  pullPolicy: IfNotPresent
+  fipsEnabled: true
+  mtlsStrict: true
+
+oauth2:
+  jwtEnabled: true
+  jwkSetUri: "https://keycloak.uacrf.internal/realms/uacrf/protocol/openid-connect/certs"
+
+services:
+  edge-gateway: { port: 8080, replicas: 2, minAvailable: 1 }
+  experience-ui: { port: 8081, replicas: 2, minAvailable: 1 }
+  identity-service: { port: 8082, replicas: 2, minAvailable: 1 }
+  catalog-service: { port: 8083, replicas: 2, minAvailable: 1 }
+  discovery-service: { port: 8084, replicas: 2, minAvailable: 1 }
+  evidence-service: { port: 8085, replicas: 2, minAvailable: 1 }
+  graph-service: { port: 8086, replicas: 2, minAvailable: 1 }
+  assessment-service: { port: 8087, replicas: 2, minAvailable: 1 }
+  objectives-service: { port: 8088, replicas: 2, minAvailable: 1 }
+  policy-service: { port: 8089, replicas: 2, minAvailable: 1 }
+  recovery-service: { port: 8090, replicas: 2, minAvailable: 1 }
+  knowledge-service: { port: 8091, replicas: 2, minAvailable: 1 }
+  advisory-service: { port: 8092, replicas: 2, minAvailable: 1 }
+  reporting-service: { port: 8093, replicas: 2, minAvailable: 1 }
