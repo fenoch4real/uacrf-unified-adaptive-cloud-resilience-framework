@@ -1,0 +1,19 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: assessment-service
+  datasource:
+    url: ${UACRF_ASSESSMENT_DB_URL:jdbc:postgresql://localhost:5432/uacrf_assessment}
+    username: ${UACRF_DB_USER:uacrf}
+    password: ${UACRF_DB_PASSWORD:uacrf}
+  flyway:
+    schemas: assessment,integration
+    default-schema: assessment
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

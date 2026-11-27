@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: UACRF S07 Assessment, Path Independence & Decision Envelope API
+  version: 1.0.0
+paths:
+  /v1/assessments:
+    get:
+      summary: List resilience assessments
+      responses:
+        '200': { description: List of assessments with findings and path certifications }
+  /v1/assessments/{assessmentId}:
+    get:
+      summary: Get single assessment detail and latest sealed DecisionEnvelope
+      responses:
+        '200': { description: Assessment details }
+  /v1/assessments/{assessmentId}/reviews:
+    post:
+      summary: Record Technical or Independent review with separation-of-duties check
+      responses:
+        '200': { description: Review recorded }
+        '403': { description: SELF_REVIEW_FORBIDDEN }
+  /v1/assessments/{assessmentId}/envelopes:
+    post:
+      summary: Seal canonical assessment state into RS256 JWS DecisionEnvelope (P1)
+      responses:
+        '200': { description: DecisionEnvelopeDto }
+  /v1/path-certifications:
+    post:
+      summary: Certify primary vs alternate recovery paths across correlation domains (P5)
+      responses:
+        '200': { description: PathCertificationDto }
+  /v1/decision-replays:
+    post:
+      summary: Independently verify RS256 signature and canonical SHA-256 digest (P1)
+      responses:
+        '200': { description: VERIFIED or TAMPER_DETECTED }

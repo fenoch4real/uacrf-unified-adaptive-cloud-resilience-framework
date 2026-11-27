@@ -543,7 +543,85 @@ public class PortalController {
         return "redirect:/settings/connections";
     }
 
-    @GetMapping({"/assess", "/control", "/recover", "/knowledge", "/advisory"})
+    @GetMapping("/assess")
+    public String assess(Model model,
+                         @ModelAttribute("tenantId") UUID tenantId,
+                         @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "assess");
+        var list = edge.getList("/v1/assessments?tenantId=" + tenantId + "&environmentId=" + envId, Map.class);
+        model.addAttribute("assessment", list.isEmpty() ? Map.of() : list.getFirst());
+        return "assess";
+    }
+
+    @GetMapping("/assess/{assessmentId}/report")
+    public String assessReport(@PathVariable UUID assessmentId,
+                               Model model,
+                               @ModelAttribute("tenantId") UUID tenantId,
+                               @ModelAttribute("environmentId") UUID envId) {
+        model.addAttribute("activeNav", "assess");
+        model.addAttribute("assessment", edge.getObjectOrEmpty(
+                "/v1/assessments/" + assessmentId + "?tenantId=" + tenantId + "&environmentId=" + envId));
+        return "assess-report";
+    }
+
+    @PostMapping("/assess/{assessmentId}/reviews")
+    public String submitAssessmentReview(@PathVariable UUID assessmentId,
+                                         @ModelAttribute("tenantId") UUID tenantId,
+                                         @ModelAttribute("environmentId") UUID envId,
+                                         @ModelAttribute("actorId") UUID actorId,
+                                         @ModelAttribute("actorName") String actorName,
+                                         @RequestParam String reviewType,
+                                         @RequestParam String outcome,
+                                         RedirectAttributes ra) {
+        try {
+            edge.postJson("/v1/assessments/" + assessmentId + "/reviews", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "reviewType", reviewType, "reviewerName", actorName, "outcome", outcome
+            ));
+            ra.addFlashAttribute("flashSuccess", reviewType + " review recorded as " + outcome + ".");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/assess/" + assessmentId + "/report";
+    }
+
+    @PostMapping("/assess/{assessmentId}/envelopes")
+    public String sealAssessmentEnvelope(@PathVariable UUID assessmentId,
+                                         @ModelAttribute("tenantId") UUID tenantId,
+                                         @ModelAttribute("environmentId") UUID envId,
+                                         @ModelAttribute("actorId") UUID actorId,
+                                         RedirectAttributes ra) {
+        try {
+            var res = edge.postJson(
+                    "/v1/assessments/" + assessmentId + "/envelopes?tenantId=" + tenantId + "&environmentId=" + envId,
+                    actorId, null, Map.of());
+            ra.addFlashAttribute("flashSuccess", "RS256 DecisionEnvelope sealed: " + res.get("envelopeId"));
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/assess/" + assessmentId + "/report";
+    }
+
+    @PostMapping("/assess/verify-replay")
+    public String verifyAssessmentEnvelope(@RequestParam UUID assessmentId,
+                                           @RequestParam UUID envelopeId,
+                                           @ModelAttribute("tenantId") UUID tenantId,
+                                           @ModelAttribute("environmentId") UUID envId,
+                                           @ModelAttribute("actorId") UUID actorId,
+                                           RedirectAttributes ra) {
+        try {
+            var res = edge.postJson("/v1/decision-replays", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId, "envelopeId", envelopeId
+            ));
+            ra.addFlashAttribute("flashSuccess",
+                    "Replay verification: " + res.get("status") + " — " + res.get("message"));
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/assess/" + assessmentId + "/report";
+    }
+
+    @GetMapping({"/control", "/recover", "/knowledge", "/advisory"})
     public String upcomingMilestonePlaceholder(Model model, jakarta.servlet.http.HttpServletRequest request) {
         String path = request.getRequestURI().replace("/", "");
         model.addAttribute("activeNav", path);

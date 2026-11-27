@@ -33,6 +33,7 @@
         <module>services/discovery-service</module>
         <module>services/evidence-service</module>
         <module>services/graph-service</module>
+        <module>services/assessment-service</module>
         <module>services/edge-gateway</module>
         <module>services/experience-ui</module>
     </modules>

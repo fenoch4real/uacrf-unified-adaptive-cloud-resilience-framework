@@ -12,6 +12,7 @@ uacrf:
     discovery-base-url: ${UACRF_DISCOVERY_URL:http://localhost:8084}
     evidence-base-url: ${UACRF_EVIDENCE_URL:http://localhost:8085}
     graph-base-url: ${UACRF_GRAPH_URL:http://localhost:8086}
+    assessment-base-url: ${UACRF_ASSESSMENT_URL:http://localhost:8087}
     connect-timeout-ms: 2000
     read-timeout-ms: 10000
 

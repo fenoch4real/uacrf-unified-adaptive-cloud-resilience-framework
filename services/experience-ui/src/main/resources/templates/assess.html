@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: shell('Journey Resilience Assessment', 'Assess / Place Order', ~{::section})}">
+<section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h1 class="h3 fw-bold mb-0">Journey resilience assessment</h1>
+                <span class="uacrf-pill uacrf-pill-warning" th:text="${assessment['reportStatus'] ?: 'In progress'}">In progress</span>
+            </div>
+            <p class="text-secondary mb-0" th:text="'Can ' + (${assessment['journeyName'] ?: 'Place Order'}) + ' recover from a defective deployment?'">
+                Can this journey recover from a defective deployment?
+            </p>
+        </div>
+        <span class="badge text-bg-light border px-3 py-2">
+            <i class="bi bi-lock me-1"></i> Read-only assessment
+        </span>
+    </div>
+
+    <div class="uacrf-card mb-4 py-3">
+        <div class="row text-center small">
+            <div class="col-3"><span class="uacrf-pill uacrf-pill-success">1. Scope · Completed</span></div>
+            <div class="col-3"><span class="uacrf-pill uacrf-pill-warning">2. Evidence · In progress</span></div>
+            <div class="col-3"><span class="text-secondary">3. Review · <strong th:text="${assessment['independentReviewStatus'] ?: 'Pending'}"></strong></span></div>
+            <div class="col-3"><span class="text-secondary">4. Report · <strong th:text="${assessment['reportStatus'] ?: 'Pending'}"></strong></span></div>
+        </div>
+    </div>
+
+    <div th:if="${#maps.isEmpty(assessment)}" class="uacrf-card">
+        <p class="mb-0 text-secondary">No active assessment loaded. Ensure S07 Assessment Service is running.</p>
+    </div>
+
+    <div th:unless="${#maps.isEmpty(assessment)}" class="row g-4">
+        <div class="col-lg-8">
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Assessment scope</h2>
+                <dl class="row small mb-2">
+                    <dt class="col-4 text-secondary">Journey</dt><dd class="col-8 fw-semibold" th:text="${assessment['journeyName']}"></dd>
+                    <dt class="col-4 text-secondary">Failure scenario</dt><dd class="col-8" th:text="${assessment['failureScenario']}"></dd>
+                    <dt class="col-4 text-secondary">Scoped services</dt><dd class="col-8" th:text="${#strings.listJoin(assessment['scopedServices'], ', ')}"></dd>
+                    <dt class="col-4 text-secondary">Recovery candidate</dt><dd class="col-8 fw-semibold" th:text="${assessment['recoveryCandidate']}"></dd>
+                    <dt class="col-4 text-secondary">Observed customer impact</dt><dd class="col-8 text-danger fw-semibold" th:text="${assessment['impactedCustomerRate']}"></dd>
+                </dl>
+                <div class="alert alert-light border small mb-0">
+                    <i class="bi bi-info-circle me-1"></i> This assessment does not authorize a live recovery action.
+                </div>
+            </div>
+
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Findings &amp; evidence</h2>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light"><tr><th>Area</th><th>Status</th><th>Details</th></tr></thead>
+                    <tbody>
+                    <tr th:each="f : ${assessment['findings']}">
+                        <td class="fw-semibold" th:text="${f['areaName']}"></td>
+                        <td>
+                            <span class="uacrf-pill"
+                                  th:classappend="${f['status'] == 'VERIFIED'} ? 'uacrf-pill-success' : (${f['status'] == 'NEEDS_REVIEW'} ? 'uacrf-pill-warning' : 'uacrf-pill-danger')"
+                                  th:text="${f['status']}"></span>
+                        </td>
+                        <td class="small text-secondary" th:text="${f['details']}"></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="uacrf-card">
+                <h2 class="h5 fw-bold mb-3">Correlation-domain path independence (P5)</h2>
+                <div th:each="pc : ${assessment['pathCertifications']}" class="border rounded p-3 mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong th:text="${pc['primaryPathId']} + ' vs. ' + ${pc['alternatePathId']}"></strong>
+                        <span class="uacrf-pill"
+                              th:classappend="${pc['certificationStatus'] == 'CERTIFIED'} ? 'uacrf-pill-success' : (${pc['certificationStatus'] == 'CONDITIONALLY_CERTIFIED'} ? 'uacrf-pill-warning' : 'uacrf-pill-danger')"
+                              th:text="${pc['certificationStatus']}"></span>
+                    </div>
+                    <div class="small text-secondary" th:text="${pc['witnessSummary']}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="uacrf-card mb-4">
+                <h2 class="h5 fw-bold mb-3">Complete the evidence</h2>
+                <div th:each="f : ${assessment['findings']}" th:if="${f['bucket'] == 'OPEN'}" class="border rounded p-2 mb-2 bg-light">
+                    <div class="fw-semibold small" th:text="${f['summaryTitle']}"></div>
+                    <div class="small text-secondary" th:text="'Owner: ' + ${f['ownerName']} + ' · Due: ' + ${f['dueLabel']}"></div>
+                </div>
+                <div class="alert alert-info small mt-3 mb-3">
+                    <strong><i class="bi bi-stars me-1"></i> Assessment assistance · Advisory</strong><br>
+                    Source-backed suggestions do not qualify evidence or issue conclusions.
+                </div>
+                <a class="btn btn-primary w-100 mb-2" th:href="@{/evidence}">Review &amp; attach evidence</a>
+                <a class="btn btn-outline-dark w-100" th:href="@{'/assess/' + ${assessment['assessmentId']} + '/report'}">
+                    Preview / Review assessment report
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+</html>

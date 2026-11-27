@@ -36,6 +36,7 @@ public class EdgeProxyController {
     private final RestClient discoveryClient;
     private final RestClient evidenceClient;
     private final RestClient graphClient;
+    private final RestClient assessmentClient;
 
     public EdgeProxyController(
             @Value("${uacrf.edge.identity-base-url}") String identityBaseUrl,
@@ -43,6 +44,7 @@ public class EdgeProxyController {
             @Value("${uacrf.edge.discovery-base-url}") String discoveryBaseUrl,
             @Value("${uacrf.edge.evidence-base-url}") String evidenceBaseUrl,
             @Value("${uacrf.edge.graph-base-url}") String graphBaseUrl,
+            @Value("${uacrf.edge.assessment-base-url}") String assessmentBaseUrl,
             @Value("${uacrf.edge.connect-timeout-ms:2000}") int connectTimeoutMs,
             @Value("${uacrf.edge.read-timeout-ms:10000}") int readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -53,6 +55,7 @@ public class EdgeProxyController {
         this.discoveryClient = RestClient.builder().baseUrl(discoveryBaseUrl).requestFactory(factory).build();
         this.evidenceClient = RestClient.builder().baseUrl(evidenceBaseUrl).requestFactory(factory).build();
         this.graphClient = RestClient.builder().baseUrl(graphBaseUrl).requestFactory(factory).build();
+        this.assessmentClient = RestClient.builder().baseUrl(assessmentBaseUrl).requestFactory(factory).build();
     }
 
     @RequestMapping({"/v1/tenants/**", "/v1/principals", "/v1/principals/**", "/v1/owner-candidates",
@@ -85,6 +88,12 @@ public class EdgeProxyController {
     public ResponseEntity<byte[]> routeToGraph(HttpServletRequest request,
                                                @RequestBody(required = false) byte[] body) {
         return forward(graphClient, request, body, "GRAPH_UNAVAILABLE");
+    }
+
+    @RequestMapping({"/v1/assessments", "/v1/assessments/**", "/v1/path-certifications/**", "/v1/decision-replays/**"})
+    public ResponseEntity<byte[]> routeToAssessment(HttpServletRequest request,
+                                                    @RequestBody(required = false) byte[] body) {
+        return forward(assessmentClient, request, body, "ASSESSMENT_UNAVAILABLE");
     }
 
     private ResponseEntity<byte[]> forward(RestClient client, HttpServletRequest request,
