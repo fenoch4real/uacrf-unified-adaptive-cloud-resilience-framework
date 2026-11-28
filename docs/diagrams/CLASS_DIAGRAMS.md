@@ -51,6 +51,12 @@ classDiagram
         +generateKey(keyId, fipsMode) RSAKey
         +assertKeyCompliant(key, fipsMode)
     }
+    class GcpOAuthAssertionSupport {
+        <<utility>>
+        +resolveCredentialsPath(explicit, env, home) Path
+        +isUnsafeEgressHost(url) boolean
+        +signServiceAccountAssertion(email, pem, scope, aud, iat) String
+    }
     class KmsKeyProvider {
         <<interface>>
         +providerName() String
@@ -158,10 +164,25 @@ classDiagram
     class DiscoveryIngestionService {
         -DiscoveryRepository repository
         -PiiPhiScrubber scrubber
+        -CloudInventoryPollerGateway inventoryGateway
+        -GcpRuntimeTelemetryPoller gcpRuntimePoller
         -Map~String, TelemetryAdapter~ adapters
         +ingestObservation(req) ObservationDto
+        +pollCloudInventory(req) InventoryNormalizationResult
+        +pollGcpRuntimeTelemetry(req) RuntimeTelemetryPollResult
         +loadSampleLocalScenario(req) SampleScenarioResult
         +listRegisteredAdapters() List
+    }
+    class CloudInventoryPollerGateway {
+        -GcpCredentialProvider gcpCredentialProvider
+        +pollAndNormalize(provider, scopeFilter) CloudPollOutcome
+    }
+    class GcpCredentialProvider {
+        +resolveAccessToken() String
+    }
+    class GcpRuntimeTelemetryPoller {
+        -GcpCredentialProvider credentialProvider
+        +pollRuntimeTelemetry(projectId, filter, windowMinutes) RuntimePollOutcome
     }
     class EvidenceQualificationService {
         -EvidenceRepository repository
@@ -200,6 +221,11 @@ classDiagram
     TelemetryAdapter <|.. OtelReceiverAdapter
     DiscoveryIngestionService --> TelemetryAdapter
     DiscoveryIngestionService --> PiiPhiScrubber
+    DiscoveryIngestionService --> CloudInventoryPollerGateway
+    DiscoveryIngestionService --> GcpRuntimeTelemetryPoller
+    CloudInventoryPollerGateway --> GcpCredentialProvider
+    GcpRuntimeTelemetryPoller --> GcpCredentialProvider
+    GcpRuntimeTelemetryPoller --> PiiPhiScrubber
     EvidenceQualificationService --> QualificationEngine
     EvidenceQualificationService --> ObjectLockWormClient
     KnowledgeGraphService --> Neo4jGraphGateway
@@ -295,7 +321,17 @@ classDiagram
         +compensate(auth, targetCanonicalId, previousVersion) AdapterOutcome
     }
     class KubernetesLocalRollbackAdapter
-    class CloudTrafficFailoverAdapter
+    class CloudTrafficFailoverAdapter {
+        -GcpLiveRecoveryGateway gcpGateway
+    }
+    class CloudComputeScalingAdapter {
+        -GcpLiveRecoveryGateway gcpGateway
+    }
+    class GcpLiveRecoveryGateway {
+        +isEnabled() boolean
+        +executeGcpMutation(auth, targetCanonicalId, targetVersion) String
+        +compensateGcpMutation(auth, targetCanonicalId, previousVersion) String
+    }
     class CrossLayerValidator {
         +validateExecution(simulateProbeFailure) ValidationOutcome
     }
@@ -310,8 +346,12 @@ classDiagram
     RecoveryActivitiesImpl --> CrossLayerValidator
     RecoveryOrchestrationService --> ProviderActionAdapter
     RecoveryOrchestrationService --> CrossLayerValidator
+    RecoveryOrchestrationService --> GcpLiveRecoveryGateway
     ProviderActionAdapter <|.. KubernetesLocalRollbackAdapter
     ProviderActionAdapter <|.. CloudTrafficFailoverAdapter
+    ProviderActionAdapter <|.. CloudComputeScalingAdapter
+    CloudTrafficFailoverAdapter --> GcpLiveRecoveryGateway
+    CloudComputeScalingAdapter --> GcpLiveRecoveryGateway
 ```
 
 ---
@@ -342,9 +382,19 @@ classDiagram
         +arbitrate(proposals) ArbitratedOutcome
     }
     class EnterpriseLlmGateway {
+        -GcpVertexCredentialResolver gcpVertexCredentialResolver
         +scrubOutboundPrompt(prompt) String
         +validateSafeEndpoint(url)
         +synthesize(queryPrompt, contextRef) SynthesisOutcome
+    }
+    class GcpVertexCredentialResolver {
+        +resolveAccessToken(explicitToken) String
+    }
+    class OrchestrationRunService {
+        +admitRun(req) OrchestrationRunDto
+        +recordStepCheckpoint(runId, req) OrchestrationRunDto
+        +cancelRun(runId, reason) OrchestrationRunDto
+        +resumeFromCheckpoint(runId, req) OrchestrationRunDto
     }
     class ComplianceAssuranceService {
         -ReportingRepository repository
@@ -386,6 +436,8 @@ classDiagram
 
     AdvisoryAgentService --> DeterministicArbiter
     AdvisoryAgentService --> EnterpriseLlmGateway
+    EnterpriseLlmGateway --> GcpVertexCredentialResolver
+    EdgeProxyController ..> OrchestrationRunService
     PortalController --> UacrfEdgeClient
     UacrfEdgeClient ..> EdgeProxyController
     EdgeSecurityConfig ..> EdgeProxyController

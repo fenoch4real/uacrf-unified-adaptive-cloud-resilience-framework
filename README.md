@@ -40,7 +40,7 @@ UACRF enforces one non-negotiable architectural boundary: **Advice is Not Author
 
 ---
 
-## Published paper
+## Published Paper
 
 The foundational research behind UACRF introduces a unified engineering and governance model for cloud and AI-agent resilience. Authored by **Olufemi O. Fabiyi** and **Michael M. Yeboah**, the paper connects dependency-aware evidence qualification and failure-domain assessment with bounded recovery actions, independent post-action validation, and verified learning from incidents. Its guiding architectural boundary is simple and strict: **advice is not authority** — neither an AI/human recommendation nor a cloud provider's `200 OK` control-plane acknowledgment proves that recovery actually restored customer service.
 
