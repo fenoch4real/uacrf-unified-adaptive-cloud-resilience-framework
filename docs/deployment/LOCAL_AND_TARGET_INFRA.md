@@ -71,3 +71,26 @@ flowchart TB
 - **Cross-Cloud Correlation-Domain Mapping (`P5`):** UACRF explicitly inspects whether multi-cloud paths (`AWS`, `GCP`, `Azure`, `OCI`) share underlying failure domains such as federated IdP, global DNS, shared KMS/Vault, or upstream third-party AI APIs.
 - **Data Residency & Immutable Retention (`GDPR`, `HIPAA`, `DORA`):** Regional clusters pin PostgreSQL, Neo4j, and native cloud WORM buckets (**AWS S3 Object Lock**, **GCS Bucket Lock**, **Azure Immutable Blob**, **OCI Object Storage Retention Rules**) inside approved jurisdictions (`US`, `EU`).
 - **PCI DSS v4.0 / FedRAMP Enclaves:** Cardholder Data Environments and FedRAMP workloads isolate telemetry collectors behind private interconnects (`PrivateLink`, `Cloud Interconnect`, `ExpressRoute`, `OCI Service Gateway`) with PII/PHI/PAN scrubbing prior to leaving the customer boundary.
+
+## 4. Connecting Local UACRF to a GCP Sandbox Project (Step 3 Guide)
+You do **not** need to install UACRF in GCP to scan a GCP sandbox project. Keep UACRF running locally and connect `S03` read-only:
+
+1. **Authenticate Google Application Default Credentials** (works even without host `gcloud` installed via Docker `google-cloud-cli`):
+   ```bash
+   mkdir -p ~/.config/gcloud
+   docker run --rm -it -v "$HOME/.config/gcloud:/root/.config/gcloud" \
+     gcr.io/google.com/cloudsdktool/google-cloud-cli:slim \
+     gcloud auth application-default login
+   ```
+2. **Enable Read-Only Discovery APIs & Least-Privilege Role** using [setup-gcp-sandbox.sh](../../infra/scripts/setup-gcp-sandbox.sh) or [infra/terraform/gcp-sandbox-discovery](../../infra/terraform/gcp-sandbox-discovery/main.tf):
+   ```bash
+   ./infra/scripts/setup-gcp-sandbox.sh <YOUR_GCP_PROJECT_ID> --create-sample-bucket
+   ```
+3. **Run `S03 discovery-service` against your GCP Sandbox:**
+   ```bash
+   export UACRF_DISCOVERY_GCP_ENABLED=true
+   export UACRF_DISCOVERY_GCP_PROJECT=<YOUR_GCP_PROJECT_ID>
+   # discovery-service automatically exchanges ~/.config/gcloud/application_default_credentials.json
+   # or set GOOGLE_APPLICATION_CREDENTIALS=/path/to/uacrf-discovery-ro.json
+   ```
+   Then trigger a live read-only scan via `POST /v1/inventory/poll` (`{"tenantId":"...","environmentId":"...","provider":"GCP","scopeFilter":"*"}`).

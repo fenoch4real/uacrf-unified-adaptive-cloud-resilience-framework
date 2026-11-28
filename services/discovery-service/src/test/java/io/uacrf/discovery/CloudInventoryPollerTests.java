@@ -1,16 +1,23 @@
 package io.uacrf.discovery;
 
 import io.uacrf.discovery.adapter.CloudInventoryPollerGateway;
+import io.uacrf.discovery.adapter.GcpCredentialProvider;
 import io.uacrf.discovery.api.DiscoveryDomainException;
 import io.uacrf.discovery.api.DiscoveryDtos.RawCloudAssetRecord;
 import io.uacrf.discovery.service.PiiPhiScrubber;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,7 +29,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 /**
  * Verifies multi-cloud catalog & inventory polling contracts, SSRF blocks, fail-closed disabled standby,
- * and AWS / GCP / Azure / OCI wire-payload parsing and canonical Neo4j normalization without live cloud credentials.
+ * GCP ADC/Service-Account OAuth2 exchanges, and AWS / GCP / Azure / OCI wire-payload parsing without live cloud credentials.
  */
 class CloudInventoryPollerTests {
 
@@ -32,6 +39,7 @@ class CloudInventoryPollerTests {
     private CloudInventoryPollerGateway buildStandbyGateway() {
         return new CloudInventoryPollerGateway(
                 new PiiPhiScrubber(),
+                new GcpCredentialProvider("", "", "https://oauth2.googleapis.com/token"),
                 false, "us-east-1", "IAM_ASSUME_ROLE", "", "", "",
                 false, "uacrf-gcp", "WORKLOAD_IDENTITY", "", "",
                 false, "uacrf-az", "MANAGED_IDENTITY", "", "",
@@ -78,6 +86,7 @@ class CloudInventoryPollerTests {
 
         CloudInventoryPollerGateway gateway = new CloudInventoryPollerGateway(
                 new PiiPhiScrubber(),
+                new GcpCredentialProvider("mock-gcp-token", "", "https://oauth2.googleapis.com/token"),
                 true, "us-east-1", "IAM_ASSUME_ROLE", "arn:aws:iam::123456789012:role/uacrf-ro",
                 "https://resource-explorer-2.us-east-1.amazonaws.com/Search", "mock-aws-token",
                 true, "uacrf-prod", "WORKLOAD_IDENTITY",
@@ -95,7 +104,7 @@ class CloudInventoryPollerTests {
                         {"Resources":[{"Arn":"arn:aws:eks:us-east-1:123:cluster/payments-eks","ResourceType":"AWS::EKS::Cluster","Region":"us-east-1"}]}
                         """, MediaType.APPLICATION_JSON));
 
-        mockServer.expect(requestTo("https://cloudasset.googleapis.com/v1/projects/uacrf-prod:searchAllResources?query=*"))
+        mockServer.expect(requestTo("https://cloudasset.googleapis.com/v1/projects/uacrf-prod:searchAllResources"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         {"results":[{"name":"//container.googleapis.com/projects/uacrf-prod/locations/us-central1/clusters/gke-checkout","assetType":"container.googleapis.com/Cluster","location":"us-central1","displayName":"gke-checkout"}]}
@@ -149,5 +158,46 @@ class CloudInventoryPollerTests {
         assertEquals(4, batch.edges().size());
         assertEquals(1, batch.computePlacements().size());
         assertTrue(batch.aliases().stream().noneMatch(a -> a.providerResourceId().contains("alice@example.com")));
+    }
+
+    @Test
+    void exchangesAuthorizedUserAdcAndServiceAccountJwtForGcpAccessTokens(@TempDir Path tempDir) throws Exception {
+        // 1. Authorized User ADC refresh flow (gcloud auth application-default login output format)
+        Path adcFile = tempDir.resolve("adc_user.json");
+        Files.writeString(adcFile, """
+                {"type":"authorized_user","client_id":"cid-1","client_secret":"csec-1","refresh_token":"rtok-1"}
+                """);
+        RestClient.Builder adcBuilder = RestClient.builder();
+        MockRestServiceServer adcMock = MockRestServiceServer.bindTo(adcBuilder).build();
+        adcMock.expect(requestTo("https://oauth2.googleapis.com/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"access_token\":\"ya29.adc-refreshed-token\"}", MediaType.APPLICATION_JSON));
+
+        GcpCredentialProvider userAdc = new GcpCredentialProvider("", adcFile.toString(), "https://oauth2.googleapis.com/token");
+        userAdc.setRestClientForTesting(adcBuilder.build());
+        assertEquals("ya29.adc-refreshed-token", userAdc.resolveAccessToken());
+        adcMock.verify();
+
+        // 2. Service Account JWT assertion flow
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair kp = kpg.generateKeyPair();
+        String pem = "-----BEGIN PRIVATE KEY-----\n"
+                + Base64.getEncoder().encodeToString(kp.getPrivate().getEncoded())
+                + "\n-----END PRIVATE KEY-----";
+        Path saFile = tempDir.resolve("sa_key.json");
+        Files.writeString(saFile, "{\"type\":\"service_account\",\"client_email\":\"uacrf-discovery-ro@sandbox.iam.gserviceaccount.com\","
+                + "\"private_key\":\"" + pem.replace("\n", "\\n") + "\",\"token_uri\":\"https://oauth2.googleapis.com/token\"}");
+
+        RestClient.Builder saBuilder = RestClient.builder();
+        MockRestServiceServer saMock = MockRestServiceServer.bindTo(saBuilder).build();
+        saMock.expect(requestTo("https://oauth2.googleapis.com/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"access_token\":\"ya29.sa-jwt-token\"}", MediaType.APPLICATION_JSON));
+
+        GcpCredentialProvider saCreds = new GcpCredentialProvider("", saFile.toString(), "https://oauth2.googleapis.com/token");
+        saCreds.setRestClientForTesting(saBuilder.build());
+        assertEquals("ya29.sa-jwt-token", saCreds.resolveAccessToken());
+        saMock.verify();
     }
 }

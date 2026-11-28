@@ -120,6 +120,7 @@ public class CloudInventoryPollerGateway {
     );
 
     private final PiiPhiScrubber scrubber;
+    private final GcpCredentialProvider gcpCredentialProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, CloudInventoryProfile> profiles;
     private final Map<String, String> bearerTokens;
@@ -128,6 +129,7 @@ public class CloudInventoryPollerGateway {
     @Autowired
     public CloudInventoryPollerGateway(
             PiiPhiScrubber scrubber,
+            GcpCredentialProvider gcpCredentialProvider,
             @Value("${uacrf.discovery.adapters.aws.enabled:false}") boolean awsEnabled,
             @Value("${uacrf.discovery.adapters.aws.region:us-east-1}") String awsRegion,
             @Value("${uacrf.discovery.adapters.aws.auth-mode:IAM_ASSUME_ROLE}") String awsAuthMode,
@@ -151,6 +153,7 @@ public class CloudInventoryPollerGateway {
             @Value("${uacrf.discovery.adapters.oci.endpoint-url:}") String ociEndpointUrl,
             @Value("${uacrf.discovery.adapters.oci.bearer-token:}") String ociToken) {
         this.scrubber = scrubber;
+        this.gcpCredentialProvider = gcpCredentialProvider;
         this.restClient = RestClient.create();
 
         String resolvedAwsUrl = !isBlank(awsEndpointUrl)
@@ -232,7 +235,9 @@ public class CloudInventoryPollerGateway {
                             + "Use /v1/inventory/normalize for offline payloads or configure read-only federated credentials.");
         }
         validateSafeEndpoint(profile.endpointUrl());
-        String token = bearerTokens.getOrDefault(profile.provider(), "");
+        String token = "GCP".equals(profile.provider())
+                ? gcpCredentialProvider.resolveAccessToken()
+                : bearerTokens.getOrDefault(profile.provider(), "");
         if (isBlank(token)) {
             throw new DiscoveryDomainException(HttpStatus.PRECONDITION_FAILED, "MISSING_READ_ONLY_CREDENTIALS",
                     "Read-only federated/workload credential is not configured for provider [" + profile.provider() + "].");
@@ -399,9 +404,14 @@ public class CloudInventoryPollerGateway {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("QueryString", filter, "MaxResults", 200))
                     .retrieve().body(String.class);
-            case "GCP" -> restClient.get().uri(profile.endpointUrl() + "?query=" + URI.create("http://dummy?q=" + filter).getRawQuery().substring(2))
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                    .retrieve().body(String.class);
+            case "GCP" -> {
+                String gcpUri = "*".equals(filter)
+                        ? profile.endpointUrl()
+                        : profile.endpointUrl() + "?query=" + URI.create("http://dummy?q=" + filter).getRawQuery().substring(2);
+                yield restClient.get().uri(gcpUri)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .retrieve().body(String.class);
+            }
             case "AZURE" -> restClient.post().uri(profile.endpointUrl())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
