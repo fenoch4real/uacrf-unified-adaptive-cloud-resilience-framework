@@ -28,6 +28,16 @@ public class RecoveryController {
         return service.setKillSwitch(request);
     }
 
+    @GetMapping("/live-mode")
+    public LiveExecutionPolicyDto getLiveMode(@RequestParam UUID tenantId, @RequestParam UUID environmentId) {
+        return service.getLiveExecutionPolicy(tenantId, environmentId);
+    }
+
+    @PostMapping("/live-mode")
+    public LiveExecutionPolicyDto updateLiveMode(@Valid @RequestBody UpdateLiveExecutionPolicyRequest request) {
+        return service.setLiveExecutionPolicy(request);
+    }
+
     @GetMapping("/executions")
     public List<RecoveryExecutionDto> listExecutions(@RequestParam UUID tenantId, @RequestParam UUID environmentId) {
         return service.listExecutions(tenantId, environmentId);

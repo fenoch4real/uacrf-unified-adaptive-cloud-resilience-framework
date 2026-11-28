@@ -19,6 +19,26 @@
     </div>
 
     <div class="uacrf-card mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="h5 fw-bold mb-1">Live Cloud Execution Gate (Disabled by Default)</h2>
+                <p class="text-secondary small mb-0">
+                    When disabled (default), S11 runs all P2/P3/P6 gates in <code>DRY_RUN_SIMULATED</code> mode without mutating cloud servers.
+                    Live cloud calls require both this toggle ON <strong>and</strong> server-side <code>UACRF_RECOVERY_LIVE_ENABLED=true</code> with separate write credentials (<code>NFR-SEC-003</code>).
+                </p>
+            </div>
+            <form th:action="@{/recover/live-mode}" method="post" class="d-flex align-items-center gap-2">
+                <span class="uacrf-pill"
+                      th:classappend="${livePolicy['effectiveMode'] == 'LIVE_MUTATION_ENABLED'} ? 'uacrf-pill-warning' : 'uacrf-pill-success'"
+                      th:text="${livePolicy['effectiveMode'] == 'LIVE_MUTATION_ENABLED'} ? 'LIVE MUTATIONS ENABLED' : 'DRY-RUN SIMULATED (DEFAULT SAFE)'"></span>
+                <input type="hidden" name="enabled" th:value="${livePolicy['tenantToggleEnabled'] == true ? 'false' : 'true'}">
+                <button type="submit" class="btn btn-sm btn-outline-primary"
+                        th:text="${livePolicy['tenantToggleEnabled'] == true} ? 'Switch Toggle OFF (Safe Mode)' : 'Enable Tenant Toggle'"></button>
+            </form>
+        </div>
+    </div>
+
+    <div class="uacrf-card mb-4">
         <h2 class="h5 fw-bold mb-3">Execution history &amp; compensation status</h2>
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light"><tr><th>Execution ID</th><th>Service</th><th>Action</th><th>Adapter</th><th>Workflow State</th><th>Compensated</th><th>P6 Layers Verified</th></tr></thead>

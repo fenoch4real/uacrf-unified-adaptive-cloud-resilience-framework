@@ -132,6 +132,18 @@ Trigger live scans via the portal (`/settings/connections` -> **Poll Live Cloud 
   {"tenantId":"11111111-1111-7111-8111-111111111111","environmentId":"22222222-2222-7222-8222-222222222222","includeMetrics":true,"includeLogs":true,"windowMinutes":60,"persist":true}
   ```
 
+#### Optional: Toggle-Gated Live GCP Recovery (`S11`, Disabled by Default)
+By default, `S11 recovery-service` executes in safe `DRY_RUN_SIMULATED` mode (`uacrf.recovery.live-execution.enabled=false` and tenant UI toggle `/recover` = `OFF`). To enable real Cloud Run revision traffic splits or Compute MIG resizes on a non-prod sandbox, **all three** must be enabled:
+1. Create a **separate** least-privilege GCP execution service account (e.g. `roles/run.developer` or `roles/compute.instanceAdmin.v1`) — never reuse `uacrf-discovery-ro` (`NFR-SEC-003`).
+2. Start `recovery-service` with:
+   ```bash
+   export UACRF_RECOVERY_LIVE_ENABLED=true
+   export UACRF_RECOVERY_GCP_ENABLED=true
+   export UACRF_RECOVERY_GCP_PROJECT=<YOUR_GCP_PROJECT_ID>
+   export UACRF_RECOVERY_GCP_CREDENTIALS_FILE="$HOME/.config/gcloud/uacrf-gcp-exec.json"
+   ```
+3. Flip the tenant live-mode toggle ON in UX01 (`/recover`) or via `POST /v1/recovery/live-mode`.
+
 ---
 
 ### 4.2 Amazon Web Services (AWS) — GUI Console & CLI Setup

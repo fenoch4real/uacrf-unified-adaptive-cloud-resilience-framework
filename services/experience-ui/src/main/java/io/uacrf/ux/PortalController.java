@@ -733,8 +733,36 @@ public class PortalController {
                           @ModelAttribute("environmentId") UUID envId) {
         model.addAttribute("activeNav", "recover");
         model.addAttribute("killSwitch", edge.getObjectOrEmpty("/v1/recovery/kill-switch?tenantId=" + tenantId + "&environmentId=" + envId));
+        model.addAttribute("livePolicy", edge.getObjectOrEmpty("/v1/recovery/live-mode?tenantId=" + tenantId + "&environmentId=" + envId));
         model.addAttribute("executions", edge.getList("/v1/recovery/executions?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
         return "recover";
+    }
+
+    @PostMapping("/recover/live-mode")
+    public String toggleLiveExecutionMode(@ModelAttribute("tenantId") UUID tenantId,
+                                          @ModelAttribute("environmentId") UUID envId,
+                                          @ModelAttribute("actorId") UUID actorId,
+                                          @ModelAttribute("actorName") String actorName,
+                                          @RequestParam boolean enabled,
+                                          RedirectAttributes ra) {
+        try {
+            var res = edge.postJson("/v1/recovery/live-mode", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId,
+                    "enabled", enabled,
+                    "reason", enabled ? "Operator toggled live execution ON via UX01" : "Operator switched recovery back to safe DRY-RUN",
+                    "updatedBy", actorName
+            ));
+            String effectiveMode = String.valueOf(res.getOrDefault("effectiveMode", "DRY_RUN_SIMULATED"));
+            if (enabled && "DRY_RUN_SIMULATED".equals(effectiveMode)) {
+                ra.addFlashAttribute("flashSuccess",
+                        "Tenant live-mode toggle set to ON, but server lock UACRF_RECOVERY_LIVE_ENABLED=false keeps effectiveMode=DRY_RUN_SIMULATED.");
+            } else {
+                ra.addFlashAttribute("flashSuccess", "Recovery execution mode updated: " + effectiveMode);
+            }
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/recover";
     }
 
     @PostMapping("/recover/kill-switch")

@@ -4,6 +4,7 @@ import io.uacrf.contracts.authority.BoundedRecoveryAuthorization;
 import io.uacrf.recovery.api.RecoveryDomainException;
 import io.uacrf.recovery.api.RecoveryDtos.ExecuteRecoveryRequest;
 import io.uacrf.recovery.api.RecoveryDtos.UpdateKillSwitchRequest;
+import io.uacrf.recovery.api.RecoveryDtos.UpdateLiveExecutionPolicyRequest;
 import io.uacrf.recovery.service.RecoveryOrchestrationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,7 +82,19 @@ class RecoveryServiceIntegrationTest {
         assertEquals("COMPENSATED", compExec.workflowState());
         assertTrue(compExec.compensated());
 
-        // 5. Operator kill switch fail-closed blocks execution
+        // 5. Default live-execution policy is DISABLED (DRY_RUN_SIMULATED) & respects server lock
+        var defaultPolicy = service.getLiveExecutionPolicy(TENANT_ID, ENV_ID);
+        assertFalse(defaultPolicy.tenantToggleEnabled());
+        assertFalse(defaultPolicy.serverConfigEnabled());
+        assertEquals("DRY_RUN_SIMULATED", defaultPolicy.effectiveMode());
+        assertTrue(succeeded.adapterOutput().startsWith("[DRY_RUN_SIMULATED]"));
+
+        var updatedPolicy = service.setLiveExecutionPolicy(new UpdateLiveExecutionPolicyRequest(
+                TENANT_ID, ENV_ID, true, "Requested live check", "Maya Chen"));
+        assertTrue(updatedPolicy.tenantToggleEnabled());
+        assertEquals("DRY_RUN_SIMULATED", updatedPolicy.effectiveMode());
+
+        // 6. Operator kill switch fail-closed blocks execution
         service.setKillSwitch(new UpdateKillSwitchRequest(TENANT_ID, ENV_ID, true, "Incident freeze", "Aisha Patel"));
         RecoveryDomainException ksEx = assertThrows(RecoveryDomainException.class, () ->
                 service.executeRecovery(new ExecuteRecoveryRequest(

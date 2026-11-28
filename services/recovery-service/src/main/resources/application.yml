@@ -12,6 +12,30 @@ spring:
     schemas: recovery,integration
     default-schema: recovery
 
+uacrf:
+  recovery:
+    live-execution:
+      enabled: ${UACRF_RECOVERY_LIVE_ENABLED:false}
+    adapters:
+      gcp:
+        enabled: ${UACRF_RECOVERY_GCP_ENABLED:false}
+        project-id: ${UACRF_RECOVERY_GCP_PROJECT:uacrf-unconfigured}
+        region: ${UACRF_RECOVERY_GCP_REGION:us-central1}
+        zone: ${UACRF_RECOVERY_GCP_ZONE:us-central1-a}
+        credentials-file: ${UACRF_RECOVERY_GCP_CREDENTIALS_FILE:}
+        bearer-token: ${UACRF_RECOVERY_GCP_TOKEN:}
+        oauth-token-url: ${UACRF_RECOVERY_GCP_TOKEN_URL:https://oauth2.googleapis.com/token}
+        run-base-url: ${UACRF_RECOVERY_GCP_RUN_URL:https://run.googleapis.com}
+        compute-base-url: ${UACRF_RECOVERY_GCP_COMPUTE_URL:https://compute.googleapis.com}
+      aws:
+        enabled: ${UACRF_RECOVERY_AWS_ENABLED:false}
+      azure:
+        enabled: ${UACRF_RECOVERY_AZURE_ENABLED:false}
+      oci:
+        enabled: ${UACRF_RECOVERY_OCI_ENABLED:false}
+      kubernetes:
+        enabled: ${UACRF_RECOVERY_K8S_ENABLED:false}
+
 management:
   endpoints:
     web:

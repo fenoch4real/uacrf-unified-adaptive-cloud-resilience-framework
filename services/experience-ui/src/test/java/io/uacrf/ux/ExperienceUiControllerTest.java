@@ -117,5 +117,13 @@ class ExperienceUiControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/settings/connections"))
                 .andExpect(flash().attributeExists("flashSuccess"));
+
+        when(edgeClient.postJson(eq("/v1/recovery/live-mode"), any(), any(), any()))
+                .thenReturn(java.util.Map.of("effectiveMode", "DRY_RUN_SIMULATED", "tenantToggleEnabled", true));
+
+        mockMvc.perform(post("/recover/live-mode").param("enabled", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/recover"))
+                .andExpect(flash().attributeExists("flashSuccess"));
     }
 }

@@ -41,6 +41,28 @@ public final class RecoveryDtos {
     ) {
     }
 
+    public record LiveExecutionPolicyDto(
+            UUID tenantId,
+            UUID environmentId,
+            boolean tenantToggleEnabled,
+            boolean serverConfigEnabled,
+            boolean gcpAdapterEnabled,
+            String effectiveMode,
+            String reason,
+            String updatedBy,
+            Instant updatedAt
+    ) {
+    }
+
+    public record UpdateLiveExecutionPolicyRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID environmentId,
+            boolean enabled,
+            @NotBlank String reason,
+            @NotBlank String updatedBy
+    ) {
+    }
+
     public record ExecuteRecoveryRequest(
             @NotNull UUID tenantId,
             @NotNull UUID environmentId,

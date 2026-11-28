@@ -2,9 +2,12 @@ package io.uacrf.recovery.service;
 
 import io.uacrf.contracts.authority.BoundedRecoveryAuthorization;
 import io.uacrf.crypto.CanonicalJson;
+import io.uacrf.recovery.adapter.GcpLiveRecoveryGateway;
 import io.uacrf.recovery.adapter.ProviderActionAdapter;
 import io.uacrf.recovery.api.RecoveryDomainException;
 import io.uacrf.recovery.api.RecoveryDtos.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,17 +25,41 @@ public class RecoveryOrchestrationService {
     private final RecoveryRepository repository;
     private final CrossLayerValidator validator;
     private final Map<String, ProviderActionAdapter> adapters;
+    private final boolean serverLiveExecutionEnabled;
+    private final GcpLiveRecoveryGateway gcpGateway;
 
-    public RecoveryOrchestrationService(RecoveryRepository repository,
-                                        CrossLayerValidator validator,
-                                        List<ProviderActionAdapter> adapterList) {
+    @Autowired
+    public RecoveryOrchestrationService(
+            RecoveryRepository repository,
+            CrossLayerValidator validator,
+            List<ProviderActionAdapter> adapterList,
+            @Value("${uacrf.recovery.live-execution.enabled:false}") boolean serverLiveExecutionEnabled,
+            GcpLiveRecoveryGateway gcpGateway) {
         this.repository = repository;
         this.validator = validator;
         this.adapters = adapterList.stream().collect(Collectors.toMap(ProviderActionAdapter::adapterKey, Function.identity()));
+        this.serverLiveExecutionEnabled = serverLiveExecutionEnabled;
+        this.gcpGateway = gcpGateway;
     }
 
     public KillSwitchDto getKillSwitch(UUID tenantId, UUID environmentId) {
         return repository.getKillSwitch(tenantId, environmentId);
+    }
+
+    public LiveExecutionPolicyDto getLiveExecutionPolicy(UUID tenantId, UUID environmentId) {
+        boolean gcpEnabled = gcpGateway != null && gcpGateway.isEnabled();
+        return repository.getLiveExecutionPolicy(tenantId, environmentId, serverLiveExecutionEnabled, gcpEnabled);
+    }
+
+    @Transactional
+    public LiveExecutionPolicyDto setLiveExecutionPolicy(UpdateLiveExecutionPolicyRequest req) {
+        boolean gcpEnabled = gcpGateway != null && gcpGateway.isEnabled();
+        var policy = repository.setLiveExecutionPolicy(
+                req.tenantId(), req.environmentId(), req.enabled(), req.reason(), req.updatedBy(),
+                serverLiveExecutionEnabled, gcpEnabled);
+        repository.insertOutbox(req.tenantId(), req.environmentId(), "recovery.live_mode.updated",
+                "LiveExecutionPolicy", req.environmentId().toString(), UUID.randomUUID(), CanonicalJson.toJson(policy));
+        return policy;
     }
 
     @Transactional
@@ -88,8 +115,11 @@ public class RecoveryOrchestrationService {
                     "Single-use authorization nonce [" + auth.nonce() + "] has already been consumed.");
         }
 
+        LiveExecutionPolicyDto livePolicy = getLiveExecutionPolicy(req.tenantId(), req.environmentId());
+        boolean liveExecution = "LIVE_MUTATION_ENABLED".equals(livePolicy.effectiveMode());
+
         Instant startedAt = Instant.now();
-        var actionResult = adapter.execute(auth, req.requestedTargetCanonicalId(), req.requestedTargetVersion());
+        var actionResult = adapter.execute(auth, req.requestedTargetCanonicalId(), req.requestedTargetVersion(), liveExecution);
         var validation = validator.validateExecution(req.simulateProbeFailure());
 
         boolean compensated = false;
@@ -97,7 +127,7 @@ public class RecoveryOrchestrationService {
         String summary = actionResult.summary();
 
         if (!validation.passed()) {
-            var compResult = adapter.compensate(auth, req.requestedTargetCanonicalId(), "v43");
+            var compResult = adapter.compensate(auth, req.requestedTargetCanonicalId(), "v43", liveExecution);
             compensated = compResult.succeeded();
             finalState = compensated ? "COMPENSATED" : "ESCALATED";
             summary = summary + " | " + compResult.summary();

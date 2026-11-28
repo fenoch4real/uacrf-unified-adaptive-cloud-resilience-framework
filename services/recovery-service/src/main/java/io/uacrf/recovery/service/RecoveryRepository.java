@@ -53,6 +53,53 @@ public class RecoveryRepository {
         return new KillSwitchDto(tenantId, environmentId, active, reason, updatedBy, now);
     }
 
+    public LiveExecutionPolicyDto getLiveExecutionPolicy(
+            UUID tenantId, UUID environmentId, boolean serverConfigEnabled, boolean gcpAdapterEnabled) {
+        List<LiveExecutionPolicyDto> list = jdbc.query("""
+                SELECT tenant_id, environment_id, live_execution_enabled, reason, updated_by, updated_at
+                FROM recovery.live_execution_policy
+                WHERE tenant_id = ? AND environment_id = ?
+                """, (rs, rowNum) -> {
+            boolean tenantEnabled = rs.getBoolean("live_execution_enabled");
+            String mode = (tenantEnabled && serverConfigEnabled) ? "LIVE_MUTATION_ENABLED" : "DRY_RUN_SIMULATED";
+            return new LiveExecutionPolicyDto(
+                    rs.getObject("tenant_id", UUID.class),
+                    rs.getObject("environment_id", UUID.class),
+                    tenantEnabled,
+                    serverConfigEnabled,
+                    gcpAdapterEnabled,
+                    mode,
+                    rs.getString("reason"),
+                    rs.getString("updated_by"),
+                    rs.getTimestamp("updated_at").toInstant()
+            );
+        }, tenantId, environmentId);
+        if (list.isEmpty()) {
+            return new LiveExecutionPolicyDto(tenantId, environmentId, false, serverConfigEnabled, gcpAdapterEnabled,
+                    "DRY_RUN_SIMULATED", "Disabled by default (safe simulation mode)", "System", Instant.now());
+        }
+        return list.getFirst();
+    }
+
+    public LiveExecutionPolicyDto setLiveExecutionPolicy(
+            UUID tenantId, UUID environmentId, boolean enabled, String reason, String updatedBy,
+            boolean serverConfigEnabled, boolean gcpAdapterEnabled) {
+        Instant now = Instant.now();
+        jdbc.update("""
+                INSERT INTO recovery.live_execution_policy (
+                    tenant_id, environment_id, live_execution_enabled, reason, updated_by, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (tenant_id, environment_id)
+                DO UPDATE SET live_execution_enabled = EXCLUDED.live_execution_enabled,
+                              reason = EXCLUDED.reason,
+                              updated_by = EXCLUDED.updated_by,
+                              updated_at = EXCLUDED.updated_at
+                """, tenantId, environmentId, enabled, reason, updatedBy, Timestamp.from(now));
+        String mode = (enabled && serverConfigEnabled) ? "LIVE_MUTATION_ENABLED" : "DRY_RUN_SIMULATED";
+        return new LiveExecutionPolicyDto(tenantId, environmentId, enabled, serverConfigEnabled,
+                gcpAdapterEnabled, mode, reason, updatedBy, now);
+    }
+
     public boolean tryConsumeNonce(String nonce, UUID authorizationId) {
         int rows = jdbc.update("""
                 INSERT INTO recovery.consumed_nonce (nonce, authorization_id)
