@@ -231,4 +231,27 @@ public final class DiscoveryDtos {
             String note
     ) {
     }
+
+    public record AwsRuntimeTelemetryPollRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID environmentId,
+            String region,
+            String logGroupName,
+            Boolean includeMetrics,
+            Boolean includeLogs,
+            Integer windowMinutes,
+            boolean persist
+    ) {
+    }
+
+    public record AwsRuntimeTelemetryPollResult(
+            String provider,
+            String region,
+            String telemetrySource,
+            int metricsCount,
+            int logsCount,
+            List<ObservationDto> observations,
+            String note
+    ) {
+    }
 }

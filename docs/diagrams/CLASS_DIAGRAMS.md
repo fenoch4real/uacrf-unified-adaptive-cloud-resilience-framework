@@ -57,6 +57,11 @@ classDiagram
         +isUnsafeEgressHost(url) boolean
         +signServiceAccountAssertion(email, pem, scope, aud, iat) String
     }
+    class AwsSigV4SignerSupport {
+        <<utility>>
+        +resolveCredentials(...) AwsCredentials
+        +signRequest(method, uri, service, region, headers, body, creds, ts) Map
+    }
     class KmsKeyProvider {
         <<interface>>
         +providerName() String
@@ -174,8 +179,16 @@ classDiagram
         +listRegisteredAdapters() List
     }
     class CloudInventoryPollerGateway {
+        -AwsCredentialProvider awsCredentialProvider
         -GcpCredentialProvider gcpCredentialProvider
-        +pollAndNormalize(provider, scopeFilter) CloudPollOutcome
+        +pollAndNormalize(provider, scopeFilter) InventoryNormalizationResult
+    }
+    class AwsCredentialProvider {
+        +resolveSigV4Credentials() AwsCredentials
+    }
+    class AwsRuntimeTelemetryPoller {
+        -AwsCredentialProvider credentialProvider
+        +poll(req) AwsRuntimeTelemetryPollResult
     }
     class GcpCredentialProvider {
         +resolveAccessToken() String
@@ -332,6 +345,11 @@ classDiagram
         +executeGcpMutation(auth, targetCanonicalId, targetVersion) String
         +compensateGcpMutation(auth, targetCanonicalId, previousVersion) String
     }
+    class AwsLiveRecoveryGateway {
+        +isEnabled() boolean
+        +executeAwsMutation(auth, targetCanonicalId, targetVersion) String
+        +compensateAwsMutation(auth, targetCanonicalId, previousVersion) String
+    }
     class CrossLayerValidator {
         +validateExecution(simulateProbeFailure) ValidationOutcome
     }
@@ -347,11 +365,14 @@ classDiagram
     RecoveryOrchestrationService --> ProviderActionAdapter
     RecoveryOrchestrationService --> CrossLayerValidator
     RecoveryOrchestrationService --> GcpLiveRecoveryGateway
+    RecoveryOrchestrationService --> AwsLiveRecoveryGateway
     ProviderActionAdapter <|.. KubernetesLocalRollbackAdapter
     ProviderActionAdapter <|.. CloudTrafficFailoverAdapter
     ProviderActionAdapter <|.. CloudComputeScalingAdapter
     CloudTrafficFailoverAdapter --> GcpLiveRecoveryGateway
+    CloudTrafficFailoverAdapter --> AwsLiveRecoveryGateway
     CloudComputeScalingAdapter --> GcpLiveRecoveryGateway
+    CloudComputeScalingAdapter --> AwsLiveRecoveryGateway
 ```
 
 ---

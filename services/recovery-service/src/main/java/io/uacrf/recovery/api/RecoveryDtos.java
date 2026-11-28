@@ -47,6 +47,7 @@ public final class RecoveryDtos {
             boolean tenantToggleEnabled,
             boolean serverConfigEnabled,
             boolean gcpAdapterEnabled,
+            boolean awsAdapterEnabled,
             String effectiveMode,
             String reason,
             String updatedBy,

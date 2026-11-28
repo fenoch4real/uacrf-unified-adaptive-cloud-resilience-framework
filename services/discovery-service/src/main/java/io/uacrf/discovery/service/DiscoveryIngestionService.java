@@ -2,6 +2,7 @@ package io.uacrf.discovery.service;
 
 import io.uacrf.contracts.graph.Neo4jOntology;
 import io.uacrf.crypto.CanonicalJson;
+import io.uacrf.discovery.adapter.AwsRuntimeTelemetryPoller;
 import io.uacrf.discovery.adapter.CloudInventoryPollerGateway;
 import io.uacrf.discovery.adapter.GcpRuntimeTelemetryPoller;
 import io.uacrf.discovery.adapter.SampleLocalScenarioGenerator;
@@ -27,6 +28,7 @@ public class DiscoveryIngestionService {
     private final SampleLocalScenarioGenerator sampleGenerator;
     private final CloudInventoryPollerGateway inventoryGateway;
     private final GcpRuntimeTelemetryPoller gcpRuntimePoller;
+    private final AwsRuntimeTelemetryPoller awsRuntimePoller;
     private final PiiPhiScrubber scrubber;
     private final Map<String, TelemetryAdapter> adapters;
     private final RestClient evidenceClient;
@@ -39,6 +41,7 @@ public class DiscoveryIngestionService {
             SampleLocalScenarioGenerator sampleGenerator,
             CloudInventoryPollerGateway inventoryGateway,
             GcpRuntimeTelemetryPoller gcpRuntimePoller,
+            AwsRuntimeTelemetryPoller awsRuntimePoller,
             PiiPhiScrubber scrubber,
             List<TelemetryAdapter> adapterList,
             @Value("${uacrf.discovery.evidence-base-url}") String evidenceBaseUrl,
@@ -49,6 +52,7 @@ public class DiscoveryIngestionService {
         this.sampleGenerator = sampleGenerator;
         this.inventoryGateway = inventoryGateway;
         this.gcpRuntimePoller = gcpRuntimePoller;
+        this.awsRuntimePoller = awsRuntimePoller;
         this.scrubber = scrubber;
         this.adapters = adapterList.stream().collect(Collectors.toMap(
                 a -> a.providerKey().toUpperCase(Locale.ROOT), Function.identity(), (a, b) -> a));
@@ -188,22 +192,41 @@ public class DiscoveryIngestionService {
     public RuntimeTelemetryPollResult pollGcpRuntimeTelemetry(GcpRuntimeTelemetryPollRequest req) {
         var result = gcpRuntimePoller.poll(req);
         if (req.persist()) {
-            for (ObservationDto obs : result.observations()) {
-                repository.insertObservation(obs, CanonicalJson.toJson(obs));
-            }
-            repository.updateConnectionCollection(req.tenantId(), req.environmentId(), "GCP", Instant.now());
-            repository.insertOutbox(
-                    req.tenantId(), req.environmentId(),
-                    "discovery.gcp_runtime.polled", "CollectionRun", UUID.randomUUID().toString(),
-                    UUID.randomUUID(), CanonicalJson.toJson(Map.of(
+            persistRuntimeTelemetry(req.tenantId(), req.environmentId(), "GCP",
+                    "discovery.gcp_runtime.polled", result.observations(), Map.of(
                             "provider", "GCP",
                             "projectId", result.projectId(),
                             "metricsCount", result.metricsCount(),
                             "logsCount", result.logsCount()
-                    ))
-            );
+                    ));
         }
         return result;
+    }
+
+    @Transactional
+    public AwsRuntimeTelemetryPollResult pollAwsRuntimeTelemetry(AwsRuntimeTelemetryPollRequest req) {
+        var result = awsRuntimePoller.poll(req);
+        if (req.persist()) {
+            persistRuntimeTelemetry(req.tenantId(), req.environmentId(), "AWS",
+                    "discovery.aws_runtime.polled", result.observations(), Map.of(
+                            "provider", "AWS",
+                            "region", result.region(),
+                            "metricsCount", result.metricsCount(),
+                            "logsCount", result.logsCount()
+                    ));
+        }
+        return result;
+    }
+
+    private void persistRuntimeTelemetry(UUID tenantId, UUID environmentId, String provider,
+                                         String eventType, List<ObservationDto> observations,
+                                         Map<String, Object> summaryPayload) {
+        for (ObservationDto obs : observations) {
+            repository.insertObservation(obs, CanonicalJson.toJson(obs));
+        }
+        repository.updateConnectionCollection(tenantId, environmentId, provider, Instant.now());
+        repository.insertOutbox(tenantId, environmentId, eventType, "CollectionRun",
+                UUID.randomUUID().toString(), UUID.randomUUID(), CanonicalJson.toJson(summaryPayload));
     }
 
     private void persistNormalizedBatch(UUID tenantId, UUID environmentId, InventoryNormalizationResult result) {

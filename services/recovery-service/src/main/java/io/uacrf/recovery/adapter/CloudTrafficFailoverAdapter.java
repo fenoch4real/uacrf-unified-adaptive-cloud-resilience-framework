@@ -23,14 +23,22 @@ public class CloudTrafficFailoverAdapter implements ProviderActionAdapter {
     );
 
     private final GcpLiveRecoveryGateway gcpGateway;
+    private final AwsLiveRecoveryGateway awsGateway;
 
     public CloudTrafficFailoverAdapter() {
         this.gcpGateway = null;
+        this.awsGateway = null;
+    }
+
+    public CloudTrafficFailoverAdapter(GcpLiveRecoveryGateway gcpGateway) {
+        this.gcpGateway = gcpGateway;
+        this.awsGateway = null;
     }
 
     @Autowired
-    public CloudTrafficFailoverAdapter(GcpLiveRecoveryGateway gcpGateway) {
+    public CloudTrafficFailoverAdapter(GcpLiveRecoveryGateway gcpGateway, AwsLiveRecoveryGateway awsGateway) {
         this.gcpGateway = gcpGateway;
+        this.awsGateway = awsGateway;
     }
 
     @Override
@@ -67,9 +75,18 @@ public class CloudTrafficFailoverAdapter implements ProviderActionAdapter {
             var dry = execute(auth, targetCanonicalId, targetVersion);
             return new AdapterOutcome(dry.succeeded(), "[DRY_RUN_SIMULATED] " + dry.summary());
         }
-        if (gcpGateway != null && gcpGateway.isEnabled()
-                && ("TRAFFIC_SHIFT_ROLLBACK".equals(auth.actionType()) || "CLOUD_CAPACITY_SCALE".equals(auth.actionType()))) {
-            return new AdapterOutcome(true, gcpGateway.executeGcpMutation(auth, targetCanonicalId, targetVersion));
+        boolean isAwsTarget = targetCanonicalId != null
+                && (targetCanonicalId.contains(":aws:") || targetCanonicalId.startsWith("arn:aws:"));
+        if ("TRAFFIC_SHIFT_ROLLBACK".equals(auth.actionType()) || "CLOUD_CAPACITY_SCALE".equals(auth.actionType())) {
+            if (isAwsTarget && awsGateway != null && awsGateway.isEnabled()) {
+                return new AdapterOutcome(true, awsGateway.executeAwsMutation(auth, targetCanonicalId, targetVersion));
+            }
+            if (!isAwsTarget && gcpGateway != null && gcpGateway.isEnabled()) {
+                return new AdapterOutcome(true, gcpGateway.executeGcpMutation(auth, targetCanonicalId, targetVersion));
+            }
+            if (awsGateway != null && awsGateway.isEnabled()) {
+                return new AdapterOutcome(true, awsGateway.executeAwsMutation(auth, targetCanonicalId, targetVersion));
+            }
         }
         throw new RecoveryDomainException(HttpStatus.PRECONDITION_FAILED, "LIVE_ADAPTER_UNCONFIGURED",
                 "Live cloud mutation is enabled globally, but action [" + auth.actionType() + "] requires a configured live provider adapter.");
@@ -81,9 +98,18 @@ public class CloudTrafficFailoverAdapter implements ProviderActionAdapter {
             var dry = compensate(auth, targetCanonicalId, previousVersion);
             return new AdapterOutcome(dry.succeeded(), "[DRY_RUN_SIMULATED] " + dry.summary());
         }
-        if (gcpGateway != null && gcpGateway.isEnabled()
-                && ("TRAFFIC_SHIFT_ROLLBACK".equals(auth.actionType()) || "CLOUD_CAPACITY_SCALE".equals(auth.actionType()))) {
-            return new AdapterOutcome(true, gcpGateway.compensateGcpMutation(auth, targetCanonicalId, previousVersion));
+        boolean isAwsTarget = targetCanonicalId != null
+                && (targetCanonicalId.contains(":aws:") || targetCanonicalId.startsWith("arn:aws:"));
+        if ("TRAFFIC_SHIFT_ROLLBACK".equals(auth.actionType()) || "CLOUD_CAPACITY_SCALE".equals(auth.actionType())) {
+            if (isAwsTarget && awsGateway != null && awsGateway.isEnabled()) {
+                return new AdapterOutcome(true, awsGateway.compensateAwsMutation(auth, targetCanonicalId, previousVersion));
+            }
+            if (!isAwsTarget && gcpGateway != null && gcpGateway.isEnabled()) {
+                return new AdapterOutcome(true, gcpGateway.compensateGcpMutation(auth, targetCanonicalId, previousVersion));
+            }
+            if (awsGateway != null && awsGateway.isEnabled()) {
+                return new AdapterOutcome(true, awsGateway.compensateAwsMutation(auth, targetCanonicalId, previousVersion));
+            }
         }
         return compensate(auth, targetCanonicalId, previousVersion);
     }

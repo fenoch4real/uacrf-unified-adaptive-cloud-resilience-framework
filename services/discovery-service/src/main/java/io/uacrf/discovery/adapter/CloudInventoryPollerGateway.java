@@ -3,6 +3,7 @@ package io.uacrf.discovery.adapter;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.uacrf.contracts.graph.Neo4jOntology;
+import io.uacrf.crypto.AwsSigV4SignerSupport;
 import io.uacrf.crypto.CanonicalJson;
 import io.uacrf.discovery.api.DiscoveryDomainException;
 import io.uacrf.discovery.api.DiscoveryDtos.*;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
@@ -124,15 +126,33 @@ public class CloudInventoryPollerGateway {
     );
 
     private final PiiPhiScrubber scrubber;
+    private final AwsCredentialProvider awsCredentialProvider;
     private final GcpCredentialProvider gcpCredentialProvider;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, CloudInventoryProfile> profiles;
     private final Map<String, String> bearerTokens;
     private RestClient restClient;
 
+    public CloudInventoryPollerGateway(
+            PiiPhiScrubber scrubber,
+            GcpCredentialProvider gcpCredentialProvider,
+            boolean awsEnabled, String awsRegion, String awsAuthMode, String awsRoleArn, String awsEndpointUrl, String awsToken,
+            boolean gcpEnabled, String gcpProject, String gcpAuthMode, String gcpEndpointUrl, String gcpToken,
+            boolean azureEnabled, String azureSub, String azureAuthMode, String azureEndpointUrl, String azureToken,
+            boolean ociEnabled, String ociTenancy, String ociRegion, String ociAuthMode, String ociEndpointUrl, String ociToken) {
+        this(scrubber,
+                new AwsCredentialProvider(awsRegion, "", "", "", "", "default", awsRoleArn, "", "", awsToken),
+                gcpCredentialProvider,
+                awsEnabled, awsRegion, awsAuthMode, awsRoleArn, awsEndpointUrl, awsToken,
+                gcpEnabled, gcpProject, gcpAuthMode, gcpEndpointUrl, gcpToken,
+                azureEnabled, azureSub, azureAuthMode, azureEndpointUrl, azureToken,
+                ociEnabled, ociTenancy, ociRegion, ociAuthMode, ociEndpointUrl, ociToken);
+    }
+
     @Autowired
     public CloudInventoryPollerGateway(
             PiiPhiScrubber scrubber,
+            AwsCredentialProvider awsCredentialProvider,
             GcpCredentialProvider gcpCredentialProvider,
             @Value("${uacrf.discovery.adapters.aws.enabled:false}") boolean awsEnabled,
             @Value("${uacrf.discovery.adapters.aws.region:us-east-1}") String awsRegion,
@@ -157,6 +177,7 @@ public class CloudInventoryPollerGateway {
             @Value("${uacrf.discovery.adapters.oci.endpoint-url:}") String ociEndpointUrl,
             @Value("${uacrf.discovery.adapters.oci.bearer-token:}") String ociToken) {
         this.scrubber = scrubber;
+        this.awsCredentialProvider = awsCredentialProvider;
         this.gcpCredentialProvider = gcpCredentialProvider;
         this.restClient = RestClient.create();
 
@@ -239,15 +260,23 @@ public class CloudInventoryPollerGateway {
                             + "Use /v1/inventory/normalize for offline payloads or configure read-only federated credentials.");
         }
         validateSafeEndpoint(profile.endpointUrl());
+        AwsSigV4SignerSupport.AwsCredentials awsCreds = "AWS".equals(profile.provider())
+                ? awsCredentialProvider.resolveSigV4Credentials()
+                : null;
         String token = "GCP".equals(profile.provider())
                 ? gcpCredentialProvider.resolveAccessToken()
                 : bearerTokens.getOrDefault(profile.provider(), "");
-        if (isBlank(token)) {
+        if ("AWS".equals(profile.provider())) {
+            if ((awsCreds == null || !awsCreds.isComplete()) && isBlank(token)) {
+                throw new DiscoveryDomainException(HttpStatus.PRECONDITION_FAILED, "MISSING_READ_ONLY_CREDENTIALS",
+                        "Read-only AWS SigV4/STS or proxy credential is not configured for provider [AWS].");
+            }
+        } else if (isBlank(token)) {
             throw new DiscoveryDomainException(HttpStatus.PRECONDITION_FAILED, "MISSING_READ_ONLY_CREDENTIALS",
                     "Read-only federated/workload credential is not configured for provider [" + profile.provider() + "].");
         }
 
-        JsonNode responseTree = executeProviderQuery(profile, token, scopeFilter);
+        JsonNode responseTree = executeProviderQuery(profile, awsCreds, token, scopeFilter);
         List<RawCloudAssetRecord> rawAssets = parseProviderResponse(profile.provider(), responseTree);
         return normalizeBatch(tenantId, environmentId, profile.provider(), "LIVE_ADAPTER", rawAssets);
     }
@@ -400,14 +429,35 @@ public class CloudInventoryPollerGateway {
         return items;
     }
 
-    private JsonNode executeProviderQuery(CloudInventoryProfile profile, String token, String scopeFilter) {
+    private JsonNode executeProviderQuery(
+            CloudInventoryProfile profile,
+            AwsSigV4SignerSupport.AwsCredentials awsCreds,
+            String token,
+            String scopeFilter) {
         String filter = isBlank(scopeFilter) ? "*" : scopeFilter;
         String rawBody = switch (profile.provider()) {
-            case "AWS" -> restClient.post().uri(profile.endpointUrl())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("QueryString", filter, "MaxResults", 200))
-                    .retrieve().body(String.class);
+            case "AWS" -> {
+                String jsonBody;
+                try {
+                    jsonBody = objectMapper.writeValueAsString(Map.of("QueryString", filter, "MaxResults", 200));
+                } catch (Exception ex) {
+                    throw new IllegalStateException(ex);
+                }
+                URI uri = URI.create(profile.endpointUrl());
+                var spec = restClient.post().uri(uri).contentType(MediaType.APPLICATION_JSON);
+                if (awsCreds != null && awsCreds.isComplete()) {
+                    String region = profile.scopeMetadata().getOrDefault("region", "us-east-1");
+                    AwsSigV4SignerSupport.signRequest(
+                                    "POST", uri, "resource-explorer-2", region,
+                                    Map.of("Content-Type", "application/json"),
+                                    jsonBody.getBytes(StandardCharsets.UTF_8),
+                                    awsCreds, Instant.now())
+                            .forEach(spec::header);
+                } else {
+                    spec.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+                }
+                yield spec.body(jsonBody).retrieve().body(String.class);
+            }
             case "GCP" -> {
                 String gcpUri = "*".equals(filter)
                         ? profile.endpointUrl()

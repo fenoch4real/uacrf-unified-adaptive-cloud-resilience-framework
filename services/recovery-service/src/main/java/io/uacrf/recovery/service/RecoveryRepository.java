@@ -54,7 +54,7 @@ public class RecoveryRepository {
     }
 
     public LiveExecutionPolicyDto getLiveExecutionPolicy(
-            UUID tenantId, UUID environmentId, boolean serverConfigEnabled, boolean gcpAdapterEnabled) {
+            UUID tenantId, UUID environmentId, boolean serverConfigEnabled, boolean gcpAdapterEnabled, boolean awsAdapterEnabled) {
         List<LiveExecutionPolicyDto> list = jdbc.query("""
                 SELECT tenant_id, environment_id, live_execution_enabled, reason, updated_by, updated_at
                 FROM recovery.live_execution_policy
@@ -68,6 +68,7 @@ public class RecoveryRepository {
                     tenantEnabled,
                     serverConfigEnabled,
                     gcpAdapterEnabled,
+                    awsAdapterEnabled,
                     mode,
                     rs.getString("reason"),
                     rs.getString("updated_by"),
@@ -75,7 +76,8 @@ public class RecoveryRepository {
             );
         }, tenantId, environmentId);
         if (list.isEmpty()) {
-            return new LiveExecutionPolicyDto(tenantId, environmentId, false, serverConfigEnabled, gcpAdapterEnabled,
+            return new LiveExecutionPolicyDto(tenantId, environmentId, false, serverConfigEnabled,
+                    gcpAdapterEnabled, awsAdapterEnabled,
                     "DRY_RUN_SIMULATED", "Disabled by default (safe simulation mode)", "System", Instant.now());
         }
         return list.getFirst();
@@ -83,7 +85,7 @@ public class RecoveryRepository {
 
     public LiveExecutionPolicyDto setLiveExecutionPolicy(
             UUID tenantId, UUID environmentId, boolean enabled, String reason, String updatedBy,
-            boolean serverConfigEnabled, boolean gcpAdapterEnabled) {
+            boolean serverConfigEnabled, boolean gcpAdapterEnabled, boolean awsAdapterEnabled) {
         Instant now = Instant.now();
         jdbc.update("""
                 INSERT INTO recovery.live_execution_policy (
@@ -97,7 +99,7 @@ public class RecoveryRepository {
                 """, tenantId, environmentId, enabled, reason, updatedBy, Timestamp.from(now));
         String mode = (enabled && serverConfigEnabled) ? "LIVE_MUTATION_ENABLED" : "DRY_RUN_SIMULATED";
         return new LiveExecutionPolicyDto(tenantId, environmentId, enabled, serverConfigEnabled,
-                gcpAdapterEnabled, mode, reason, updatedBy, now);
+                gcpAdapterEnabled, awsAdapterEnabled, mode, reason, updatedBy, now);
     }
 
     public boolean tryConsumeNonce(String nonce, UUID authorizationId) {

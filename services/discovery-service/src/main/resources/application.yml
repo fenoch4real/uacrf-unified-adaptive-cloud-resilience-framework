@@ -23,7 +23,16 @@ uacrf:
         enabled: ${UACRF_DISCOVERY_AWS_ENABLED:false}
         region: ${UACRF_DISCOVERY_AWS_REGION:us-east-1}
         auth-mode: ${UACRF_DISCOVERY_AWS_AUTH_MODE:IAM_ASSUME_ROLE}
+        access-key-id: ${UACRF_DISCOVERY_AWS_ACCESS_KEY_ID:}
+        secret-access-key: ${UACRF_DISCOVERY_AWS_SECRET_ACCESS_KEY:}
+        session-token: ${UACRF_DISCOVERY_AWS_SESSION_TOKEN:}
+        credentials-file: ${UACRF_DISCOVERY_AWS_CREDENTIALS_FILE:}
+        profile: ${UACRF_DISCOVERY_AWS_PROFILE:default}
         role-arn: ${UACRF_DISCOVERY_AWS_ROLE_ARN:}
+        external-id: ${UACRF_DISCOVERY_AWS_EXTERNAL_ID:}
+        sts-url: ${UACRF_DISCOVERY_AWS_STS_URL:}
+        cloudwatch-url: ${UACRF_DISCOVERY_AWS_CLOUDWATCH_URL:}
+        logs-url: ${UACRF_DISCOVERY_AWS_LOGS_URL:}
         endpoint-url: ${UACRF_DISCOVERY_AWS_ENDPOINT:}
         bearer-token: ${UACRF_DISCOVERY_AWS_TOKEN:}
       gcp:

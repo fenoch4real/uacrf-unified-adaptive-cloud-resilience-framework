@@ -29,6 +29,15 @@ uacrf:
         compute-base-url: ${UACRF_RECOVERY_GCP_COMPUTE_URL:https://compute.googleapis.com}
       aws:
         enabled: ${UACRF_RECOVERY_AWS_ENABLED:false}
+        region: ${UACRF_RECOVERY_AWS_REGION:us-east-1}
+        ecs-cluster: ${UACRF_RECOVERY_AWS_ECS_CLUSTER:default}
+        access-key-id: ${UACRF_RECOVERY_AWS_ACCESS_KEY_ID:}
+        secret-access-key: ${UACRF_RECOVERY_AWS_SECRET_ACCESS_KEY:}
+        session-token: ${UACRF_RECOVERY_AWS_SESSION_TOKEN:}
+        credentials-file: ${UACRF_RECOVERY_AWS_CREDENTIALS_FILE:}
+        profile: ${UACRF_RECOVERY_AWS_PROFILE:uacrf-exec}
+        autoscaling-base-url: ${UACRF_RECOVERY_AWS_ASG_URL:}
+        ecs-base-url: ${UACRF_RECOVERY_AWS_ECS_URL:}
       azure:
         enabled: ${UACRF_RECOVERY_AZURE_ENABLED:false}
       oci:

@@ -118,6 +118,17 @@ class ExperienceUiControllerTest {
                 .andExpect(redirectedUrl("/settings/connections"))
                 .andExpect(flash().attributeExists("flashSuccess"));
 
+        when(edgeClient.postJson(eq("/v1/telemetry/poll/aws"), any(), any(), any()))
+                .thenReturn(java.util.Map.of("metricsCount", 3, "logsCount", 2));
+
+        mockMvc.perform(post("/settings/connections/poll-cloud")
+                        .param("provider", "AWS")
+                        .param("scopeFilter", "*")
+                        .param("includeRuntimeTelemetry", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/connections"))
+                .andExpect(flash().attributeExists("flashSuccess"));
+
         when(edgeClient.postJson(eq("/v1/recovery/live-mode"), any(), any(), any()))
                 .thenReturn(java.util.Map.of("effectiveMode", "DRY_RUN_SIMULATED", "tenantToggleEnabled", true));
 

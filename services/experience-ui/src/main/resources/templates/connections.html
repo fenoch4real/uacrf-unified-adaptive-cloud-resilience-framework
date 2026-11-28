@@ -34,7 +34,7 @@
                 <label for="pollProvider" class="form-label small fw-semibold mb-1">Cloud Provider</label>
                 <select id="pollProvider" name="provider" class="form-select form-select-sm">
                     <option value="GCP" selected>GCP (Asset Inventory + Monitoring/Logs)</option>
-                    <option value="AWS">AWS (Resource Explorer 2)</option>
+                    <option value="AWS">AWS (Resource Explorer 2 + CloudWatch)</option>
                     <option value="AZURE">Azure (Resource Graph)</option>
                     <option value="OCI">OCI (Search Service)</option>
                 </select>
@@ -48,7 +48,7 @@
                     <input class="form-check-input" type="checkbox" id="includeRuntimeTelemetry"
                            name="includeRuntimeTelemetry" value="true" checked />
                     <label class="form-check-label small" for="includeRuntimeTelemetry">
-                        Include GCP Metrics &amp; Audit Logs
+                        Include Runtime Metrics &amp; Logs (GCP / AWS)
                     </label>
                 </div>
             </div>

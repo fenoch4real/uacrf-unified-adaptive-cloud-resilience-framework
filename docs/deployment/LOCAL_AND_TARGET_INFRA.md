@@ -81,8 +81,8 @@ You do **not** need to install UACRF inside a cloud account to scan that account
 | Provider | Live API Endpoint (`S03`) | Auth Implemented Today | Live Sandbox Status |
 |---|---|---|---|
 | **GCP** | `cloudasset.googleapis.com/v1` + `monitoring.googleapis.com/v3` + `logging.googleapis.com/v2` | Native `GcpCredentialProvider` (Service Account RS256 JWT + `authorized_user` ADC refresh + explicit bearer token) | **Verified live** (`uacrf-sandbox-123`: Asset Inventory + Cloud Monitoring + Cloud Audit Logs) |
+| **AWS** | `resource-explorer-2.<region>.amazonaws.com/Search` + `monitoring.<region>.amazonaws.com` + `logs.<region>.amazonaws.com` | Native `AwsSigV4SignerSupport` + `AwsCredentialProvider` (`AWS4-HMAC-SHA256`, STS `AssumeRole`, `~/.aws/credentials`, `AWS_*` env) | Native SigV4 implemented & mock-verified (`enabled=false` standby until live AWS credentials supplied) |
 | **Azure** | `management.azure.com/providers/Microsoft.ResourceGraph/resources` | Pre-minted short-lived Entra OAuth2 `bearer-token` (`UACRF_DISCOVERY_AZURE_TOKEN`) | Standby (`enabled=false`; Entra client-credential auto-refresh optional next step) |
-| **AWS** | `resource-explorer-2.<region>.amazonaws.com/Search` | Bearer header / custom `endpoint-url` | Standby (`enabled=false`; native AWS SigV4 signer required before calling AWS directly without proxy) |
 | **OCI** | `query.<region>.oci.oraclecloud.com/20180409/resources` | Bearer header / custom `endpoint-url` | Standby (`enabled=false`; native OCI HTTP Request Signing required before calling OCI directly without proxy) |
 | **OTel** | `http://otel-collector:4318` | `OtelReceiverAdapter` + [otel-collector-config.yaml](../../infra/otel/otel-collector-config.yaml) | Local OTLP collector runs debug pipeline; HTTP forwarding into `/v1/telemetry/events` optional next step |
 
@@ -160,24 +160,38 @@ By default, `S09 advisory-service` runs with `uacrf.advisory.llm.enabled=false` 
 
 ---
 
-### 4.2 Amazon Web Services (AWS) — GUI Console & CLI Setup
+### 4.2 Amazon Web Services (AWS) — Native SigV4 Setup (`S03` & Toggle-Gated `S11`)
 
-#### AWS Console GUI Steps
-1. **Enable Resource Explorer:** Open **AWS Console -> AWS Resource Explorer** -> turn on Resource Explorer in your target region and create a default view/index.
-2. **Enable AWS Config (Recommended for Change History):** Open **AWS Config -> Set up** for standard read-only configuration recording.
-3. **Create Read-Only IAM Role (`uacrf-discovery-ro`):**
-   - Go to **IAM -> Roles -> Create role** (Trusted entity: **Custom trust policy / OIDC / Account** for STS `AssumeRole` with `ExternalId`, separate from any execution role).
-   - Attach only AWS managed read-only policies: `AWSConfigUserAccess`, `ResourceExplorerReadOnlyAccess`, and `CloudWatchReadOnlyAccess`.
-4. **Optional Sample Sandbox Resource:** Create one tiny S3 bucket (`uacrf-sandbox-assets-...`) or SQS queue.
+#### AWS Console / CLI / Terraform Steps
+1. **Enable Resource Explorer:** Open **AWS Console -> AWS Resource Explorer** -> turn on Resource Explorer in your target region and create a default aggregator index/view.
+2. **Create Read-Only IAM Role (`uacrf-discovery-ro`):**
+   - Run `./infra/scripts/setup-aws-sandbox.sh us-east-1` or apply [infra/terraform/aws-sandbox-discovery/main.tf](../../infra/terraform/aws-sandbox-discovery/main.tf).
+   - Attach strictly read-only managed policies: `AWSResourceExplorerReadOnlyAccess`, `CloudWatchReadOnlyAccess`, and `CloudWatchLogsReadOnlyAccess` (separate from any execution role per `NFR-SEC-003`).
+3. **Optional Sample Sandbox Resource:** Create one tiny S3 bucket (`uacrf-sandbox-assets-...`) or SQS queue.
 
-#### Environment Variables (`discovery-service`)
+#### Connect & Run UACRF `S03` (Native SigV4)
 ```bash
 export UACRF_DISCOVERY_AWS_ENABLED=true
 export UACRF_DISCOVERY_AWS_REGION=us-east-1
-export UACRF_DISCOVERY_AWS_AUTH_MODE=IAM_ASSUME_ROLE
 export UACRF_DISCOVERY_AWS_ROLE_ARN=arn:aws:iam::<ACCOUNT_ID>:role/uacrf-discovery-ro
-# Note: Direct calls to AWS Resource Explorer require an AWS SigV4 signing proxy/adapter via UACRF_DISCOVERY_AWS_ENDPOINT until native SigV4 signing is added.
+export UACRF_DISCOVERY_AWS_EXTERNAL_ID=uacrf-sandbox
+# Supply base IAM keys via env (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY), UACRF_DISCOVERY_AWS_ACCESS_KEY_ID, or ~/.aws/credentials
 ```
+Trigger scans in UX01 (`/settings/connections` -> pick `AWS` and click **Poll Live Cloud Inventory & Telemetry**) or directly via API:
+- Resource Explorer 2 (`POST /v1/inventory/poll` with `"provider":"AWS"`).
+- CloudWatch Metrics + Logs (`POST /v1/telemetry/poll/aws` with `{"tenantId":"...","environmentId":"...","region":"us-east-1","includeMetrics":true,"includeLogs":true,"windowMinutes":60,"persist":true}`).
+
+#### Optional: Toggle-Gated Live AWS Recovery (`S11`, Disabled by Default)
+By default, `S11 recovery-service` stays in `DRY_RUN_SIMULATED`. To allow bounded `AWS_ECS_ROLLBACK` or `AWS_ASG_SCALE` mutations against a non-prod sandbox (`AwsLiveRecoveryGateway`):
+```bash
+export UACRF_RECOVERY_LIVE_ENABLED=true
+export UACRF_RECOVERY_AWS_ENABLED=true
+export UACRF_RECOVERY_AWS_REGION=us-east-1
+export UACRF_RECOVERY_AWS_ECS_CLUSTER=sandbox-cluster
+export UACRF_RECOVERY_AWS_ACCESS_KEY_ID=<SEPARATE_EXECUTION_KEY_ID>
+export UACRF_RECOVERY_AWS_SECRET_ACCESS_KEY=<SEPARATE_EXECUTION_SECRET>
+```
+Then flip the tenant live-mode toggle ON in UX01 (`/recover`) or via `POST /v1/recovery/live-mode`.
 
 ---
 

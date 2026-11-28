@@ -44,7 +44,7 @@
       "skuId": "SKU-RECOVER",
       "name": "UACRF Recover (Add-On)",
       "status": "IMPLEMENTED",
-      "implemented": "S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter, CloudTrafficFailoverAdapter, CloudComputeScalingAdapter, toggle-gated GcpLiveRecoveryGateway (/recover)",
+      "implemented": "S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter, CloudTrafficFailoverAdapter, CloudComputeScalingAdapter, toggle-gated GcpLiveRecoveryGateway & AwsLiveRecoveryGateway (/recover)",
       "whatIsLeft": "Live cloud IAM execution roles and live AWS FIS / Azure Chaos / GCP Fault Injection mutations"
     },
     {
@@ -1308,7 +1308,7 @@
       "category": "Testability",
       "status": "IMPLEMENTED",
       "module": "all-services,libs,ci",
-      "implemented": "23 JUnit test classes across 18/18 Maven modules (PostgreSQL 17 + Neo4j 5.26 Testcontainers) + CodeQL/Trivy/Gitleaks",
+      "implemented": "25 JUnit test classes across 18/18 Maven modules (PostgreSQL 17 + Neo4j 5.26 Testcontainers) + CodeQL/Trivy/Gitleaks",
       "whatIsLeft": "Automated multi-container Playwright browser E2E CI job"
     }
   ],

@@ -567,6 +567,14 @@ public class PortalController {
                 msg.append("; GCP Runtime Telemetry: ")
                         .append(rtRes.getOrDefault("metricsCount", 0)).append(" metrics, ")
                         .append(rtRes.getOrDefault("logsCount", 0)).append(" audit/log events.");
+            } else if ("AWS".equalsIgnoreCase(provider) && includeRuntimeTelemetry) {
+                var rtRes = edge.postJson("/v1/telemetry/poll/aws", actorId, null, Map.of(
+                        "tenantId", tenantId, "environmentId", envId,
+                        "includeMetrics", true, "includeLogs", true, "windowMinutes", 60, "persist", true
+                ));
+                msg.append("; AWS CloudWatch Telemetry: ")
+                        .append(rtRes.getOrDefault("metricsCount", 0)).append(" metrics, ")
+                        .append(rtRes.getOrDefault("logsCount", 0)).append(" log signals.");
             }
             ra.addFlashAttribute("flashSuccess", msg.toString());
         } catch (RestClientResponseException ex) {

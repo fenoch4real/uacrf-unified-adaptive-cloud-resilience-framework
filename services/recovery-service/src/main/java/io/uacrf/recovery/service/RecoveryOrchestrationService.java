@@ -2,6 +2,7 @@ package io.uacrf.recovery.service;
 
 import io.uacrf.contracts.authority.BoundedRecoveryAuthorization;
 import io.uacrf.crypto.CanonicalJson;
+import io.uacrf.recovery.adapter.AwsLiveRecoveryGateway;
 import io.uacrf.recovery.adapter.GcpLiveRecoveryGateway;
 import io.uacrf.recovery.adapter.ProviderActionAdapter;
 import io.uacrf.recovery.api.RecoveryDomainException;
@@ -27,6 +28,7 @@ public class RecoveryOrchestrationService {
     private final Map<String, ProviderActionAdapter> adapters;
     private final boolean serverLiveExecutionEnabled;
     private final GcpLiveRecoveryGateway gcpGateway;
+    private final AwsLiveRecoveryGateway awsGateway;
 
     @Autowired
     public RecoveryOrchestrationService(
@@ -34,12 +36,14 @@ public class RecoveryOrchestrationService {
             CrossLayerValidator validator,
             List<ProviderActionAdapter> adapterList,
             @Value("${uacrf.recovery.live-execution.enabled:false}") boolean serverLiveExecutionEnabled,
-            GcpLiveRecoveryGateway gcpGateway) {
+            GcpLiveRecoveryGateway gcpGateway,
+            AwsLiveRecoveryGateway awsGateway) {
         this.repository = repository;
         this.validator = validator;
         this.adapters = adapterList.stream().collect(Collectors.toMap(ProviderActionAdapter::adapterKey, Function.identity()));
         this.serverLiveExecutionEnabled = serverLiveExecutionEnabled;
         this.gcpGateway = gcpGateway;
+        this.awsGateway = awsGateway;
     }
 
     public KillSwitchDto getKillSwitch(UUID tenantId, UUID environmentId) {
@@ -48,15 +52,17 @@ public class RecoveryOrchestrationService {
 
     public LiveExecutionPolicyDto getLiveExecutionPolicy(UUID tenantId, UUID environmentId) {
         boolean gcpEnabled = gcpGateway != null && gcpGateway.isEnabled();
-        return repository.getLiveExecutionPolicy(tenantId, environmentId, serverLiveExecutionEnabled, gcpEnabled);
+        boolean awsEnabled = awsGateway != null && awsGateway.isEnabled();
+        return repository.getLiveExecutionPolicy(tenantId, environmentId, serverLiveExecutionEnabled, gcpEnabled, awsEnabled);
     }
 
     @Transactional
     public LiveExecutionPolicyDto setLiveExecutionPolicy(UpdateLiveExecutionPolicyRequest req) {
         boolean gcpEnabled = gcpGateway != null && gcpGateway.isEnabled();
+        boolean awsEnabled = awsGateway != null && awsGateway.isEnabled();
         var policy = repository.setLiveExecutionPolicy(
                 req.tenantId(), req.environmentId(), req.enabled(), req.reason(), req.updatedBy(),
-                serverLiveExecutionEnabled, gcpEnabled);
+                serverLiveExecutionEnabled, gcpEnabled, awsEnabled);
         repository.insertOutbox(req.tenantId(), req.environmentId(), "recovery.live_mode.updated",
                 "LiveExecutionPolicy", req.environmentId().toString(), UUID.randomUUID(), CanonicalJson.toJson(policy));
         return policy;

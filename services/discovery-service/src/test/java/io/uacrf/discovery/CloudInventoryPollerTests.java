@@ -1,9 +1,12 @@
 package io.uacrf.discovery;
 
+import io.uacrf.discovery.adapter.AwsCredentialProvider;
+import io.uacrf.discovery.adapter.AwsRuntimeTelemetryPoller;
 import io.uacrf.discovery.adapter.CloudInventoryPollerGateway;
 import io.uacrf.discovery.adapter.GcpCredentialProvider;
 import io.uacrf.discovery.adapter.GcpRuntimeTelemetryPoller;
 import io.uacrf.discovery.api.DiscoveryDomainException;
+import io.uacrf.discovery.api.DiscoveryDtos.AwsRuntimeTelemetryPollRequest;
 import io.uacrf.discovery.api.DiscoveryDtos.GcpRuntimeTelemetryPollRequest;
 import io.uacrf.discovery.api.DiscoveryDtos.RawCloudAssetRecord;
 import io.uacrf.discovery.service.PiiPhiScrubber;
@@ -251,5 +254,94 @@ class CloudInventoryPollerTests {
         assertTrue(result.observations().stream().anyMatch(o -> "STORAGE_METRIC".equals(o.signalType()) && o.metricValue() == 1024.0));
         assertTrue(result.observations().stream().anyMatch(o -> "DEPLOYMENT_CHANGE".equals(o.signalType())));
         mockServer.verify();
+    }
+
+    @Test
+    void signsAwsResourceExplorerStsAssumeRoleAndCloudWatchRequestsViaSigV4() {
+        RestClient.Builder stsBuilder = RestClient.builder();
+        MockRestServiceServer stsMock = MockRestServiceServer.bindTo(stsBuilder).build();
+        stsMock.expect(requestTo("https://sts.us-east-1.amazonaws.com/"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                        org.springframework.http.HttpHeaders.AUTHORIZATION,
+                        org.hamcrest.Matchers.startsWith("AWS4-HMAC-SHA256 Credential=AKIA_BASE/")))
+                .andRespond(withSuccess("""
+                        <AssumeRoleResponse><AssumeRoleResult><Credentials>
+                          <AccessKeyId>ASIA_TEMP_KEY</AccessKeyId>
+                          <SecretAccessKey>TEMP_SECRET_KEY</SecretAccessKey>
+                          <SessionToken>TEMP_SESSION_TOKEN</SessionToken>
+                        </Credentials></AssumeRoleResult></AssumeRoleResponse>
+                        """, MediaType.APPLICATION_XML));
+
+        AwsCredentialProvider awsCreds = new AwsCredentialProvider(
+                "us-east-1", "AKIA_BASE", "SECRET_BASE", "", "", "default",
+                "arn:aws:iam::123456789012:role/uacrf-discovery-ro", "uacrf-ext-1",
+                "https://sts.us-east-1.amazonaws.com/", "");
+        awsCreds.setRestClientForTesting(stsBuilder.build());
+
+        RestClient.Builder invBuilder = RestClient.builder();
+        MockRestServiceServer invMock = MockRestServiceServer.bindTo(invBuilder).build();
+        invMock.expect(requestTo("https://resource-explorer-2.us-east-1.amazonaws.com/Search"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                        org.springframework.http.HttpHeaders.AUTHORIZATION,
+                        org.hamcrest.Matchers.startsWith("AWS4-HMAC-SHA256 Credential=ASIA_TEMP_KEY/")))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                        "x-amz-security-token", "TEMP_SESSION_TOKEN"))
+                .andRespond(withSuccess("""
+                        {"Resources":[{"Arn":"arn:aws:ecs:us-east-1:123456789012:service/checkout-prod","ResourceType":"aws::ecs::service","Region":"us-east-1","OwningAccountId":"123456789012"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        CloudInventoryPollerGateway gateway = new CloudInventoryPollerGateway(
+                new PiiPhiScrubber(),
+                awsCreds,
+                new GcpCredentialProvider("", "", "https://oauth2.googleapis.com/token"),
+                true, "us-east-1", "IAM_ASSUME_ROLE", "arn:aws:iam::123456789012:role/uacrf-discovery-ro", "", "",
+                false, "uacrf-gcp", "WORKLOAD_IDENTITY", "", "",
+                false, "uacrf-az", "MANAGED_IDENTITY", "", "",
+                false, "ocid1.tenancy.oc1..demo", "us-ashburn-1", "INSTANCE_PRINCIPAL", "", ""
+        );
+        gateway.setRestClientForTesting(invBuilder.build());
+
+        var invResult = gateway.pollAndNormalize(TENANT_ID, ENV_ID, "AWS", "*");
+        assertEquals("AWS", invResult.provider());
+        assertEquals(1, invResult.assetsNormalized());
+        assertEquals(2, invResult.edges().size());
+
+        RestClient.Builder cwBuilder = RestClient.builder();
+        MockRestServiceServer cwMock = MockRestServiceServer.bindTo(cwBuilder).build();
+        cwMock.expect(requestTo("https://monitoring.us-east-1.amazonaws.com/"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                        org.springframework.http.HttpHeaders.AUTHORIZATION,
+                        org.hamcrest.Matchers.startsWith("AWS4-HMAC-SHA256 Credential=ASIA_TEMP_KEY/")))
+                .andRespond(withSuccess("""
+                        {"MetricDataResults":[{"Id":"q1","Label":"AWS/ECS CPUUtilization","Values":[42.5]}]}
+                        """, MediaType.APPLICATION_JSON));
+        cwMock.expect(requestTo("https://logs.us-east-1.amazonaws.com/"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
+                        "X-Amz-Target", "Logs_20140328.FilterLogEvents"))
+                .andRespond(withSuccess("""
+                        {"events":[{"logStreamName":"ecs/checkout/abc","timestamp":1764309600000,"message":"ERROR Bearer secret123 timeout for ops@example.com"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        AwsRuntimeTelemetryPoller cwPoller = new AwsRuntimeTelemetryPoller(
+                new PiiPhiScrubber(), awsCreds, true, "us-east-1",
+                "https://monitoring.us-east-1.amazonaws.com", "https://logs.us-east-1.amazonaws.com");
+        cwPoller.setRestClientForTesting(cwBuilder.build());
+
+        var cwResult = cwPoller.poll(new AwsRuntimeTelemetryPollRequest(
+                TENANT_ID, ENV_ID, "us-east-1", "/aws/ecs/checkout", true, true, 60, false));
+        assertEquals("AWS", cwResult.provider());
+        assertEquals(1, cwResult.metricsCount());
+        assertEquals(1, cwResult.logsCount());
+        assertTrue(cwResult.observations().stream().anyMatch(o -> "LOG_SIGNAL".equals(o.signalType())
+                && o.metricName().startsWith("cloudwatch-logs://us-east-1/")
+                && !o.rawReference().contains("ops@example.com")));
+
+        stsMock.verify();
+        invMock.verify();
+        cwMock.verify();
     }
 }

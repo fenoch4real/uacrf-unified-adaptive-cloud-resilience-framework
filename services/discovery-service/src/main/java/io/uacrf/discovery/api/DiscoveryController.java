@@ -81,4 +81,9 @@ public class DiscoveryController {
     public RuntimeTelemetryPollResult pollGcpRuntimeTelemetry(@Valid @RequestBody GcpRuntimeTelemetryPollRequest request) {
         return service.pollGcpRuntimeTelemetry(request);
     }
+
+    @PostMapping("/telemetry/poll/aws")
+    public AwsRuntimeTelemetryPollResult pollAwsRuntimeTelemetry(@Valid @RequestBody AwsRuntimeTelemetryPollRequest request) {
+        return service.pollAwsRuntimeTelemetry(request);
+    }
 }
