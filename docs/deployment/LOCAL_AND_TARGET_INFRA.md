@@ -80,7 +80,7 @@ You do **not** need to install UACRF inside a cloud account to scan that account
 
 | Provider | Live API Endpoint (`S03`) | Auth Implemented Today | Live Sandbox Status |
 |---|---|---|---|
-| **GCP** | `cloudasset.googleapis.com/v1/projects/<id>:searchAllResources` | Native `GcpCredentialProvider` (Service Account RS256 JWT + `authorized_user` ADC refresh + explicit bearer token) | **Verified live** (`uacrf-sandbox-123`) |
+| **GCP** | `cloudasset.googleapis.com/v1` + `monitoring.googleapis.com/v3` + `logging.googleapis.com/v2` | Native `GcpCredentialProvider` (Service Account RS256 JWT + `authorized_user` ADC refresh + explicit bearer token) | **Verified live** (`uacrf-sandbox-123`: Asset Inventory + Cloud Monitoring + Cloud Audit Logs) |
 | **Azure** | `management.azure.com/providers/Microsoft.ResourceGraph/resources` | Pre-minted short-lived Entra OAuth2 `bearer-token` (`UACRF_DISCOVERY_AZURE_TOKEN`) | Standby (`enabled=false`; Entra client-credential auto-refresh optional next step) |
 | **AWS** | `resource-explorer-2.<region>.amazonaws.com/Search` | Bearer header / custom `endpoint-url` | Standby (`enabled=false`; native AWS SigV4 signer required before calling AWS directly without proxy) |
 | **OCI** | `query.<region>.oci.oraclecloud.com/20180409/resources` | Bearer header / custom `endpoint-url` | Standby (`enabled=false`; native OCI HTTP Request Signing required before calling OCI directly without proxy) |
@@ -100,8 +100,9 @@ You do **not** need to install UACRF inside a cloud account to scan that account
 3. **Create Read-Only Service Account (`uacrf-discovery-ro`):** Go to **IAM & Admin -> Service Accounts -> + Create Service Account** and grant only read-only roles:
    - `Cloud Asset Viewer` (`roles/cloudasset.viewer`)
    - `Monitoring Viewer` (`roles/monitoring.viewer`)
-   - `Logs Viewer` (`roles/logging.viewer`)
+   - `Logs Viewer` (`roles/logging.viewer`) *(if adding later, open **IAM & Admin -> IAM**, edit `uacrf-discovery-ro`, click **+ Add Another Role -> Logs Viewer**, and wait ~30–60s for IAM propagation)*
    - `Browser` (`roles/browser`)
+   *(Note: UACRF stores only compact change/error signals + `logging://` pointers from Cloud Audit Logs—never duplicating raw log archives.)*
 4. **Download Sandbox JSON Key:** Open `uacrf-discovery-ro` -> **Keys -> Add Key -> Create new key -> JSON** and save outside the repo (e.g. `~/.config/gcloud/uacrf-gcp-sandbox.json`).
 5. **Create Sample Resource(s):** In **Cloud Storage -> Buckets** or **Pub/Sub -> Topics**, create one tiny test resource so Cloud Asset Inventory returns real assets.
 
@@ -121,10 +122,15 @@ export UACRF_DISCOVERY_GCP_ENABLED=true
 export UACRF_DISCOVERY_GCP_PROJECT=<YOUR_GCP_PROJECT_ID>
 export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/uacrf-gcp-sandbox.json"
 ```
-Trigger live scan via `POST /v1/inventory/poll`:
-```json
-{"tenantId":"11111111-1111-7111-8111-111111111111","environmentId":"22222222-2222-7222-8222-222222222222","provider":"GCP","scopeFilter":"*"}
-```
+Trigger live scans via the portal (`/settings/connections` -> **Poll Live Cloud Inventory & Telemetry**) or directly via API:
+- Asset Inventory (`POST /v1/inventory/poll`):
+  ```json
+  {"tenantId":"11111111-1111-7111-8111-111111111111","environmentId":"22222222-2222-7222-8222-222222222222","provider":"GCP","scopeFilter":"*"}
+  ```
+- Cloud Monitoring v3 + Cloud Logging v2 (`POST /v1/telemetry/poll/gcp`):
+  ```json
+  {"tenantId":"11111111-1111-7111-8111-111111111111","environmentId":"22222222-2222-7222-8222-222222222222","includeMetrics":true,"includeLogs":true,"windowMinutes":60,"persist":true}
+  ```
 
 ---
 
