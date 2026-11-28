@@ -44,7 +44,7 @@
       "skuId": "SKU-RECOVER",
       "name": "UACRF Recover (Add-On)",
       "status": "IMPLEMENTED",
-      "implemented": "S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter, CloudTrafficFailoverAdapter, CloudComputeScalingAdapter",
+      "implemented": "S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter, CloudTrafficFailoverAdapter, CloudComputeScalingAdapter, toggle-gated GcpLiveRecoveryGateway (/recover)",
       "whatIsLeft": "Live cloud IAM execution roles and live AWS FIS / Azure Chaos / GCP Fault Injection mutations"
     },
     {
@@ -58,8 +58,8 @@
       "skuId": "SKU-ADAPTIVE",
       "name": "UACRF Adaptive Intelligence (Add-On)",
       "status": "IMPLEMENTED",
-      "implemented": "S08/S13 QuantitativeShadowEngine, MlPromotionService, S09 EnterpriseLlmGateway (OpenAI/Bedrock/Azure/Vertex/OCI), OrchestrationRunService, /models, /advisory, /orchestration",
-      "whatIsLeft": "Customer LLM API keys (enabled=true) and offline/shadow calibration datasets per customer workload"
+      "implemented": "S08/S13 QuantitativeShadowEngine, MlPromotionService, S09 EnterpriseLlmGateway (OpenAI/Bedrock/Azure/Vertex/OCI) + GcpVertexCredentialResolver, OrchestrationRunService, /models, /advisory, /orchestration",
+      "whatIsLeft": "Customer LLM API keys / Vertex AI API enablement (enabled=true) and offline/shadow calibration datasets per customer workload"
     },
     {
       "skuId": "SKU-ENTERPRISE",
@@ -1308,7 +1308,7 @@
       "category": "Testability",
       "status": "IMPLEMENTED",
       "module": "all-services,libs,ci",
-      "implemented": "20 JUnit test suites across 18/18 Maven modules (PostgreSQL 17 + Neo4j 5.26 Testcontainers) + CodeQL/Trivy/Gitleaks",
+      "implemented": "23 JUnit test classes across 18/18 Maven modules (PostgreSQL 17 + Neo4j 5.26 Testcontainers) + CodeQL/Trivy/Gitleaks",
       "whatIsLeft": "Automated multi-container Playwright browser E2E CI job"
     }
   ],

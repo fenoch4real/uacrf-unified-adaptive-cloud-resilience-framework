@@ -66,9 +66,9 @@ This repository translates that peer-reviewed framework into working microservic
 | `services/assessment-service` (`S07`) | `8087` | Correlation-domain path certification (`P5`), journey resilience assessments, independent review, sealed `DecisionEnvelope`s (`P1`) |
 | `services/objectives-service` (`S05`) | `8088` | SLI/SLO/RTO/RPO objectives, Appendix I Core rule engine, continuous `RiskState` evaluations |
 | `services/policy-service` (`S10`) | `8089` | OPA Rego evaluator, two-person recovery approvals, `P2` graph delta classifier, `P3` RS256 single-use authorizations |
-| `services/recovery-service` (`S11`) | `8090` | Recovery orchestrator, allowlisted `ProviderActionAdapter` SPI (`P3`), 8-layer `CrossLayerValidator` (`P6`), kill switch |
+| `services/recovery-service` (`S11`) | `8090` | Recovery orchestrator, allowlisted `ProviderActionAdapter` SPI (`P3`), toggle-gated `GcpLiveRecoveryGateway` (`DRY_RUN_SIMULATED` default), 8-layer `CrossLayerValidator` (`P6`), kill switch |
 | `services/knowledge-service` (`S08`/`S12`/`S13`) | `8091` | Governed knowledge base, closed-loop learning gate (`FR-LRN-002`), guarded fault experiments, Section 10.5 quantitative shadow model & benchmarks |
-| `services/advisory-service` (`S09`) | `8092` | Solution-specific agent advisors (`Evidence Assistant`, `Critic`), OpenAI/Bedrock/Azure/Vertex/OCI LLM SPI, agent runtime ledgers (`FR-AWL`/`FR-ORC`), `P7` arbitration |
+| `services/advisory-service` (`S09`) | `8092` | Solution-specific agent advisors (`Evidence Assistant`, `Critic`), OpenAI/Bedrock/Azure/Vertex (`GcpVertexCredentialResolver` OAuth2/ADC)/OCI LLM SPI, agent runtime ledgers (`FR-AWL`/`FR-ORC`), `P7` arbitration |
 | `services/reporting-service` (`S14`) | `8093` | Commercial asset metering, FinOps quotas, pilot locking, multi-framework crosswalk, watermarked External Assurance Rooms |
 | `services/edge-gateway` (`EDGE01`) | `8080` | Public API gateway forwarding to backend owners, OAuth2 Bearer JWT + CSP headers, `Cache-Control: no-store`, concealing internal delegation routes |
 | `services/experience-ui` (`UX01`) | `8081` | **Spring Boot + Thymeleaf + Bootstrap 5.3 + Cytoscape.js** web portal (`23` page templates incl. `/compute`, `/models`, `/orchestration`, `/assurance`, `/settings/admin-suite`) |
@@ -86,9 +86,9 @@ Everything in `UACRF_Technical_Approach_v1.0_rev23` (**`7`** Commercial Package 
 |---|---|---|---|---|
 | **SKU-ASSESS** | *UACRF Assess (Critical Journey Assessment)* | `IMPLEMENTED` | S02, S03, S04, S06, S07, /journeys, /assess, /assess/{id}/report verified via Maven... | Live cloud collector credentials (AWS Config / GCP Asset / Azure Resource Graph / OCI... |
 | **SKU-CONTROL** | *UACRF Control (Foundation Subscription)* | `IMPLEMENTED` | S05, S10, /control, Section 8 multi-layer rules, ObjectiveImportService conflict preview,... | Live OTel collector streaming soak run against customer production traffic |
-| **SKU-RECOVER** | *UACRF Recover (Add-On)* | `IMPLEMENTED` | S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter,... | Live cloud IAM execution roles and live AWS FIS / Azure Chaos / GCP Fault Injection... |
+| **SKU-RECOVER** | *UACRF Recover (Add-On)* | `IMPLEMENTED` | S10, S11, BreakGlassService, MaterialGraphDeltaClassifier, KubernetesLocalRollbackAdapter, CloudTrafficFailoverAdapter, CloudComputeScalingAdapter, toggle-gated GcpLiveRecoveryGateway... | Live cloud IAM execution roles and live AWS FIS / Azure Chaos / GCP Fault Injection... |
 | **SKU-EVIDENCE** | *UACRF Evidence (Add-On)* | `IMPLEMENTED` | S04, S14, ObjectLockWormClient, ComplianceAssuranceService, /assurance,... | Live WORM S3/GCS/Blob/OCI Vault credentials and external CPA walkthrough in Phase E4 |
-| **SKU-ADAPTIVE** | *UACRF Adaptive Intelligence (Add-On)* | `IMPLEMENTED` | S08/S13 QuantitativeShadowEngine, MlPromotionService, S09 EnterpriseLlmGateway... | Customer LLM API keys (enabled=true) and offline/shadow calibration datasets per... |
+| **SKU-ADAPTIVE** | *UACRF Adaptive Intelligence (Add-On)* | `IMPLEMENTED` | S08/S13 QuantitativeShadowEngine, MlPromotionService, S09 EnterpriseLlmGateway + GcpVertexCredentialResolver (Vertex AI OAuth2/ADC), UX01 /advisory synthesis... | Customer LLM keys / enabling Vertex AI API in GCP & offline calibration datasets per... |
 | **SKU-ENTERPRISE** | *UACRF Enterprise Platform Suite* | `IMPLEMENTED` | EDGE01 JWT/CSP, V2__enable_rls.sql across all 12 DBs, FipsCryptoProfile,... | Customer Kubernetes cluster deployment, hardware HSM/KMS key binding & enterprise... |
 | **SKU-SERVICES** | *Services & Managed Operations* | `PARTIAL / CONFIG_GATED` | Pilot locking, onboarding lead time & time-to-first-outcome metrics tracked in S14... | Organizational delivery team workflows, CRM/ERP invoicing integration & commercial... |
 
@@ -166,6 +166,7 @@ docker-compose exec -T neo4j cypher-shell -u neo4j -p uacrf_neo4j_dev < contract
 ### 3. Build & Run Full Verification Suite (PostgreSQL 17 + Neo4j 5.26 Testcontainers)
 ```bash
 docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
   -v "$PWD":/workspace \
   -v "$HOME/.m2":/root/.m2 \
   -v /var/run/docker.sock:/var/run/docker.sock \
