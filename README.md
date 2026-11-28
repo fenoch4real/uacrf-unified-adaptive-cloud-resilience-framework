@@ -1,8 +1,5 @@
 # UACRF — Unified Adaptive Cloud Resilience Framework
 
-
----
-
 ## Why UACRF Exists (The Problem Statement)
 
 Modern enterprise digital services span multiple cloud providers, distributed microservices, external third-party APIs, and autonomous AI/ML agents. During failures or rapid change, engineering and risk teams face five structural gaps:
@@ -147,7 +144,7 @@ Everything in `UACRF_Technical_Approach_v1.0_rev23` (**`7`** Commercial Package 
 |---|---|---|---|---|
 | **Canonical Neo4j Inventory Ontology** (`Section 5.2.7` / `Appendix M`) | `58` Node Labels (`10` domain groups) + `55` Relationships | `IMPLEMENTED` | Enforced in `Neo4jOntology`, `ontology_catalog.json`, `GraphServiceIntegrationTest` | Live continuous cloud topology refresh crons |
 | **PostgreSQL Catalog & Compute Inventory** (`S02`) | `service`, `agent_workload_profile`, `customer_journey`, `compute_placement`, `provider_resource_alias` | `IMPLEMENTED` | Flyway `V1`–`V3` + `ComputeAndAliasService` (`GCP`/`AWS`/`AZURE`/`OCI`/`K8S`) + `CatalogServiceIntegrationTest` | External CMDB / HR directory auto-sync |
-| **Multi-Cloud Resource Families & Asset Pollers** (`S03`, `TBL134`) | All **`20`** infrastructure, storage, DB, queue, network, IAM & AI resource families across `AWS`, `Azure`, `GCP`, `OCI` | `IMPLEMENTED_STANDBY` | `CloudInventoryPollerGateway` (`enabled=false` fail-closed standby), `POST /v1/inventory/normalize`, `POST /v1/inventory/poll`, `CloudInventoryPollerTests` | Step `#3`: live read-only cloud IAM / WIF / Managed Identity / Instance Principal bindings & `enabled=true` per environment |
+| **Multi-Cloud Resource Families & Asset Pollers** (`S03`, `TBL134`) | All **`20`** infrastructure, storage, DB, queue, network, IAM & AI resource families across `AWS`, `Azure`, `GCP`, `OCI` | `GCP LIVE VERIFIED / OTHERS STANDBY` | `CloudInventoryPollerGateway` + `GcpCredentialProvider` (OAuth2 JWT/ADC **verified live against `uacrf-sandbox-123`**), `POST /v1/inventory/normalize`, `POST /v1/inventory/poll`, `CloudInventoryPollerTests` | Live `AWS` SigV4 / `OCI` HTTP signing / `Azure` Entra token exchange + Cloud Monitoring/Logging metric pollers |
 ---
 
 ## Quick Start
@@ -172,6 +169,9 @@ docker run --rm \
   -w /workspace \
   maven:3.9-eclipse-temurin-25 mvn -B verify
 ```
+
+### 4. Multi-Cloud Sandbox Connection & Onboarding Setup (`GCP`, `AWS`, `Azure`, `OCI`, `OTel`)
+Follow the step-by-step **Console GUI, CLI/Terraform, and read-only IAM onboarding instructions for all 4 cloud providers + OpenTelemetry** in [**LOCAL_AND_TARGET_INFRA.md · Section 4**](docs/deployment/LOCAL_AND_TARGET_INFRA.md#4-multi-cloud-sandbox-connection--onboarding-guide-gcp-aws-azure-oci-otel).
 
 ---
 
