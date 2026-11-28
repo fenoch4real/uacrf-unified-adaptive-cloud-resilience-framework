@@ -32,6 +32,8 @@ uacrf:
         auth-mode: ${UACRF_DISCOVERY_GCP_AUTH_MODE:WORKLOAD_IDENTITY}
         credentials-file: ${GOOGLE_APPLICATION_CREDENTIALS:}
         oauth-token-url: ${UACRF_DISCOVERY_GCP_TOKEN_URL:https://oauth2.googleapis.com/token}
+        monitoring-url: ${UACRF_DISCOVERY_GCP_MONITORING_URL:https://monitoring.googleapis.com}
+        logging-url: ${UACRF_DISCOVERY_GCP_LOGGING_URL:https://logging.googleapis.com}
         endpoint-url: ${UACRF_DISCOVERY_GCP_ENDPOINT:}
         bearer-token: ${UACRF_DISCOVERY_GCP_TOKEN:}
       azure:

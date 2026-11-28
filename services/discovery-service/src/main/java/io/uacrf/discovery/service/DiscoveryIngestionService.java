@@ -3,6 +3,7 @@ package io.uacrf.discovery.service;
 import io.uacrf.contracts.graph.Neo4jOntology;
 import io.uacrf.crypto.CanonicalJson;
 import io.uacrf.discovery.adapter.CloudInventoryPollerGateway;
+import io.uacrf.discovery.adapter.GcpRuntimeTelemetryPoller;
 import io.uacrf.discovery.adapter.SampleLocalScenarioGenerator;
 import io.uacrf.discovery.adapter.TelemetryAdapter;
 import io.uacrf.discovery.api.DiscoveryDtos.*;
@@ -25,29 +26,35 @@ public class DiscoveryIngestionService {
     private final DiscoveryRepository repository;
     private final SampleLocalScenarioGenerator sampleGenerator;
     private final CloudInventoryPollerGateway inventoryGateway;
+    private final GcpRuntimeTelemetryPoller gcpRuntimePoller;
     private final PiiPhiScrubber scrubber;
     private final Map<String, TelemetryAdapter> adapters;
     private final RestClient evidenceClient;
     private final RestClient graphClient;
+    private final RestClient catalogClient;
     private final boolean forwardDownstream;
 
     public DiscoveryIngestionService(
             DiscoveryRepository repository,
             SampleLocalScenarioGenerator sampleGenerator,
             CloudInventoryPollerGateway inventoryGateway,
+            GcpRuntimeTelemetryPoller gcpRuntimePoller,
             PiiPhiScrubber scrubber,
             List<TelemetryAdapter> adapterList,
             @Value("${uacrf.discovery.evidence-base-url}") String evidenceBaseUrl,
             @Value("${uacrf.discovery.graph-base-url}") String graphBaseUrl,
+            @Value("${uacrf.discovery.catalog-base-url:http://localhost:8083}") String catalogBaseUrl,
             @Value("${uacrf.discovery.forward-downstream:false}") boolean forwardDownstream) {
         this.repository = repository;
         this.sampleGenerator = sampleGenerator;
         this.inventoryGateway = inventoryGateway;
+        this.gcpRuntimePoller = gcpRuntimePoller;
         this.scrubber = scrubber;
         this.adapters = adapterList.stream().collect(Collectors.toMap(
                 a -> a.providerKey().toUpperCase(Locale.ROOT), Function.identity(), (a, b) -> a));
         this.evidenceClient = RestClient.builder().baseUrl(evidenceBaseUrl).build();
         this.graphClient = RestClient.builder().baseUrl(graphBaseUrl).build();
+        this.catalogClient = RestClient.builder().baseUrl(catalogBaseUrl).build();
         this.forwardDownstream = forwardDownstream;
     }
 
@@ -177,6 +184,28 @@ public class DiscoveryIngestionService {
         return result;
     }
 
+    @Transactional
+    public RuntimeTelemetryPollResult pollGcpRuntimeTelemetry(GcpRuntimeTelemetryPollRequest req) {
+        var result = gcpRuntimePoller.poll(req);
+        if (req.persist()) {
+            for (ObservationDto obs : result.observations()) {
+                repository.insertObservation(obs, CanonicalJson.toJson(obs));
+            }
+            repository.updateConnectionCollection(req.tenantId(), req.environmentId(), "GCP", Instant.now());
+            repository.insertOutbox(
+                    req.tenantId(), req.environmentId(),
+                    "discovery.gcp_runtime.polled", "CollectionRun", UUID.randomUUID().toString(),
+                    UUID.randomUUID(), CanonicalJson.toJson(Map.of(
+                            "provider", "GCP",
+                            "projectId", result.projectId(),
+                            "metricsCount", result.metricsCount(),
+                            "logsCount", result.logsCount()
+                    ))
+            );
+        }
+        return result;
+    }
+
     private void persistNormalizedBatch(UUID tenantId, UUID environmentId, InventoryNormalizationResult result) {
         for (ObservationDto obs : result.observations()) {
             repository.insertObservation(obs, CanonicalJson.toJson(obs));
@@ -199,21 +228,45 @@ public class DiscoveryIngestionService {
                         "computePlacementsCount", result.computePlacements().size()
                 ))
         );
-        forwardBatchDownstream(tenantId, environmentId, result.observations(), result.edges());
+        forwardBatchDownstream(tenantId, environmentId, result.observations(), result.edges(), result.computePlacements());
     }
 
     private void forwardBatchDownstream(UUID tenantId, UUID environmentId,
                                         List<ObservationDto> observations, List<DiscoveredEdgeDto> edges) {
+        forwardBatchDownstream(tenantId, environmentId, observations, edges, List.of());
+    }
+
+    private void forwardBatchDownstream(UUID tenantId, UUID environmentId,
+                                        List<ObservationDto> observations, List<DiscoveredEdgeDto> edges,
+                                        List<NormalizedComputePlacementDto> placements) {
         if (!forwardDownstream) {
             return;
         }
         try {
-            graphClient.post().uri("/v1/graph/project-edges")
-                    .body(Map.of("tenantId", tenantId, "environmentId", environmentId, "edges", edges))
-                    .retrieve().toBodilessEntity();
-            evidenceClient.post().uri("/v1/evidence/ingest-observations")
-                    .body(Map.of("tenantId", tenantId, "environmentId", environmentId, "observations", observations))
-                    .retrieve().toBodilessEntity();
+            if (!edges.isEmpty()) {
+                graphClient.post().uri("/v1/graph/project-edges")
+                        .body(Map.of("tenantId", tenantId, "environmentId", environmentId, "edges", edges))
+                        .retrieve().toBodilessEntity();
+            }
+            for (var p : placements) {
+                var body = new java.util.LinkedHashMap<String, Object>();
+                body.put("tenantId", tenantId);
+                body.put("environmentId", environmentId);
+                body.put("serviceCanonicalId", p.serviceCanonicalId());
+                body.put("cloudProvider", p.cloudProvider());
+                body.put("runtimeKind", p.runtimeKind());
+                body.put("region", p.region());
+                body.put("availabilityZone", p.availabilityZone());
+                body.put("failureDomain", p.failureDomain());
+                body.put("clusterOrPool", p.clusterOrPool());
+                body.put("minCapacity", p.minCapacity());
+                body.put("maxCapacity", p.maxCapacity());
+                body.put("currentCapacity", p.currentCapacity());
+                body.put("autoscalingEnabled", p.autoscalingEnabled());
+                catalogClient.post().uri("/v1/compute-placements")
+                        .body(body)
+                        .retrieve().toBodilessEntity();
+            }
         } catch (Exception ignored) {
             // Outbox record preserves durability if downstream is temporarily unavailable
         }

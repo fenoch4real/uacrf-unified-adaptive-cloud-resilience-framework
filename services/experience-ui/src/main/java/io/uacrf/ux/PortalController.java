@@ -522,6 +522,7 @@ public class PortalController {
         model.addAttribute("activeNav", "connections");
         model.addAttribute("connections", edge.getList("/v1/connections?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
         model.addAttribute("observations", edge.getList("/v1/telemetry/events?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
+        model.addAttribute("inventoryProfiles", edge.getList("/v1/inventory/profiles", Map.class));
         return "connections";
     }
 
@@ -537,6 +538,37 @@ public class PortalController {
             ra.addFlashAttribute("flashSuccess",
                     "Loaded SAMPLE_LOCAL fixture (" + res.get("observationsCreated") + " observations, "
                             + res.get("edgesDiscovered") + " graph edges).");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/settings/connections";
+    }
+
+    @PostMapping("/settings/connections/poll-cloud")
+    public String pollLiveCloud(@ModelAttribute("tenantId") UUID tenantId,
+                                @ModelAttribute("environmentId") UUID envId,
+                                @ModelAttribute("actorId") UUID actorId,
+                                @RequestParam(defaultValue = "GCP") String provider,
+                                @RequestParam(defaultValue = "*") String scopeFilter,
+                                @RequestParam(defaultValue = "true") boolean includeRuntimeTelemetry,
+                                RedirectAttributes ra) {
+        try {
+            var invRes = edge.postJson("/v1/inventory/poll", actorId, null, Map.of(
+                    "tenantId", tenantId, "environmentId", envId, "provider", provider, "scopeFilter", scopeFilter
+            ));
+            StringBuilder msg = new StringBuilder("Polled " + provider + " live inventory ("
+                    + invRes.getOrDefault("assetsNormalized", 0) + " assets, "
+                    + (invRes.get("edges") instanceof List<?> l ? l.size() : 0) + " graph edges)");
+            if ("GCP".equalsIgnoreCase(provider) && includeRuntimeTelemetry) {
+                var rtRes = edge.postJson("/v1/telemetry/poll/gcp", actorId, null, Map.of(
+                        "tenantId", tenantId, "environmentId", envId,
+                        "includeMetrics", true, "includeLogs", true, "windowMinutes", 60, "persist", true
+                ));
+                msg.append("; GCP Runtime Telemetry: ")
+                        .append(rtRes.getOrDefault("metricsCount", 0)).append(" metrics, ")
+                        .append(rtRes.getOrDefault("logsCount", 0)).append(" audit/log events.");
+            }
+            ra.addFlashAttribute("flashSuccess", msg.toString());
         } catch (RestClientResponseException ex) {
             ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
         }

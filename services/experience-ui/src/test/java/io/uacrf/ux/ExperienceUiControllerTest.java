@@ -10,8 +10,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(PortalController.class)
@@ -99,5 +101,21 @@ class ExperienceUiControllerTest {
         mockMvc.perform(get("/settings/admin-suite"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("admin-suite"));
+    }
+
+    @Test
+    void pollsLiveCloudInventoryAndGcpRuntimeTelemetryFromConnectionsPage() throws Exception {
+        when(edgeClient.postJson(eq("/v1/inventory/poll"), any(), any(), any()))
+                .thenReturn(java.util.Map.of("assetsNormalized", 5, "edges", List.of("e1", "e2")));
+        when(edgeClient.postJson(eq("/v1/telemetry/poll/gcp"), any(), any(), any()))
+                .thenReturn(java.util.Map.of("metricsCount", 2, "logsCount", 3));
+
+        mockMvc.perform(post("/settings/connections/poll-cloud")
+                        .param("provider", "GCP")
+                        .param("scopeFilter", "*")
+                        .param("includeRuntimeTelemetry", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/connections"))
+                .andExpect(flash().attributeExists("flashSuccess"));
     }
 }

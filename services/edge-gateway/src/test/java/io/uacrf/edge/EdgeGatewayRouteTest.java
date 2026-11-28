@@ -28,5 +28,11 @@ class EdgeGatewayRouteTest {
                 .andExpect(status().isBadGateway())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.code").value("CATALOG_UNAVAILABLE"));
+
+        // Inventory poll & profile routes forward cleanly to S03 Discovery owner
+        mockMvc.perform(get("/v1/inventory/profiles"))
+                .andExpect(status().isBadGateway())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.code").value("DISCOVERY_UNAVAILABLE"));
     }
 }

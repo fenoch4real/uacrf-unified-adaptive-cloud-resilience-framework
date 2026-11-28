@@ -2,7 +2,9 @@ package io.uacrf.discovery;
 
 import io.uacrf.discovery.adapter.CloudInventoryPollerGateway;
 import io.uacrf.discovery.adapter.GcpCredentialProvider;
+import io.uacrf.discovery.adapter.GcpRuntimeTelemetryPoller;
 import io.uacrf.discovery.api.DiscoveryDomainException;
+import io.uacrf.discovery.api.DiscoveryDtos.GcpRuntimeTelemetryPollRequest;
 import io.uacrf.discovery.api.DiscoveryDtos.RawCloudAssetRecord;
 import io.uacrf.discovery.service.PiiPhiScrubber;
 import org.junit.jupiter.api.Test;
@@ -210,5 +212,44 @@ class CloudInventoryPollerTests {
         saCreds.setRestClientForTesting(saBuilder.build());
         assertEquals("ya29.sa-jwt-token", saCreds.resolveAccessToken());
         saMock.verify();
+    }
+
+    @Test
+    void pollsMockedGcpMonitoringMetricsAndCloudLoggingAuditEntriesWithPiiScrubbing() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer mockServer = MockRestServiceServer.bindTo(builder).build();
+
+        GcpRuntimeTelemetryPoller poller = new GcpRuntimeTelemetryPoller(
+                new PiiPhiScrubber(),
+                new GcpCredentialProvider("mock-gcp-token", "", "https://oauth2.googleapis.com/token"),
+                true, "uacrf-sandbox-123",
+                "https://monitoring.googleapis.com",
+                "https://logging.googleapis.com"
+        );
+        poller.setRestClientForTesting(builder.build());
+
+        mockServer.expect(requestTo(org.hamcrest.Matchers.startsWith(
+                        "https://monitoring.googleapis.com/v3/projects/uacrf-sandbox-123/timeSeries")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"timeSeries":[{"metric":{"type":"storage.googleapis.com/storage/total_bytes"},"resource":{"type":"gcs_bucket","labels":{"bucket_name":"sample_gcp_bucket_uacrf"}},"unit":"By","points":[{"interval":{"endTime":"2026-11-28T04:00:00Z"},"value":{"doubleValue":1024.0}}]}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("https://logging.googleapis.com/v2/entries:list"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("""
+                        {"entries":[{"logName":"projects/uacrf-sandbox-123/logs/cloudaudit.googleapis.com%2Factivity","severity":"NOTICE","timestamp":"2026-11-28T04:01:00Z","resource":{"type":"gcs_bucket"},"protoPayload":{"methodName":"storage.buckets.create","serviceName":"storage.googleapis.com"}}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        var result = poller.poll(new GcpRuntimeTelemetryPollRequest(
+                TENANT_ID, ENV_ID, "uacrf-sandbox-123", "metric.type = \"storage.googleapis.com/storage/total_bytes\"",
+                true, true, 60, false));
+        assertEquals("GCP", result.provider());
+        assertEquals(1, result.metricsCount());
+        assertEquals(1, result.logsCount());
+        assertEquals(2, result.observations().size());
+        assertTrue(result.observations().stream().anyMatch(o -> "STORAGE_METRIC".equals(o.signalType()) && o.metricValue() == 1024.0));
+        assertTrue(result.observations().stream().anyMatch(o -> "DEPLOYMENT_CHANGE".equals(o.signalType())));
+        mockServer.verify();
     }
 }

@@ -208,4 +208,27 @@ public final class DiscoveryDtos {
             List<NormalizedAliasDto> aliases
     ) {
     }
+
+    public record GcpRuntimeTelemetryPollRequest(
+            @NotNull UUID tenantId,
+            @NotNull UUID environmentId,
+            String projectId,
+            String metricFilter,
+            Boolean includeMetrics,
+            Boolean includeLogs,
+            Integer windowMinutes,
+            boolean persist
+    ) {
+    }
+
+    public record RuntimeTelemetryPollResult(
+            String provider,
+            String projectId,
+            String telemetrySource,
+            int metricsCount,
+            int logsCount,
+            List<ObservationDto> observations,
+            String note
+    ) {
+    }
 }

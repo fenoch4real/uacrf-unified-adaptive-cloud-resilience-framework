@@ -91,7 +91,7 @@ public class EdgeProxyController {
         return forward(catalogClient, request, body, "CATALOG_UNAVAILABLE");
     }
 
-    @RequestMapping({"/v1/connections", "/v1/connections/**", "/v1/telemetry/**", "/v1/discovery/**"})
+    @RequestMapping({"/v1/connections", "/v1/connections/**", "/v1/telemetry/**", "/v1/discovery/**", "/v1/inventory/**"})
     public ResponseEntity<byte[]> routeToDiscovery(HttpServletRequest request,
                                                    @RequestBody(required = false) byte[] body) {
         return forward(discoveryClient, request, body, "DISCOVERY_UNAVAILABLE");

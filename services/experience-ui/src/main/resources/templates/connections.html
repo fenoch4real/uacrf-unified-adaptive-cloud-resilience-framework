@@ -15,6 +15,52 @@
     </div>
 
     <div class="uacrf-card mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+            <div>
+                <h2 class="h5 fw-bold mb-1">Live Cloud Discovery &amp; Runtime Telemetry Poll</h2>
+                <p class="text-secondary small mb-0">Execute a read-only Asset Inventory scan (plus GCP Cloud Monitoring v3 metrics &amp; Cloud Logging v2 audit entries).</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <span th:each="p : ${inventoryProfiles}"
+                      class="badge border text-dark bg-light">
+                    <span th:text="${p['provider']}">GCP</span>:
+                    <span th:class="${p['enabled'] == true} ? 'text-success fw-bold' : 'text-secondary'"
+                          th:text="${p['enabled'] == true} ? 'LIVE READY' : 'STANDBY'">STANDBY</span>
+                </span>
+            </div>
+        </div>
+        <form th:action="@{/settings/connections/poll-cloud}" method="post" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="pollProvider" class="form-label small fw-semibold mb-1">Cloud Provider</label>
+                <select id="pollProvider" name="provider" class="form-select form-select-sm">
+                    <option value="GCP" selected>GCP (Asset Inventory + Monitoring/Logs)</option>
+                    <option value="AWS">AWS (Resource Explorer 2)</option>
+                    <option value="AZURE">Azure (Resource Graph)</option>
+                    <option value="OCI">OCI (Search Service)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="pollFilter" class="form-label small fw-semibold mb-1">Scope / Resource Filter</label>
+                <input id="pollFilter" name="scopeFilter" type="text" class="form-control form-control-sm" value="*" />
+            </div>
+            <div class="col-md-3">
+                <div class="form-check mb-1">
+                    <input class="form-check-input" type="checkbox" id="includeRuntimeTelemetry"
+                           name="includeRuntimeTelemetry" value="true" checked />
+                    <label class="form-check-label small" for="includeRuntimeTelemetry">
+                        Include GCP Metrics &amp; Audit Logs
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-3 text-md-end">
+                <button type="submit" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-repeat me-1"></i> Poll Live Cloud Inventory &amp; Telemetry
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="uacrf-card mb-4">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
             <tr><th>Connection</th><th>Provider</th><th>Status</th><th>Access level</th><th>Provenance</th><th>Notes</th></tr>

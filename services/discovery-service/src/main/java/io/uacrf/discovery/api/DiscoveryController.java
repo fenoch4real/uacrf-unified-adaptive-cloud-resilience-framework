@@ -76,4 +76,9 @@ public class DiscoveryController {
     public InventoryNormalizationResult pollInventory(@Valid @RequestBody InventoryPollRequest request) {
         return service.pollCloudInventory(request);
     }
+
+    @PostMapping("/telemetry/poll/gcp")
+    public RuntimeTelemetryPollResult pollGcpRuntimeTelemetry(@Valid @RequestBody GcpRuntimeTelemetryPollRequest request) {
+        return service.pollGcpRuntimeTelemetry(request);
+    }
 }
