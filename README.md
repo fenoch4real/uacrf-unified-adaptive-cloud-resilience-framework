@@ -80,3 +80,10 @@ docker run --rm \
 ### 4. Multi-Cloud Sandbox Onboarding & Platform Reference
 - Multi-cloud setup instructions for GCP, AWS, Azure, OCI, and OpenTelemetry: [Local and target infrastructure guide](docs/deployment/LOCAL_AND_TARGET_INFRA.md)
 - Module map, product catalog SKUs, 131-requirement traceability rollup, and architecture index: [Platform reference](docs/Platform-reference.md)
+
+---
+
+## License
+
+Copyright (C) 2026 Olufemi O. Fabiyi.
+Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [LICENSE](LICENSE) for full terms.
