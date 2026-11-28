@@ -42,7 +42,7 @@ UACRF enforces one non-negotiable architectural boundary: **Advice is Not Author
 
 ## Published Paper
 
-The foundational research behind UACRF introduces a unified engineering and governance model for cloud and AI-agent resilience. Authored by **Olufemi O. Fabiyi** and **Michael M. Yeboah**, the paper connects dependency-aware evidence qualification and failure-domain assessment with bounded recovery actions, independent post-action validation, and verified learning from incidents. Its guiding architectural boundary is simple and strict: **advice is not authority** — neither an AI/human recommendation nor a cloud provider's `200 OK` control-plane acknowledgment proves that recovery actually restored customer service.
+The foundational research behind UACRF introduces a unified engineering and governance model for cloud and AI-agent resilience. Authored by **Oluwafemi O. Fabiyi** and **Michael M. Yeboah**, the paper connects dependency-aware evidence qualification and failure-domain assessment with bounded recovery actions, independent post-action validation, and verified learning from incidents. Its guiding architectural boundary is simple and strict: **advice is not authority** — neither an AI/human recommendation nor a cloud provider's `200 OK` control-plane acknowledgment proves that recovery actually restored customer service.
 
 **Citation:**
 Fabiyi, O. O., & Yeboah, M. M. (2026). [*UACRF: A Unified Adaptive Framework
@@ -85,5 +85,5 @@ docker run --rm \
 
 ## License
 
-Copyright (C) 2026 Olufemi O. Fabiyi.
+Copyright (C) 2026 Oluwafemi O. Fabiyi.
 Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [LICENSE](LICENSE) for full terms.
