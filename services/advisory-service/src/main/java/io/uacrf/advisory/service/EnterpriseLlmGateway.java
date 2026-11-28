@@ -1,12 +1,13 @@
 package io.uacrf.advisory.service;
 
 import io.uacrf.advisory.api.AdvisoryDomainException;
+import io.uacrf.crypto.GcpOAuthAssertionSupport;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -29,9 +30,26 @@ public class EnterpriseLlmGateway {
     private final boolean externalEnabled;
     private final String activeProvider;
     private final String apiKey;
+    private final GcpVertexCredentialResolver gcpVertexCredentialResolver;
     private final Map<String, LlmProviderProfile> profiles;
-    private final RestClient restClient;
+    private RestClient restClient;
 
+    public EnterpriseLlmGateway(
+            String openAiUrl, String openAiModel,
+            String bedrockRegion, String bedrockModelId, String bedrockUrlOverride,
+            String azureUrl, String azureApiVersion, String azureDeployment,
+            String gcpProject, String gcpLocation, String gcpModel, String gcpUrlOverride,
+            String ociRegion, String ociCompartment, String ociModelId, String ociUrlOverride,
+            boolean externalEnabled, String activeProvider, String apiKey) {
+        this(externalEnabled, activeProvider, apiKey, openAiUrl, openAiModel,
+                bedrockRegion, bedrockModelId, bedrockUrlOverride,
+                azureUrl, azureApiVersion, azureDeployment,
+                gcpProject, gcpLocation, gcpModel, gcpUrlOverride,
+                ociRegion, ociCompartment, ociModelId, ociUrlOverride,
+                new GcpVertexCredentialResolver("", "https://oauth2.googleapis.com/token"));
+    }
+
+    @Autowired
     public EnterpriseLlmGateway(
             @Value("${uacrf.advisory.llm.enabled:false}") boolean externalEnabled,
             @Value("${uacrf.advisory.llm.provider:DETERMINISTIC}") String activeProvider,
@@ -51,10 +69,12 @@ public class EnterpriseLlmGateway {
             @Value("${uacrf.advisory.llm.oci.region:us-chicago-1}") String ociRegion,
             @Value("${uacrf.advisory.llm.oci.compartment-ocid:}") String ociCompartment,
             @Value("${uacrf.advisory.llm.oci.model-id:cohere.command-r-plus}") String ociModelId,
-            @Value("${uacrf.advisory.llm.oci.endpoint-url:}") String ociUrlOverride) {
+            @Value("${uacrf.advisory.llm.oci.endpoint-url:}") String ociUrlOverride,
+            GcpVertexCredentialResolver gcpVertexCredentialResolver) {
         this.externalEnabled = externalEnabled;
         this.activeProvider = activeProvider.trim().toUpperCase(Locale.ROOT);
         this.apiKey = apiKey;
+        this.gcpVertexCredentialResolver = gcpVertexCredentialResolver;
         this.restClient = RestClient.create();
 
         String resolvedBedrockUrl = (bedrockUrlOverride != null && !bedrockUrlOverride.isBlank())
@@ -72,11 +92,29 @@ public class EnterpriseLlmGateway {
                 : "https://inference.generativeai." + ociRegion + ".oci.oraclecloud.com/20231130/actions/chat";
 
         this.profiles = Map.of(
-                "OPENAI", new LlmProviderProfile("OPENAI", openAiModel, resolvedBedrockUrl.isBlank() ? openAiUrl : openAiUrl, "BEARER", Map.of()),
+                "OPENAI", new LlmProviderProfile("OPENAI", openAiModel, openAiUrl, "BEARER", Map.of()),
                 "AMAZON_BEDROCK", new LlmProviderProfile("AMAZON_BEDROCK", bedrockModelId, resolvedBedrockUrl, "BEARER", Map.of("region", bedrockRegion)),
                 "AZURE_OPENAI", new LlmProviderProfile("AZURE_OPENAI", azureDeployment, resolvedAzureUrl, "API_KEY_HEADER", Map.of("apiVersion", azureApiVersion)),
-                "GOOGLE_VERTEX", new LlmProviderProfile("GOOGLE_VERTEX", gcpModel, resolvedVertexUrl, "BEARER", Map.of("projectId", gcpProject, "location", gcpLocation)),
+                "GOOGLE_VERTEX", new LlmProviderProfile("GOOGLE_VERTEX", gcpModel, resolvedVertexUrl, "OAUTH2_OR_BEARER", Map.of("projectId", gcpProject, "location", gcpLocation)),
                 "OCI_GENAI", new LlmProviderProfile("OCI_GENAI", ociModelId, resolvedOciUrl, "BEARER", Map.of("region", ociRegion, "compartmentOcid", ociCompartment))
+        );
+    }
+
+    public void setRestClientForTesting(RestClient customClient) {
+        this.restClient = customClient;
+    }
+
+    public Map<String, Object> getGatewayStatus() {
+        boolean vertexCredsPresent = (apiKey != null && !apiKey.isBlank())
+                || gcpVertexCredentialResolver.hasLocalCredentialsConfigured();
+        String effectiveEngine = (!externalEnabled || "DETERMINISTIC".equals(activeProvider))
+                ? "DETERMINISTIC_GROUNDED"
+                : activeProvider;
+        return Map.of(
+                "externalEnabled", externalEnabled,
+                "configuredProvider", activeProvider,
+                "effectiveEngine", effectiveEngine,
+                "vertexCredentialsAvailable", vertexCredsPresent
         );
     }
 
@@ -105,10 +143,8 @@ public class EnterpriseLlmGateway {
     }
 
     public void validateSafeEndpoint(String url) {
-        URI uri = URI.create(url);
-        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
-        if (host.equals("169.254.169.254") || host.equals("metadata.google.internal")
-                || host.startsWith("169.254.") || host.equals("localhost") || host.equals("127.0.0.1")) {
+        if (GcpOAuthAssertionSupport.isUnsafeEgressHost(url)) {
+            String host = url == null ? "" : java.net.URI.create(url).getHost();
             throw new AdvisoryDomainException(HttpStatus.FORBIDDEN, "SSRF_EGRESS_BLOCKED",
                     "Blocked unsafe LLM gateway target host [" + host + "] per SSRF egress policy.");
         }
@@ -146,37 +182,92 @@ public class EnterpriseLlmGateway {
 
     public SynthesisOutcome synthesize(String queryPrompt, String contextRef) {
         String safePrompt = scrubOutboundPrompt(queryPrompt);
-        if (!externalEnabled || "DETERMINISTIC".equals(activeProvider) || apiKey == null || apiKey.isBlank()) {
-            return new SynthesisOutcome(
-                    "DETERMINISTIC_GROUNDED",
-                    "Source-backed draft for: " + safePrompt,
-                    "Advisory draft synthesized against approved runbooks and graph context " + contextRef
-                            + ". Empirical probes remain required."
-            );
+        if (!externalEnabled || "DETERMINISTIC".equals(activeProvider)) {
+            return deterministicOutcome(safePrompt, contextRef);
         }
         LlmProviderProfile profile = getProfile(activeProvider);
         validateSafeEndpoint(profile.endpointUrl());
+
+        String authToken;
+        try {
+            authToken = "GOOGLE_VERTEX".equals(profile.provider())
+                    ? gcpVertexCredentialResolver.resolveAccessToken(apiKey)
+                    : (apiKey == null ? "" : apiKey.trim());
+        } catch (AdvisoryDomainException ex) {
+            if ("SSRF_EGRESS_BLOCKED".equals(ex.getCode())) {
+                throw ex;
+            }
+            return fallbackOutcome(profile.provider(), safePrompt, ex);
+        }
+
+        if (authToken.isBlank()) {
+            return deterministicOutcome(safePrompt, contextRef);
+        }
+
         try {
             var spec = restClient.post().uri(profile.endpointUrl());
             if ("API_KEY_HEADER".equals(profile.authMode())) {
-                spec.header("api-key", apiKey);
+                spec.header("api-key", authToken);
             } else {
-                spec.header("Authorization", "Bearer " + apiKey);
+                spec.header("Authorization", "Bearer " + authToken);
             }
             @SuppressWarnings("unchecked")
             Map<String, Object> response = spec.body(buildProviderPayload(profile.provider(), safePrompt, contextRef))
                     .retrieve()
                     .body(Map.class);
-            String summary = response != null ? String.valueOf(response) : safePrompt;
+            String summary = extractResponseText(profile.provider(), response, safePrompt);
             return new SynthesisOutcome(profile.provider(), "LLM draft (" + profile.provider() + "): " + safePrompt, summary);
         } catch (Exception ex) {
-            return new SynthesisOutcome(
-                    profile.provider() + "_FALLBACK",
-                    "Source-backed fallback draft for: " + safePrompt,
-                    "External LLM unavailable (" + ex.getClass().getSimpleName()
-                            + "); deterministic grounded summary preserved. Empirical verification still required."
-            );
+            return fallbackOutcome(profile.provider(), safePrompt, ex);
         }
+    }
+
+    private SynthesisOutcome deterministicOutcome(String safePrompt, String contextRef) {
+        return new SynthesisOutcome(
+                "DETERMINISTIC_GROUNDED",
+                "Source-backed draft for: " + safePrompt,
+                "Advisory draft synthesized against approved runbooks and graph context " + contextRef
+                        + ". Empirical probes remain required."
+        );
+    }
+
+    private SynthesisOutcome fallbackOutcome(String provider, String safePrompt, Exception ex) {
+        return new SynthesisOutcome(
+                provider + "_FALLBACK",
+                "Source-backed fallback draft for: " + safePrompt,
+                "External LLM unavailable (" + ex.getClass().getSimpleName()
+                        + "); deterministic grounded summary preserved. Empirical verification still required."
+        );
+    }
+
+    String extractResponseText(String provider, Map<String, Object> response, String fallbackPrompt) {
+        if (response == null) {
+            return fallbackPrompt;
+        }
+        String extracted = switch (provider) {
+            case "GOOGLE_VERTEX" -> firstNestedText(response, List.of("candidates", 0, "content", "parts", 0, "text"));
+            case "AMAZON_BEDROCK" -> firstNestedText(response, List.of("output", "message", "content", 0, "text"));
+            case "OCI_GENAI" -> firstNestedText(response, List.of("chatResponse", "text"));
+            default -> firstNestedText(response, List.of("choices", 0, "message", "content"));
+        };
+        return (extracted != null && !extracted.isBlank()) ? extracted.trim() : String.valueOf(response);
+    }
+
+    private String firstNestedText(Object current, List<Object> path) {
+        Object cursor = current;
+        for (Object step : path) {
+            if (cursor == null) {
+                return null;
+            }
+            if (step instanceof String key && cursor instanceof Map<?, ?> map) {
+                cursor = map.get(key);
+            } else if (step instanceof Integer idx && cursor instanceof List<?> list) {
+                cursor = (idx >= 0 && idx < list.size()) ? list.get(idx) : null;
+            } else {
+                return null;
+            }
+        }
+        return cursor instanceof String str ? str : null;
     }
 
     public record LlmProviderProfile(

@@ -35,6 +35,8 @@ uacrf:
         location: ${UACRF_GCP_VERTEX_LOCATION:us-central1}
         model: ${UACRF_GCP_VERTEX_MODEL:gemini-2.0-flash}
         endpoint-url: ${UACRF_GCP_VERTEX_URL:}
+        credentials-file: ${UACRF_LLM_GOOGLE_CREDENTIALS_FILE:}
+        oauth-token-url: ${UACRF_LLM_GOOGLE_OAUTH_TOKEN_URL:https://oauth2.googleapis.com/token}
       oci:
         region: ${UACRF_OCI_GENAI_REGION:us-chicago-1}
         compartment-ocid: ${UACRF_OCI_COMPARTMENT_OCID:}

@@ -822,8 +822,35 @@ public class PortalController {
                            @ModelAttribute("environmentId") UUID envId) {
         model.addAttribute("activeNav", "advisory");
         model.addAttribute("config", edge.getObjectOrEmpty("/v1/advisory/config?tenantId=" + tenantId + "&environmentId=" + envId));
+        model.addAttribute("llmStatus", edge.getObjectOrEmpty("/v1/advisory/llm-status"));
         model.addAttribute("findings", edge.getList("/v1/advisory/findings?tenantId=" + tenantId + "&environmentId=" + envId, Map.class));
         return "advisory";
+    }
+
+    @PostMapping("/advisory/runs")
+    public String runAdvisoryAnalysis(@ModelAttribute("tenantId") UUID tenantId,
+                                      @ModelAttribute("environmentId") UUID envId,
+                                      @ModelAttribute("actorId") UUID actorId,
+                                      @ModelAttribute("actorName") String actorName,
+                                      @RequestParam(defaultValue = "CASE-SANDBOX-01") String caseCode,
+                                      @RequestParam(defaultValue = "GR-1044") String contextRef,
+                                      @RequestParam String queryPrompt,
+                                      RedirectAttributes ra) {
+        try {
+            var created = edge.postJson("/v1/advisory/runs", actorId, UUID.randomUUID().toString(), Map.of(
+                    "tenantId", tenantId,
+                    "environmentId", envId,
+                    "caseCode", caseCode,
+                    "contextRef", contextRef,
+                    "queryPrompt", queryPrompt,
+                    "humanReviewer", actorName
+            ));
+            ra.addFlashAttribute("flashSuccess", "Advisory draft synthesized via "
+                    + created.getOrDefault("producerRole", "S09 Advisory") + ".");
+        } catch (RestClientResponseException ex) {
+            ra.addFlashAttribute("flashError", ex.getResponseBodyAsString());
+        }
+        return "redirect:/advisory";
     }
 
     @PostMapping("/advisory/toggle")

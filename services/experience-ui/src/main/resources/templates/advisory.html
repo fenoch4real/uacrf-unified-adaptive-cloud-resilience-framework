@@ -7,6 +7,8 @@
             <div class="d-flex align-items-center gap-2">
                 <h1 class="h3 fw-bold mb-0">Review advisory findings</h1>
                 <span class="uacrf-pill uacrf-pill-warning">Human review required</span>
+                <span class="uacrf-pill uacrf-pill-info font-monospace"
+                      th:text="${'Engine: ' + (llmStatus['effectiveEngine'] != null ? llmStatus['effectiveEngine'] : 'DETERMINISTIC_GROUNDED')}"></span>
             </div>
             <p class="text-secondary mb-0">Solution-specific agent advisors assist with analysis; critic dissent is preserved and never auto-cleared.</p>
         </div>
@@ -17,6 +19,37 @@
             <input type="hidden" name="enabled" th:value="${config['advisoryEnabled'] == true ? 'false' : 'true'}">
             <button type="submit" class="btn btn-sm btn-outline-dark"
                     th:text="${config['advisoryEnabled'] == true ? 'Disable Advisors' : 'Enable Advisors'}"></button>
+        </form>
+    </div>
+
+    <div class="uacrf-card mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h2 class="h6 fw-bold mb-0">Synthesize advisory draft (S09)</h2>
+                <div class="small text-secondary">
+                    Runs bounded analysis through PII scrubbing, prompt-injection checks, and deterministic or Vertex AI synthesis.
+                </div>
+            </div>
+            <span class="small font-monospace text-secondary"
+                  th:text="${'Provider: ' + (llmStatus['configuredProvider'] != null ? llmStatus['configuredProvider'] : 'DETERMINISTIC') + (llmStatus['vertexCredentialsAvailable'] == true ? ' · GCP credentials detected' : '')}"></span>
+        </div>
+        <form th:action="@{/advisory/runs}" method="post" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label for="caseCode" class="form-label small fw-semibold mb-1">Case code</label>
+                <input id="caseCode" name="caseCode" class="form-control form-control-sm" value="AR-GCP-01" required>
+            </div>
+            <div class="col-md-2">
+                <label for="contextRef" class="form-label small fw-semibold mb-1">Context ref</label>
+                <input id="contextRef" name="contextRef" class="form-control form-control-sm" value="GR-1044" required>
+            </div>
+            <div class="col-md-6">
+                <label for="queryPrompt" class="form-label small fw-semibold mb-1">Analysis prompt</label>
+                <input id="queryPrompt" name="queryPrompt" class="form-control form-control-sm"
+                       placeholder="Summarize observed Cloud Run / GCS telemetry readiness gaps" required>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-sm btn-primary">Run advisor</button>
+            </div>
         </form>
     </div>
 

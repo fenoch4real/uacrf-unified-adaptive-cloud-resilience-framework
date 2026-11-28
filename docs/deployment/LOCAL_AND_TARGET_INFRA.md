@@ -144,6 +144,20 @@ By default, `S11 recovery-service` executes in safe `DRY_RUN_SIMULATED` mode (`u
    ```
 3. Flip the tenant live-mode toggle ON in UX01 (`/recover`) or via `POST /v1/recovery/live-mode`.
 
+#### Optional: Live Vertex AI Advisory Synthesis (`S09`, `DETERMINISTIC` by Default)
+By default, `S09 advisory-service` runs with `uacrf.advisory.llm.enabled=false` (`DETERMINISTIC_GROUNDED`) so advisory drafts require zero external LLM keys. To enable live **Google Vertex AI (Gemini)** synthesis using GCP Service Account JSON or ADC credentials:
+1. Enable `Vertex AI API` (`aiplatform.googleapis.com`) in your sandbox project and grant `roles/aiplatform.user` to your Vertex service account (or ADC user).
+2. Start `advisory-service` with:
+   ```bash
+   export UACRF_LLM_ENABLED=true
+   export UACRF_LLM_PROVIDER=GOOGLE_VERTEX
+   export UACRF_GCP_VERTEX_PROJECT=<YOUR_GCP_PROJECT_ID>
+   export UACRF_GCP_VERTEX_LOCATION=us-central1
+   export UACRF_GCP_VERTEX_MODEL=gemini-2.0-flash
+   export UACRF_LLM_GOOGLE_CREDENTIALS_FILE="$HOME/.config/gcloud/uacrf-vertex.json" # optional; falls back to GOOGLE_APPLICATION_CREDENTIALS or gcloud ADC
+   ```
+3. Run bounded analysis in UX01 (`/advisory` -> **Synthesize advisory draft**) or `POST /v1/advisory/runs`. PII scrubbing, SSRF metadata blocks, token budgets, prompt-injection filters, and Critic dissent preservation (`BLOCKING_CONCERN` / `UNRESOLVED`) remain enforced; if Vertex AI is unreachable, synthesis safely falls back to `GOOGLE_VERTEX_FALLBACK`.
+
 ---
 
 ### 4.2 Amazon Web Services (AWS) — GUI Console & CLI Setup

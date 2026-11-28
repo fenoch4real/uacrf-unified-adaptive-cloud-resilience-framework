@@ -37,6 +37,11 @@ public class AdvisoryController {
         return llmGateway.listProviderProfiles();
     }
 
+    @GetMapping("/v1/advisory/llm-status")
+    public Map<String, Object> getLlmStatus() {
+        return llmGateway.getGatewayStatus();
+    }
+
     @PostMapping("/v1/advisory/config/toggle")
     public AdvisoryConfigDto toggle(@RequestParam UUID tenantId,
                                     @RequestParam UUID environmentId,

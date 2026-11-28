@@ -125,5 +125,16 @@ class ExperienceUiControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/recover"))
                 .andExpect(flash().attributeExists("flashSuccess"));
+
+        when(edgeClient.postJson(eq("/v1/advisory/runs"), any(), any(), any()))
+                .thenReturn(java.util.Map.of("producerRole", "Evidence assistant (GOOGLE_VERTEX)"));
+
+        mockMvc.perform(post("/advisory/runs")
+                        .param("caseCode", "AR-GCP-01")
+                        .param("contextRef", "GR-1044")
+                        .param("queryPrompt", "Summarize sandbox readiness"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/advisory"))
+                .andExpect(flash().attributeExists("flashSuccess"));
     }
 }
