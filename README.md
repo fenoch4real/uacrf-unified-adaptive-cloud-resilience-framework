@@ -1,5 +1,9 @@
 # UACRF — Unified Adaptive Cloud Resilience Framework
 
+**UACRF** is an enterprise operational resilience platform for multi-cloud infrastructure (`GCP`, `AWS`, `Azure`, `OCI`, `Kubernetes`), critical customer journeys, and governed AI/agent workloads. It unifies **Assess**, **Control**, **Recover**, **Evidence**, and **Learn** around one strict architectural principle—**advice is not authority**—so every resilience decision and recovery action is backed by qualified telemetry, dependency-graph path independence, policy approvals, cross-layer post-action validation, and tamper-evident compliance evidence.
+
+---
+
 ## Why UACRF Exists (The Problem Statement)
 
 Modern enterprise digital services span multiple cloud providers, distributed microservices, external third-party APIs, and autonomous AI/ML agents. During failures or rapid change, engineering and risk teams face five structural gaps:
