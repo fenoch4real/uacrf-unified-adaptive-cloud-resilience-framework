@@ -96,6 +96,10 @@ public class CloudInventoryPollerGateway {
             Map.entry("compute.googleapis.com/instancegroupmanager", new NativeTypeRule("INF-CMP", "ComputeNode", "RUNS_ON", "MIG", "MANDATORY")),
             Map.entry("container.googleapis.com/cluster", new NativeTypeRule("PLT-K8S", "Cluster", "DEPLOYED_IN", "GKE", "MANDATORY")),
             Map.entry("run.googleapis.com/service", new NativeTypeRule("APP-SLO", "ApplicationComponent", "RUNS_ON", "CLOUD_RUN", "MANDATORY")),
+            Map.entry("iam.googleapis.com/serviceaccount", new NativeTypeRule("SEC-IAM", "Identity", "USES_IDENTITY", "IAM", "MANDATORY")),
+            Map.entry("iam.googleapis.com/serviceaccountkey", new NativeTypeRule("SEC-IAM", "Identity", "USES_IDENTITY", "IAM", "OPTIONAL")),
+            Map.entry("cloudresourcemanager.googleapis.com/project", new NativeTypeRule("PLT-OBS-INV", "CloudResource", "DEPENDS_ON", "GCP_PROJECT", "OPTIONAL")),
+            Map.entry("cloudbilling.googleapis.com/projectbillinginfo", new NativeTypeRule("PLT-OBS-INV", "CloudResource", "DEPENDS_ON", "GCP_BILLING", "OPTIONAL")),
             Map.entry("compute.googleapis.com/forwardingrule", new NativeTypeRule("INF-NET", "Network", "ROUTES_TO", "CLOUD_LB", "MANDATORY")),
             Map.entry("dns.googleapis.com/managedzone", new NativeTypeRule("INF-NET", "DNSService", "USES_DNS", "CLOUD_DNS", "MANDATORY")),
             Map.entry("storage.googleapis.com/bucket", new NativeTypeRule("INF-STO-OBJ", "DataStore", "READS_FROM", "GCS", "MANDATORY")),
@@ -444,8 +448,11 @@ public class CloudInventoryPollerGateway {
         if (norm.contains("compute") || norm.contains("autoscal") || norm.contains("instance")) {
             return new NativeTypeRule("INF-CMP", "ComputeNode", "RUNS_ON", "COMPUTE", "MANDATORY");
         }
-        if (norm.contains("sql") || norm.contains("db") || norm.contains("dynamo") || norm.contains("cosmos")) {
+        if (norm.contains("sql") || norm.contains("database") || norm.contains("rds") || norm.contains("dynamo") || norm.contains("cosmos") || norm.contains("spanner") || norm.contains("firestore") || norm.contains("bigtable")) {
             return new NativeTypeRule("INF-DB-REL", "Database", "READS_FROM", "DATABASE", "MANDATORY");
+        }
+        if (norm.contains("serviceaccount") || norm.contains("iam:") || norm.contains("iam.") || norm.contains("/role")) {
+            return new NativeTypeRule("SEC-IAM", "Identity", "USES_IDENTITY", "IAM", "MANDATORY");
         }
         if (norm.contains("storage") || norm.contains("bucket") || norm.contains("s3") || norm.contains("blob")) {
             return new NativeTypeRule("INF-STO-OBJ", "DataStore", "READS_FROM", "OBJECT_STORAGE", "MANDATORY");

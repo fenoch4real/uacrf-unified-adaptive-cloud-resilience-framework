@@ -158,6 +158,17 @@ class CloudInventoryPollerTests {
         assertEquals(4, batch.edges().size());
         assertEquals(1, batch.computePlacements().size());
         assertTrue(batch.aliases().stream().noneMatch(a -> a.providerResourceId().contains("alice@example.com")));
+
+        var gcpIamAndBilling = gateway.normalizeBatch(TENANT_ID, ENV_ID, "GCP", "CLOUD_ASSET_FIXTURE", List.of(
+                new RawCloudAssetRecord("//cloudbilling.googleapis.com/projects/uacrf-sandbox-123/billingInfo",
+                        "cloudbilling.googleapis.com/ProjectBillingInfo", "billingInfo", null,
+                        "global", null, null, null, null, null, null, Map.of()),
+                new RawCloudAssetRecord("//iam.googleapis.com/projects/uacrf-sandbox-123/serviceAccounts/123",
+                        "iam.googleapis.com/ServiceAccount", "uacrf-discovery-ro", null,
+                        "global", null, null, null, null, null, null, Map.of())
+        ));
+        assertEquals("CloudResource", gcpIamAndBilling.edges().get(0).targetLabel());
+        assertEquals("Identity", gcpIamAndBilling.edges().get(2).targetLabel());
     }
 
     @Test
